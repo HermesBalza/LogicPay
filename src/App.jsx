@@ -157,8 +157,12 @@ const StoreCard = ({ store, onEdit }) => (
         className="card cursor-pointer group hover:border-[#6bbdb7]/60 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/10 relative overflow-hidden bg-white/80 backdrop-blur-sm border-gray-100/50 hover:-translate-y-2 active:scale-95"
     >
         <div className="flex justify-between items-start mb-5">
-            <div className="bg-[#f9f9f9] p-3 rounded-2xl group-hover:bg-[#6bbdb7]/10 transition-colors border border-gray-100/50">
-                <StoreIcon className="text-gray-400 group-hover:text-[#6bbdb7]" size={20} />
+            <div className="w-12 h-12 bg-[#f9f9f9] rounded-2xl group-hover:bg-[#6bbdb7]/10 transition-colors border border-gray-100/50 overflow-hidden flex items-center justify-center">
+                {store.imagen ? (
+                    <img src={store.imagen} alt={store.nombre} className="w-full h-full object-cover" />
+                ) : (
+                    <StoreIcon className="text-gray-400 group-hover:text-[#6bbdb7]" size={20} />
+                )}
             </div>
             <span className="bg-[#303a7f]/5 text-[#303a7f] text-[10px] font-black px-3 py-1.5 rounded-xl self-start uppercase tracking-widest border border-[#303a7f]/10 shadow-sm group-hover:bg-[#303a7f] group-hover:text-white transition-all duration-300">
                 {store.codigo || 'S/N'}
@@ -251,6 +255,17 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
         setIsEditing(false);
     };
 
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                updateField('imagen', reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSave = () => {
         onSave(editedStore);
         setIsEditing(false);
@@ -318,15 +333,27 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
                                 className="absolute top-0 left-0 w-full h-20"
                             />
                             <div className="relative inline-block group mb-6">
-                                <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7] group-hover:shadow-inner">
-                                    <Camera className="text-gray-300 group-hover:text-[#6bbdb7]" size={40} />
+                                <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7] group-hover:shadow-inner relative">
+                                    {editedStore.imagen ? (
+                                        <img src={editedStore.imagen} alt="Store Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <Camera className="text-gray-300 group-hover:text-[#6bbdb7]" size={40} />
+                                    )}
                                 </div>
-                                <div
-                                    style={{ backgroundColor: '#303a7f' }}
-                                    className="absolute -bottom-2 -right-2 p-3 rounded-xl shadow-xl shadow-blue-900/20 hover:scale-110 transition-all text-white border-2 border-white"
-                                >
-                                    <Edit2 size={16} />
-                                </div>
+                                {isEditing && (
+                                    <label
+                                        style={{ backgroundColor: '#303a7f' }}
+                                        className="absolute -bottom-2 -right-2 p-3 rounded-xl shadow-xl shadow-blue-900/20 hover:scale-110 transition-all text-white border-2 border-white cursor-pointer"
+                                    >
+                                        <Edit2 size={16} />
+                                        <input
+                                            type="file"
+                                            className="hidden"
+                                            accept="image/*"
+                                            onChange={handleImageChange}
+                                        />
+                                    </label>
+                                )}
                             </div>
                             <h2 className="text-2xl font-black text-[#333333] tracking-tighter mb-1.5">{editedStore.nombre}</h2>
                             <div className="flex flex-col items-center gap-2">
@@ -645,6 +672,17 @@ const StoreAddView = ({ onSave, onBack }) => {
         setNewStore(prev => ({ ...prev, [field]: value }));
     };
 
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                updateField('imagen', reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const updateTarifa = (cargo, tipo, value) => {
         setNewStore(prev => ({
             ...prev,
@@ -693,10 +731,26 @@ const StoreAddView = ({ onSave, onBack }) => {
                     {/* Left Panel: Store Identity */}
                     <div className="lg:col-span-4 space-y-6">
                         <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border border-gray-50">
-                            <div className="relative inline-block mb-6">
-                                <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
-                                    <StoreIcon className="text-gray-200" size={40} />
+                            <div className="relative inline-block group mb-6">
+                                <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7] group-hover:shadow-inner relative">
+                                    {newStore.imagen ? (
+                                        <img src={newStore.imagen} alt="Preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <StoreIcon className="text-gray-200" size={40} />
+                                    )}
                                 </div>
+                                <label
+                                    style={{ backgroundColor: '#303a7f' }}
+                                    className="absolute -bottom-2 -right-2 p-3 rounded-xl shadow-xl shadow-blue-900/20 hover:scale-110 transition-all text-white border-2 border-white cursor-pointer"
+                                >
+                                    <Plus size={16} />
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={handleImageChange}
+                                    />
+                                </label>
                             </div>
                             <div className="space-y-3">
                                 <div className="group text-left">
@@ -877,6 +931,7 @@ function App() {
     const [editingStore, setEditingStore] = useState(null);
     const [isAddingStore, setIsAddingStore] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado', 'desconectado', 'sincronizando', 'conectando'
     const [user, setUser] = useState(() => {
         const saved = localStorage.getItem('lgm_user');
         return saved ? JSON.parse(saved) : null;
@@ -913,10 +968,13 @@ function App() {
             const response = await fetch(API_URL);
             const data = await response.json();
             setStores(Array.isArray(data) ? data : []);
+            setDbStatus('conectado');
         } catch (error) {
             console.error("Error cargando base de datos:", error);
+            setDbStatus('desconectado');
         } finally {
-            setIsLoading(false);
+            setIsLoading(true); // Se mantiene en true brevemente para el HUD si es necesario, pero el status manda
+            setTimeout(() => setIsLoading(false), 500);
         }
     };
 
@@ -1038,6 +1096,16 @@ function App() {
                         ))}
                     </nav>
 
+                    {/* Connection Indicator at bottom of Sidebar */}
+                    <div className="mt-auto pt-6 border-t border-gray-50 flex flex-col gap-1">
+                        <div className="flex items-center gap-2 pl-2">
+                            <div className={`w-2 h-2 rounded-full animate-pulse ${isLoading ? 'bg-[#6bbdb7]' : (dbStatus === 'conectado' ? 'bg-green-500' : 'bg-red-500')}`} />
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${isLoading ? 'text-[#6bbdb7]' : (dbStatus === 'conectado' ? 'text-green-600' : 'text-red-500')}`}>
+                                {isLoading ? 'Sincronizando' : (dbStatus === 'conectado' ? 'Conectado' : 'Desconectado')}
+                            </span>
+                        </div>
+                    </div>
+
                 </div>
             </aside>
 
@@ -1057,12 +1125,6 @@ function App() {
                             </h2>
                             <p className="text-[#6bbdb7] max-w-lg text-[8px] font-black leading-snug uppercase tracking-widest">Ecosistema inteligente para la gestión de Logic Group Management.</p>
 
-                            {isLoading && (
-                                <div className="mt-4 flex items-center gap-2.5 px-4 py-2 bg-white/50 backdrop-blur-sm border border-[#6bbdb7]/20 rounded-xl self-start animate-in fade-in duration-300">
-                                    <div className="w-1.5 h-1.5 bg-[#6bbdb7] rounded-full animate-ping" />
-                                    <span className="text-[9px] font-black text-[#303a7f] uppercase tracking-widest opacity-80">Sincronizando con Google Sheets...</span>
-                                </div>
-                            )}
                         </div>
 
                         {/* User Card - Header right side */}
