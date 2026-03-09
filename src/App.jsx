@@ -23,15 +23,114 @@ import {
     Camera,
     ArrowLeft,
     UserPlus,
-    ChevronDown
+    ChevronDown,
+    Lock,
+    LogOut
 } from 'lucide-react';
 
 // --- Sub-Components ---
 
+const LoginView = ({ onLogin }) => {
+    const [selectedUser, setSelectedUser] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState(false);
+
+    const authorizedUsers = [
+        { name: "David Torres", role: "Asistente" },
+        { name: "Nirvana Márquez", role: "Asistente" },
+        { name: "Luis Rojas", role: "CEO" },
+        { name: "Reynaldo González", role: "CEO" },
+        { name: "Hermes Balza", role: "Desarrollador" },
+    ];
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        const matchedUser = authorizedUsers.find(u => u.name.toLowerCase() === selectedUser.trim().toLowerCase());
+        if (matchedUser && password === 'admin') {
+            onLogin(matchedUser.name);
+        } else {
+            setError(true);
+            setTimeout(() => setError(false), 2000);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#f9f9f9] overflow-hidden font-sans">
+            {/* Background Decorations */}
+            <div
+                style={{ backgroundColor: 'rgba(48,58,127,0.08)' }}
+                className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] blur-[120px] rounded-full animate-pulse"
+            />
+            <div
+                style={{ backgroundColor: 'rgba(107,189,183,0.06)' }}
+                className="absolute bottom-[-5%] left-[-10%] w-[500px] h-[500px] blur-[100px] rounded-full"
+            />
+
+            <div className={`w-full max-w-md p-10 bg-white/80 backdrop-blur-2xl rounded-[3rem] border border-white shadow-2xl shadow-blue-900/10 transition-all duration-500 animate-in fade-in zoom-in-95 ${error ? 'border-red-200 animate-shake' : ''}`}>
+                <div className="flex flex-col items-center mb-10">
+                    <img
+                        src="/Logo Logic Group Management.png"
+                        alt="Logic Group Management"
+                        className="w-auto h-auto max-w-[140px] object-contain mb-8 animate-in fade-in duration-700 drop-shadow-xl"
+                    />
+                    <h1 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase mb-2">Iniciar Sesión</h1>
+                    <p className="text-[#6bbdb7] text-[9px] font-black tracking-[0.4em] uppercase opacity-70">Logic Group Management</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-[10px] text-gray-400 uppercase font-black tracking-widest ml-4">Usuario</label>
+                        <div className="relative group">
+                            <input
+                                type="text"
+                                placeholder="Escriba su nombre..."
+                                value={selectedUser}
+                                onChange={(e) => setSelectedUser(e.target.value)}
+                                className="w-full bg-white border border-gray-100 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all text-sm shadow-sm placeholder:text-gray-100"
+                            />
+                            <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-200">
+                                <Users size={18} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-[10px] text-gray-400 uppercase font-black tracking-widest ml-4">Contraseña</label>
+                        <input
+                            type="password"
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full bg-white border border-gray-100 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all text-sm shadow-sm placeholder:text-gray-100"
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        style={{ backgroundColor: '#303a7f' }}
+                        className="w-full text-white font-black py-5 rounded-2xl transition-all shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative mt-4 hover:bg-[#252a5e]"
+                    >
+                        <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                        <span className="tracking-[0.3em] uppercase text-xs">Iniciar Sesión</span>
+                    </button>
+
+                    {error && (
+                        <p className="text-red-500 text-[10px] font-black uppercase tracking-widest text-center mt-4 animate-in fade-in slide-in-from-top-2">Acceso Denegado: Verifique Credenciales</p>
+                    )}
+                </form>
+
+                <p className="mt-12 text-center text-[8px] text-gray-300 font-black uppercase tracking-[0.3em]">
+                    &copy; 2026 AdWisers LLC
+                </p>
+            </div>
+        </div>
+    );
+};
+
 const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
     <button
         onClick={onClick}
-        style={active ? { backgroundColor: '#303a7f', color: '#ffffff' } : {}}
+        style={active ? { backgroundColor: '#303a7f', color: '#f9f9f9' } : {}}
         className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group
       ${active
                 ? 'shadow-xl shadow-blue-900/30 scale-[1.02]'
@@ -371,6 +470,30 @@ function App() {
     const [isSidebarOpen, setSidebarOpen] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [editingStore, setEditingStore] = useState(null);
+    const [user, setUser] = useState(() => {
+        const saved = localStorage.getItem('lgm_user');
+        return saved ? JSON.parse(saved) : null;
+    });
+
+    const USER_REGISTRY = [
+        { name: "David Torres", role: "Asistente" },
+        { name: "Nirvana Márquez", role: "Asistente" },
+        { name: "Luis Rojas", role: "CEO" },
+        { name: "Reynaldo González", role: "CEO" },
+        { name: "Hermes Balza", role: "Desarrollador" },
+    ];
+
+    const handleLogin = (userName) => {
+        const found = USER_REGISTRY.find(u => u.name === userName);
+        const userData = { name: userName, role: found?.role || 'Invitado' };
+        setUser(userData);
+        localStorage.setItem('lgm_user', JSON.stringify(userData));
+    };
+
+    const handleLogout = () => {
+        setUser(null);
+        localStorage.removeItem('lgm_user');
+    };
 
     const storeNames = [
         "Cleaning Services Group", "Home Depot Utah", "ShipBob", "Sysco Arizona",
@@ -414,8 +537,9 @@ function App() {
     return (
         <div
             style={{ backgroundColor: '#f9f9f9' }}
-            className="flex min-h-screen text-[#333333] overflow-hidden font-sans selection:bg-[#6bbdb7]/20"
+            className="flex h-screen w-full text-[#333333] overflow-hidden font-sans selection:bg-[#6bbdb7]/20"
         >
+            {!user && <LoginView onLogin={handleLogin} />}
 
             {editingStore && (
                 <StoreEditView
@@ -436,23 +560,17 @@ function App() {
             )}
 
             {/* Sidebar */}
-            <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-100 transition-transform duration-500 lg:relative lg:translate-x-0 
+            <aside className={`fixed inset-y-0 left-0 z-40 w-72 h-screen bg-white border-r border-gray-100 transition-transform duration-500 lg:relative lg:translate-x-0 
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
 
                 <div className="flex flex-col h-full p-8">
-                    <div className="flex items-center gap-4 mb-10 px-2">
-                        <div
-                            style={{ backgroundColor: '#303a7f' }}
-                            className="h-10 w-10 rounded-xl flex items-center justify-center shadow-2xl shadow-blue-900/40 relative overflow-hidden group"
-                        >
-                            <div className="absolute inset-0 bg-white/20 group-hover:translate-y-full transition-transform duration-500" />
-                            <span className="text-white font-black text-xl uppercase tracking-tighter relative z-10">L</span>
-                        </div>
-                        <div>
-                            <h1 className="text-[#303a7f] font-black text-xl leading-none tracking-tighter uppercase">LogicPay</h1>
-                            <p className="text-[#6bbdb7] text-[8px] font-black tracking-[0.3em] uppercase mt-1 opacity-80 leading-none">Management Suite</p>
-                        </div>
-                        <button onClick={() => setSidebarOpen(false)} className="lg:hidden ml-auto p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                    <div className="flex flex-col items-center mb-10 px-2">
+                        <img
+                            src="/Logo Logic Group Management.png"
+                            alt="Logo Logic Group Management"
+                            className="w-full h-auto max-w-[105px] object-contain animate-in fade-in duration-700"
+                        />
+                        <button onClick={() => setSidebarOpen(false)} className="lg:hidden absolute top-8 right-8 p-2 hover:bg-gray-100 rounded-xl transition-colors">
                             <X className="text-gray-400" size={18} />
                         </button>
                     </div>
@@ -468,23 +586,11 @@ function App() {
                         ))}
                     </nav>
 
-                    <div className="mt-auto pt-6 border-t border-gray-50">
-                        <div className="flex items-center gap-3 p-3 bg-[#f9f9f9] rounded-2xl border border-gray-50/50">
-                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center border border-gray-100 shadow-sm relative group overflow-hidden">
-                                <Users size={18} className="text-[#303a7f] relative z-10" />
-                                <div className="absolute inset-0 bg-[#303a7f]/5 transition-transform duration-300 translate-y-full group-hover:translate-y-0" />
-                            </div>
-                            <div className="flex-1 overflow-hidden">
-                                <p className="text-[10px] font-black text-[#333333] truncate uppercase tracking-tighter">Hermes Balza</p>
-                                <p className="text-[7px] text-[#6bbdb7] font-black uppercase tracking-widest italic leading-none mt-1">Project Director</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </aside>
 
             {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto p-4 lg:p-10 relative">
+            <main className="flex-1 h-full overflow-y-auto px-4 pt-6 pb-4 lg:px-10 lg:pt-8 lg:pb-10 relative">
                 {/* Subtle page-level decoration */}
                 <div
                     style={{ backgroundColor: 'rgba(48,58,127,0.02)' }}
@@ -492,34 +598,32 @@ function App() {
                 />
 
                 <div className="max-w-6xl mx-auto">
-                    <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-8">
-                        <div className="animate-in fade-in slide-in-from-left-4 duration-500">
-                            <div className="flex items-center gap-3 text-[#6bbdb7] mb-3">
-                                <div className="h-0.5 w-8 bg-[#6bbdb7] rounded-full" />
-                                <span className="text-[10px] font-black tracking-[0.4em] uppercase">Control Operativo</span>
-                            </div>
-                            <h2 className="text-4xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-2">
+                    <header className="mb-6 flex flex-col md:flex-row md:items-start justify-between gap-6">
+                        <div className="flex flex-col animate-in fade-in slide-in-from-left-4 duration-500">
+                            <h2 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-2 mt-0">
                                 {activeTab === 'stores' ? 'Unidades' : activeTab}
                             </h2>
-                            <p className="text-gray-400 max-w-lg text-base font-bold leading-snug opacity-90">Ecosistema inteligente para la gestión de Logic Group Management.</p>
+                            <p className="text-[#6bbdb7] max-w-lg text-[8px] font-black leading-snug uppercase tracking-widest">Ecosistema inteligente para la gestión de Logic Group Management.</p>
                         </div>
 
-                        <div className="flex items-center gap-6 bg-white p-5 rounded-[2rem] border border-gray-50 shadow-xl shadow-blue-900/[0.03] self-start animate-in fade-in slide-in-from-right-4 duration-500">
-                            <div className="px-5 border-r border-gray-100">
-                                <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest mb-1 opacity-60">Matriz Unidades</p>
-                                <div className="flex items-baseline gap-1.5">
-                                    <p className="text-3xl font-black text-[#303a7f] leading-none tracking-tighter">{stores.length}</p>
-                                    <p className="text-[10px] text-[#6bbdb7] font-black uppercase opacity-60">Sedes</p>
-                                </div>
+                        {/* User Card - Header right side */}
+                        <div className="flex items-center gap-3 bg-white p-4 rounded-[2rem] border border-gray-50 shadow-xl shadow-blue-900/[0.03] self-start animate-in fade-in slide-in-from-right-4 duration-500 group relative">
+                            <div className="h-9 w-9 bg-[#f9f9f9] rounded-xl flex items-center justify-center border border-gray-100 flex-shrink-0">
+                                <Users size={16} className="text-[#303a7f]" />
                             </div>
-                            <div className="px-5">
-                                <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest mb-1 opacity-60">Estado Sync</p>
-                                <div className="flex items-center gap-2 py-1">
-                                    <span className="h-1.5 w-1.5 bg-[#6bbdb7] rounded-full animate-pulse shadow-[0_0_10px_#6bbdb7]" />
-                                    <p className="text-xs font-black text-[#333333] uppercase tracking-tighter">Estable</p>
-                                </div>
+                            <div className="pr-8">
+                                <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-tighter leading-none">{user?.name || 'Invitado'}</p>
+                                <p className="text-[7px] text-[#6bbdb7] font-black uppercase tracking-[0.2em] mt-1">{user?.role || 'Visitante'}</p>
                             </div>
+                            <button
+                                onClick={handleLogout}
+                                className="absolute right-3 transition-all duration-200 text-red-300 hover:text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-110 p-1.5 bg-white border border-red-100 rounded-lg shadow-sm z-30 active:scale-90"
+                                title="Cerrar Sesión"
+                            >
+                                <LogOut size={14} />
+                            </button>
                         </div>
+
                     </header>
 
                     {activeTab === 'stores' && (
