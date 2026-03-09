@@ -148,20 +148,17 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
 );
 
 const StoreCard = ({ store, onEdit }) => (
-    <div className="card hover:border-[#6bbdb7]/40 transition-all duration-500 group hover:shadow-2xl hover:shadow-blue-900/10 relative overflow-hidden bg-white/80 backdrop-blur-sm border-gray-100/50">
+    <div
+        onClick={() => onEdit(store)}
+        className="card cursor-pointer group hover:border-[#6bbdb7]/60 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/10 relative overflow-hidden bg-white/80 backdrop-blur-sm border-gray-100/50 hover:-translate-y-2 active:scale-95"
+    >
         <div className="flex justify-between items-start mb-5">
             <div className="bg-[#f9f9f9] p-3 rounded-2xl group-hover:bg-[#6bbdb7]/10 transition-colors border border-gray-100/50">
                 <StoreIcon className="text-gray-400 group-hover:text-[#6bbdb7]" size={20} />
             </div>
-            <div className="flex gap-2">
-                <span className="bg-gray-100 text-gray-500 text-[8px] font-black px-2 py-1 rounded-md self-start uppercase tracking-widest">{store.codigo || 'S/N'}</span>
-                <button
-                    onClick={() => onEdit(store)}
-                    className="p-2 bg-white text-gray-400 hover:text-[#303a7f] hover:bg-[#f9f9f9] rounded-xl transition-all border border-gray-100 shadow-sm"
-                >
-                    <Edit2 size={16} />
-                </button>
-            </div>
+            <span className="bg-[#303a7f]/5 text-[#303a7f] text-[10px] font-black px-3 py-1.5 rounded-xl self-start uppercase tracking-widest border border-[#303a7f]/10 shadow-sm group-hover:bg-[#303a7f] group-hover:text-white transition-all duration-300">
+                {store.codigo || 'S/N'}
+            </span>
         </div>
 
         <h3 className="text-lg font-black text-[#333333] mb-1 group-hover:text-[#303a7f] transition-colors tracking-tight">{store.nombre}</h3>
@@ -184,7 +181,7 @@ const StoreCard = ({ store, onEdit }) => (
             </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-gray-100/50">
+        <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-gray-100/50 group-hover:bg-[#303a7f]/5 transition-colors">
             <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Supervisor LSG</span>
             <span className="text-[9px] font-black text-[#303a7f] uppercase">{store.supervisor_lsg || 'Sin Asignar'}</span>
         </div>
