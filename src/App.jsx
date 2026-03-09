@@ -190,6 +190,7 @@ const StoreCard = ({ store, onEdit }) => (
 
 // --- Full Screen Store Editor ---
 const StoreEditView = ({ store, onSave, onBack }) => {
+    const [isEditing, setIsEditing] = useState(false);
     const [editedStore, setEditedStore] = useState({
         ...store,
         tarifas: store.tarifas || {
@@ -199,8 +200,13 @@ const StoreEditView = ({ store, onSave, onBack }) => {
         }
     });
 
-    const updateField = (field, value) => setEditedStore(prev => ({ ...prev, [field]: value }));
+    const updateField = (field, value) => {
+        if (!isEditing) return;
+        setEditedStore(prev => ({ ...prev, [field]: value }));
+    };
+
     const updateTarifa = (cargo, tipo, value) => {
+        if (!isEditing) return;
         setEditedStore(prev => ({
             ...prev,
             tarifas: {
@@ -211,6 +217,16 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                 }
             }
         }));
+    };
+
+    const handleCancel = () => {
+        setEditedStore({ ...store });
+        setIsEditing(false);
+    };
+
+    const handleSave = () => {
+        onSave(editedStore);
+        setIsEditing(false);
     };
 
     return (
@@ -226,14 +242,35 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                         Volver al ERP
                     </button>
 
-                    <button
-                        onClick={() => onSave(editedStore)}
-                        style={{ backgroundColor: '#303a7f' }}
-                        className="text-white font-black px-8 py-3 shadow-2xl shadow-blue-900/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-2 hover:bg-[#252a5e] transition-colors"
-                    >
-                        <CheckCircle size={18} />
-                        Sincronizar Cambios
-                    </button>
+                    <div className="flex gap-3">
+                        {!isEditing ? (
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                style={{ backgroundColor: '#303a7f' }}
+                                className="text-white font-black px-8 py-3 shadow-2xl shadow-blue-900/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-2 hover:bg-[#252a5e] transition-colors"
+                            >
+                                <Edit2 size={16} />
+                                Editar Tienda
+                            </button>
+                        ) : (
+                            <>
+                                <button
+                                    onClick={handleCancel}
+                                    className="bg-white text-gray-500 font-black px-6 py-3 border border-gray-200 text-xs tracking-widest uppercase rounded-xl active:scale-95 hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    style={{ backgroundColor: '#6bbdb7' }}
+                                    className="text-white font-black px-8 py-3 shadow-2xl shadow-teal-900/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-2 hover:bg-[#59aba5] transition-colors"
+                                >
+                                    <CheckCircle size={18} />
+                                    Guardar Cambios
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -281,7 +318,8 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                             type="text"
                                             value={editedStore.codigo}
                                             onChange={(e) => updateField('codigo', e.target.value)}
-                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold text-sm"
+                                            readOnly={!isEditing}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold text-sm`}
                                         />
                                     </div>
                                     <div className="group">
@@ -290,7 +328,8 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                             type="number"
                                             value={editedStore.max_horas}
                                             onChange={(e) => updateField('max_horas', e.target.value)}
-                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                            readOnly={!isEditing}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
                                         />
                                     </div>
                                 </div>
@@ -303,7 +342,8 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                             type="text"
                                             value={editedStore.direccion}
                                             onChange={(e) => updateField('direccion', e.target.value)}
-                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                            readOnly={!isEditing}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
                                         />
                                     </div>
                                 </div>
@@ -316,7 +356,8 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                             type="email"
                                             value={editedStore.correo}
                                             onChange={(e) => updateField('correo', e.target.value)}
-                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                            readOnly={!isEditing}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
                                         />
                                     </div>
                                 </div>
@@ -328,7 +369,8 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                             type="text"
                                             value={editedStore.supervisor_kbs}
                                             onChange={(e) => updateField('supervisor_kbs', e.target.value)}
-                                            className="w-full bg-[#f9f9f9] border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#6bbdb7]/30 focus:bg-white transition-all font-bold text-sm"
+                                            readOnly={!isEditing}
+                                            className={`w-full ${!isEditing ? 'bg-[#f4f4f4] text-gray-500 border-transparent' : 'bg-[#f9f9f9] border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#6bbdb7]/30 focus:bg-white transition-all font-bold text-sm`}
                                         />
                                     </div>
                                     <div className="group">
@@ -337,7 +379,8 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                             type="text"
                                             value={editedStore.supervisor_lsg}
                                             onChange={(e) => updateField('supervisor_lsg', e.target.value)}
-                                            className="w-full bg-[#f9f9f9] border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                            readOnly={!isEditing}
+                                            className={`w-full ${!isEditing ? 'bg-[#f4f4f4] text-gray-500 border-transparent' : 'bg-[#f9f9f9] border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
                                         />
                                     </div>
                                 </div>
@@ -370,26 +413,28 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                         <div className="space-y-4">
                                             <div className="relative">
                                                 <label className="text-[8px] text-gray-400 font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">KBS (Paga)</label>
-                                                <div className="flex items-center bg-white border border-gray-200 rounded-xl px-4 py-2.5 shadow-sm">
-                                                    <span className="text-[#6bbdb7] font-black mr-2">$</span>
+                                                <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-gray-200'} rounded-xl px-4 py-2.5 shadow-sm`}>
+                                                    <span className={`${!isEditing ? 'text-gray-300' : 'text-[#6bbdb7]'} font-black mr-2`}>$</span>
                                                     <input
                                                         type="number"
                                                         step="0.01"
                                                         value={editedStore.tarifas[cargo.id].kbs}
                                                         onChange={(e) => updateTarifa(cargo.id, 'kbs', e.target.value)}
+                                                        readOnly={!isEditing}
                                                         className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
                                                     />
                                                 </div>
                                             </div>
                                             <div className="relative">
                                                 <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">LSG (Paga)</label>
-                                                <div className="flex items-center bg-white border border-[#303a7f]/20 rounded-xl px-4 py-2.5 shadow-sm">
-                                                    <span className="text-[#303a7f] font-black mr-2">$</span>
+                                                <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-[#303a7f]/20'} rounded-xl px-4 py-2.5 shadow-sm`}>
+                                                    <span className={`${!isEditing ? 'text-gray-300' : 'text-[#303a7f]'} font-black mr-2`}>$</span>
                                                     <input
                                                         type="number"
                                                         step="0.01"
                                                         value={editedStore.tarifas[cargo.id].lsg}
                                                         onChange={(e) => updateTarifa(cargo.id, 'lsg', e.target.value)}
+                                                        readOnly={!isEditing}
                                                         className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
                                                     />
                                                 </div>
