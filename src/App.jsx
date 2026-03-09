@@ -153,12 +153,15 @@ const StoreCard = ({ store, onEdit }) => (
             <div className="bg-[#f9f9f9] p-3 rounded-2xl group-hover:bg-[#6bbdb7]/10 transition-colors border border-gray-100/50">
                 <StoreIcon className="text-gray-400 group-hover:text-[#6bbdb7]" size={20} />
             </div>
-            <button
-                onClick={() => onEdit(store)}
-                className="p-2 bg-white text-gray-400 hover:text-[#303a7f] hover:bg-[#f9f9f9] rounded-xl transition-all border border-gray-100 shadow-sm"
-            >
-                <Edit2 size={16} />
-            </button>
+            <div className="flex gap-2">
+                <span className="bg-gray-100 text-gray-500 text-[8px] font-black px-2 py-1 rounded-md self-start uppercase tracking-widest">{store.codigo || 'S/N'}</span>
+                <button
+                    onClick={() => onEdit(store)}
+                    className="p-2 bg-white text-gray-400 hover:text-[#303a7f] hover:bg-[#f9f9f9] rounded-xl transition-all border border-gray-100 shadow-sm"
+                >
+                    <Edit2 size={16} />
+                </button>
+            </div>
         </div>
 
         <h3 className="text-lg font-black text-[#333333] mb-1 group-hover:text-[#303a7f] transition-colors tracking-tight">{store.nombre}</h3>
@@ -182,29 +185,35 @@ const StoreCard = ({ store, onEdit }) => (
         </div>
 
         <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-gray-100/50">
-            <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Próxima Nómina</span>
-            <span className="text-[9px] font-black text-[#303a7f] uppercase">Marzo 09</span>
+            <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Supervisor LSG</span>
+            <span className="text-[9px] font-black text-[#303a7f] uppercase">{store.supervisor_lsg || 'Sin Asignar'}</span>
         </div>
     </div>
 );
 
 // --- Full Screen Store Editor ---
 const StoreEditView = ({ store, onSave, onBack }) => {
-    const [editedStore, setEditedStore] = useState({ ...store });
-    const [newEmp, setNewEmp] = useState({ nombre: '', id: '', cargo: 'Janitorial' });
+    const [editedStore, setEditedStore] = useState({
+        ...store,
+        tarifas: store.tarifas || {
+            janitorial: { kbs: 0, lsg: 0 },
+            utility: { kbs: 0, lsg: 0 },
+            shift_lead: { kbs: 0, lsg: 0 }
+        }
+    });
 
     const updateField = (field, value) => setEditedStore(prev => ({ ...prev, [field]: value }));
-
-    const addEmployee = () => {
-        if (!newEmp.nombre || !newEmp.id) return;
-        const updatedEmps = [...(editedStore.employees || []), { ...newEmp }];
-        updateField('employees', updatedEmps);
-        setNewEmp({ nombre: '', id: '', cargo: 'Janitorial' });
-    };
-
-    const removeEmployee = (id) => {
-        const updatedEmps = editedStore.employees.filter(e => e.id !== id);
-        updateField('employees', updatedEmps);
+    const updateTarifa = (cargo, tipo, value) => {
+        setEditedStore(prev => ({
+            ...prev,
+            tarifas: {
+                ...prev.tarifas,
+                [cargo]: {
+                    ...prev.tarifas[cargo],
+                    [tipo]: parseFloat(value) || 0
+                }
+            }
+        }));
     };
 
     return (
@@ -242,17 +251,20 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                 <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7] group-hover:shadow-inner">
                                     <Camera className="text-gray-300 group-hover:text-[#6bbdb7]" size={40} />
                                 </div>
-                                <button
+                                <div
                                     style={{ backgroundColor: '#303a7f' }}
                                     className="absolute -bottom-2 -right-2 p-3 rounded-xl shadow-xl shadow-blue-900/20 hover:scale-110 transition-all text-white border-2 border-white"
                                 >
-                                    <Plus className="text-white" size={16} />
-                                </button>
+                                    <Edit2 size={16} />
+                                </div>
                             </div>
                             <h2 className="text-2xl font-black text-[#333333] tracking-tighter mb-1.5">{editedStore.nombre}</h2>
-                            <div className="flex items-center justify-center gap-2">
-                                <span className="h-1 w-1 bg-[#6bbdb7] rounded-full mb-0.5" />
-                                <p className="text-[#6bbdb7] font-black uppercase tracking-[0.2em] text-[9px]">Unidad Operativa Activa</p>
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="h-1 w-1 bg-[#6bbdb7] rounded-full" />
+                                    <p className="text-[#6bbdb7] font-black uppercase tracking-[0.2em] text-[9px]">Unidad Operativa Activa</p>
+                                </div>
+                                <span className="bg-[#303a7f]/5 px-3 py-1 rounded-full text-[#303a7f] text-[10px] font-black uppercase tracking-widest">Cód: {editedStore.codigo || 'EXP-000'}</span>
                             </div>
                         </section>
 
@@ -261,27 +273,18 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                 <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
                                     <Settings size={18} className="text-[#303a7f]" />
                                 </div>
-                                Parámetros de Configuración
+                                Configuración Profesional
                             </h3>
 
                             <div className="space-y-4">
-                                <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1 transition-colors group-focus-within:text-[#303a7f]">Nombre de la Unidad</label>
-                                    <input
-                                        type="text"
-                                        value={editedStore.nombre}
-                                        onChange={(e) => updateField('nombre', e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold text-sm"
-                                    />
-                                </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="group">
-                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">ID Región</label>
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1 transition-colors group-focus-within:text-[#303a7f]">Código Sede</label>
                                         <input
                                             type="text"
-                                            value={editedStore.estado}
-                                            onChange={(e) => updateField('estado', e.target.value)}
-                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                            value={editedStore.codigo}
+                                            onChange={(e) => updateField('codigo', e.target.value)}
+                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold text-sm"
                                         />
                                     </div>
                                     <div className="group">
@@ -294,6 +297,7 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                         />
                                     </div>
                                 </div>
+
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Dirección Oficial</label>
                                     <div className="relative">
@@ -307,54 +311,116 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                     </div>
                                 </div>
 
-                                <div className="pt-5 border-t border-gray-50 grid grid-cols-2 gap-3">
-                                    <div className="bg-[#303a7f]/[0.02] p-4 rounded-xl border border-[#303a7f]/10">
-                                        <label className="text-[8px] text-[#303a7f]/50 uppercase font-black tracking-widest block mb-1">Base Janitorial</label>
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-[#303a7f] font-black text-lg">$</span>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                value={editedStore.salario_janitorial}
-                                                onChange={(e) => updateField('salario_janitorial', e.target.value)}
-                                                className="w-full bg-transparent text-[#303a7f] font-black outline-none text-xl tracking-tighter"
-                                            />
-                                        </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1 text-[#6bbdb7]">Correo Corporativo</label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                                        <input
+                                            type="email"
+                                            value={editedStore.correo}
+                                            onChange={(e) => updateField('correo', e.target.value)}
+                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                        />
                                     </div>
-                                    <div className="bg-[#6bbdb7]/[0.02] p-4 rounded-xl border border-[#6bbdb7]/10">
-                                        <label className="text-[8px] text-[#6bbdb7]/50 uppercase font-black tracking-widest block mb-1">Base Utiliti</label>
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-[#6bbdb7] font-black text-lg">$</span>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                value={editedStore.salario_utiliti}
-                                                onChange={(e) => updateField('salario_utiliti', e.target.value)}
-                                                className="w-full bg-transparent text-[#6bbdb7] font-black outline-none text-xl tracking-tighter"
-                                            />
-                                        </div>
+                                </div>
+
+                                <div className="pt-4 border-t border-gray-50 space-y-3">
+                                    <div className="group">
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Supervisor KBS</label>
+                                        <input
+                                            type="text"
+                                            value={editedStore.supervisor_kbs}
+                                            onChange={(e) => updateField('supervisor_kbs', e.target.value)}
+                                            className="w-full bg-[#f9f9f9] border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#6bbdb7]/30 focus:bg-white transition-all font-bold text-sm"
+                                        />
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Supervisor LSG</label>
+                                        <input
+                                            type="text"
+                                            value={editedStore.supervisor_lsg}
+                                            onChange={(e) => updateField('supervisor_lsg', e.target.value)}
+                                            className="w-full bg-[#f9f9f9] border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                        />
                                     </div>
                                 </div>
                             </div>
                         </section>
                     </div>
 
-                    {/* Right Panel: Workforce Management */}
-
-                    {/* Right Panel: Workforce Management */}
+                    {/* Right Panel: Logistics & Workforce */}
                     <div className="lg:col-span-8 space-y-6">
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50 h-full">
+                        {/* Matrix Payroll Settings */}
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="bg-[#303a7f] p-3 rounded-xl shadow-xl shadow-blue-900/10">
+                                    <DollarSign className="text-white" size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-[#333333] tracking-tighter">Matriz Salarial Dual</h3>
+                                    <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-1">Margen Operativo KBS vs Logic Solutions Group</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {[
+                                    { id: 'janitorial', label: 'Janitorial' },
+                                    { id: 'utility', label: 'Utility' },
+                                    { id: 'shift_lead', label: 'Shift Lead' }
+                                ].map(cargo => (
+                                    <div key={cargo.id} className="bg-gray-50/50 rounded-2xl p-5 border border-gray-100">
+                                        <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest block mb-4">{cargo.label}</span>
+                                        <div className="space-y-4">
+                                            <div className="relative">
+                                                <label className="text-[8px] text-gray-400 font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">KBS (Paga)</label>
+                                                <div className="flex items-center bg-white border border-gray-200 rounded-xl px-4 py-2.5 shadow-sm">
+                                                    <span className="text-[#6bbdb7] font-black mr-2">$</span>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={editedStore.tarifas[cargo.id].kbs}
+                                                        onChange={(e) => updateTarifa(cargo.id, 'kbs', e.target.value)}
+                                                        className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="relative">
+                                                <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">LSG (Paga)</label>
+                                                <div className="flex items-center bg-white border border-[#303a7f]/20 rounded-xl px-4 py-2.5 shadow-sm">
+                                                    <span className="text-[#303a7f] font-black mr-2">$</span>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={editedStore.tarifas[cargo.id].lsg}
+                                                        onChange={(e) => updateTarifa(cargo.id, 'lsg', e.target.value)}
+                                                        className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="pt-2 flex justify-between items-center">
+                                                <span className="text-[8px] font-black text-gray-300 uppercase">Margen Est.</span>
+                                                <span className="text-[10px] font-black text-[#6bbdb7]">
+                                                    +${(editedStore.tarifas[cargo.id].kbs - editedStore.tarifas[cargo.id].lsg).toFixed(2)}/hr
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 mb-8">
                                 <div className="flex items-center gap-4">
                                     <div
-                                        style={{ backgroundColor: '#303a7f' }}
-                                        className="p-3.5 rounded-xl shadow-xl shadow-blue-900/10"
+                                        style={{ backgroundColor: '#6bbdb7' }}
+                                        className="p-3.5 rounded-xl shadow-xl shadow-teal-900/10"
                                     >
                                         <Users className="text-white" size={20} />
                                     </div>
                                     <div>
                                         <h3 className="text-2xl font-black text-[#333333] tracking-tighter">Directorio de Personal</h3>
-                                        <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-1">Gestión de Altas y Bajas en Tiempo Real</p>
+                                        <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-1">Consulta de Nómina Asignada (Solo Lectura)</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 px-5 py-2.5 bg-[#f9f9f9] rounded-xl border border-gray-100">
@@ -363,43 +429,7 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                 </div>
                             </div>
 
-                            {/* Add New Employee Form */}
-                            <div className="bg-gray-50/50 p-6 rounded-2xl border-2 border-dashed border-gray-100 mb-8">
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                                    <div className="md:col-span-6">
-                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest mb-1 block ml-1">Nombre Completo</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Ej. Nirvana Márquez"
-                                            value={newEmp.nombre}
-                                            onChange={(e) => setNewEmp(prev => ({ ...prev, nombre: e.target.value }))}
-                                            className="w-full bg-white border border-gray-200 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f] focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold placeholder:text-gray-200 shadow-sm text-sm"
-                                        />
-                                    </div>
-                                    <div className="md:col-span-3">
-                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest mb-1 block ml-1">Código ID</label>
-                                        <input
-                                            type="text"
-                                            placeholder="N° ID"
-                                            value={newEmp.id}
-                                            onChange={(e) => setNewEmp(prev => ({ ...prev, id: e.target.value }))}
-                                            className="w-full bg-white border border-gray-200 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f] focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold placeholder:text-gray-200 shadow-sm text-sm"
-                                        />
-                                    </div>
-                                    <div className="md:col-span-3 flex items-end">
-                                        <button
-                                            onClick={addEmployee}
-                                            style={{ backgroundColor: '#6bbdb7' }}
-                                            className="w-full text-white font-black py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-teal-900/10 active:scale-95 group hover:bg-[#59aba5] text-xs"
-                                        >
-                                            <Plus size={18} className="group-hover:rotate-90 transition-transform" />
-                                            <span>ALTA</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Employees Table */}
+                            {/* Employees Table - Read Only Mode */}
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead>
@@ -407,40 +437,24 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                             <th className="py-5 px-6 text-[10px] text-gray-400 uppercase font-black tracking-[0.2em]">Nombre y Apellido</th>
                                             <th className="py-5 px-6 text-[10px] text-gray-400 uppercase font-black tracking-[0.2em]">Identificador</th>
                                             <th className="py-5 px-6 text-[10px] text-gray-400 uppercase font-black tracking-[0.2em]">Cargo Asignado</th>
-                                            <th className="py-5 px-6 text-right"></th>
+                                            <th className="py-5 px-6 text-right">Estatus</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
                                         {(editedStore.employees || []).map((emp) => (
-                                            <tr key={emp.id} className="hover:bg-[#303a7f]/[0.01] transition-colors group">
+                                            <tr key={emp.id} className="hover:bg-gray-50 transition-colors group">
                                                 <td className="py-4 px-6 font-bold text-[#333333] text-sm">{emp.nombre}</td>
                                                 <td className="py-4 px-6 text-[#6bbdb7] font-black text-[10px] tracking-widest">{emp.id}</td>
                                                 <td className="py-4 px-6">
-                                                    <div className="relative inline-block w-full max-w-[120px]">
-                                                        <select
-                                                            value={emp.cargo}
-                                                            onChange={(e) => {
-                                                                const updatedEmps = editedStore.employees.map(ev =>
-                                                                    ev.id === emp.id ? { ...ev, cargo: e.target.value } : ev
-                                                                );
-                                                                updateField('employees', updatedEmps);
-                                                            }}
-                                                            className="w-full bg-white border border-gray-200 text-[9px] text-[#303a7f] font-black uppercase py-2 px-3 rounded-lg outline-none cursor-pointer hover:border-[#303a7f] transition-all appearance-none shadow-sm"
-                                                        >
-                                                            <option>Janitorial</option>
-                                                            <option>Utiliti</option>
-                                                            <option>Supervisor</option>
-                                                        </select>
-                                                        <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#303a7f] pointer-events-none" />
-                                                    </div>
+                                                    <span className="bg-[#303a7f]/5 px-3 py-1.5 rounded-lg text-[9px] text-[#303a7f] font-black uppercase tracking-widest">
+                                                        {emp.cargo}
+                                                    </span>
                                                 </td>
                                                 <td className="py-4 px-6 text-right">
-                                                    <button
-                                                        onClick={() => removeEmployee(emp.id)}
-                                                        className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100 active:scale-95"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse" />
+                                                        <span className="text-[8px] font-black text-green-600 uppercase">Activo</span>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -448,7 +462,7 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                                             <tr>
                                                 <td colSpan="4" className="py-24 text-center">
                                                     <Users size={40} className="text-gray-100 mx-auto mb-4" />
-                                                    <p className="text-gray-300 font-bold uppercase tracking-widest text-xs">Sin registros de nómina activa.</p>
+                                                    <p className="text-gray-300 font-bold uppercase tracking-widest text-xs">Sin registros de nómina activa para esta sede.</p>
                                                 </td>
                                             </tr>
                                         )}
@@ -504,13 +518,18 @@ function App() {
 
     const [stores, setStores] = useState(storeNames.map(name => ({
         nombre: name,
+        codigo: name === 'Sysco Arizona' ? 'SYS-001' : 'TND-' + Math.floor(Math.random() * 900 + 100),
         estado: name === 'Sysco Arizona' ? 'ARIZONA' : 'N/A',
-        supervisor: '',
         direccion: name === 'Sysco Arizona' ? '611 S 80th Ave, Tolleson, AZ 85353' : '',
-        correo_invoice: name === 'Sysco Arizona' ? 'Jonah' : '',
+        supervisor_kbs: name === 'Sysco Arizona' ? 'John Doe' : '',
+        supervisor_lsg: name === 'Sysco Arizona' ? 'Hermes Balza' : '',
+        correo: name === 'Sysco Arizona' ? 'jonah@sysco.com' : '',
         max_horas: name === 'Sysco Arizona' ? 880 : 0,
-        salario_janitorial: name === 'Sysco Arizona' ? 15.15 : 0,
-        salario_utiliti: 0,
+        tarifas: {
+            janitorial: { kbs: name === 'Sysco Arizona' ? 22.50 : 0, lsg: name === 'Sysco Arizona' ? 15.15 : 0 },
+            utility: { kbs: 0, lsg: 0 },
+            shift_lead: { kbs: 0, lsg: 0 }
+        },
         employees: name === 'Sysco Arizona' ? [
             { nombre: 'Juan Pérez', id: '1001', cargo: 'Janitorial' },
             { nombre: 'Maria Garcia', id: '1002', cargo: 'Supervisor' }
