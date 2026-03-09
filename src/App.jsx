@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Users,
     Store as StoreIcon,
@@ -27,6 +27,10 @@ import {
     Lock,
     LogOut
 } from 'lucide-react';
+
+// --- DATABASE CONFIGO ---
+// Hermes, pega aquí la URL que te dio Google Apps Script al publicar como Aplicación Web
+const API_URL = 'https://script.google.com/macros/s/AKfycbwf-i-7g75mQJEf6HvqoU9ZspHCHWL97wp3lyxMmaRiiHYTWGs-EJcHkUp4rjRYFLSdKg/exec';
 
 // --- Sub-Components ---
 
@@ -193,12 +197,20 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [confirmName, setConfirmName] = useState('');
+    const defaultTarifas = {
+        janitorial: { kbs: 0, lsg: 0 },
+        utility: { kbs: 0, lsg: 0 },
+        shift_lead: { kbs: 0, lsg: 0 }
+    };
+
     const [editedStore, setEditedStore] = useState({
         ...store,
-        tarifas: store.tarifas || {
-            janitorial: { kbs: 0, lsg: 0 },
-            utility: { kbs: 0, lsg: 0 },
-            shift_lead: { kbs: 0, lsg: 0 }
+        tarifas: {
+            ...defaultTarifas,
+            ...(store.tarifas || {}),
+            janitorial: { ...defaultTarifas.janitorial, ...(store.tarifas?.janitorial || {}) },
+            utility: { ...defaultTarifas.utility, ...(store.tarifas?.utility || {}) },
+            shift_lead: { ...defaultTarifas.shift_lead, ...(store.tarifas?.shift_lead || {}) }
         }
     });
 
@@ -209,20 +221,33 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
 
     const updateTarifa = (cargo, tipo, value) => {
         if (!isEditing) return;
-        setEditedStore(prev => ({
-            ...prev,
-            tarifas: {
-                ...prev.tarifas,
-                [cargo]: {
-                    ...prev.tarifas[cargo],
-                    [tipo]: parseFloat(value) || 0
+        setEditedStore(prev => {
+            const currentTarifas = prev.tarifas || defaultTarifas;
+            const currentCargo = currentTarifas[cargo] || { kbs: 0, lsg: 0 };
+            return {
+                ...prev,
+                tarifas: {
+                    ...currentTarifas,
+                    [cargo]: {
+                        ...currentCargo,
+                        [tipo]: parseFloat(value) || 0
+                    }
                 }
-            }
-        }));
+            };
+        });
     };
 
     const handleCancel = () => {
-        setEditedStore({ ...store });
+        setEditedStore({
+            ...store,
+            tarifas: {
+                ...defaultTarifas,
+                ...(store.tarifas || {}),
+                janitorial: { ...defaultTarifas.janitorial, ...(store.tarifas?.janitorial || {}) },
+                utility: { ...defaultTarifas.utility, ...(store.tarifas?.utility || {}) },
+                shift_lead: { ...defaultTarifas.shift_lead, ...(store.tarifas?.shift_lead || {}) }
+            }
+        });
         setIsEditing(false);
     };
 
@@ -337,12 +362,24 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Horas Máx.</label>
                                         <input
                                             type="number"
-                                            value={editedStore.max_horas}
+                                            value={editedStore.max_horas || 0}
                                             onChange={(e) => updateField('max_horas', e.target.value)}
                                             readOnly={!isEditing}
                                             className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
                                         />
                                     </div>
+                                </div>
+
+                                <div className="group">
+                                    <label className="text-[9px] text-[#6bbdb7] uppercase font-black tracking-widest block mb-1 pl-1">Estado (US)</label>
+                                    <input
+                                        type="text"
+                                        value={editedStore.estado || ''}
+                                        onChange={(e) => updateField('estado', e.target.value)}
+                                        readOnly={!isEditing}
+                                        placeholder="Ej: ARIZONA"
+                                        className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
+                                    />
                                 </div>
 
                                 <div className="group">
@@ -839,6 +876,7 @@ function App() {
     const [searchTerm, setSearchTerm] = useState('');
     const [editingStore, setEditingStore] = useState(null);
     const [isAddingStore, setIsAddingStore] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const [user, setUser] = useState(() => {
         const saved = localStorage.getItem('lgm_user');
         return saved ? JSON.parse(saved) : null;
@@ -864,51 +902,73 @@ function App() {
         localStorage.removeItem('lgm_user');
     };
 
-    const storeNames = [
-        "Cleaning Services Group", "Home Depot Utah", "ShipBob", "Sysco Arizona",
-        "UPS Azmes", "UPS Azpho", "UPS Aztem", "UPS Aztuc", "UPS Goodyear",
-        "UPS Kay", "UPS TXRTH", "Walgreens Arizona Tolleson",
-        "Walgreens Northlake", "Walgreens Dallas"
-    ];
+    const [stores, setStores] = useState([]);
 
-    const [stores, setStores] = useState(storeNames.map(name => ({
-        nombre: name,
-        codigo: name === 'Sysco Arizona' ? 'SYS-001' : 'TND-' + Math.floor(Math.random() * 900 + 100),
-        estado: name === 'Sysco Arizona' ? 'ARIZONA' : 'N/A',
-        direccion: name === 'Sysco Arizona' ? '611 S 80th Ave, Tolleson, AZ 85353' : '',
-        supervisor_kbs: name === 'Sysco Arizona' ? 'John Doe' : '',
-        supervisor_lsg: name === 'Sysco Arizona' ? 'Hermes Balza' : '',
-        correo: name === 'Sysco Arizona' ? 'jonah@sysco.com' : '',
-        max_horas: name === 'Sysco Arizona' ? 880 : 0,
-        tarifas: {
-            janitorial: { kbs: name === 'Sysco Arizona' ? 22.50 : 0, lsg: name === 'Sysco Arizona' ? 15.15 : 0 },
-            utility: { kbs: 0, lsg: 0 },
-            shift_lead: { kbs: 0, lsg: 0 }
-        },
-        employees: name === 'Sysco Arizona' ? [
-            { nombre: 'Juan Pérez', id: '1001', cargo: 'Janitorial' },
-            { nombre: 'Maria Garcia', id: '1002', cargo: 'Supervisor' }
-        ] : []
-    })));
+    // --- API SYNC LOGIC ---
+
+    const fetchStores = async () => {
+        if (!API_URL) return;
+        setIsLoading(true);
+        try {
+            const response = await fetch(API_URL);
+            const data = await response.json();
+            setStores(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error("Error cargando base de datos:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchStores();
+    }, []);
+
+    const syncToSheets = async (action, data) => {
+        if (!API_URL) return;
+        setIsLoading(true);
+        try {
+            // Usamos mode: 'no-cors' si hay problemas, pero Apps Script suele requerir redirecciones
+            // Para Apps Script REST API lo mejor es enviar un POST
+            await fetch(API_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Apps Script a veces da problemas de CORS pero ejecuta el código
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, data })
+            });
+
+            // Refrescamos después de un breve delay para que Apps Script termine
+            setTimeout(fetchStores, 1500);
+        } catch (error) {
+            console.error("Error sincronizando con Sheets:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const filteredStores = stores.filter(s =>
-        s.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+        s?.nombre?.toLowerCase().includes(searchTerm?.toLowerCase() || '')
     );
 
     const handleSaveStore = (updatedStore) => {
         setStores(prev => prev.map(s => s.nombre === updatedStore.nombre ? updatedStore : s));
-        setEditingStore(updatedStore);
+        setEditingStore(null);
+        syncToSheets('upsert', updatedStore);
     };
 
     const handleDeleteStore = (storeName) => {
         setStores(prev => prev.filter(s => s.nombre !== storeName));
         setEditingStore(null);
+        syncToSheets('delete', { nombre: storeName });
     };
 
     const handleCreateStore = (newStore) => {
         setStores(prev => [newStore, ...prev]);
         setIsAddingStore(false);
+        syncToSheets('upsert', newStore);
     };
+
+    const storeNames = stores.map(s => s.nombre);
 
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -996,6 +1056,13 @@ function App() {
                                 {activeTab === 'stores' ? 'Unidades' : activeTab}
                             </h2>
                             <p className="text-[#6bbdb7] max-w-lg text-[8px] font-black leading-snug uppercase tracking-widest">Ecosistema inteligente para la gestión de Logic Group Management.</p>
+
+                            {isLoading && (
+                                <div className="mt-4 flex items-center gap-2.5 px-4 py-2 bg-white/50 backdrop-blur-sm border border-[#6bbdb7]/20 rounded-xl self-start animate-in fade-in duration-300">
+                                    <div className="w-1.5 h-1.5 bg-[#6bbdb7] rounded-full animate-ping" />
+                                    <span className="text-[9px] font-black text-[#303a7f] uppercase tracking-widest opacity-80">Sincronizando con Google Sheets...</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* User Card - Header right side */}
