@@ -189,8 +189,10 @@ const StoreCard = ({ store, onEdit }) => (
 );
 
 // --- Full Screen Store Editor ---
-const StoreEditView = ({ store, onSave, onBack }) => {
+const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [confirmName, setConfirmName] = useState('');
     const [editedStore, setEditedStore] = useState({
         ...store,
         tarifas: store.tarifas || {
@@ -239,19 +241,28 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                         className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border border-gray-100 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                        Volver al ERP
+                        Volver al Inicio
                     </button>
 
                     <div className="flex gap-3">
                         {!isEditing ? (
-                            <button
-                                onClick={() => setIsEditing(true)}
-                                style={{ backgroundColor: '#303a7f' }}
-                                className="text-white font-black px-8 py-3 shadow-2xl shadow-blue-900/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-2 hover:bg-[#252a5e] transition-colors"
-                            >
-                                <Edit2 size={16} />
-                                Editar Tienda
-                            </button>
+                            <>
+                                <button
+                                    onClick={() => setShowDeleteModal(true)}
+                                    className="bg-white text-red-500 font-bold px-6 py-3 border border-red-100 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 hover:bg-red-50 transition-all flex items-center gap-2"
+                                >
+                                    <Trash2 size={16} />
+                                    Eliminar Tienda
+                                </button>
+                                <button
+                                    onClick={() => setIsEditing(true)}
+                                    style={{ backgroundColor: '#303a7f' }}
+                                    className="text-white font-black px-8 py-3 shadow-2xl shadow-blue-900/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-2 hover:bg-[#252a5e] transition-colors"
+                                >
+                                    <Edit2 size={16} />
+                                    Editar Tienda
+                                </button>
+                            </>
                         ) : (
                             <>
                                 <button
@@ -515,17 +526,319 @@ const StoreEditView = ({ store, onSave, onBack }) => {
                     </div>
                 </div>
             </div >
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-300"
+                        onClick={() => setShowDeleteModal(false)}
+                    />
+                    <div className="relative w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl shadow-blue-900/20 border border-white animate-in zoom-in-95 duration-300">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mb-6 text-red-500 shadow-inner">
+                                <Trash2 size={36} strokeWidth={2.5} />
+                            </div>
+                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter mb-3 uppercase">¿Eliminar esta tienda?</h3>
+                            <p className="text-gray-400 text-xs font-medium leading-relaxed mb-8">
+                                Esta acción es irreversible. Para confirmar, por favor escriba el nombre de la tienda: <br />
+                                <span className="font-black text-[#333333] mt-2 block bg-gray-50 p-2 rounded-lg text-sm tracking-tight">"{store.nombre}"</span>
+                            </p>
+
+                            <div className="w-full space-y-4">
+                                <input
+                                    type="text"
+                                    placeholder="Escriba el nombre aquí..."
+                                    value={confirmName}
+                                    onChange={(e) => setConfirmName(e.target.value)}
+                                    className="w-full bg-gray-50 border border-gray-100 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all text-center placeholder:text-gray-200"
+                                />
+
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        onClick={() => {
+                                            setShowDeleteModal(false);
+                                            setConfirmName('');
+                                        }}
+                                        className="flex-1 bg-white text-gray-400 font-black py-4 rounded-2xl border border-gray-100 text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all active:scale-95"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        disabled={confirmName !== store.nombre}
+                                        onClick={() => onDelete(store.nombre)}
+                                        className={`flex-1 font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest transition-all shadow-xl active:scale-95 ${confirmName === store.nombre
+                                            ? 'bg-red-500 text-white shadow-red-500/20 hover:bg-red-600'
+                                            : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
+                                            }`}
+                                    >
+                                        Eliminar Sede
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 };
 
 
-// --- Main Application ---
+// --- Full Screen Store Creator ---
+const StoreAddView = ({ onSave, onBack }) => {
+    const [newStore, setNewStore] = useState({
+        nombre: '',
+        codigo: '',
+        estado: 'ARIZONA',
+        direccion: '',
+        supervisor_kbs: '',
+        supervisor_lsg: '',
+        correo: '',
+        max_horas: 0,
+        tarifas: {
+            janitorial: { kbs: 0, lsg: 0 },
+            utility: { kbs: 0, lsg: 0 },
+            shift_lead: { kbs: 0, lsg: 0 }
+        },
+        employees: []
+    });
+
+    const updateField = (field, value) => {
+        setNewStore(prev => ({ ...prev, [field]: value }));
+    };
+
+    const updateTarifa = (cargo, tipo, value) => {
+        setNewStore(prev => ({
+            ...prev,
+            tarifas: {
+                ...prev.tarifas,
+                [cargo]: {
+                    ...prev.tarifas[cargo],
+                    [tipo]: parseFloat(value) || 0
+                }
+            }
+        }));
+    };
+
+    const handleSave = () => {
+        if (!newStore.nombre.trim() || !newStore.codigo.trim()) {
+            alert("Por favor, asigne al menos un Nombre y un Código a la tienda.");
+            return;
+        }
+        onSave(newStore);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
+            <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-16">
+                {/* Top Navigation */}
+                <div className="flex items-center justify-between mb-8">
+                    <button
+                        onClick={onBack}
+                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border border-gray-100 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
+                    >
+                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                        Cancelar
+                    </button>
+
+                    <button
+                        onClick={handleSave}
+                        style={{ backgroundColor: '#6bbdb7' }}
+                        className="text-white font-black px-10 py-4 shadow-2xl shadow-teal-900/20 text-xs tracking-widest uppercase rounded-2xl active:scale-95 flex items-center gap-2 hover:bg-[#59aba5] transition-colors"
+                    >
+                        <Plus size={18} />
+                        Registrar Sede
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    {/* Left Panel: Store Identity */}
+                    <div className="lg:col-span-4 space-y-6">
+                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border border-gray-50">
+                            <div className="relative inline-block mb-6">
+                                <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
+                                    <StoreIcon className="text-gray-200" size={40} />
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="group text-left">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Nombre de la Tienda</label>
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        placeholder="Ej: Home Depot Utah"
+                                        value={newStore.nombre}
+                                        onChange={(e) => updateField('nombre', e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                    />
+                                </div>
+                                <div className="group text-left">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Código de Sede</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej: TND-800"
+                                        value={newStore.codigo}
+                                        onChange={(e) => updateField('codigo', e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                    />
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                            <h3 className="text-[#333333] font-black flex items-center gap-3 mb-6 text-base">
+                                <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
+                                    <Settings size={18} className="text-[#303a7f]" />
+                                </div>
+                                Configuración Base
+                            </h3>
+
+                            <div className="space-y-4">
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Estado (US)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej: ARIZONA"
+                                        value={newStore.estado}
+                                        onChange={(e) => updateField('estado', e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                    />
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Horas Máximas / Mes</label>
+                                    <input
+                                        type="number"
+                                        value={newStore.max_horas}
+                                        onChange={(e) => updateField('max_horas', e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                    />
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Dirección Oficial</label>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-200" size={16} />
+                                        <input
+                                            type="text"
+                                            placeholder="Dirección completa..."
+                                            value={newStore.direccion}
+                                            onChange={(e) => updateField('direccion', e.target.value)}
+                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-[#6bbdb7] uppercase font-black tracking-widest block mb-1 pl-1">Correo Corporativo</label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-200" size={16} />
+                                        <input
+                                            type="email"
+                                            placeholder="tienda@empresa.com"
+                                            value={newStore.correo}
+                                            onChange={(e) => updateField('correo', e.target.value)}
+                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    {/* Right Panel: Logistics & Matrix */}
+                    <div className="lg:col-span-8 space-y-6">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
+                                <div className="bg-[#303a7f] p-2 rounded-lg">
+                                    <DollarSign className="text-white" size={18} />
+                                </div>
+                                Definir Matriz Salarial Inicial
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {[
+                                    { id: 'janitorial', label: 'Janitorial' },
+                                    { id: 'utility', label: 'Utility' },
+                                    { id: 'shift_lead', label: 'Shift Lead' }
+                                ]
+                                    .map(cargo => (
+                                        <div key={cargo.id} className="bg-gray-50/50 rounded-2xl p-5 border border-gray-100">
+                                            <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest block mb-4">{cargo.label}</span>
+                                            <div className="space-y-4">
+                                                <div className="relative">
+                                                    <label className="text-[8px] text-gray-400 font-black uppercase tracking-widest absolute -top-2 left-3 bg-gray-50 px-1 z-10">KBS (Paga)</label>
+                                                    <div className="flex items-center bg-white border border-gray-100 rounded-xl px-4 py-2.5 shadow-sm">
+                                                        <span className="text-[#6bbdb7] font-black mr-2">$</span>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            placeholder="0.00"
+                                                            value={newStore.tarifas[cargo.id].kbs}
+                                                            onChange={(e) => updateTarifa(cargo.id, 'kbs', e.target.value)}
+                                                            className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="relative">
+                                                    <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-gray-50 px-1 z-10">LSG (Paga)</label>
+                                                    <div className="flex items-center bg-white border border-[#303a7f]/20 rounded-xl px-4 py-2.5 shadow-sm">
+                                                        <span className="text-[#303a7f] font-black mr-2">$</span>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            placeholder="0.00"
+                                                            value={newStore.tarifas[cargo.id].lsg}
+                                                            onChange={(e) => updateTarifa(cargo.id, 'lsg', e.target.value)}
+                                                            className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                            </div>
+                        </section>
+
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
+                                <div className="bg-[#6bbdb7] p-2 rounded-lg">
+                                    <Users className="text-white" size={18} />
+                                </div>
+                                Detalles Administrativos
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Supervisor KBS</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Nombre del supervisor..."
+                                        value={newStore.supervisor_kbs}
+                                        onChange={(e) => updateField('supervisor_kbs', e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#6bbdb7]/30 focus:bg-white transition-all font-bold text-sm"
+                                    />
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Supervisor LSG</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Nombre del supervisor..."
+                                        value={newStore.supervisor_lsg}
+                                        onChange={(e) => updateField('supervisor_lsg', e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                    />
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 function App() {
     const [activeTab, setActiveTab] = useState('stores');
     const [isSidebarOpen, setSidebarOpen] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [editingStore, setEditingStore] = useState(null);
+    const [isAddingStore, setIsAddingStore] = useState(false);
     const [user, setUser] = useState(() => {
         const saved = localStorage.getItem('lgm_user');
         return saved ? JSON.parse(saved) : null;
@@ -584,7 +897,17 @@ function App() {
 
     const handleSaveStore = (updatedStore) => {
         setStores(prev => prev.map(s => s.nombre === updatedStore.nombre ? updatedStore : s));
+        setEditingStore(updatedStore);
+    };
+
+    const handleDeleteStore = (storeName) => {
+        setStores(prev => prev.filter(s => s.nombre !== storeName));
         setEditingStore(null);
+    };
+
+    const handleCreateStore = (newStore) => {
+        setStores(prev => [newStore, ...prev]);
+        setIsAddingStore(false);
     };
 
     const navItems = [
@@ -607,6 +930,14 @@ function App() {
                     store={editingStore}
                     onBack={() => setEditingStore(null)}
                     onSave={handleSaveStore}
+                    onDelete={handleDeleteStore}
+                />
+            )}
+
+            {isAddingStore && (
+                <StoreAddView
+                    onSave={handleCreateStore}
+                    onBack={() => setIsAddingStore(false)}
                 />
             )}
 
@@ -701,12 +1032,13 @@ function App() {
                                     />
                                 </div>
                                 <button
+                                    onClick={() => setIsAddingStore(true)}
                                     style={{ backgroundColor: '#303a7f' }}
                                     className="text-white font-black py-3.5 px-8 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e]"
                                 >
                                     <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
                                     <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" />
-                                    <span className="tracking-widest uppercase text-[10px]">Alta Unidad</span>
+                                    <span className="tracking-widest uppercase text-[10px]">Agregar Tenda</span>
                                 </button>
                             </div>
 
