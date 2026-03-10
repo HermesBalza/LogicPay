@@ -28,11 +28,65 @@ import {
     LogOut
 } from 'lucide-react';
 
-// --- DATABASE CONFIGO ---
-// Hermes, pega aquí la URL que te dio Google Apps Script al publicar como Aplicación Web
-const API_URL = 'https://script.google.com/macros/s/AKfycbwf-i-7g75mQJEf6HvqoU9ZspHCHWL97wp3lyxMmaRiiHYTWGs-EJcHkUp4rjRYFLSdKg/exec';
 
-// --- Sub-Components ---
+// ─── BASE DE DATOS: Google Sheets via Apps Script (escritura) ───────────────
+const API_URL = 'https://script.google.com/macros/s/AKfycbxF46w1hU-0Z6-iRvvY5EkSy8wbRU5wWBXJjN-1HxDvkGccKxl5C_dShlUzMctC-PhtZg/exec';
+
+// ─── BASE DE DATOS: Google Sheets publicado como CSV (lectura) ───────────────
+const SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=0&single=true&output=csv';
+
+// Parsea una fila CSV respetando campos entre comillas
+const parseCSVRow = (row) => {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < row.length; i++) {
+        const c = row[i];
+        if (c === '"') {
+            if (inQuotes && row[i + 1] === '"') { current += '"'; i++; }
+            else inQuotes = !inQuotes;
+        } else if (c === ',' && !inQuotes) {
+            result.push(current);
+            current = '';
+        } else {
+            current += c;
+        }
+    }
+    result.push(current);
+    return result;
+};
+
+// Convierte una fila plana del CSV a la estructura de tienda que usa la app.
+// Mapeo explícito para evitar ambigüedades con claves que contienen guiones bajos
+// (ej: supervisor_kbs, max_horas, tarifas_shift_lead_kbs).
+const csvRowToStore = (flat) => ({
+    nombre: flat.nombre || '',
+    codigo: (flat.codigo || '').replace(/^'/, ''),
+    estado: flat.estado || '',
+    direccion: flat.direccion || '',
+    supervisor_kbs: flat.supervisor_kbs || '',
+    supervisor_lsg: flat.supervisor_lsg || '',
+    correo: flat.correo || '',
+    max_horas: parseFloat(flat.max_horas) || 0,
+    imagen: flat.imagen || '',
+    employees: (() => { try { return JSON.parse(flat.employees || '[]'); } catch (e) { return []; } })(),
+    tarifas: {
+        janitorial: {
+            kbs: parseFloat(flat.tarifas_janitorial_kbs) || 0,
+            lsg: parseFloat(flat.tarifas_janitorial_lsg) || 0
+        },
+        utility: {
+            kbs: parseFloat(flat.tarifas_utility_kbs) || 0,
+            lsg: parseFloat(flat.tarifas_utility_lsg) || 0
+        },
+        shift_lead: {
+            kbs: parseFloat(flat.tarifas_shift_lead_kbs) || 0,
+            lsg: parseFloat(flat.tarifas_shift_lead_lsg) || 0
+        }
+    }
+});
+
+// ─── Sub-Components ──────────────────────────────────────────────────────────
 
 const LoginView = ({ onLogin }) => {
     const [selectedUser, setSelectedUser] = useState('');
@@ -355,7 +409,17 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
                                     </label>
                                 )}
                             </div>
-                            <h2 className="text-2xl font-black text-[#333333] tracking-tighter mb-1.5">{editedStore.nombre}</h2>
+                            {isEditing ? (
+                                <input
+                                    type="text"
+                                    value={editedStore.nombre}
+                                    onChange={(e) => updateField('nombre', e.target.value)}
+                                    className="w-full bg-gray-50 border border-gray-200 text-[#303a7f] font-black text-xl text-center rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white focus:ring-4 focus:ring-[#303a7f]/5 transition-all tracking-tighter mb-1.5"
+                                    placeholder="Nombre de la tienda..."
+                                />
+                            ) : (
+                                <h2 className="text-2xl font-black text-[#333333] tracking-tighter mb-1.5">{editedStore.nombre}</h2>
+                            )}
                             <div className="flex flex-col items-center gap-2">
                                 <div className="flex items-center gap-2">
                                     <span className="h-1 w-1 bg-[#6bbdb7] rounded-full" />
@@ -630,7 +694,7 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
                                     </button>
                                     <button
                                         disabled={confirmName !== store.nombre}
-                                        onClick={() => onDelete(store.nombre)}
+                                        onClick={() => onDelete(store.codigo)}
                                         className={`flex-1 font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest transition-all shadow-xl active:scale-95 ${confirmName === store.nombre
                                             ? 'bg-red-500 text-white shadow-red-500/20 hover:bg-red-600'
                                             : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
@@ -931,7 +995,8 @@ function App() {
     const [editingStore, setEditingStore] = useState(null);
     const [isAddingStore, setIsAddingStore] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado', 'desconectado', 'sincronizando', 'conectando'
+    const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado' | 'desconectado' | 'sincronizando'
+
     const [user, setUser] = useState(() => {
         const saved = localStorage.getItem('lgm_user');
         return saved ? JSON.parse(saved) : null;
@@ -959,22 +1024,36 @@ function App() {
 
     const [stores, setStores] = useState([]);
 
-    // --- API SYNC LOGIC ---
-
+    // ─── API: Cargar todas las tiendas desde CSV público de Google Sheets ────
+    // Lee directamente la hoja publicada como CSV (sin CORS, sin Apps Script).
+    // Usa mapeo explícito de columnas para reconstruir la estructura de cada tienda.
     const fetchStores = async () => {
-        if (!API_URL) return;
         setIsLoading(true);
+        setDbStatus('sincronizando');
         try {
-            const response = await fetch(API_URL);
-            const data = await response.json();
-            setStores(Array.isArray(data) ? data : []);
+            const response = await fetch(SHEETS_CSV_URL);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const csvText = await response.text();
+            const lines = csvText.trim().split('\n').filter(l => l.trim());
+            if (lines.length < 2) {
+                setStores([]);
+                setDbStatus('conectado');
+                return;
+            }
+            const headers = parseCSVRow(lines[0]);
+            const loaded = lines.slice(1).map(line => {
+                const values = parseCSVRow(line);
+                const flat = {};
+                headers.forEach((h, i) => { flat[h.trim()] = (values[i] || '').trim(); });
+                return csvRowToStore(flat);
+            });
+            setStores(loaded);
             setDbStatus('conectado');
         } catch (error) {
-            console.error("Error cargando base de datos:", error);
+            console.error('[LogicPay] Error cargando tiendas desde CSV:', error);
             setDbStatus('desconectado');
         } finally {
-            setIsLoading(true); // Se mantiene en true brevemente para el HUD si es necesario, pero el status manda
-            setTimeout(() => setIsLoading(false), 500);
+            setIsLoading(false);
         }
     };
 
@@ -982,26 +1061,25 @@ function App() {
         fetchStores();
     }, []);
 
-    const syncToSheets = async (action, data) => {
-        if (!API_URL) return;
-        setIsLoading(true);
-        try {
-            // Usamos mode: 'no-cors' si hay problemas, pero Apps Script suele requerir redirecciones
-            // Para Apps Script REST API lo mejor es enviar un POST
-            await fetch(API_URL, {
-                method: 'POST',
-                mode: 'no-cors', // Apps Script a veces da problemas de CORS pero ejecuta el código
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, data })
+    // ─── API: Sincronizar cambios con Google Sheets ──────────────────────────
+    // Usa mode: 'no-cors' con Content-Type: 'text/plain' (CORS-safelisted).
+    // El Apps Script recibe el JSON en e.postData.contents y lo procesa.
+    // Tras un breve delay, recarga los datos para confirmar la escritura.
+    const syncToSheets = (action, data) => {
+        setDbStatus('sincronizando');
+        fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action, data })
+        })
+            .catch(error => {
+                console.error('[LogicPay] Error en POST a Sheets:', error);
+            })
+            .finally(() => {
+                // Recargamos después de 2 segundos para darle tiempo al Apps Script de escribir
+                setTimeout(fetchStores, 2000);
             });
-
-            // Refrescamos después de un breve delay para que Apps Script termine
-            setTimeout(fetchStores, 1500);
-        } catch (error) {
-            console.error("Error sincronizando con Sheets:", error);
-        } finally {
-            setIsLoading(false);
-        }
     };
 
     const filteredStores = stores.filter(s =>
@@ -1009,15 +1087,15 @@ function App() {
     );
 
     const handleSaveStore = (updatedStore) => {
-        setStores(prev => prev.map(s => s.nombre === updatedStore.nombre ? updatedStore : s));
+        setStores(prev => prev.map(s => s.codigo === updatedStore.codigo ? updatedStore : s));
         setEditingStore(null);
         syncToSheets('upsert', updatedStore);
     };
 
-    const handleDeleteStore = (storeName) => {
-        setStores(prev => prev.filter(s => s.nombre !== storeName));
+    const handleDeleteStore = (storeCodigo) => {
+        setStores(prev => prev.filter(s => s.codigo !== storeCodigo));
         setEditingStore(null);
-        syncToSheets('delete', { nombre: storeName });
+        syncToSheets('delete', { codigo: storeCodigo });
     };
 
     const handleCreateStore = (newStore) => {
@@ -1096,12 +1174,26 @@ function App() {
                         ))}
                     </nav>
 
-                    {/* Connection Indicator at bottom of Sidebar */}
-                    <div className="mt-auto pt-6 border-t border-gray-50 flex flex-col gap-1">
-                        <div className="flex items-center gap-2 pl-2">
-                            <div className={`w-2 h-2 rounded-full animate-pulse ${isLoading ? 'bg-[#6bbdb7]' : (dbStatus === 'conectado' ? 'bg-green-500' : 'bg-red-500')}`} />
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${isLoading ? 'text-[#6bbdb7]' : (dbStatus === 'conectado' ? 'text-green-600' : 'text-red-500')}`}>
-                                {isLoading ? 'Sincronizando' : (dbStatus === 'conectado' ? 'Conectado' : 'Desconectado')}
+                    {/* Indicador de Conexión */}
+                    <div className="mt-auto pt-5 border-t border-gray-50">
+                        <div className="flex items-center gap-2.5 px-2 py-2">
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isLoading
+                                ? 'bg-[#6bbdb7] animate-pulse'
+                                : dbStatus === 'conectado'
+                                    ? 'bg-green-500 animate-pulse'
+                                    : dbStatus === 'sincronizando'
+                                        ? 'bg-[#6bbdb7] animate-ping'
+                                        : 'bg-red-400'
+                                }`} />
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${isLoading
+                                ? 'text-[#6bbdb7]'
+                                : dbStatus === 'conectado'
+                                    ? 'text-green-600'
+                                    : dbStatus === 'sincronizando'
+                                        ? 'text-[#6bbdb7]'
+                                        : 'text-red-400'
+                                }`}>
+                                {isLoading ? 'Cargando...' : dbStatus === 'conectado' ? 'Conectado' : dbStatus === 'sincronizando' ? 'Sincronizando' : 'Desconectado'}
                             </span>
                         </div>
                     </div>
@@ -1167,7 +1259,7 @@ function App() {
                                 >
                                     <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
                                     <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" />
-                                    <span className="tracking-widest uppercase text-[10px]">Agregar Tenda</span>
+                                    <span className="tracking-widest uppercase text-[10px]">Agregar Tienda</span>
                                 </button>
                             </div>
 
