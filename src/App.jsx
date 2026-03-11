@@ -191,7 +191,7 @@ const LoginView = ({ onLogin }) => {
                 className="absolute bottom-[-5%] left-[-10%] w-[500px] h-[500px] blur-[100px] rounded-full"
             />
 
-            <div className={`w-full max-w-md p-10 bg-white/80 backdrop-blur-2xl rounded-[3rem] border border-white shadow-2xl shadow-blue-900/10 transition-all duration-500 animate-in fade-in zoom-in-95 ${error ? 'border-red-200 animate-shake' : ''}`}>
+            <div className={`w-full max-w-md p-10 bg-white/80 backdrop-blur-2xl rounded-[3rem] border border-white/20 shadow-2xl shadow-blue-900/10 transition-all duration-500 animate-in fade-in zoom-in-95 ${error ? 'border-red-200 animate-shake' : ''}`}>
                 <div className="flex flex-col items-center mb-10">
                     <img
                         src="/Logo Logic Group Management.png"
@@ -211,7 +211,7 @@ const LoginView = ({ onLogin }) => {
                                 placeholder="Escriba su nombre..."
                                 value={selectedUser}
                                 onChange={(e) => setSelectedUser(e.target.value)}
-                                className="w-full bg-white border-2 border-brand-primary/20 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all text-sm shadow-sm placeholder:text-gray-100"
+                                className="w-full bg-white border-2 border-brand-primary/5 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all text-sm shadow-sm placeholder:text-gray-100"
                             />
                             <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-200">
                                 <Users size={18} />
@@ -226,7 +226,7 @@ const LoginView = ({ onLogin }) => {
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full bg-white border-2 border-brand-primary/20 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all text-sm shadow-sm placeholder:text-gray-100"
+                            className="w-full bg-white border-2 border-brand-primary/5 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all text-sm shadow-sm placeholder:text-gray-100"
                         />
                     </div>
 
@@ -275,17 +275,17 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
 const StoreCard = ({ store, onEdit }) => (
     <div
         onClick={() => onEdit(store)}
-        className="card cursor-pointer group hover:border-[#6bbdb7]/60 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/10 relative overflow-hidden bg-white/80 backdrop-blur-sm border-gray-100/50 hover:-translate-y-2 active:scale-95"
+        className="card cursor-pointer group hover:border-[#6bbdb7]/60 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/10 relative overflow-hidden bg-white/80 backdrop-blur-sm border-transparent hover:-translate-y-2 active:scale-95"
     >
         <div className="flex justify-between items-start mb-5">
-            <div className="w-12 h-12 bg-[#f9f9f9] rounded-2xl group-hover:bg-[#6bbdb7]/10 transition-colors border border-gray-100/50 overflow-hidden flex items-center justify-center">
+            <div className="w-12 h-12 bg-[#f9f9f9] rounded-2xl group-hover:bg-[#6bbdb7]/10 transition-colors border border-transparent overflow-hidden flex items-center justify-center">
                 {store.imagen ? (
                     <img src={store.imagen} alt={store.nombre} className="w-full h-full object-cover" />
                 ) : (
                     <StoreIcon className="text-gray-400 group-hover:text-[#6bbdb7]" size={20} />
                 )}
             </div>
-            <span className="bg-[#303a7f]/5 text-[#303a7f] text-[10px] font-black px-3 py-1.5 rounded-xl self-start uppercase tracking-widest border border-[#303a7f]/10 shadow-sm group-hover:bg-[#303a7f] group-hover:text-white transition-all duration-300">
+            <span className="bg-[#303a7f]/5 text-[#303a7f] text-[10px] font-black px-3 py-1.5 rounded-xl self-start uppercase tracking-widest border border-transparent shadow-sm group-hover:bg-[#303a7f] group-hover:text-white transition-all duration-300">
                 {store.codigo || 'S/N'}
             </span>
         </div>
@@ -310,7 +310,7 @@ const StoreCard = ({ store, onEdit }) => (
             </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-gray-100/50 group-hover:bg-[#303a7f]/5 transition-colors">
+        <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-transparent group-hover:bg-[#303a7f]/5 transition-colors">
             <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Supervisor LSG</span>
             <span className="text-[9px] font-black text-[#303a7f] uppercase">{store.supervisor_lsg || 'Sin Asignar'}</span>
         </div>
@@ -320,10 +320,10 @@ const StoreCard = ({ store, onEdit }) => (
 const EmployeeCard = ({ employee, onEdit }) => (
     <div
         onClick={() => onEdit(employee)}
-        className="card cursor-pointer group hover:border-[#303a7f]/40 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/10 relative overflow-hidden bg-white/80 backdrop-blur-sm border-gray-100/50 hover:-translate-y-2 active:scale-95"
+        className="card cursor-pointer group hover:border-[#303a7f]/40 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/10 relative overflow-hidden bg-white/80 backdrop-blur-sm border-transparent hover:-translate-y-2 active:scale-95"
     >
         <div className="flex justify-between items-start mb-5">
-            <div className="w-16 h-16 bg-[#f9f9f9] rounded-2xl group-hover:bg-[#303a7f]/5 transition-colors border border-gray-100/50 overflow-hidden flex items-center justify-center">
+            <div className="w-16 h-16 bg-[#f9f9f9] rounded-2xl group-hover:bg-[#303a7f]/5 transition-colors border border-transparent overflow-hidden flex items-center justify-center">
                 {employee.imagen ? (
                     <img src={employee.imagen} alt={employee.nombre} className="w-full h-full object-cover" />
                 ) : (
@@ -331,10 +331,10 @@ const EmployeeCard = ({ employee, onEdit }) => (
                 )}
             </div>
             <div className="flex flex-col items-end gap-2">
-                <span className="bg-[#6bbdb7]/10 text-[#6bbdb7] text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest border border-[#6bbdb7]/10 shadow-sm group-hover:bg-[#6bbdb7] group-hover:text-white transition-all duration-300">
+                <span className="bg-[#6bbdb7]/10 text-[#6bbdb7] text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest border border-transparent shadow-sm group-hover:bg-[#6bbdb7] group-hover:text-white transition-all duration-300">
                     ID: {employee.codigo_empleado || 'S/N'}
                 </span>
-                <span className={`text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-widest ${employee.fecha_egreso ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-green-50 text-green-500 border border-green-100'}`}>
+                <span className={`text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-widest ${employee.fecha_egreso ? 'bg-red-50 text-red-500 border border-transparent' : 'bg-green-50 text-green-500 border border-transparent'}`}>
                     {employee.fecha_egreso ? 'Inactivo' : 'Activo'}
                 </span>
             </div>
@@ -360,7 +360,7 @@ const EmployeeCard = ({ employee, onEdit }) => (
             </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-gray-100/50 group-hover:bg-[#303a7f]/5 transition-colors">
+        <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-transparent group-hover:bg-[#303a7f]/5 transition-colors">
             <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Banco</span>
             <span className="text-[9px] font-black text-[#303a7f] uppercase">{employee.cuenta_bancaria ? 'Registrado' : 'No Registrado'}</span>
         </div>
@@ -472,7 +472,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                 <div className="flex items-center justify-between mb-8">
                     <button
                         onClick={onBack}
-                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border-2 border-brand-primary/20 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
+                        className={`flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl shadow-sm group font-bold text-[10px] uppercase tracking-widest border-2 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
                         Volver al Inicio
@@ -483,7 +483,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                             <>
                                 <button
                                     onClick={() => setShowDeleteModal(true)}
-                                    className="bg-white text-red-500 font-bold px-6 py-3 border-2 border-red-100/80 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 hover:bg-red-50 transition-all flex items-center gap-2"
+                                    className={`bg-white text-red-500 font-bold px-6 py-3 border-2 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 hover:bg-red-50 transition-all flex items-center gap-2 ${isEditing ? 'border-red-100/80' : 'border-transparent'}`}
                                 >
                                     <Trash2 size={16} />
                                     Eliminar Tienda
@@ -521,7 +521,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Left Panel: Store Identity */}
                     <div className="lg:col-span-4 space-y-6">
-                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border-2 border-brand-primary/20">
+                        <section className={`bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
                             <div
                                 style={{ background: 'linear-gradient(to bottom, rgba(48,58,127,0.05), transparent)' }}
                                 className="absolute top-0 left-0 w-full h-20"
@@ -569,7 +569,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                             </div>
                         </section>
 
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
+                        <section className={`bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
                             <h3 className="text-[#333333] font-black flex items-center gap-3 mb-6 text-base">
                                 <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
                                     <Settings size={18} className="text-[#303a7f]" />
@@ -670,7 +670,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                     {/* Right Panel: Logistics & Workforce */}
                     <div className="lg:col-span-8 space-y-6">
                         {/* Matrix Payroll Settings */}
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
+                        <section className={`bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
                             <div className="flex items-center gap-4 mb-8">
                                 <div className="bg-[#303a7f] p-3 rounded-xl shadow-xl shadow-blue-900/10">
                                     <DollarSign className="text-white" size={20} />
@@ -730,7 +730,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                             </div>
                         </section>
 
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
+                        <section className={`bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 mb-8">
                                 <div className="flex items-center gap-4">
                                     <div
@@ -744,7 +744,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                         <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-1">Consulta de Nómina Asignada (Solo Lectura)</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 px-5 py-2.5 bg-[#f9f9f9] rounded-xl border-2 border-brand-primary/10">
+                                <div className={`flex items-center gap-2 px-5 py-2.5 bg-[#f9f9f9] rounded-xl border-2 transition-all ${isEditing ? 'border-brand-primary/10' : 'border-transparent'}`}>
                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Colaboradores:</span>
                                     <span className="text-[#303a7f] font-black text-base">{assignedEmployees.length}</span>
                                 </div>
@@ -765,7 +765,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                         {assignedEmployees.map((emp) => (
                                             <tr key={emp.codigo_empleado} className="hover:bg-gray-50/50 transition-colors group">
                                                 <td className="py-4 px-6 font-bold text-[#333333] text-sm flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0 border-2 border-brand-primary/10">
+                                                    <div className={`w-8 h-8 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0 border-2 transition-all ${isEditing ? 'border-brand-primary/10' : 'border-transparent'}`}>
                                                         {emp.imagen ? (
                                                             <img src={emp.imagen} className="w-full h-full object-cover" />
                                                         ) : (
@@ -1190,7 +1190,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                 <div className="flex items-center justify-between mb-8">
                     <button
                         onClick={onBack}
-                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border-2 border-brand-primary/20 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
+                        className={`flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl shadow-sm group font-bold text-[10px] uppercase tracking-widest border-2 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
                         Volver al Listado
@@ -1201,7 +1201,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                             <>
                                 <button
                                     onClick={() => setShowDeleteModal(true)}
-                                    className="bg-white text-red-500 font-bold px-6 py-3 border-2 border-red-100/80 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 hover:bg-red-50 transition-all flex items-center gap-2"
+                                    className={`bg-white text-red-500 font-bold px-6 py-3 border-2 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 hover:bg-red-50 transition-all flex items-center gap-2 ${isEditing ? 'border-red-100/80' : 'border-transparent'}`}
                                 >
                                     <Trash2 size={16} />
                                     Eliminar Empleado
@@ -1238,9 +1238,9 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div className="lg:col-span-4 space-y-6">
-                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border-2 border-brand-primary/20">
+                        <section className={`bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
                             <div className="relative inline-block group mb-6">
-                                <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7] group-hover:shadow-inner relative">
+                                <div className={`w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7] group-hover:shadow-inner relative ${isEditing ? 'border-gray-200' : 'border-transparent'}`}>
                                     {editedEmployee.imagen ? (
                                         <img src={editedEmployee.imagen} alt="Employee Profile" className="w-full h-full object-cover" />
                                     ) : (
@@ -1273,7 +1273,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                             </div>
                         </section>
 
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
+                        <section className={`bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
                             <h3 className="text-[#333333] font-black flex items-center gap-3 mb-6 text-base">
                                 <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
                                     <Settings size={18} className="text-[#303a7f]" />
@@ -1337,7 +1337,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                     </div>
 
                     <div className="lg:col-span-8 space-y-6">
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
+                        <section className={`bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
                             <h3 className="text-[#333333] font-black flex items-center gap-3 mb-8 text-xl tracking-tighter">
                                 <div className="bg-[#6bbdb7] p-2 rounded-lg"><Clock size={18} className="text-white" /></div>
                                 Control de Nómina y Fechas
@@ -1944,7 +1944,7 @@ function App() {
 
                     {activeTab === 'payroll' && (
                         <div className="grid grid-cols-1 gap-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                            <section className="bg-white rounded-[2.5rem] p-10 shadow-2xl shadow-blue-900/[0.04] overflow-hidden relative border-2 border-brand-primary/20">
+                            <section className="bg-white rounded-[2.5rem] p-10 shadow-2xl shadow-blue-900/[0.04] overflow-hidden relative border-2 border-transparent">
                                 <div
                                     style={{ backgroundColor: 'rgba(48,58,127,0.03)' }}
                                     className="absolute top-0 right-0 w-64 h-64 rounded-full -mr-32 -mt-32 blur-3xl"

@@ -39,6 +39,5 @@ body {
 
 .card {
   background-color: #ffffff;
-  border: 1px solid #e5e7eb;
   @apply rounded-xl p-6 shadow-sm shadow-blue-900/[0.02];
 }
