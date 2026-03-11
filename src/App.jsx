@@ -818,16 +818,16 @@ const StoreAddView = ({ onSave, onBack }) => {
     const [newStore, setNewStore] = useState({
         nombre: '',
         codigo: '',
-        estado: 'ARIZONA',
+        estado: '',
         direccion: '',
         supervisor_kbs: '',
         supervisor_lsg: '',
         correo: '',
-        max_horas: 0,
+        max_horas: '',
         tarifas: {
-            janitorial: { kbs: 0, lsg: 0 },
-            utility: { kbs: 0, lsg: 0 },
-            shift_lead: { kbs: 0, lsg: 0 }
+            janitorial: { kbs: '', lsg: '' },
+            utility: { kbs: '', lsg: '' },
+            shift_lead: { kbs: '', lsg: '' }
         },
         employees: []
     });
@@ -955,7 +955,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Estado (US)</label>
                                     <input
                                         type="text"
-                                        placeholder="Ej: ARIZONA"
+                                        placeholder="Ej: Arizona"
                                         value={newStore.estado}
                                         onChange={(e) => updateField('estado', e.target.value)}
                                         className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
@@ -965,6 +965,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Horas Máximas / Mes</label>
                                     <input
                                         type="number"
+                                        placeholder="Ej: 160"
                                         value={newStore.max_horas}
                                         onChange={(e) => updateField('max_horas', e.target.value)}
                                         className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
@@ -1027,7 +1028,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                                             type="number"
                                                             step="0.01"
                                                             placeholder="0.00"
-                                                            value={newStore.tarifas[cargo.id].kbs}
+                                                            value={newStore.tarifas[cargo.id].kbs || ''}
                                                             onChange={(e) => updateTarifa(cargo.id, 'kbs', e.target.value)}
                                                             className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
                                                         />
@@ -1041,7 +1042,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                                             type="number"
                                                             step="0.01"
                                                             placeholder="0.00"
-                                                            value={newStore.tarifas[cargo.id].lsg}
+                                                            value={newStore.tarifas[cargo.id].lsg || ''}
                                                             onChange={(e) => updateTarifa(cargo.id, 'lsg', e.target.value)}
                                                             className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
                                                         />
