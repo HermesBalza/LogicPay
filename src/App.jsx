@@ -2047,7 +2047,7 @@ function App() {
                         </div>
                     )}
 
-                    {(activeTab !== 'stores' && activeTab !== 'payroll') && (
+                    {(activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees') && (
                         <div className="flex flex-col items-center justify-center py-32 text-center animate-in fade-in zoom-in-95 duration-1000">
                             <div className="p-12 bg-white rounded-[2rem] border-2 border-brand-primary/10 mb-10 relative shadow-2xl shadow-blue-900/[0.06]">
                                 <div
