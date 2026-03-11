@@ -1176,24 +1176,29 @@ function App() {
 
                     {/* Indicador de Conexión */}
                     <div className="mt-auto pt-5 border-t border-gray-50">
-                        <div className="flex items-center gap-2.5 px-2 py-2">
-                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isLoading
-                                ? 'bg-[#6bbdb7] animate-pulse'
-                                : dbStatus === 'conectado'
-                                    ? 'bg-green-500 animate-pulse'
-                                    : dbStatus === 'sincronizando'
-                                        ? 'bg-[#6bbdb7] animate-ping'
-                                        : 'bg-red-400'
-                                }`} />
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${isLoading
-                                ? 'text-[#6bbdb7]'
-                                : dbStatus === 'conectado'
-                                    ? 'text-green-600'
-                                    : dbStatus === 'sincronizando'
-                                        ? 'text-[#6bbdb7]'
-                                        : 'text-red-400'
-                                }`}>
-                                {isLoading ? 'Cargando...' : dbStatus === 'conectado' ? 'Conectado' : dbStatus === 'sincronizando' ? 'Sincronizando' : 'Desconectado'}
+                        <div className="flex items-center justify-between gap-2.5 px-2 py-2">
+                            <div className="flex items-center gap-2.5">
+                                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isLoading
+                                    ? 'bg-[#6bbdb7] animate-pulse'
+                                    : dbStatus === 'conectado'
+                                        ? 'bg-green-500 animate-pulse'
+                                        : dbStatus === 'sincronizando'
+                                            ? 'bg-[#6bbdb7] animate-ping'
+                                            : 'bg-red-400'
+                                    }`} />
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${isLoading
+                                    ? 'text-[#6bbdb7]'
+                                    : dbStatus === 'conectado'
+                                        ? 'text-green-600'
+                                        : dbStatus === 'sincronizando'
+                                            ? 'text-[#6bbdb7]'
+                                            : 'text-red-400'
+                                    }`}>
+                                    {isLoading ? 'Cargando...' : dbStatus === 'conectado' ? 'Conectado' : dbStatus === 'sincronizando' ? 'Sincronizando' : 'Desconectado'}
+                                </span>
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                {new Intl.DateTimeFormat('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }).format(new Date())}
                             </span>
                         </div>
                     </div>
