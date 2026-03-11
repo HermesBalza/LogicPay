@@ -30,10 +30,11 @@ import {
 
 
 // ─── BASE DE DATOS: Google Sheets via Apps Script (escritura) ───────────────
-const API_URL = 'https://script.google.com/macros/s/AKfycbxF46w1hU-0Z6-iRvvY5EkSy8wbRU5wWBXJjN-1HxDvkGccKxl5C_dShlUzMctC-PhtZg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwOP1GRmKw_QeKq-tFcGU7VbFYWk6jyBSIS-npnLuVodsUAPj_hyRviBoDF25_rBOKthw/exec';
 
 // ─── BASE DE DATOS: Google Sheets publicado como CSV (lectura) ───────────────
 const SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=0&single=true&output=csv';
+const EMPLOYEES_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=866070317&single=true&output=csv';
 
 // Parsea una fila CSV respetando campos entre comillas
 const parseCSVRow = (row) => {
@@ -85,6 +86,40 @@ const csvRowToStore = (flat) => ({
         }
     }
 });
+
+const csvRowToEmployee = (flat) => ({
+    nombre: flat.nombre || '',
+    codigo_empleado: (flat.codigo_empleado || '').replace(/^'/, ''),
+    fecha_ingreso: flat.fecha_ingreso || '',
+    fecha_egreso: flat.fecha_egreso || '',
+    cargo: flat.cargo || '',
+    tienda: flat.tienda || '',
+    cuenta_bancaria: flat.cuenta_bancaria || '',
+    imagen: flat.imagen || ''
+});
+
+// Función para comprimir imágenes antes de enviar a Sheets (evita límites de celda/POST)
+const compressImage = (base64Str, maxWidth = 300, quality = 0.7) => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            if (width > maxWidth) {
+                height = (maxWidth / width) * height;
+                width = maxWidth;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(base64Str);
+    });
+};
 
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 
@@ -232,7 +267,7 @@ const StoreCard = ({ store, onEdit }) => (
                     <Users size={12} className="text-[#6bbdb7]/60" />
                     <span className="font-semibold uppercase tracking-tighter">Personal</span>
                 </div>
-                <span className="text-[#333333] font-black">{(store.employees || []).length} operarios</span>
+                <span className="text-[#333333] font-black">{(store.employees || []).length} Empleados</span>
             </div>
             <div className="flex items-center justify-between text-[10px]">
                 <div className="flex items-center gap-2 text-gray-500">
@@ -246,6 +281,56 @@ const StoreCard = ({ store, onEdit }) => (
         <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-gray-100/50 group-hover:bg-[#303a7f]/5 transition-colors">
             <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Supervisor LSG</span>
             <span className="text-[9px] font-black text-[#303a7f] uppercase">{store.supervisor_lsg || 'Sin Asignar'}</span>
+        </div>
+    </div>
+);
+
+const EmployeeCard = ({ employee, onEdit }) => (
+    <div
+        onClick={() => onEdit(employee)}
+        className="card cursor-pointer group hover:border-[#303a7f]/40 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/10 relative overflow-hidden bg-white/80 backdrop-blur-sm border-gray-100/50 hover:-translate-y-2 active:scale-95"
+    >
+        <div className="flex justify-between items-start mb-5">
+            <div className="w-16 h-16 bg-[#f9f9f9] rounded-2xl group-hover:bg-[#303a7f]/5 transition-colors border border-gray-100/50 overflow-hidden flex items-center justify-center">
+                {employee.imagen ? (
+                    <img src={employee.imagen} alt={employee.nombre} className="w-full h-full object-cover" />
+                ) : (
+                    <Users className="text-gray-300 group-hover:text-[#303a7f]" size={28} />
+                )}
+            </div>
+            <div className="flex flex-col items-end gap-2">
+                <span className="bg-[#6bbdb7]/10 text-[#6bbdb7] text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest border border-[#6bbdb7]/10 shadow-sm group-hover:bg-[#6bbdb7] group-hover:text-white transition-all duration-300">
+                    ID: {employee.codigo_empleado || 'S/N'}
+                </span>
+                <span className={`text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-widest ${employee.fecha_egreso ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-green-50 text-green-500 border border-green-100'}`}>
+                    {employee.fecha_egreso ? 'Inactivo' : 'Activo'}
+                </span>
+            </div>
+        </div>
+
+        <h3 className="text-lg font-black text-[#333333] mb-1 group-hover:text-[#303a7f] transition-colors tracking-tight leading-tight">{employee.nombre}</h3>
+        <p className="text-[#6bbdb7] text-[9px] font-black mb-4 uppercase tracking-[0.2em]">{employee.cargo || 'SIN CARGO'}</p>
+
+        <div className="space-y-3 pt-4 border-t border-gray-50">
+            <div className="flex items-center justify-between text-[10px]">
+                <div className="flex items-center gap-2 text-gray-500">
+                    <StoreIcon size={12} className="text-[#6bbdb7]/60" />
+                    <span className="font-semibold uppercase tracking-tighter">Tienda Asignada</span>
+                </div>
+                <span className="text-[#333333] font-black">{employee.tienda || '--'}</span>
+            </div>
+            <div className="flex items-center justify-between text-[10px]">
+                <div className="flex items-center gap-2 text-gray-500">
+                    <Clock size={12} className="text-[#6bbdb7]/60" />
+                    <span className="font-semibold uppercase tracking-tighter">Ingreso</span>
+                </div>
+                <span className="text-[#333333] font-black">{employee.fecha_ingreso || '--'}</span>
+            </div>
+        </div>
+
+        <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-gray-100/50 group-hover:bg-[#303a7f]/5 transition-colors">
+            <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Banco</span>
+            <span className="text-[9px] font-black text-[#303a7f] uppercase">{employee.cuenta_bancaria ? 'Registrado' : 'No Registrado'}</span>
         </div>
     </div>
 );
@@ -313,8 +398,9 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onloadend = () => {
-                updateField('imagen', reader.result);
+            reader.onloadend = async () => {
+                const compressed = await compressImage(reader.result);
+                updateField('imagen', compressed);
             };
             reader.readAsDataURL(file);
         }
@@ -440,7 +526,7 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="group">
-                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1 transition-colors group-focus-within:text-[#303a7f]">Código Sede</label>
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1 transition-colors group-focus-within:text-[#303a7f]">Código de Tienda</label>
                                         <input
                                             type="text"
                                             value={editedStore.codigo}
@@ -643,7 +729,7 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
                                             <tr>
                                                 <td colSpan="4" className="py-24 text-center">
                                                     <Users size={40} className="text-gray-100 mx-auto mb-4" />
-                                                    <p className="text-gray-300 font-bold uppercase tracking-widest text-xs">Sin registros de nómina activa para esta sede.</p>
+                                                    <p className="text-gray-300 font-bold uppercase tracking-widest text-xs">Sin registros de nómina activa para esta Tienda.</p>
                                                 </td>
                                             </tr>
                                         )}
@@ -700,7 +786,7 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
                                             : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
                                             }`}
                                     >
-                                        Eliminar Sede
+                                        Eliminar Tienda
                                     </button>
                                 </div>
                             </div>
@@ -740,8 +826,9 @@ const StoreAddView = ({ onSave, onBack }) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onloadend = () => {
-                updateField('imagen', reader.result);
+            reader.onloadend = async () => {
+                const compressed = await compressImage(reader.result);
+                updateField('imagen', compressed);
             };
             reader.readAsDataURL(file);
         }
@@ -787,7 +874,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                         className="text-white font-black px-10 py-4 shadow-2xl shadow-teal-900/20 text-xs tracking-widest uppercase rounded-2xl active:scale-95 flex items-center gap-2 hover:bg-[#59aba5] transition-colors"
                     >
                         <Plus size={18} />
-                        Registrar Sede
+                        Registrar Tienda
                     </button>
                 </div>
 
@@ -829,7 +916,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                     />
                                 </div>
                                 <div className="group text-left">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Código de Sede</label>
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Código de Tienda</label>
                                     <input
                                         type="text"
                                         placeholder="Ej: TND-800"
@@ -988,12 +1075,389 @@ const StoreAddView = ({ onSave, onBack }) => {
         </div>
     );
 };
+
+
+// --- Full Screen Employee Editor ---
+const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [confirmName, setConfirmName] = useState('');
+    const [editedEmployee, setEditedEmployee] = useState({ ...employee });
+
+    const updateField = (field, value) => {
+        if (!isEditing) return;
+        setEditedEmployee(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleCancel = () => {
+        setEditedEmployee({ ...employee });
+        setIsEditing(false);
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const compressed = await compressImage(reader.result);
+                updateField('imagen', compressed);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSave = () => {
+        onSave(editedEmployee);
+        setIsEditing(false);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
+            <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-16">
+                <div className="flex items-center justify-between mb-8">
+                    <button
+                        onClick={onBack}
+                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border border-gray-100 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
+                    >
+                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                        Volver al Listado
+                    </button>
+
+                    <div className="flex gap-3">
+                        {!isEditing ? (
+                            <>
+                                <button
+                                    onClick={() => setShowDeleteModal(true)}
+                                    className="bg-white text-red-500 font-bold px-6 py-3 border border-red-100 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 hover:bg-red-50 transition-all flex items-center gap-2"
+                                >
+                                    <Trash2 size={16} />
+                                    Eliminar Empleado
+                                </button>
+                                <button
+                                    onClick={() => setIsEditing(true)}
+                                    style={{ backgroundColor: '#303a7f' }}
+                                    className="text-white font-black px-8 py-3 shadow-2xl shadow-blue-900/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-2 hover:bg-[#252a5e] transition-colors"
+                                >
+                                    <Edit2 size={16} />
+                                    Editar Perfil
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <button
+                                    onClick={handleCancel}
+                                    className="bg-white text-gray-500 font-black px-6 py-3 border border-gray-200 text-xs tracking-widest uppercase rounded-xl active:scale-95 hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    style={{ backgroundColor: '#6bbdb7' }}
+                                    className="text-white font-black px-8 py-3 shadow-2xl shadow-teal-900/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-2 hover:bg-[#59aba5] transition-colors"
+                                >
+                                    <CheckCircle size={18} />
+                                    Guardar Cambios
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div className="lg:col-span-4 space-y-6">
+                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border border-gray-50">
+                            <div className="relative inline-block group mb-6">
+                                <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7] group-hover:shadow-inner relative">
+                                    {editedEmployee.imagen ? (
+                                        <img src={editedEmployee.imagen} alt="Employee Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <Users className="text-gray-300 group-hover:text-[#6bbdb7]" size={40} />
+                                    )}
+                                </div>
+                                {isEditing && (
+                                    <label
+                                        style={{ backgroundColor: '#303a7f' }}
+                                        className="absolute -bottom-2 -right-2 p-3 rounded-xl shadow-xl shadow-blue-900/20 hover:scale-110 transition-all text-white border-2 border-white cursor-pointer"
+                                    >
+                                        <Camera size={16} />
+                                        <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                                    </label>
+                                )}
+                            </div>
+                            {isEditing ? (
+                                <input
+                                    type="text"
+                                    value={editedEmployee.nombre}
+                                    onChange={(e) => updateField('nombre', e.target.value)}
+                                    className="w-full bg-gray-50 border border-gray-200 text-[#303a7f] font-black text-xl text-center rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all tracking-tighter mb-1.5"
+                                    placeholder="Nombre completo..."
+                                />
+                            ) : (
+                                <h2 className="text-2xl font-black text-[#333333] tracking-tighter mb-1.5">{editedEmployee.nombre}</h2>
+                            )}
+                            <div className="flex flex-col items-center gap-2">
+                                <span className="bg-[#6bbdb7]/10 px-3 py-1 rounded-full text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest">ID: {editedEmployee.codigo_empleado}</span>
+                            </div>
+                        </section>
+
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                            <h3 className="text-[#333333] font-black flex items-center gap-3 mb-6 text-base">
+                                <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
+                                    <Settings size={18} className="text-[#303a7f]" />
+                                </div>
+                                Datos del Empleado
+                            </h3>
+                            <div className="space-y-4">
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Código Empleado</label>
+                                    <input
+                                        type="text"
+                                        value={editedEmployee.codigo_empleado}
+                                        readOnly
+                                        className="w-full bg-gray-100 text-gray-500 border-transparent rounded-xl p-3.5 outline-none font-bold text-sm"
+                                    />
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Cargo / Posición</label>
+                                    {isEditing ? (
+                                        <select
+                                            value={editedEmployee.cargo}
+                                            onChange={(e) => updateField('cargo', e.target.value)}
+                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                        >
+                                            <option value="">Seleccione Cargo</option>
+                                            <option value="Janitorial">Janitorial</option>
+                                            <option value="Utility">Utility</option>
+                                            <option value="Shift Lead">Shift Lead</option>
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={editedEmployee.cargo}
+                                            readOnly
+                                            className="w-full bg-gray-100 text-gray-500 border-transparent rounded-xl p-3.5 font-bold text-sm"
+                                        />
+                                    )}
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-[#6bbdb7] uppercase font-black tracking-widest block mb-1 pl-1">Tienda Asignada</label>
+                                    {isEditing ? (
+                                        <select
+                                            value={editedEmployee.tienda}
+                                            onChange={(e) => updateField('tienda', e.target.value)}
+                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                        >
+                                            <option value="">Seleccione Tienda</option>
+                                            {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={editedEmployee.tienda}
+                                            readOnly
+                                            className="w-full bg-gray-100 text-gray-500 border-transparent rounded-xl p-3.5 font-bold text-sm"
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div className="lg:col-span-8 space-y-6">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                            <h3 className="text-[#333333] font-black flex items-center gap-3 mb-8 text-xl tracking-tighter">
+                                <div className="bg-[#6bbdb7] p-2 rounded-lg"><Clock size={18} className="text-white" /></div>
+                                Control de Nómina y Fechas
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-6">
+                                    <div className="group">
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Fecha de Ingreso</label>
+                                        <input
+                                            type="date"
+                                            value={editedEmployee.fecha_ingreso}
+                                            onChange={(e) => updateField('fecha_ingreso', e.target.value)}
+                                            readOnly={!isEditing}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none font-bold text-sm`}
+                                        />
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[9px] text-red-400 uppercase font-black tracking-widest block mb-1 pl-1">Fecha de Egreso (Baja)</label>
+                                        <input
+                                            type="date"
+                                            value={editedEmployee.fecha_egreso}
+                                            onChange={(e) => updateField('fecha_egreso', e.target.value)}
+                                            readOnly={!isEditing}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none font-bold text-sm`}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-6">
+                                    <div className="group">
+                                        <label className="text-[9px] text-[#303a7f] uppercase font-black tracking-widest block mb-1 pl-1">Cuenta Bancaria (Zelle / Depósito)</label>
+                                        <textarea
+                                            rows="4"
+                                            value={editedEmployee.cuenta_bancaria}
+                                            onChange={(e) => updateField('cuenta_bancaria', e.target.value)}
+                                            readOnly={!isEditing}
+                                            placeholder="Detalles de pago..."
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none font-bold text-sm resize-none`}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)} />
+                    <div className="relative w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl border border-white">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mb-6 text-red-500"><Trash2 size={36} /></div>
+                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter mb-3 uppercase">¿Eliminar empleado?</h3>
+                            <p className="text-gray-400 text-xs mb-8">Escriba el nombre para confirmar: <br/><span className="font-black text-[#333333]">"{employee.nombre}"</span></p>
+                            <input
+                                type="text"
+                                value={confirmName}
+                                onChange={(e) => setConfirmName(e.target.value)}
+                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 outline-none text-center"
+                            />
+                            <div className="flex gap-3 pt-6 w-full">
+                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-white text-gray-400 font-black py-4 rounded-2xl border">Cancelar</button>
+                                <button
+                                    disabled={confirmName !== employee.nombre}
+                                    onClick={() => onDelete(employee.codigo_empleado)}
+                                    className={`flex-1 font-black py-4 rounded-2xl text-white ${confirmName === employee.nombre ? 'bg-red-500' : 'bg-gray-100 text-gray-300'}`}
+                                >
+                                    Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const EmployeeAddView = ({ stores, onSave, onBack }) => {
+    const [newEmployee, setNewEmployee] = useState({
+        nombre: '',
+        codigo_empleado: '',
+        fecha_ingreso: new Date().toISOString().split('T')[0],
+        fecha_egreso: '',
+        cargo: 'Janitorial',
+        tienda: '',
+        cuenta_bancaria: '',
+        imagen: ''
+    });
+
+    const updateField = (field, value) => {
+        setNewEmployee(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const compressed = await compressImage(reader.result);
+                updateField('imagen', compressed);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSave = () => {
+        if (!newEmployee.nombre.trim() || !newEmployee.codigo_empleado.trim()) {
+            alert("Nombre y Código son obligatorios.");
+            return;
+        }
+        onSave(newEmployee);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
+            <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-16">
+                <div className="flex items-center justify-between mb-8">
+                    <button onClick={onBack} className="flex items-center gap-2 text-gray-500 font-bold text-[10px] uppercase tracking-widest bg-white py-2.5 px-5 rounded-xl border"><ArrowLeft size={16} /> Cancelar</button>
+                    <button onClick={handleSave} style={{ backgroundColor: '#6bbdb7' }} className="text-white font-black px-10 py-4 shadow-2xl rounded-2xl text-xs tracking-widest uppercase flex items-center gap-2"><Plus size={18} /> Registrar Empleado</button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div className="lg:col-span-4 space-y-6">
+                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl border border-gray-50">
+                            <div className="relative inline-block mb-6">
+                                <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
+                                    {newEmployee.imagen ? <img src={newEmployee.imagen} className="w-full h-full object-cover" /> : <Camera className="text-gray-300" size={40} />}
+                                </div>
+                                <label style={{ backgroundColor: '#303a7f' }} className="absolute -bottom-2 -right-2 p-3 rounded-xl shadow-xl text-white border-2 border-white cursor-pointer">
+                                    <Plus size={16} /><input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                                </label>
+                            </div>
+                            <div className="space-y-4 text-left">
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Nombre Completo</label>
+                                    <input type="text" value={newEmployee.nombre} onChange={(e) => updateField('nombre', e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3.5 font-bold text-sm" placeholder="Ej: Juan Pérez" />
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Código de Empleado</label>
+                                    <input type="text" value={newEmployee.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3.5 font-bold text-sm" placeholder="Ej: EMP-001" />
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div className="lg:col-span-8 space-y-6">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl border border-gray-50">
+                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
+                                <div className="bg-[#303a7f] p-2 rounded-lg"><Settings className="text-white" size={18} /></div> Asignación Laboral
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Cargo</label>
+                                    <select value={newEmployee.cargo} onChange={(e) => updateField('cargo', e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3.5 font-bold text-sm">
+                                        <option value="Janitorial">Janitorial</option>
+                                        <option value="Utility">Utility</option>
+                                        <option value="Shift Lead">Shift Lead</option>
+                                    </select>
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Tienda Asignada</label>
+                                    <select value={newEmployee.tienda} onChange={(e) => updateField('tienda', e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3.5 font-bold text-sm">
+                                        <option value="">Seleccione Tienda</option>
+                                        {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                    </select>
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Fecha de Ingreso</label>
+                                    <input type="date" value={newEmployee.fecha_ingreso} onChange={(e) => updateField('fecha_ingreso', e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3.5 font-bold text-sm" />
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-[#303a7f] uppercase font-black tracking-widest block mb-1">Detalles de Pago</label>
+                                    <textarea value={newEmployee.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3.5 font-bold text-sm resize-none" rows="3" placeholder="Zelle, No. Cuenta, Banco..."></textarea>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 function App() {
-    const [activeTab, setActiveTab] = useState('stores');
+    const [activeTab, setActiveTab] = useState(() => {
+        return localStorage.getItem('lgm_active_tab') || 'stores';
+    });
     const [isSidebarOpen, setSidebarOpen] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [editingStore, setEditingStore] = useState(null);
     const [isAddingStore, setIsAddingStore] = useState(false);
+    const [editingEmployee, setEditingEmployee] = useState(null);
+    const [isAddingEmployee, setIsAddingEmployee] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado' | 'desconectado' | 'sincronizando'
 
@@ -1017,12 +1481,17 @@ function App() {
         localStorage.setItem('lgm_user', JSON.stringify(userData));
     };
 
+    useEffect(() => {
+        localStorage.setItem('lgm_active_tab', activeTab);
+    }, [activeTab]);
+
     const handleLogout = () => {
         setUser(null);
         localStorage.removeItem('lgm_user');
     };
 
     const [stores, setStores] = useState([]);
+    const [employees, setEmployees] = useState([]);
 
     // ─── API: Cargar todas las tiendas desde CSV público de Google Sheets ────
     // Lee directamente la hoja publicada como CSV (sin CORS, sin Apps Script).
@@ -1057,28 +1526,61 @@ function App() {
         }
     };
 
+    const fetchEmployees = async () => {
+        setIsLoading(true);
+        setDbStatus('sincronizando');
+        try {
+            const response = await fetch(EMPLOYEES_CSV_URL);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const csvText = await response.text();
+            const lines = csvText.trim().split('\n').filter(l => l.trim());
+            if (lines.length < 2) {
+                setEmployees([]);
+                setDbStatus('conectado');
+                return;
+            }
+            const headers = parseCSVRow(lines[0]);
+            const loaded = lines.slice(1).map(line => {
+                const values = parseCSVRow(line);
+                const flat = {};
+                headers.forEach((h, i) => { flat[h.trim()] = (values[i] || '').trim(); });
+                return csvRowToEmployee(flat);
+            });
+            setEmployees(loaded);
+            setDbStatus('conectado');
+        } catch (error) {
+            console.error('[LogicPay] Error cargando empleados desde CSV:', error);
+            setDbStatus('desconectado');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     useEffect(() => {
         fetchStores();
+        fetchEmployees();
     }, []);
 
     // ─── API: Sincronizar cambios con Google Sheets ──────────────────────────
     // Usa mode: 'no-cors' con Content-Type: 'text/plain' (CORS-safelisted).
     // El Apps Script recibe el JSON en e.postData.contents y lo procesa.
     // Tras un breve delay, recarga los datos para confirmar la escritura.
-    const syncToSheets = (action, data) => {
+    const syncToSheets = (action, data, sheetName = 'Tiendas') => {
         setDbStatus('sincronizando');
         fetch(API_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action, data })
+            body: JSON.stringify({ action, data, sheetName })
         })
             .catch(error => {
-                console.error('[LogicPay] Error en POST a Sheets:', error);
+                console.error(`[LogicPay] Error en POST a ${sheetName}:`, error);
             })
             .finally(() => {
-                // Recargamos después de 2 segundos para darle tiempo al Apps Script de escribir
-                setTimeout(fetchStores, 2000);
+                setTimeout(() => {
+                    fetchStores();
+                    if (sheetName === 'Personal') fetchEmployees();
+                }, 2000);
             });
     };
 
@@ -1102,6 +1604,24 @@ function App() {
         setStores(prev => [newStore, ...prev]);
         setIsAddingStore(false);
         syncToSheets('upsert', newStore);
+    };
+
+    const handleSaveEmployee = (updatedEmployee) => {
+        setEmployees(prev => prev.map(e => e.codigo_empleado === updatedEmployee.codigo_empleado ? updatedEmployee : e));
+        setEditingEmployee(updatedEmployee);
+        syncToSheets('upsert', updatedEmployee, 'Personal');
+    };
+
+    const handleDeleteEmployee = (empCodigo) => {
+        setEmployees(prev => prev.filter(e => e.codigo_empleado !== empCodigo));
+        setEditingEmployee(null);
+        syncToSheets('delete', { codigo_empleado: empCodigo }, 'Personal');
+    };
+
+    const handleCreateEmployee = (newEmp) => {
+        setEmployees(prev => [newEmp, ...prev]);
+        setIsAddingEmployee(false);
+        syncToSheets('upsert', newEmp, 'Personal');
     };
 
     const storeNames = stores.map(s => s.nombre);
@@ -1134,6 +1654,24 @@ function App() {
                 <StoreAddView
                     onSave={handleCreateStore}
                     onBack={() => setIsAddingStore(false)}
+                />
+            )}
+
+            {editingEmployee && (
+                <EmployeeEditView
+                    employee={editingEmployee}
+                    stores={stores}
+                    onBack={() => setEditingEmployee(null)}
+                    onSave={handleSaveEmployee}
+                    onDelete={handleDeleteEmployee}
+                />
+            )}
+
+            {isAddingEmployee && (
+                <EmployeeAddView
+                    stores={stores}
+                    onSave={handleCreateEmployee}
+                    onBack={() => setIsAddingEmployee(false)}
                 />
             )}
 
@@ -1251,7 +1789,7 @@ function App() {
                                     <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={20} />
                                     <input
                                         type="text"
-                                        placeholder="Filtrar por nombre de sede o ubicación..."
+                                        placeholder="Filtrar por nombre de Tienda o Ubicación..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="w-full bg-white border border-gray-100 text-[#333333] rounded-2xl py-3.5 pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-base placeholder:text-gray-200"
@@ -1277,6 +1815,45 @@ function App() {
                                     <div className="col-span-full py-32 text-center bg-white/50 rounded-[2rem] border-2 border-dashed border-gray-100">
                                         <StoreIcon size={48} className="text-gray-100 mx-auto mb-6" />
                                         <p className="text-gray-400 font-black text-xl uppercase tracking-[0.2em] opacity-50">Sin coincidencias logísticas</p>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
+
+                    {activeTab === 'employees' && (
+                        <>
+                            <div className="flex flex-col md:flex-row gap-4 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="relative flex-1 group">
+                                    <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={20} />
+                                    <input
+                                        type="text"
+                                        placeholder="Filtrar por nombre o cargo..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-full bg-white border border-gray-100 text-[#333333] rounded-2xl py-3.5 pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-base placeholder:text-gray-200"
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => setIsAddingEmployee(true)}
+                                    style={{ backgroundColor: '#303a7f' }}
+                                    className="text-white font-black py-3.5 px-8 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e]"
+                                >
+                                    <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                                    <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" />
+                                    <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+                                {employees.filter(e => e.nombre.toLowerCase().includes(searchTerm.toLowerCase())).map((employee, i) => (
+                                    <EmployeeCard key={i} employee={employee} onEdit={setEditingEmployee} />
+                                ))}
+
+                                {employees.length === 0 && (
+                                    <div className="col-span-full py-32 text-center bg-white/50 rounded-[2rem] border-2 border-dashed border-gray-100">
+                                        <Users size={48} className="text-gray-100 mx-auto mb-6" />
+                                        <p className="text-gray-400 font-black text-xl uppercase tracking-[0.2em] opacity-50">Sin registros de personal</p>
                                     </div>
                                 )}
                             </div>
@@ -1309,7 +1886,7 @@ function App() {
                                         <label className="text-[10px] text-gray-400 uppercase font-black tracking-widest block ml-2">Unidad Receptora</label>
                                         <div className="relative group">
                                             <select className="w-full bg-[#f9f9f9] border-2 border-transparent text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner pr-14 text-base">
-                                                <option>--- ELIJA UNA SEDE ---</option>
+                                                <option>--- ELIJA UNA TIENDA ---</option>
                                                 {storeNames.map((name, i) => (
                                                     <option key={i}>{name}</option>
                                                 ))}
