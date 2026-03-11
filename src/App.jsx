@@ -336,7 +336,7 @@ const EmployeeCard = ({ employee, onEdit }) => (
 );
 
 // --- Full Screen Store Editor ---
-const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
+const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [confirmName, setConfirmName] = useState('');
@@ -356,6 +356,9 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
             shift_lead: { ...defaultTarifas.shift_lead, ...(store.tarifas?.shift_lead || {}) }
         }
     });
+
+    // Filtramos dinámicamente los empleados que pertenecen a esta tienda desde el estado global
+    const assignedEmployees = (allEmployees || []).filter(emp => emp.tienda === store.nombre);
 
     const updateField = (field, value) => {
         if (!isEditing) return;
@@ -692,7 +695,7 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
                                 </div>
                                 <div className="flex items-center gap-2 px-5 py-2.5 bg-[#f9f9f9] rounded-xl border border-gray-100">
                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Colaboradores:</span>
-                                    <span className="text-[#303a7f] font-black text-base">{(editedStore.employees || []).length}</span>
+                                    <span className="text-[#303a7f] font-black text-base">{assignedEmployees.length}</span>
                                 </div>
                             </div>
 
@@ -708,10 +711,19 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
-                                        {(editedStore.employees || []).map((emp) => (
-                                            <tr key={emp.id} className="hover:bg-gray-50 transition-colors group">
-                                                <td className="py-4 px-6 font-bold text-[#333333] text-sm">{emp.nombre}</td>
-                                                <td className="py-4 px-6 text-[#6bbdb7] font-black text-[10px] tracking-widest">{emp.id}</td>
+                                        {assignedEmployees.map((emp) => (
+                                            <tr key={emp.codigo_empleado} className="hover:bg-gray-50 transition-colors group">
+                                                <td className="py-4 px-6 font-bold text-[#333333] text-sm flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0 border border-gray-100">
+                                                        {emp.imagen ? (
+                                                            <img src={emp.imagen} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <Users size={14} className="text-gray-300 m-auto mt-2" />
+                                                        )}
+                                                    </div>
+                                                    {emp.nombre}
+                                                </td>
+                                                <td className="py-4 px-6 text-[#6bbdb7] font-black text-[10px] tracking-widest">{emp.codigo_empleado}</td>
                                                 <td className="py-4 px-6">
                                                     <span className="bg-[#303a7f]/5 px-3 py-1.5 rounded-lg text-[9px] text-[#303a7f] font-black uppercase tracking-widest">
                                                         {emp.cargo}
@@ -719,13 +731,15 @@ const StoreEditView = ({ store, onSave, onBack, onDelete }) => {
                                                 </td>
                                                 <td className="py-4 px-6 text-right">
                                                     <div className="flex items-center justify-end gap-1.5">
-                                                        <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse" />
-                                                        <span className="text-[8px] font-black text-green-600 uppercase">Activo</span>
+                                                        <div className={`w-1 h-1 ${emp.fecha_egreso ? 'bg-red-400' : 'bg-green-500 rounded-full animate-pulse'}`} />
+                                                        <span className={`text-[8px] font-black uppercase ${emp.fecha_egreso ? 'text-red-400' : 'text-green-600'}`}>
+                                                            {emp.fecha_egreso ? 'Inactivo' : 'Activo'}
+                                                        </span>
                                                     </div>
                                                 </td>
                                             </tr>
                                         ))}
-                                        {(editedStore.employees || []).length === 0 && (
+                                        {assignedEmployees.length === 0 && (
                                             <tr>
                                                 <td colSpan="4" className="py-24 text-center">
                                                     <Users size={40} className="text-gray-100 mx-auto mb-4" />
@@ -1644,6 +1658,7 @@ function App() {
             {editingStore && (
                 <StoreEditView
                     store={editingStore}
+                    allEmployees={employees}
                     onBack={() => setEditingStore(null)}
                     onSave={handleSaveStore}
                     onDelete={handleDeleteStore}
