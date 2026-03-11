@@ -57,6 +57,38 @@ const parseCSVRow = (row) => {
     return result;
 };
 
+// --- Date Utility Functions ---
+const formatDateForInput = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return ''; // Invalid date
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const formatDateForDisplay = (dateStr) => {
+    if (!dateStr) return '--';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+        // If the date is not valid, try to parse it as MM/DD/YYYY
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+            // Assuming MM/DD/YYYY
+            const d = new Date(parts[2], parts[0] - 1, parts[1]);
+            if (!isNaN(d.getTime())) {
+                return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
+            }
+        }
+        return '--'; // Return placeholder if still invalid
+    }
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const year = date.getUTCFullYear();
+    return `${month}/${day}/${year}`;
+};
+
 // Convierte una fila plana del CSV a la estructura de tienda que usa la app.
 // Mapeo explícito para evitar ambigüedades con claves que contienen guiones bajos
 // (ej: supervisor_kbs, max_horas, tarifas_shift_lead_kbs).
@@ -179,7 +211,7 @@ const LoginView = ({ onLogin }) => {
                                 placeholder="Escriba su nombre..."
                                 value={selectedUser}
                                 onChange={(e) => setSelectedUser(e.target.value)}
-                                className="w-full bg-white border border-gray-100 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all text-sm shadow-sm placeholder:text-gray-100"
+                                className="w-full bg-white border-2 border-brand-primary/20 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all text-sm shadow-sm placeholder:text-gray-100"
                             />
                             <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-200">
                                 <Users size={18} />
@@ -194,7 +226,7 @@ const LoginView = ({ onLogin }) => {
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full bg-white border border-gray-100 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all text-sm shadow-sm placeholder:text-gray-100"
+                            className="w-full bg-white border-2 border-brand-primary/20 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all text-sm shadow-sm placeholder:text-gray-100"
                         />
                     </div>
 
@@ -324,7 +356,7 @@ const EmployeeCard = ({ employee, onEdit }) => (
                     <Clock size={12} className="text-[#6bbdb7]/60" />
                     <span className="font-semibold uppercase tracking-tighter">Ingreso</span>
                 </div>
-                <span className="text-[#333333] font-black">{employee.fecha_ingreso || '--'}</span>
+                <span className="text-[#333333] font-black">{formatDateForDisplay(employee.fecha_ingreso)}</span>
             </div>
         </div>
 
@@ -367,6 +399,15 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
 
     const updateTarifa = (cargo, tipo, value) => {
         if (!isEditing) return;
+    
+        // Allow only numbers and a single dot
+        const sanitizedValue = value.replace(/[^\d.]/g, '');
+        const parts = sanitizedValue.split('.');
+        let finalValue = sanitizedValue;
+        if (parts.length > 2) {
+            finalValue = `${parts[0]}.${parts.slice(1).join('')}`;
+        }
+    
         setEditedStore(prev => {
             const currentTarifas = prev.tarifas || defaultTarifas;
             const currentCargo = currentTarifas[cargo] || { kbs: 0, lsg: 0 };
@@ -376,7 +417,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                     ...currentTarifas,
                     [cargo]: {
                         ...currentCargo,
-                        [tipo]: parseFloat(value) || 0
+                        [tipo]: finalValue // Keep as string for input, parse on save
                     }
                 }
             };
@@ -410,7 +451,17 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
     };
 
     const handleSave = () => {
-        onSave(editedStore);
+        // Create a deep copy to modify before saving
+        const storeToSave = JSON.parse(JSON.stringify(editedStore));
+    
+        // Iterate over tarifas and parse them to floats
+        for (const cargo in storeToSave.tarifas) {
+            for (const tipo in storeToSave.tarifas[cargo]) {
+                storeToSave.tarifas[cargo][tipo] = parseFloat(storeToSave.tarifas[cargo][tipo]) || 0;
+            }
+        }
+    
+        onSave(storeToSave);
         setIsEditing(false);
     };
 
@@ -421,7 +472,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                 <div className="flex items-center justify-between mb-8">
                     <button
                         onClick={onBack}
-                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border border-gray-100 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
+                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border-2 border-brand-primary/20 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
                         Volver al Inicio
@@ -432,7 +483,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                             <>
                                 <button
                                     onClick={() => setShowDeleteModal(true)}
-                                    className="bg-white text-red-500 font-bold px-6 py-3 border border-red-100 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 hover:bg-red-50 transition-all flex items-center gap-2"
+                                    className="bg-white text-red-500 font-bold px-6 py-3 border-2 border-red-100/80 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 hover:bg-red-50 transition-all flex items-center gap-2"
                                 >
                                     <Trash2 size={16} />
                                     Eliminar Tienda
@@ -450,7 +501,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                             <>
                                 <button
                                     onClick={handleCancel}
-                                    className="bg-white text-gray-500 font-black px-6 py-3 border border-gray-200 text-xs tracking-widest uppercase rounded-xl active:scale-95 hover:bg-gray-50 transition-colors"
+                                    className="bg-white text-gray-500 font-black px-6 py-3 border-2 border-brand-primary/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 hover:bg-gray-50 transition-colors"
                                 >
                                     Cancelar
                                 </button>
@@ -470,7 +521,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Left Panel: Store Identity */}
                     <div className="lg:col-span-4 space-y-6">
-                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border border-gray-50">
+                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border-2 border-brand-primary/20">
                             <div
                                 style={{ background: 'linear-gradient(to bottom, rgba(48,58,127,0.05), transparent)' }}
                                 className="absolute top-0 left-0 w-full h-20"
@@ -503,7 +554,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                     type="text"
                                     value={editedStore.nombre}
                                     onChange={(e) => updateField('nombre', e.target.value)}
-                                    className="w-full bg-gray-50 border border-gray-200 text-[#303a7f] font-black text-xl text-center rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white focus:ring-4 focus:ring-[#303a7f]/5 transition-all tracking-tighter mb-1.5"
+                                    className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#303a7f] font-black text-xl text-center rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white focus:ring-4 focus:ring-[#303a7f]/5 transition-all tracking-tighter mb-1.5"
                                     placeholder="Nombre de la tienda..."
                                 />
                             ) : (
@@ -518,7 +569,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                             </div>
                         </section>
 
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
                             <h3 className="text-[#333333] font-black flex items-center gap-3 mb-6 text-base">
                                 <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
                                     <Settings size={18} className="text-[#303a7f]" />
@@ -535,7 +586,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                             value={editedStore.codigo}
                                             onChange={(e) => updateField('codigo', e.target.value)}
                                             readOnly={!isEditing}
-                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold text-sm`}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold text-sm`}
                                         />
                                     </div>
                                     <div className="group">
@@ -545,7 +596,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                             value={editedStore.max_horas || 0}
                                             onChange={(e) => updateField('max_horas', e.target.value)}
                                             readOnly={!isEditing}
-                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
                                         />
                                     </div>
                                 </div>
@@ -558,7 +609,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                         onChange={(e) => updateField('estado', e.target.value)}
                                         readOnly={!isEditing}
                                         placeholder="Ej: ARIZONA"
-                                        className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
+                                        className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
                                     />
                                 </div>
 
@@ -571,7 +622,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                             value={editedStore.direccion}
                                             onChange={(e) => updateField('direccion', e.target.value)}
                                             readOnly={!isEditing}
-                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
                                         />
                                     </div>
                                 </div>
@@ -585,12 +636,12 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                             value={editedStore.correo}
                                             onChange={(e) => updateField('correo', e.target.value)}
                                             readOnly={!isEditing}
-                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
                                         />
                                     </div>
                                 </div>
 
-                                <div className="pt-4 border-t border-gray-50 space-y-3">
+                                <div className="pt-4 border-t-2 border-gray-100/80 space-y-3">
                                     <div className="group">
                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Supervisor KBS</label>
                                         <input
@@ -598,7 +649,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                             value={editedStore.supervisor_kbs}
                                             onChange={(e) => updateField('supervisor_kbs', e.target.value)}
                                             readOnly={!isEditing}
-                                            className={`w-full ${!isEditing ? 'bg-[#f4f4f4] text-gray-500 border-transparent' : 'bg-[#f9f9f9] border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#6bbdb7]/30 focus:bg-white transition-all font-bold text-sm`}
+                                            className={`w-full ${!isEditing ? 'bg-[#f4f4f4] text-gray-500 border-transparent' : 'bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#6bbdb7]/30 focus:bg-white transition-all font-bold text-sm`}
                                         />
                                     </div>
                                     <div className="group">
@@ -608,7 +659,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                             value={editedStore.supervisor_lsg}
                                             onChange={(e) => updateField('supervisor_lsg', e.target.value)}
                                             readOnly={!isEditing}
-                                            className={`w-full ${!isEditing ? 'bg-[#f4f4f4] text-gray-500 border-transparent' : 'bg-[#f9f9f9] border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
+                                            className={`w-full ${!isEditing ? 'bg-[#f4f4f4] text-gray-500 border-transparent' : 'bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
                                         />
                                     </div>
                                 </div>
@@ -619,7 +670,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                     {/* Right Panel: Logistics & Workforce */}
                     <div className="lg:col-span-8 space-y-6">
                         {/* Matrix Payroll Settings */}
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
                             <div className="flex items-center gap-4 mb-8">
                                 <div className="bg-[#303a7f] p-3 rounded-xl shadow-xl shadow-blue-900/10">
                                     <DollarSign className="text-white" size={20} />
@@ -636,17 +687,17 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                     { id: 'utility', label: 'Utility' },
                                     { id: 'shift_lead', label: 'Shift Lead' }
                                 ].map(cargo => (
-                                    <div key={cargo.id} className="bg-gray-50/50 rounded-2xl p-5 border border-gray-100">
+                                    <div key={cargo.id} className="bg-gray-50/50 rounded-2xl p-5 border-2 border-brand-primary/10">
                                         <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest block mb-4">{cargo.label}</span>
                                         <div className="space-y-4">
                                             <div className="relative">
                                                 <label className="text-[8px] text-gray-400 font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">KBS (Paga)</label>
-                                                <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-gray-200'} rounded-xl px-4 py-2.5 shadow-sm`}>
+                                                <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-2 border-brand-primary/20'} rounded-xl px-4 py-2.5 shadow-sm`}>
                                                     <span className={`${!isEditing ? 'text-gray-300' : 'text-[#6bbdb7]'} font-black mr-2`}>$</span>
                                                     <input
-                                                        type="number"
+                                                        type="text"
                                                         step="0.01"
-                                                        value={editedStore.tarifas[cargo.id].kbs}
+                                                        value={isEditing ? editedStore.tarifas[cargo.id].kbs : parseFloat(editedStore.tarifas[cargo.id].kbs).toFixed(2)}
                                                         onChange={(e) => updateTarifa(cargo.id, 'kbs', e.target.value)}
                                                         readOnly={!isEditing}
                                                         className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
@@ -655,12 +706,12 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                             </div>
                                             <div className="relative">
                                                 <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">LSG (Paga)</label>
-                                                <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-[#303a7f]/20'} rounded-xl px-4 py-2.5 shadow-sm`}>
+                                                <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-2 border-brand-primary/20'} rounded-xl px-4 py-2.5 shadow-sm`}>
                                                     <span className={`${!isEditing ? 'text-gray-300' : 'text-[#303a7f]'} font-black mr-2`}>$</span>
                                                     <input
-                                                        type="number"
+                                                        type="text"
                                                         step="0.01"
-                                                        value={editedStore.tarifas[cargo.id].lsg}
+                                                        value={isEditing ? editedStore.tarifas[cargo.id].lsg : parseFloat(editedStore.tarifas[cargo.id].lsg).toFixed(2)}
                                                         onChange={(e) => updateTarifa(cargo.id, 'lsg', e.target.value)}
                                                         readOnly={!isEditing}
                                                         className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
@@ -670,7 +721,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                             <div className="pt-2 flex justify-between items-center">
                                                 <span className="text-[8px] font-black text-gray-300 uppercase">Margen Est.</span>
                                                 <span className="text-[10px] font-black text-[#6bbdb7]">
-                                                    +${(editedStore.tarifas[cargo.id].kbs - editedStore.tarifas[cargo.id].lsg).toFixed(2)}/hr
+                                                +${(parseFloat(editedStore.tarifas[cargo.id].kbs) - parseFloat(editedStore.tarifas[cargo.id].lsg)).toFixed(2)}/hr
                                                 </span>
                                             </div>
                                         </div>
@@ -679,7 +730,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                             </div>
                         </section>
 
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 mb-8">
                                 <div className="flex items-center gap-4">
                                     <div
@@ -693,7 +744,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                         <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-1">Consulta de Nómina Asignada (Solo Lectura)</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 px-5 py-2.5 bg-[#f9f9f9] rounded-xl border border-gray-100">
+                                <div className="flex items-center gap-2 px-5 py-2.5 bg-[#f9f9f9] rounded-xl border-2 border-brand-primary/10">
                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Colaboradores:</span>
                                     <span className="text-[#303a7f] font-black text-base">{assignedEmployees.length}</span>
                                 </div>
@@ -703,18 +754,18 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead>
-                                        <tr className="border-b border-gray-50">
+                                        <tr className="border-b-2 border-gray-100/80">
                                             <th className="py-5 px-6 text-[10px] text-gray-400 uppercase font-black tracking-[0.2em]">Nombre y Apellido</th>
                                             <th className="py-5 px-6 text-[10px] text-gray-400 uppercase font-black tracking-[0.2em]">Identificador</th>
                                             <th className="py-5 px-6 text-[10px] text-gray-400 uppercase font-black tracking-[0.2em]">Cargo Asignado</th>
                                             <th className="py-5 px-6 text-right">Estatus</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-50">
+                                    <tbody className="divide-y-2 divide-gray-100/80">
                                         {assignedEmployees.map((emp) => (
-                                            <tr key={emp.codigo_empleado} className="hover:bg-gray-50 transition-colors group">
+                                            <tr key={emp.codigo_empleado} className="hover:bg-gray-50/50 transition-colors group">
                                                 <td className="py-4 px-6 font-bold text-[#333333] text-sm flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0 border border-gray-100">
+                                                    <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0 border-2 border-brand-primary/10">
                                                         {emp.imagen ? (
                                                             <img src={emp.imagen} className="w-full h-full object-cover" />
                                                         ) : (
@@ -731,7 +782,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                                 </td>
                                                 <td className="py-4 px-6 text-right">
                                                     <div className="flex items-center justify-end gap-1.5">
-                                                        <div className={`w-1 h-1 ${emp.fecha_egreso ? 'bg-red-400' : 'bg-green-500 rounded-full animate-pulse'}`} />
+                                                        <div className={`w-1.5 h-1.5 ${emp.fecha_egreso ? 'bg-red-400' : 'bg-green-500 rounded-full animate-pulse'}`} />
                                                         <span className={`text-[8px] font-black uppercase ${emp.fecha_egreso ? 'text-red-400' : 'text-green-600'}`}>
                                                             {emp.fecha_egreso ? 'Inactivo' : 'Activo'}
                                                         </span>
@@ -762,7 +813,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                         className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-300"
                         onClick={() => setShowDeleteModal(false)}
                     />
-                    <div className="relative w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl shadow-blue-900/20 border border-white animate-in zoom-in-95 duration-300">
+                    <div className="relative w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl shadow-blue-900/20 border-2 border-white animate-in zoom-in-95 duration-300">
                         <div className="flex flex-col items-center text-center">
                             <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mb-6 text-red-500 shadow-inner">
                                 <Trash2 size={36} strokeWidth={2.5} />
@@ -779,7 +830,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                     placeholder="Escriba el nombre aquí..."
                                     value={confirmName}
                                     onChange={(e) => setConfirmName(e.target.value)}
-                                    className="w-full bg-gray-50 border border-gray-100 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all text-center placeholder:text-gray-200"
+                                    className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all text-center placeholder:text-gray-200"
                                 />
 
                                 <div className="flex gap-3 pt-4">
@@ -788,7 +839,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                             setShowDeleteModal(false);
                                             setConfirmName('');
                                         }}
-                                        className="flex-1 bg-white text-gray-400 font-black py-4 rounded-2xl border border-gray-100 text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all active:scale-95"
+                                        className="flex-1 bg-white text-gray-400 font-black py-4 rounded-2xl border-2 border-gray-100/80 text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all active:scale-95"
                                     >
                                         Cancelar
                                     </button>
@@ -876,7 +927,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                 <div className="flex items-center justify-between mb-8">
                     <button
                         onClick={onBack}
-                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border border-gray-100 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
+                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border-2 border-brand-primary/20 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
                         Cancelar
@@ -895,7 +946,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Left Panel: Store Identity */}
                     <div className="lg:col-span-4 space-y-6">
-                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border border-gray-50">
+                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border-2 border-brand-primary/20">
                             <div className="relative inline-block group mb-6">
                                 <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7] group-hover:shadow-inner relative">
                                     {newStore.imagen ? (
@@ -926,7 +977,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                         placeholder="Ej: Home Depot Utah"
                                         value={newStore.nombre}
                                         onChange={(e) => updateField('nombre', e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                        className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
                                     />
                                 </div>
                                 <div className="group text-left">
@@ -936,13 +987,13 @@ const StoreAddView = ({ onSave, onBack }) => {
                                         placeholder="Ej: TND-800"
                                         value={newStore.codigo}
                                         onChange={(e) => updateField('codigo', e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                        className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
                                     />
                                 </div>
                             </div>
                         </section>
 
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
                             <h3 className="text-[#333333] font-black flex items-center gap-3 mb-6 text-base">
                                 <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
                                     <Settings size={18} className="text-[#303a7f]" />
@@ -958,7 +1009,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                         placeholder="Ej: Arizona"
                                         value={newStore.estado}
                                         onChange={(e) => updateField('estado', e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                        className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
                                     />
                                 </div>
                                 <div className="group">
@@ -968,7 +1019,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                         placeholder="Ej: 160"
                                         value={newStore.max_horas}
                                         onChange={(e) => updateField('max_horas', e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                        className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
                                     />
                                 </div>
                                 <div className="group">
@@ -980,7 +1031,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                             placeholder="Dirección completa..."
                                             value={newStore.direccion}
                                             onChange={(e) => updateField('direccion', e.target.value)}
-                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
                                         />
                                     </div>
                                 </div>
@@ -993,7 +1044,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                             placeholder="tienda@empresa.com"
                                             value={newStore.correo}
                                             onChange={(e) => updateField('correo', e.target.value)}
-                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 pl-10 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
                                         />
                                     </div>
                                 </div>
@@ -1003,7 +1054,7 @@ const StoreAddView = ({ onSave, onBack }) => {
 
                     {/* Right Panel: Logistics & Matrix */}
                     <div className="lg:col-span-8 space-y-6">
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
                             <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
                                 <div className="bg-[#303a7f] p-2 rounded-lg">
                                     <DollarSign className="text-white" size={18} />
@@ -1017,12 +1068,12 @@ const StoreAddView = ({ onSave, onBack }) => {
                                     { id: 'shift_lead', label: 'Shift Lead' }
                                 ]
                                     .map(cargo => (
-                                        <div key={cargo.id} className="bg-gray-50/50 rounded-2xl p-5 border border-gray-100">
+                                        <div key={cargo.id} className="bg-gray-50/50 rounded-2xl p-5 border-2 border-brand-primary/10">
                                             <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest block mb-4">{cargo.label}</span>
                                             <div className="space-y-4">
                                                 <div className="relative">
                                                     <label className="text-[8px] text-gray-400 font-black uppercase tracking-widest absolute -top-2 left-3 bg-gray-50 px-1 z-10">KBS (Paga)</label>
-                                                    <div className="flex items-center bg-white border border-gray-100 rounded-xl px-4 py-2.5 shadow-sm">
+                                                    <div className="flex items-center bg-white border-2 border-brand-primary/20 rounded-xl px-4 py-2.5 shadow-sm">
                                                         <span className="text-[#6bbdb7] font-black mr-2">$</span>
                                                         <input
                                                             type="number"
@@ -1036,7 +1087,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                                 </div>
                                                 <div className="relative">
                                                     <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-gray-50 px-1 z-10">LSG (Paga)</label>
-                                                    <div className="flex items-center bg-white border border-[#303a7f]/20 rounded-xl px-4 py-2.5 shadow-sm">
+                                                    <div className="flex items-center bg-white border-2 border-brand-primary/20 rounded-xl px-4 py-2.5 shadow-sm">
                                                         <span className="text-[#303a7f] font-black mr-2">$</span>
                                                         <input
                                                             type="number"
@@ -1054,7 +1105,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                             </div>
                         </section>
 
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
                             <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
                                 <div className="bg-[#6bbdb7] p-2 rounded-lg">
                                     <Users className="text-white" size={18} />
@@ -1069,7 +1120,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                         placeholder="Nombre del supervisor..."
                                         value={newStore.supervisor_kbs}
                                         onChange={(e) => updateField('supervisor_kbs', e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#6bbdb7]/30 focus:bg-white transition-all font-bold text-sm"
+                                        className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#6bbdb7]/30 focus:bg-white transition-all font-bold text-sm"
                                     />
                                 </div>
                                 <div className="group">
@@ -1079,7 +1130,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                         placeholder="Nombre del supervisor..."
                                         value={newStore.supervisor_lsg}
                                         onChange={(e) => updateField('supervisor_lsg', e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                        className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
                                     />
                                 </div>
                             </div>
@@ -1101,7 +1152,14 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
 
     const updateField = (field, value) => {
         if (!isEditing) return;
-        setEditedEmployee(prev => ({ ...prev, [field]: value }));
+        let finalValue = value;
+        if (field === 'fecha_ingreso' || field === 'fecha_egreso') {
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) {
+                finalValue = `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}/${date.getUTCFullYear()}`;
+            }
+        }
+        setEditedEmployee(prev => ({ ...prev, [field]: finalValue }));
     };
 
     const handleCancel = () => {
@@ -1132,7 +1190,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                 <div className="flex items-center justify-between mb-8">
                     <button
                         onClick={onBack}
-                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border border-gray-100 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
+                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border-2 border-brand-primary/20 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
                         Volver al Listado
@@ -1143,7 +1201,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                             <>
                                 <button
                                     onClick={() => setShowDeleteModal(true)}
-                                    className="bg-white text-red-500 font-bold px-6 py-3 border border-red-100 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 hover:bg-red-50 transition-all flex items-center gap-2"
+                                    className="bg-white text-red-500 font-bold px-6 py-3 border-2 border-red-100/80 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 hover:bg-red-50 transition-all flex items-center gap-2"
                                 >
                                     <Trash2 size={16} />
                                     Eliminar Empleado
@@ -1161,7 +1219,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                             <>
                                 <button
                                     onClick={handleCancel}
-                                    className="bg-white text-gray-500 font-black px-6 py-3 border border-gray-200 text-xs tracking-widest uppercase rounded-xl active:scale-95 hover:bg-gray-50 transition-colors"
+                                    className="bg-white text-gray-500 font-black px-6 py-3 border-2 border-brand-primary/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 hover:bg-gray-50 transition-colors"
                                 >
                                     Cancelar
                                 </button>
@@ -1180,7 +1238,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div className="lg:col-span-4 space-y-6">
-                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border border-gray-50">
+                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border-2 border-brand-primary/20">
                             <div className="relative inline-block group mb-6">
                                 <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7] group-hover:shadow-inner relative">
                                     {editedEmployee.imagen ? (
@@ -1204,7 +1262,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                     type="text"
                                     value={editedEmployee.nombre}
                                     onChange={(e) => updateField('nombre', e.target.value)}
-                                    className="w-full bg-gray-50 border border-gray-200 text-[#303a7f] font-black text-xl text-center rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all tracking-tighter mb-1.5"
+                                    className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#303a7f] font-black text-xl text-center rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all tracking-tighter mb-1.5"
                                     placeholder="Nombre completo..."
                                 />
                             ) : (
@@ -1215,7 +1273,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                             </div>
                         </section>
 
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
                             <h3 className="text-[#333333] font-black flex items-center gap-3 mb-6 text-base">
                                 <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
                                     <Settings size={18} className="text-[#303a7f]" />
@@ -1238,7 +1296,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                         <select
                                             value={editedEmployee.cargo}
                                             onChange={(e) => updateField('cargo', e.target.value)}
-                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
                                         >
                                             <option value="">Seleccione Cargo</option>
                                             <option value="Janitorial">Janitorial</option>
@@ -1260,7 +1318,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                         <select
                                             value={editedEmployee.tienda}
                                             onChange={(e) => updateField('tienda', e.target.value)}
-                                            className="w-full bg-gray-50 border border-gray-100 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
                                         >
                                             <option value="">Seleccione Tienda</option>
                                             {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
@@ -1279,7 +1337,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                     </div>
 
                     <div className="lg:col-span-8 space-y-6">
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border border-gray-50">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
                             <h3 className="text-[#333333] font-black flex items-center gap-3 mb-8 text-xl tracking-tighter">
                                 <div className="bg-[#6bbdb7] p-2 rounded-lg"><Clock size={18} className="text-white" /></div>
                                 Control de Nómina y Fechas
@@ -1290,20 +1348,20 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Fecha de Ingreso</label>
                                         <input
                                             type="date"
-                                            value={editedEmployee.fecha_ingreso}
+                                            value={formatDateForInput(editedEmployee.fecha_ingreso)}
                                             onChange={(e) => updateField('fecha_ingreso', e.target.value)}
                                             readOnly={!isEditing}
-                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none font-bold text-sm`}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 outline-none font-bold text-sm`}
                                         />
                                     </div>
                                     <div className="group">
                                         <label className="text-[9px] text-red-400 uppercase font-black tracking-widest block mb-1 pl-1">Fecha de Egreso (Baja)</label>
                                         <input
                                             type="date"
-                                            value={editedEmployee.fecha_egreso}
+                                            value={formatDateForInput(editedEmployee.fecha_egreso)}
                                             onChange={(e) => updateField('fecha_egreso', e.target.value)}
                                             readOnly={!isEditing}
-                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none font-bold text-sm`}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 outline-none font-bold text-sm`}
                                         />
                                     </div>
                                 </div>
@@ -1316,7 +1374,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                             onChange={(e) => updateField('cuenta_bancaria', e.target.value)}
                                             readOnly={!isEditing}
                                             placeholder="Detalles de pago..."
-                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-gray-100 text-[#333333]'} rounded-xl p-3.5 outline-none font-bold text-sm resize-none`}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 outline-none font-bold text-sm resize-none`}
                                         />
                                     </div>
                                 </div>
@@ -1329,7 +1387,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
             {showDeleteModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)} />
-                    <div className="relative w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl border border-white">
+                    <div className="relative w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl border-2 border-white">
                         <div className="flex flex-col items-center text-center">
                             <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mb-6 text-red-500"><Trash2 size={36} /></div>
                             <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter mb-3 uppercase">¿Eliminar empleado?</h3>
@@ -1338,10 +1396,10 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                 type="text"
                                 value={confirmName}
                                 onChange={(e) => setConfirmName(e.target.value)}
-                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 outline-none text-center"
+                                className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-2xl p-4 outline-none text-center"
                             />
                             <div className="flex gap-3 pt-6 w-full">
-                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-white text-gray-400 font-black py-4 rounded-2xl border">Cancelar</button>
+                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-white text-gray-400 font-black py-4 rounded-2xl border-2">Cancelar</button>
                                 <button
                                     disabled={confirmName !== employee.nombre}
                                     onClick={() => onDelete(employee.codigo_empleado)}
@@ -1371,8 +1429,16 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
     });
 
     const updateField = (field, value) => {
-        setNewEmployee(prev => ({ ...prev, [field]: value }));
+        let finalValue = value;
+        if (field === 'fecha_ingreso' || field === 'fecha_egreso') {
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) {
+                finalValue = `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}/${date.getUTCFullYear()}`;
+            }
+        }
+        setNewEmployee(prev => ({ ...prev, [field]: finalValue }));
     };
+
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -1398,13 +1464,13 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
         <div className="fixed inset-0 z-50 bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
             <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-16">
                 <div className="flex items-center justify-between mb-8">
-                    <button onClick={onBack} className="flex items-center gap-2 text-gray-500 font-bold text-[10px] uppercase tracking-widest bg-white py-2.5 px-5 rounded-xl border"><ArrowLeft size={16} /> Cancelar</button>
+                    <button onClick={onBack} className="flex items-center gap-2 text-gray-500 font-bold text-[10px] uppercase tracking-widest bg-white py-2.5 px-5 rounded-xl border-2 border-brand-primary/20"><ArrowLeft size={16} /> Cancelar</button>
                     <button onClick={handleSave} style={{ backgroundColor: '#6bbdb7' }} className="text-white font-black px-10 py-4 shadow-2xl rounded-2xl text-xs tracking-widest uppercase flex items-center gap-2"><Plus size={18} /> Registrar Empleado</button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div className="lg:col-span-4 space-y-6">
-                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl border border-gray-50">
+                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl border-2 border-brand-primary/20">
                             <div className="relative inline-block mb-6">
                                 <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
                                     {newEmployee.imagen ? <img src={newEmployee.imagen} className="w-full h-full object-cover" /> : <Camera className="text-gray-300" size={40} />}
@@ -1416,25 +1482,25 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
                             <div className="space-y-4 text-left">
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Nombre Completo</label>
-                                    <input type="text" value={newEmployee.nombre} onChange={(e) => updateField('nombre', e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3.5 font-bold text-sm" placeholder="Ej: Juan Pérez" />
+                                    <input type="text" value={newEmployee.nombre} onChange={(e) => updateField('nombre', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Ej: Juan Pérez" />
                                 </div>
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Código de Empleado</label>
-                                    <input type="text" value={newEmployee.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3.5 font-bold text-sm" placeholder="Ej: EMP-001" />
+                                    <input type="text" value={newEmployee.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Ej: EMP-001" />
                                 </div>
                             </div>
                         </section>
                     </div>
 
                     <div className="lg:col-span-8 space-y-6">
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl border border-gray-50">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl border-2 border-brand-primary/20">
                             <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
                                 <div className="bg-[#303a7f] p-2 rounded-lg"><Settings className="text-white" size={18} /></div> Asignación Laboral
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Cargo</label>
-                                    <select value={newEmployee.cargo} onChange={(e) => updateField('cargo', e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3.5 font-bold text-sm">
+                                    <select value={newEmployee.cargo} onChange={(e) => updateField('cargo', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm">
                                         <option value="Janitorial">Janitorial</option>
                                         <option value="Utility">Utility</option>
                                         <option value="Shift Lead">Shift Lead</option>
@@ -1442,18 +1508,18 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
                                 </div>
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Tienda Asignada</label>
-                                    <select value={newEmployee.tienda} onChange={(e) => updateField('tienda', e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3.5 font-bold text-sm">
+                                    <select value={newEmployee.tienda} onChange={(e) => updateField('tienda', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm">
                                         <option value="">Seleccione Tienda</option>
                                         {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
                                     </select>
                                 </div>
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Fecha de Ingreso</label>
-                                    <input type="date" value={newEmployee.fecha_ingreso} onChange={(e) => updateField('fecha_ingreso', e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3.5 font-bold text-sm" />
+                                    <input type="date" value={formatDateForInput(newEmployee.fecha_ingreso)} onChange={(e) => updateField('fecha_ingreso', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" />
                                 </div>
                                 <div className="group">
                                     <label className="text-[9px] text-[#303a7f] uppercase font-black tracking-widest block mb-1">Detalles de Pago</label>
-                                    <textarea value={newEmployee.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3.5 font-bold text-sm resize-none" rows="3" placeholder="Zelle, No. Cuenta, Banco..."></textarea>
+                                    <textarea value={newEmployee.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm resize-none" rows="3" placeholder="Zelle, No. Cuenta, Banco..."></textarea>
                                 </div>
                             </div>
                         </section>
@@ -1695,14 +1761,14 @@ function App() {
             {!isSidebarOpen && (
                 <button
                     onClick={() => setSidebarOpen(true)}
-                    className="fixed top-6 left-6 z-50 p-3 bg-white border border-gray-100 rounded-2xl lg:hidden shadow-2xl shadow-blue-900/10"
+                    className="fixed top-6 left-6 z-50 p-3 bg-white border-2 border-brand-primary/20 rounded-2xl lg:hidden shadow-2xl shadow-blue-900/10"
                 >
                     <Menu className="text-[#303a7f]" size={24} />
                 </button>
             )}
 
             {/* Sidebar */}
-            <aside className={`fixed inset-y-0 left-0 z-40 w-72 h-screen bg-white border-r border-gray-100 transition-transform duration-500 lg:relative lg:translate-x-0 
+            <aside className={`fixed inset-y-0 left-0 z-40 w-72 h-screen bg-white border-r-2 border-gray-100/80 transition-transform duration-500 lg:relative lg:translate-x-0 
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
 
                 <div className="flex flex-col h-full p-8">
@@ -1729,7 +1795,7 @@ function App() {
                     </nav>
 
                     {/* Indicador de Conexión */}
-                    <div className="mt-auto pt-5 border-t border-gray-50">
+                    <div className="mt-auto pt-5 border-t-2 border-gray-100/80">
                         <div className="flex items-center justify-between gap-2.5 px-2 py-2">
                             <div className="flex items-center gap-2.5">
                                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isLoading
@@ -1779,8 +1845,8 @@ function App() {
                         </div>
 
                         {/* User Card - Header right side */}
-                        <div className="flex items-center gap-3 bg-white p-4 rounded-[2rem] border border-gray-50 shadow-xl shadow-blue-900/[0.03] self-start animate-in fade-in slide-in-from-right-4 duration-500 group relative">
-                            <div className="h-9 w-9 bg-[#f9f9f9] rounded-xl flex items-center justify-center border border-gray-100 flex-shrink-0">
+                        <div className="flex items-center gap-3 bg-white p-4 rounded-[2rem] border-2 border-brand-primary/10 shadow-xl shadow-blue-900/[0.03] self-start animate-in fade-in slide-in-from-right-4 duration-500 group relative">
+                            <div className="h-9 w-9 bg-[#f9f9f9] rounded-xl flex items-center justify-center border-2 border-brand-primary/10 flex-shrink-0">
                                 <Users size={16} className="text-[#303a7f]" />
                             </div>
                             <div className="pr-8">
@@ -1789,7 +1855,7 @@ function App() {
                             </div>
                             <button
                                 onClick={handleLogout}
-                                className="absolute right-3 transition-all duration-200 text-red-300 hover:text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-110 p-1.5 bg-white border border-red-100 rounded-lg shadow-sm z-30 active:scale-90"
+                                className="absolute right-3 transition-all duration-200 text-red-300 hover:text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-110 p-1.5 bg-white border-2 border-red-100/80 rounded-lg shadow-sm z-30 active:scale-90"
                                 title="Cerrar Sesión"
                             >
                                 <LogOut size={14} />
@@ -1808,7 +1874,7 @@ function App() {
                                         placeholder="Filtrar por nombre de Tienda o Ubicación..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full bg-white border border-gray-100 text-[#333333] rounded-2xl py-3.5 pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-base placeholder:text-gray-200"
+                                        className="w-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl py-3.5 pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-base placeholder:text-gray-200"
                                     />
                                 </div>
                                 <button
@@ -1828,7 +1894,7 @@ function App() {
                                 ))}
 
                                 {filteredStores.length === 0 && (
-                                    <div className="col-span-full py-32 text-center bg-white/50 rounded-[2rem] border-2 border-dashed border-gray-100">
+                                    <div className="col-span-full py-32 text-center bg-white/50 rounded-[2rem] border-2 border-dashed border-gray-100/80">
                                         <StoreIcon size={48} className="text-gray-100 mx-auto mb-6" />
                                         <p className="text-gray-400 font-black text-xl uppercase tracking-[0.2em] opacity-50">Sin coincidencias logísticas</p>
                                     </div>
@@ -1847,7 +1913,7 @@ function App() {
                                         placeholder="Filtrar por nombre o cargo..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full bg-white border border-gray-100 text-[#333333] rounded-2xl py-3.5 pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-base placeholder:text-gray-200"
+                                        className="w-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl py-3.5 pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-base placeholder:text-gray-200"
                                     />
                                 </div>
                                 <button
@@ -1867,7 +1933,7 @@ function App() {
                                 ))}
 
                                 {employees.length === 0 && (
-                                    <div className="col-span-full py-32 text-center bg-white/50 rounded-[2rem] border-2 border-dashed border-gray-100">
+                                    <div className="col-span-full py-32 text-center bg-white/50 rounded-[2rem] border-2 border-dashed border-gray-100/80">
                                         <Users size={48} className="text-gray-100 mx-auto mb-6" />
                                         <p className="text-gray-400 font-black text-xl uppercase tracking-[0.2em] opacity-50">Sin registros de personal</p>
                                     </div>
@@ -1878,7 +1944,7 @@ function App() {
 
                     {activeTab === 'payroll' && (
                         <div className="grid grid-cols-1 gap-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                            <section className="bg-white rounded-[2.5rem] p-10 shadow-2xl shadow-blue-900/[0.04] overflow-hidden relative border border-gray-50">
+                            <section className="bg-white rounded-[2.5rem] p-10 shadow-2xl shadow-blue-900/[0.04] overflow-hidden relative border-2 border-brand-primary/20">
                                 <div
                                     style={{ backgroundColor: 'rgba(48,58,127,0.03)' }}
                                     className="absolute top-0 right-0 w-64 h-64 rounded-full -mr-32 -mt-32 blur-3xl"
@@ -1901,19 +1967,19 @@ function App() {
                                     <div className="md:col-span-7 space-y-3">
                                         <label className="text-[10px] text-gray-400 uppercase font-black tracking-widest block ml-2">Unidad Receptora</label>
                                         <div className="relative group">
-                                            <select className="w-full bg-[#f9f9f9] border-2 border-transparent text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner pr-14 text-base">
+                                            <select className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner pr-14 text-base">
                                                 <option>--- ELIJA UNA TIENDA ---</option>
                                                 {storeNames.map((name, i) => (
                                                     <option key={i}>{name}</option>
                                                 ))}
                                             </select>
-                                            <div className="absolute right-5 top-1/2 -translate-y-1/2 p-1.5 bg-white rounded-lg shadow-sm border border-gray-50 pointer-events-none group-focus-within:rotate-180 transition-transform">
+                                            <div className="absolute right-5 top-1/2 -translate-y-1/2 p-1.5 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 pointer-events-none group-focus-within:rotate-180 transition-transform">
                                                 <ChevronDown className="text-[#303a7f]" size={18} />
                                             </div>
                                         </div>
                                     </div>
                                     <div className="md:col-span-5 flex items-end">
-                                        <button className="w-full bg-white hover:bg-gray-50 text-[#303a7f] font-black py-4 px-8 rounded-2xl border border-[#303a7f]/10 transition-all flex items-center justify-center gap-3 active:scale-[0.98] shadow-sm uppercase tracking-widest text-[10px]">
+                                        <button className="w-full bg-white hover:bg-gray-50 text-[#303a7f] font-black py-4 px-8 rounded-2xl border-2 border-[#303a7f]/10 transition-all flex items-center justify-center gap-3 active:scale-[0.98] shadow-sm uppercase tracking-widest text-[10px]">
                                             <FileText size={18} className="text-[#6bbdb7]" />
                                             MATRIZ DE CUMPLIMIENTO
                                         </button>
@@ -1922,7 +1988,7 @@ function App() {
 
                                 <div className="border-4 border-dashed border-gray-100 rounded-[2.5rem] p-20 text-center hover:border-[#6bbdb7] hover:bg-[#6bbdb7]/[0.02] transition-all cursor-pointer group relative overflow-hidden active:scale-[0.99]">
                                     <div className="relative z-10">
-                                        <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center mx-auto mb-8 group-hover:scale-110 shadow-2xl border border-gray-50 transition-all duration-700 relative">
+                                        <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center mx-auto mb-8 group-hover:scale-110 shadow-2xl border-2 border-brand-primary/10 transition-all duration-700 relative">
                                             <div
                                                 style={{ backgroundColor: '#303a7f' }}
                                                 className="absolute inset-0 opacity-0 group-hover:opacity-[0.03] transition-opacity"
@@ -1939,7 +2005,7 @@ function App() {
                                                 <span
                                                     key={ext}
                                                     style={{ backgroundColor: 'rgba(48,58,127,0.05)', color: '#303a7f', borderColor: 'rgba(48,58,127,0.1)' }}
-                                                    className="px-7 py-3 font-black text-[10px] rounded-2xl border tracking-[0.2em]"
+                                                    className="px-7 py-3 font-black text-[10px] rounded-2xl border-2 tracking-[0.2em]"
                                                 >
                                                     {ext}
                                                 </span>
@@ -1953,7 +2019,7 @@ function App() {
 
                     {(activeTab !== 'stores' && activeTab !== 'payroll') && (
                         <div className="flex flex-col items-center justify-center py-32 text-center animate-in fade-in zoom-in-95 duration-1000">
-                            <div className="p-12 bg-white rounded-[2rem] border border-gray-50 mb-10 relative shadow-2xl shadow-blue-900/[0.06]">
+                            <div className="p-12 bg-white rounded-[2rem] border-2 border-brand-primary/10 mb-10 relative shadow-2xl shadow-blue-900/[0.06]">
                                 <div
                                     style={{ backgroundColor: '#f9f9f9', opacity: 0.5 }}
                                     className="absolute inset-0 blur-[60px] rounded-full"
