@@ -1088,7 +1088,7 @@ function App() {
 
     const handleSaveStore = (updatedStore) => {
         setStores(prev => prev.map(s => s.codigo === updatedStore.codigo ? updatedStore : s));
-        setEditingStore(null);
+        setEditingStore(updatedStore);
         syncToSheets('upsert', updatedStore);
     };
 
