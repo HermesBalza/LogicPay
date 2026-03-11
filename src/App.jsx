@@ -60,8 +60,20 @@ const parseCSVRow = (row) => {
 // --- Date Utility Functions ---
 const formatDateForInput = (dateStr) => {
     if (!dateStr) return '';
+    // Si ya viene en formato ISO (yyyy-mm-dd), lo devolvemos tal cual
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    
+    // Si viene en formato mm/dd/aaaa
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+        const m = parts[0].padStart(2, '0');
+        const d = parts[1].padStart(2, '0');
+        const y = parts[2];
+        return `${y}-${m}-${d}`;
+    }
+
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return ''; // Invalid date
+    if (isNaN(d.getTime())) return '';
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
@@ -69,20 +81,20 @@ const formatDateForInput = (dateStr) => {
 };
 
 const formatDateForDisplay = (dateStr) => {
-    if (!dateStr) return '--';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) {
-        // If the date is not valid, try to parse it as MM/DD/YYYY
-        const parts = dateStr.split('/');
-        if (parts.length === 3) {
-            // Assuming MM/DD/YYYY
-            const d = new Date(parts[2], parts[0] - 1, parts[1]);
-            if (!isNaN(d.getTime())) {
-                return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
-            }
-        }
-        return '--'; // Return placeholder if still invalid
+    if (!dateStr || dateStr === '--') return '--';
+    
+    // Si ya viene en formato mm/dd/aaaa, lo devolvemos tal cual para evitar re-formateos raros
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
+
+    // Si viene en formato ISO
+    const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+        return `${isoMatch[2]}/${isoMatch[3]}/${isoMatch[1]}`;
     }
+
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr; // Devolver original si no se puede parsear
+
     const month = String(date.getUTCMonth() + 1).padStart(2, '0');
     const day = String(date.getUTCDate()).padStart(2, '0');
     const year = date.getUTCFullYear();
@@ -272,7 +284,9 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
     </button>
 );
 
-const StoreCard = ({ store, onEdit }) => (
+const StoreCard = ({ store, employees = [], onEdit }) => {
+    const assignedCount = (employees || []).filter(emp => emp.tienda === store.nombre).length;
+    return (
     <div
         onClick={() => onEdit(store)}
         className="card cursor-pointer group hover:border-[#6bbdb7]/60 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/10 relative overflow-hidden bg-white/80 backdrop-blur-sm border-transparent hover:-translate-y-2 active:scale-95"
@@ -299,7 +313,7 @@ const StoreCard = ({ store, onEdit }) => (
                     <Users size={12} className="text-[#6bbdb7]/60" />
                     <span className="font-semibold uppercase tracking-tighter">Personal</span>
                 </div>
-                <span className="text-[#333333] font-black">{(store.employees || []).length} Empleados</span>
+                <span className="text-[#333333] font-black">{assignedCount} Empleados</span>
             </div>
             <div className="flex items-center justify-between text-[10px]">
                 <div className="flex items-center gap-2 text-gray-500">
@@ -314,8 +328,9 @@ const StoreCard = ({ store, onEdit }) => (
             <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Supervisor LSG</span>
             <span className="text-[9px] font-black text-[#303a7f] uppercase">{store.supervisor_lsg || 'Sin Asignar'}</span>
         </div>
-    </div>
-);
+        </div>
+    );
+};
 
 const EmployeeCard = ({ employee, onEdit }) => (
     <div
@@ -1346,23 +1361,33 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                 <div className="space-y-6">
                                     <div className="group">
                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Fecha de Ingreso</label>
-                                        <input
-                                            type="date"
-                                            value={formatDateForInput(editedEmployee.fecha_ingreso)}
-                                            onChange={(e) => updateField('fecha_ingreso', e.target.value)}
-                                            readOnly={!isEditing}
-                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 outline-none font-bold text-sm`}
-                                        />
+                                        {isEditing ? (
+                                            <input
+                                                type="date"
+                                                value={formatDateForInput(editedEmployee.fecha_ingreso)}
+                                                onChange={(e) => updateField('fecha_ingreso', e.target.value)}
+                                                className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none font-bold text-sm"
+                                            />
+                                        ) : (
+                                            <div className="w-full bg-gray-100 text-gray-500 rounded-xl p-3.5 font-bold text-sm">
+                                                {formatDateForDisplay(editedEmployee.fecha_ingreso)}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="group">
                                         <label className="text-[9px] text-red-400 uppercase font-black tracking-widest block mb-1 pl-1">Fecha de Egreso (Baja)</label>
-                                        <input
-                                            type="date"
-                                            value={formatDateForInput(editedEmployee.fecha_egreso)}
-                                            onChange={(e) => updateField('fecha_egreso', e.target.value)}
-                                            readOnly={!isEditing}
-                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 outline-none font-bold text-sm`}
-                                        />
+                                        {isEditing ? (
+                                            <input
+                                                type="date"
+                                                value={formatDateForInput(editedEmployee.fecha_egreso)}
+                                                onChange={(e) => updateField('fecha_egreso', e.target.value)}
+                                                className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none font-bold text-sm"
+                                            />
+                                        ) : (
+                                            <div className="w-full bg-gray-100 text-gray-500 rounded-xl p-3.5 font-bold text-sm">
+                                                {formatDateForDisplay(editedEmployee.fecha_egreso)}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="space-y-6">
@@ -1420,7 +1445,7 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
     const [newEmployee, setNewEmployee] = useState({
         nombre: '',
         codigo_empleado: '',
-        fecha_ingreso: new Date().toISOString().split('T')[0],
+        fecha_ingreso: `${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getDate()).padStart(2, '0')}/${new Date().getFullYear()}`,
         fecha_egreso: '',
         cargo: 'Janitorial',
         tienda: '',
@@ -1890,7 +1915,7 @@ function App() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                                 {filteredStores.map((store, i) => (
-                                    <StoreCard key={i} store={store} onEdit={setEditingStore} />
+                                    <StoreCard key={i} store={store} employees={employees} onEdit={setEditingStore} />
                                 ))}
 
                                 {filteredStores.length === 0 && (
