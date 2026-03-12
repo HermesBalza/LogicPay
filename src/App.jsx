@@ -1577,6 +1577,10 @@ function App() {
         return saved ? JSON.parse(saved) : null;
     });
 
+    // Estados para archivos de Nómina
+    const [supervisorFile, setSupervisorFile] = useState(null);
+    const [biometricFile, setBiometricFile] = useState(null);
+
     const USER_REGISTRY = [
         { name: "David Torres", role: "Asistente" },
         { name: "Nirvana Márquez", role: "Asistente" },
@@ -1965,7 +1969,7 @@ function App() {
                                 {employees.length === 0 && (
                                     <div className="col-span-full py-32 text-center bg-white/50 rounded-[2rem] border-2 border-dashed border-gray-100/80">
                                         <Users size={48} className="text-gray-100 mx-auto mb-6" />
-                                        <p className="text-gray-400 font-black text-xl uppercase tracking-[0.2em] opacity-50">Sin registros de personal</p>
+                                        <p className="text-gray-400 font-bold text-base uppercase tracking-[0.2em] opacity-50">Sin registros de personal</p>
                                     </div>
                                 )}
                             </div>
@@ -1974,73 +1978,145 @@ function App() {
 
                     {activeTab === 'payroll' && (
                         <div className="grid grid-cols-1 gap-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                            <section className="bg-white rounded-[2.5rem] p-10 shadow-2xl shadow-blue-900/[0.04] overflow-hidden relative border-2 border-transparent">
+                            <section className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-blue-900/[0.04] overflow-hidden relative border-2 border-transparent lg:p-10">
                                 <div
                                     style={{ backgroundColor: 'rgba(48,58,127,0.03)' }}
                                     className="absolute top-0 right-0 w-64 h-64 rounded-full -mr-32 -mt-32 blur-3xl"
                                 />
 
-                                <div className="flex items-center gap-6 mb-12 relative z-10">
+                                <div className="flex items-center gap-4 mb-10 relative z-10">
                                     <div
                                         style={{ backgroundColor: '#303a7f' }}
-                                        className="p-5 rounded-2xl shadow-2xl shadow-blue-900/30 flex items-center justify-center"
+                                        className="p-3 rounded-xl shadow-2xl shadow-blue-900/30 flex items-center justify-center"
                                     >
-                                        <Upload className="text-white" size={28} />
+                                        <Upload className="text-white" size={20} />
                                     </div>
                                     <div>
-                                        <h2 className="text-3xl font-black text-[#303a7f] tracking-tighter leading-none mb-2">Motor de Nómina</h2>
-                                        <p className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-[0.4em] opacity-80">PROCESAMIENTO INTELIGENTE V3.0</p>
+                                        <h2 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Motor de Nómina</h2>
+                                        <p className="text-[#6bbdb7] font-black uppercase text-[8px] tracking-[0.4em] opacity-80">PROCESAMIENTO INTELIGENTE V3.0</p>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-12 relative z-10">
-                                    <div className="md:col-span-7 space-y-3">
-                                        <label className="text-[10px] text-gray-400 uppercase font-black tracking-widest block ml-2">Unidad Receptora</label>
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-10 relative z-10">
+                                    <div className="md:col-span-7 space-y-2">
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Unidad Receptora</label>
                                         <div className="relative group">
-                                            <select className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner pr-14 text-base">
+                                            <select className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner pr-14 text-sm">
                                                 <option>--- ELIJA UNA TIENDA ---</option>
                                                 {storeNames.map((name, i) => (
                                                     <option key={i}>{name}</option>
                                                 ))}
                                             </select>
-                                            <div className="absolute right-5 top-1/2 -translate-y-1/2 p-1.5 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 pointer-events-none group-focus-within:rotate-180 transition-transform">
-                                                <ChevronDown className="text-[#303a7f]" size={18} />
+                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 pointer-events-none group-focus-within:rotate-180 transition-transform">
+                                                <ChevronDown className="text-[#303a7f]" size={16} />
                                             </div>
                                         </div>
                                     </div>
                                     <div className="md:col-span-5 flex items-end">
-                                        <button className="w-full bg-white hover:bg-gray-50 text-[#303a7f] font-black py-4 px-8 rounded-2xl border-2 border-[#303a7f]/10 transition-all flex items-center justify-center gap-3 active:scale-[0.98] shadow-sm uppercase tracking-widest text-[10px]">
-                                            <FileText size={18} className="text-[#6bbdb7]" />
-                                            MATRIZ DE CUMPLIMIENTO
-                                        </button>
                                     </div>
                                 </div>
 
-                                <div className="border-4 border-dashed border-gray-100 rounded-[2.5rem] p-20 text-center hover:border-[#6bbdb7] hover:bg-[#6bbdb7]/[0.02] transition-all cursor-pointer group relative overflow-hidden active:scale-[0.99]">
-                                    <div className="relative z-10">
-                                        <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center mx-auto mb-8 group-hover:scale-110 shadow-2xl border-2 border-brand-primary/10 transition-all duration-700 relative">
-                                            <div
-                                                style={{ backgroundColor: '#303a7f' }}
-                                                className="absolute inset-0 opacity-0 group-hover:opacity-[0.03] transition-opacity"
-                                            />
-                                            <Upload className="text-[#303a7f] group-hover:text-[#6bbdb7] transition-colors" size={40} />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                                    {/* Control 1: Reporte de Supervisor */}
+                                    <div className={`rounded-2xl p-6 border-2 shadow-sm transition-all duration-500 ${supervisorFile ? 'border-[#6bbdb7]/20 bg-[#6bbdb7]/[0.02]' : 'border-brand-primary/5 bg-[#f9f9f9]'}`}>
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className={`p-2 rounded-lg transition-colors duration-500 ${supervisorFile ? 'bg-[#6bbdb7]/10' : 'bg-[#303a7f]/5'}`}>
+                                                <FileText size={18} className={`transition-colors duration-500 ${supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`} />
+                                            </div>
+                                            <p className={`text-xs font-black uppercase tracking-tight transition-colors duration-500 ${supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Reporte de Supervisor</p>
                                         </div>
-                                        <p className="text-[#303a7f] text-3xl font-black tracking-tighter mb-4">Ingesta de Activos</p>
-                                        <p className="text-gray-400 max-w-sm mx-auto font-bold text-sm leading-relaxed uppercase tracking-tight opacity-70">
-                                            Formatos Soportados: CSV, XLSX, PDF e Imágenes con reconocimiento OCR avanzado.
-                                        </p>
-
-                                        <div className="mt-12 flex justify-center gap-5">
-                                            {['CLOUD SYNC', 'AUTO-DETECT', 'OCR ENGINE'].map(ext => (
-                                                <span
-                                                    key={ext}
-                                                    style={{ backgroundColor: 'rgba(48,58,127,0.05)', color: '#303a7f', borderColor: 'rgba(48,58,127,0.1)' }}
-                                                    className="px-7 py-3 font-black text-[10px] rounded-2xl border-2 tracking-[0.2em]"
+                                        
+                                        <div className="flex items-center gap-2">
+                                            <div className="relative group/btn">
+                                                <button 
+                                                    style={{ backgroundColor: supervisorFile ? '#6bbdb7' : '#303a7f' }}
+                                                    className={`px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 ${
+                                                        supervisorFile 
+                                                        ? 'shadow-teal-900/10 hover:bg-[#59aba5]' 
+                                                        : 'shadow-blue-900/10 hover:bg-[#252a5e]'
+                                                    }`}
                                                 >
-                                                    {ext}
+                                                    {supervisorFile && <CheckCircle size={14} className="animate-in zoom-in duration-300" />}
+                                                    {supervisorFile ? 'Cargado' : 'Cargar'}
+                                                </button>
+                                                <input 
+                                                    type="file" 
+                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                                                    onChange={(e) => setSupervisorFile(e.target.files[0])}
+                                                    accept=".xlsx,.xls,.csv"
+                                                />
+                                            </div>
+                                            
+                                            <button 
+                                                onClick={() => setSupervisorFile(null)}
+                                                disabled={!supervisorFile}
+                                                className={`p-2.5 rounded-xl border-2 transition-all active:scale-95 group/clear ${
+                                                    supervisorFile 
+                                                    ? 'border-red-100 text-red-500 bg-white hover:bg-red-50 hover:border-red-200' 
+                                                    : 'border-gray-50 text-gray-200 bg-gray-50 cursor-not-allowed'
+                                                }`}
+                                            >
+                                                <Trash2 size={16} className={`${supervisorFile ? 'group-hover:rotate-12 transition-transform' : ''}`} />
+                                            </button>
+
+                                            <div className={`flex-1 bg-white border-2 rounded-xl px-4 py-2.5 flex items-center overflow-hidden transition-colors duration-500 ${supervisorFile ? 'border-[#6bbdb7]/20' : 'border-brand-primary/10'}`}>
+                                                <span className={`text-[10px] font-bold uppercase truncate transition-colors duration-500 ${supervisorFile ? 'text-[#303a7f]' : 'text-gray-300'}`}>
+                                                    {supervisorFile ? supervisorFile.name : 'Sin archivo seleccionado'}
                                                 </span>
-                                            ))}
+                                            </div>
                                         </div>
+                                        <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Horas Semanales (Dom - Sab)</p>
+                                    </div>
+
+                                    {/* Control 2: Control Biométrico */}
+                                    <div className={`rounded-2xl p-6 border-2 shadow-sm transition-all duration-500 ${biometricFile ? 'border-[#6bbdb7]/20 bg-[#6bbdb7]/[0.02]' : 'border-[#6bbdb7]/5 bg-[#f9f9f9]'}`}>
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className={`p-2 rounded-lg transition-colors duration-500 ${biometricFile ? 'bg-[#6bbdb7]/10' : 'bg-[#6bbdb7]/5'}`}>
+                                                <Clock8 size={18} className={`transition-colors duration-500 ${biometricFile ? 'text-[#6bbdb7]' : 'text-[#6bbdb7]'}`} />
+                                            </div>
+                                            <p className={`text-xs font-black uppercase tracking-tight transition-colors duration-500 ${biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Control Biométrico</p>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2">
+                                            <div className="relative group/btn">
+                                                <button 
+                                                    style={{ backgroundColor: biometricFile ? '#6bbdb7' : '#303a7f' }}
+                                                    className={`px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 ${
+                                                        biometricFile 
+                                                        ? 'shadow-teal-900/10 hover:bg-[#59aba5]' 
+                                                        : 'shadow-blue-900/10 hover:bg-[#252a5e]'
+                                                    }`}
+                                                >
+                                                    {biometricFile && <CheckCircle size={14} className="animate-in zoom-in duration-300" />}
+                                                    {biometricFile ? 'Cargado' : 'Cargar'}
+                                                </button>
+                                                <input 
+                                                    type="file" 
+                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                                                    onChange={(e) => setBiometricFile(e.target.files[0])}
+                                                    accept=".xlsx,.xls,.csv,.txt"
+                                                />
+                                            </div>
+                                            
+                                            <button 
+                                                onClick={() => setBiometricFile(null)}
+                                                disabled={!biometricFile}
+                                                className={`p-2.5 rounded-xl border-2 transition-all active:scale-95 group/clear ${
+                                                    biometricFile 
+                                                    ? 'border-red-100 text-red-500 bg-white hover:bg-red-50 hover:border-red-200' 
+                                                    : 'border-gray-50 text-gray-200 bg-gray-50 cursor-not-allowed'
+                                                }`}
+                                            >
+                                                <Trash2 size={16} className={`${biometricFile ? 'group-hover:rotate-12 transition-transform' : ''}`} />
+                                            </button>
+
+                                            <div className={`flex-1 bg-white border-2 rounded-xl px-4 py-2.5 flex items-center overflow-hidden transition-colors duration-500 ${biometricFile ? 'border-[#6bbdb7]/20' : 'border-brand-primary/10'}`}>
+                                                <span className={`text-[10px] font-bold uppercase truncate transition-colors duration-500 ${biometricFile ? 'text-[#303a7f]' : 'text-gray-300'}`}>
+                                                    {biometricFile ? biometricFile.name : 'Sin archivo seleccionado'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Base de Datos (In/Out)</p>
                                     </div>
                                 </div>
                             </section>
