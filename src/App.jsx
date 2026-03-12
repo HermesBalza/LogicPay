@@ -23,7 +23,9 @@ import {
     Edit2,
     Trash2,
     Camera,
+    Calendar,
     ArrowLeft,
+    ArrowLeftRight,
     UserPlus,
     ChevronDown,
     Lock,
@@ -32,8 +34,8 @@ import {
 
 
 // ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
-const GENAI_API_KEY = "AIzaSyDxy2BOTmC6_VBK9SL_JJk0veO1ulQpG8A";
-const genAI = new GoogleGenerativeAI(GENAI_API_KEY);
+// La API Key debe ser ingresada en la sección de Ajustes para evitar filtraciones.
+const genAIClient = (key) => new GoogleGenerativeAI(key);
 
 // ─── BASE DE DATOS: Google Sheets via Apps Script (escritura) ───────────────
 const API_URL = 'https://script.google.com/macros/s/AKfycbwOP1GRmKw_QeKq-tFcGU7VbFYWk6jyBSIS-npnLuVodsUAPj_hyRviBoDF25_rBOKthw/exec';
@@ -1587,14 +1589,92 @@ function App() {
     const [supervisorFile, setSupervisorFile] = useState(null);
     const [biometricFile, setBiometricFile] = useState(null);
     const [payrollStore, setPayrollStore] = useState('');
+    const [semanaTableData, setSemanaTableData] = useState([]);
     const [payrollResults, setPayrollResults] = useState([]);
     const [isProcessingPayroll, setIsProcessingPayroll] = useState(false);
+    const [isProcessingIA, setIsProcessingIA] = useState(false);
+    const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('lgm_gemini_key') || 'AIzaSyCavP4-Zc_Y2mLoiVeqrkQMfRNh6tpMpC0');
 
     // --- Lógica de Procesamiento de Nómina (Impulsado por Gemini AI) ---
+    // --- FASE 1: Procesar Solo Datos del Supervisor ---
     const processPayroll = async () => {
-        if (!supervisorFile || !biometricFile || !payrollStore) return;
+        console.log('[Payroll] Iniciando proceso...', { supervisorFile, biometricFile, payrollStore });
+        if (!supervisorFile || !biometricFile || !payrollStore) {
+            alert("Faltan archivos o tienda por seleccionar. Supervisor: " + (supervisorFile ? "OK" : "FALTA") + ", Biometrico: " + (biometricFile ? "OK" : "FALTA") + ", Tienda: " + (payrollStore ? "OK" : "FALTA"));
+            return;
+        }
 
         setIsProcessingPayroll(true);
+        try {
+            const readAsArrayBuffer = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsArrayBuffer(file);
+                });
+            };
+
+            const supervisorData = await readAsArrayBuffer(supervisorFile);
+            const supervisorWorkbook = XLSX.read(supervisorData);
+            const supervisorSheet = supervisorWorkbook.Sheets[supervisorWorkbook.SheetNames[0]];
+
+            const supervisorJson = XLSX.utils.sheet_to_json(supervisorSheet, { range: 1 });
+            console.log('[Payroll] Filas cargadas (desde Fila 2):', supervisorJson.length);
+            
+            const semanaRows = supervisorJson.map(row => {
+                const getValue = (keys) => {
+                    for (let key of keys) {
+                        if (row[key] !== undefined) return row[key];
+                        const foundKey = Object.keys(row).find(k => k.toLowerCase().trim() === key.toLowerCase().trim());
+                        if (foundKey) return row[foundKey];
+                    }
+                    return null;
+                };
+
+                const nombreCompleto = getValue(['Nombre y Apellidos', 'Nombre y Apellido', 'Nombre', 'Empleado']);
+                const codigo = getValue(['Código', 'Codigo', 'ID', 'Empleado ID', 'Nro']);
+                const cargo = getValue(['Servicio', 'Cargo', 'Puesto']);
+
+                return {
+                    nombre: nombreCompleto || 'N/A',
+                    codigo: codigo || '',
+                    cargo: cargo || 'N/A',
+                    domingo: { sup: getValue(['Domingo', 'DOM']) || 0, bio: 0 },
+                    lunes: { sup: getValue(['Lunes', 'LUN']) || 0, bio: 0 },
+                    martes: { sup: getValue(['Martes', 'MAR']) || 0, bio: 0 },
+                    miercoles: { sup: getValue(['miercoles', 'Miércoles', 'Miercoles', 'MIE']) || 0, bio: 0 },
+                    jueves: { sup: getValue(['Jueves', 'JUE']) || 0, bio: 0 },
+                    viernes: { sup: getValue(['Viernes', 'VIE']) || 0, bio: 0 },
+                    sabado: { sup: getValue(['Sabado', 'Sábado', 'SAB']) || 0, bio: 0 },
+                    total: { sup: getValue(['TOTAL', 'Total', 'Total Horas']) || 0, bio: 0 }
+                };
+            }).filter(r => 
+                r.nombre !== 'N/A' && 
+                r.nombre.trim() !== '' && 
+                !r.nombre.toLowerCase().includes('nombre y apellido')
+            );
+
+            console.log('[Payroll] Filas finales procesadas:', semanaRows.length);
+            setSemanaTableData(semanaRows);
+            setPayrollResults([]); 
+
+        } catch (error) {
+            console.error('[Payroll] ERROR CARGANDO SUPERVISOR:', error);
+            alert("Error cargando el reporte del supervisor.");
+        } finally {
+            setIsProcessingPayroll(false);
+        }
+    };
+
+    // --- FASE 2: Cruce con IA (Solo cuando Hermes lo decida) ---
+    const runAICrossover = async () => {
+        if (!supervisorFile || !biometricFile || !geminiApiKey) {
+            alert("Asegúrese de cargar ambos archivos y configurar la API Key.");
+            return;
+        }
+
+        setIsProcessingIA(true);
         try {
             const readAsArrayBuffer = (file) => {
                 return new Promise((resolve, reject) => {
@@ -1614,17 +1694,11 @@ function App() {
             const supervisorSheet = supervisorWorkbook.Sheets[supervisorWorkbook.SheetNames[0]];
             const biometricSheet = biometricWorkbook.Sheets[biometricWorkbook.SheetNames[0]];
 
-            const supervisorJson = XLSX.utils.sheet_to_json(supervisorSheet);
-            const biometricJson = XLSX.utils.sheet_to_json(biometricSheet);
-
+            const supervisorJson = XLSX.utils.sheet_to_json(supervisorSheet, { range: 1 });
             const storeRef = stores.find(s => s.nombre === payrollStore);
-
-            // Preparar contexto para la IA
+            
             const contextData = {
-                tienda: {
-                    nombre: storeRef.nombre,
-                    tarifas: storeRef.tarifas
-                },
+                tienda: { nombre: storeRef?.nombre, tarifas: storeRef?.tarifas },
                 empleados: employees.map(e => ({
                     codigo_empleado: e.codigo_empleado,
                     nombre: e.nombre,
@@ -1632,53 +1706,41 @@ function App() {
                 })),
                 datosSource: {
                     supervisor: supervisorJson,
-                    biometrico: biometricJson
+                    biometrico: XLSX.utils.sheet_to_json(biometricSheet)
                 }
             };
 
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const genAI = genAIClient(geminiApiKey);
+            const model = genAI.getGenerativeModel({
+                model: "gemini-2.5-flash", 
+                generationConfig: { responseMimeType: "application/json" } 
+            });
 
             const prompt = `
             Eres un experto en nómina. Tu tarea es procesar el cruce de datos entre un reporte de Supervisor y un reporte Biométrico.
-            
-            DIRECCIONES:
-            1. Cruza los datos por el código de empleado.
-            2. Identifica el cargo del empleado en la lista de 'empleados'.
-            3. Si un empleado no está en el biométrico pero sí en el supervisor, márcalo como 'solo_supervisor'.
-            4. Si hay una diferencia mayor a 0.1 horas entre ambos reportes, márcalo como 'discrepancia'.
-            5. Si coinciden, márcalo como 'valido'.
-            6. Calcula el Pago KBS y Pago LSG multiplicando las horas del SUPERVISOR por la tarifa correspondiente al cargo del empleado en esa tienda.
+            INSTRUCCIONES:
+            1. Cruza por código de empleado o nombre.
+            2. Identifica status: 'valido', 'discrepancia' o 'solo_supervisor'.
+            3. Calcula Pago KBS y Pago LSG.
             
             CONTEXTO:
             ${JSON.stringify(contextData)}
             
-            RESPUESTA ESPERADA:
-            Devuelve ÚNICAMENTE un array de objetos JSON con la siguiente estructura:
-            [{
-                "codigo": "ID del empleado",
-                "nombre": "Nombre completo",
-                "horasSupervisor": número,
-                "horasBiometrico": número,
-                "status": "valido" | "discrepancia" | "solo_supervisor",
-                "cargo": "Cargo del empleado",
-                "pagoKBS": número,
-                "pagoLSG": número
-            }]
+            RESPUESTA EN JSON:
+            [{ "codigo": string, "nombre": string, "horasSupervisor": number, "horasBiometrico": number, "status": string, "cargo": string, "pagoKBS": number, "pagoLSG": number }]
             `;
 
             const result = await model.generateContent(prompt);
-            const responseText = result.response.text();
-
-            // Limpiar respuesta por si la IA añade markdown block
-            const cleanedJson = responseText.replace(/```json|```/g, '').trim();
-            const results = JSON.parse(cleanedJson);
-
+            const response = await result.response;
+            const text = response.text();
+            const results = JSON.parse(text.replace(/```json|```/g, '').trim());
             setPayrollResults(results);
+
         } catch (error) {
-            console.error('[Payroll IA] Error crítico:', error);
-            alert("La IA tuvo un problema procesando los datos. Intente de nuevo.");
+            console.error('[Payroll IA] ERROR EN CRUCE:', error);
+            alert(`Error en el Cruce IA: ${error.message}`);
         } finally {
-            setIsProcessingPayroll(false);
+            setIsProcessingIA(false);
         }
     };
 
@@ -1892,111 +1954,84 @@ function App() {
                 />
             )}
 
-            {/* Sidebar Overlay for Mobile */}
-            {!isSidebarOpen && (
-                <button
-                    onClick={() => setSidebarOpen(true)}
-                    className="fixed top-6 left-6 z-50 p-3 bg-white border-2 border-brand-primary/20 rounded-2xl lg:hidden shadow-2xl shadow-blue-900/10"
-                >
-                    <Menu className="text-[#303a7f]" size={24} />
-                </button>
-            )}
-
-            {/* Sidebar */}
-            <aside className={`fixed inset-y-0 left-0 z-40 w-72 h-screen bg-white border-r-2 border-gray-100/80 transition-transform duration-500 lg:relative lg:translate-x-0 
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-
-                <div className="flex flex-col h-full p-8">
-                    <div className="flex flex-col items-center mb-10 px-2">
-                        <img
-                            src="/Logo Logic Group Management.png"
-                            alt="Logo Logic Group Management"
-                            className="w-full h-auto max-w-[105px] object-contain animate-in fade-in duration-700"
-                        />
-                        <button onClick={() => setSidebarOpen(false)} className="lg:hidden absolute top-8 right-8 p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                            <X className="text-gray-400" size={18} />
-                        </button>
-                    </div>
-
-                    <nav className="space-y-1.5 flex-1">
-                        {navItems.map((item) => (
-                            <SidebarItem
-                                key={item.id}
-                                {...item}
-                                active={activeTab === item.id}
-                                onClick={() => setActiveTab(item.id)}
-                            />
-                        ))}
-                    </nav>
-
-                    {/* Indicador de Conexión */}
-                    <div className="mt-auto pt-5 border-t-2 border-gray-100/80">
-                        <div className="flex items-center justify-between gap-2.5 px-2 py-2">
-                            <div className="flex items-center gap-2.5">
-                                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isLoading
-                                    ? 'bg-[#6bbdb7] animate-pulse'
-                                    : dbStatus === 'conectado'
-                                        ? 'bg-green-500 animate-pulse'
-                                        : dbStatus === 'sincronizando'
-                                            ? 'bg-[#6bbdb7] animate-ping'
-                                            : 'bg-red-400'
-                                    }`} />
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${isLoading
-                                    ? 'text-[#6bbdb7]'
-                                    : dbStatus === 'conectado'
-                                        ? 'text-green-600'
-                                        : dbStatus === 'sincronizando'
-                                            ? 'text-[#6bbdb7]'
-                                            : 'text-red-400'
-                                    }`}>
-                                    {isLoading ? 'Cargando...' : dbStatus === 'conectado' ? 'Conectado' : dbStatus === 'sincronizando' ? 'Sincronizando' : 'Desconectado'}
-                                </span>
-                            </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                {new Intl.DateTimeFormat('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }).format(new Date())}
+            {/* Logo y Status Bar Superior */}
+            <header className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-b-2 border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-6">
+                    <img
+                        src="/Logo Logic Group Management.png"
+                        alt="Logo Logic Group Management"
+                        className="h-8 w-auto object-contain"
+                    />
+                    <div className="h-6 w-px bg-gray-200 hidden md:block" />
+                    <div className="hidden md:flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-[#6bbdb7] animate-pulse' : dbStatus === 'conectado' ? 'bg-green-500' : 'bg-red-400'}`} />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                                {isLoading ? 'Cargando...' : dbStatus === 'conectado' ? 'Sincronizado' : 'Desconectado'}
                             </span>
                         </div>
                     </div>
-
                 </div>
-            </aside>
 
-            {/* Main Content Area */}
-            <main className="flex-1 h-full overflow-y-auto px-4 pt-6 pb-4 lg:px-10 lg:pt-8 lg:pb-10 relative">
+                {/* User Card */}
+                <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-2xl border-2 border-gray-100 group relative ml-auto">
+                    <div className="h-7 w-7 bg-white rounded-lg flex items-center justify-center border-2 border-gray-100 flex-shrink-0">
+                        <Users size={14} className="text-[#303a7f]" />
+                    </div>
+                    <div className="pr-6">
+                        <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-tighter leading-none">{user?.name || 'Invitado'}</p>
+                    </div>
+                    <button
+                        onClick={handleLogout}
+                        className="absolute right-2 transition-all duration-200 text-red-300 hover:text-red-600 p-1 hover:bg-red-50 rounded-md"
+                        title="Cerrar Sesión"
+                    >
+                        <LogOut size={12} />
+                    </button>
+                </div>
+            </header>
+
+            {/* Main Content Area con padding ajustado para top y bottom navs */}
+            <main className="flex-1 h-screen overflow-y-auto px-4 pt-24 pb-32 lg:px-10 relative">
+
+            {/* Navigation Inferior (Mobile & Desktop) */}
+            <nav className="fixed bottom-0 inset-x-0 z-50 bg-white border-t-2 border-gray-100 px-6 py-4 flex items-center justify-center gap-2 md:gap-8 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+                {navItems.map((item) => (
+                    <button
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id)}
+                        className={`flex items-center gap-3 px-6 py-3 rounded-2xl transition-all duration-300 ${
+                            activeTab === item.id 
+                            ? 'bg-[#303a7f] text-white shadow-xl shadow-blue-900/20 scale-105' 
+                            : 'text-gray-400 hover:bg-gray-50 hover:text-[#303a7f]'
+                        }`}
+                    >
+                        <item.icon size={20} />
+                        <span className={`text-[10px] font-black uppercase tracking-widest hidden md:block`}>
+                            {item.label}
+                        </span>
+                    </button>
+                ))}
+            </nav>
                 {/* Subtle page-level decoration */}
                 <div
                     style={{ backgroundColor: 'rgba(48,58,127,0.02)' }}
                     className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[120px] -z-10 pointer-events-none"
                 />
 
-                <div className="max-w-6xl mx-auto">
-                    <header className="mb-6 flex flex-col md:flex-row md:items-start justify-between gap-6">
+                <div className="max-w-[1400px] mx-auto">
+                    <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-4 border-[#303a7f]/5 pb-8">
                         <div className="flex flex-col animate-in fade-in slide-in-from-left-4 duration-500">
-                            <h2 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-2 mt-0">
-                                {activeTab === 'stores' ? 'Unidades' : activeTab}
-                            </h2>
-                            <p className="text-[#6bbdb7] max-w-lg text-[8px] font-black leading-snug uppercase tracking-widest">Ecosistema inteligente para la gestión de Logic Group Management.</p>
-
-                        </div>
-
-                        {/* User Card - Header right side */}
-                        <div className="flex items-center gap-3 bg-white p-4 rounded-[2rem] border-2 border-brand-primary/10 shadow-xl shadow-blue-900/[0.03] self-start animate-in fade-in slide-in-from-right-4 duration-500 group relative">
-                            <div className="h-9 w-9 bg-[#f9f9f9] rounded-xl flex items-center justify-center border-2 border-brand-primary/10 flex-shrink-0">
-                                <Users size={16} className="text-[#303a7f]" />
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="p-2 bg-[#303a7f] rounded-lg text-white">
+                                    {navItems.find(i => i.id === activeTab)?.icon && React.createElement(navItems.find(i => i.id === activeTab).icon, { size: 18 })}
+                                </div>
+                                <h2 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none m-0">
+                                    {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : 'Configuración'}
+                                </h2>
                             </div>
-                            <div className="pr-8">
-                                <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-tighter leading-none">{user?.name || 'Invitado'}</p>
-                                <p className="text-[7px] text-[#6bbdb7] font-black uppercase tracking-[0.2em] mt-1">{user?.role || 'Visitante'}</p>
-                            </div>
-                            <button
-                                onClick={handleLogout}
-                                className="absolute right-3 transition-all duration-200 text-red-300 hover:text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-110 p-1.5 bg-white border-2 border-red-100/80 rounded-lg shadow-sm z-30 active:scale-90"
-                                title="Cerrar Sesión"
-                            >
-                                <LogOut size={14} />
-                            </button>
+                            <p className="text-[#6bbdb7] text-[10px] font-black leading-snug uppercase tracking-[0.3em] opacity-80 pl-1">Protocolo de gestión logística Logic Group Management</p>
                         </div>
-
                     </header>
 
                     {activeTab === 'stores' && (
@@ -2118,6 +2153,19 @@ function App() {
                                         </div>
                                     </div>
                                     <div className="md:col-span-5 flex items-end">
+                                        {!geminiApiKey && (
+                                            <div className="w-full p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in duration-500 mb-2">
+                                                <div className="p-2 bg-amber-100 rounded-xl text-amber-600">
+                                                    <Lock size={14} />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-[9px] font-black text-amber-700 uppercase tracking-tight">IA Desactivada</p>
+                                                    <p className="text-[8px] text-amber-600 font-bold leading-tight">
+                                                        Configure su nueva clave en <button onClick={() => setActiveTab('settings')} className="underline font-black hover:text-amber-800 transition-colors tracking-tight">Ajustes</button> para activar el cruce inteligente.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -2239,7 +2287,7 @@ function App() {
                                             </>
                                         ) : (
                                             <>
-                                                <Settings size={18} className={(supervisorFile && biometricFile && payrollStore) ? "animate-spin-slow" : ""} />
+                                                <Settings size={18} className={(supervisorFile && payrollStore) ? "animate-spin-slow" : ""} />
                                                 Procesar Nómina
                                             </>
                                         )}
@@ -2247,101 +2295,191 @@ function App() {
                                 </div>
                             </section>
 
-                            {/* Tabla de Resultados de Previsualización */}
-                            {payrollResults.length > 0 && (
-                                <section className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-blue-900/[0.04] border-2 border-brand-primary/5 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+                            {/* Tablas de Resultados por Fases */}
+                            {/* TABLA MAESTRA: SEMANA (Visible por defecto) */}
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+                                <section className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-blue-900/[0.04] border-2 border-brand-primary/5 min-h-[400px]">
                                     <div className="flex items-center justify-between mb-8">
                                         <div className="flex items-center gap-4">
-                                            <div className="p-3 bg-[#6bbdb7]/10 rounded-xl">
-                                                <Users size={20} className="text-[#6bbdb7]" />
+                                            <div className="p-3 bg-[#303a7f]/5 rounded-xl">
+                                                <Calendar size={20} className="text-[#303a7f]" />
                                             </div>
                                             <div>
-                                                <h3 className="text-lg font-black text-[#303a7f] tracking-tighter leading-none mb-1">Previsualización de Resultados</h3>
-                                                <p className="text-gray-400 font-black uppercase text-[8px] tracking-[0.2em] opacity-80">Tienda: {payrollStore}</p>
+                                                <h3 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Tabla "Semana"</h3>
+                                                <p className="text-gray-400 font-black uppercase text-[8px] tracking-[0.2em] opacity-80">Comparativa Supervisor (S) vs Biométrico (B)</p>
                                             </div>
                                         </div>
-                                        <div className="px-4 py-2 bg-[#f9f9f9] rounded-xl border-2 border-gray-50">
-                                            <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">
-                                                {payrollResults.length} Empleados
-                                            </p>
+                                        
+                                        <div className="flex items-center gap-4">
+                                            {(biometricFile && semanaTableData.length > 0) && (
+                                                <button
+                                                    onClick={runAICrossover}
+                                                    disabled={isProcessingIA}
+                                                    className={`px-6 py-3 bg-[#6bbdb7] text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2 ${isProcessingIA ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#59aba5]'}`}
+                                                >
+                                                    {isProcessingIA ? (
+                                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    ) : (
+                                                        <ArrowLeftRight size={14} />
+                                                    )}
+                                                    {isProcessingIA ? 'Analizando...' : 'Iniciar Cruce Inteligente (IA)'}
+                                                </button>
+                                            )}
+                                            <div className="px-4 py-2 bg-[#f9f9f9] rounded-xl border-2 border-gray-50 flex items-center gap-3">
+                                                <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest leading-none">
+                                                    {semanaTableData.length} Empleados
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left">
+                                    <div className="overflow-x-auto rounded-3xl border-[3px] border-gray-200">
+                                        <table className="w-full text-left border-collapse">
                                             <thead>
-                                                <tr className="border-b-2 border-gray-50">
-                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Código</th>
-                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Empleado</th>
-                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Cargo</th>
-                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Sup. Hrs</th>
-                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Bio. Hrs</th>
-                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Pago KBS</th>
-                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Pago LSG</th>
-                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Estatus</th>
+                                                <tr className="bg-[#f9f9f9]/80">
+                                                    <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
+                                                    <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Cargo</th>
+                                                    {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map(day => (
+                                                        <th key={day} className="p-4 text-[10px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[110px] bg-gray-50/20">
+                                                            {day}
+                                                            <div className="flex justify-around mt-1 pt-1 border-t-2 border-gray-100">
+                                                                <span className="text-[8px] text-[#303a7f]">S</span>
+                                                                <span className="text-[8px] text-[#6bbdb7]">B</span>
+                                                            </div>
+                                                        </th>
+                                                    ))}
+                                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-200 min-w-[130px] bg-[#303a7f]/5">
+                                                        Total Hrs
+                                                        <div className="flex justify-end gap-10 mt-1 pt-1 border-t-2 border-gray-200/50">
+                                                            <span className="text-[8px] text-[#303a7f]">S</span>
+                                                            <span className="text-[8px] text-[#6bbdb7]">B</span>
+                                                        </div>
+                                                    </th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-gray-50">
-                                                {payrollResults.map((res, idx) => (
-                                                    <tr key={idx} className="group hover:bg-[#f9f9f9]/50 transition-colors">
-                                                        <td className="py-4 text-xs font-black text-gray-300 tabular-nums">#{res.codigo}</td>
-                                                        <td className="py-4">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-8 h-8 rounded-lg bg-brand-primary/5 flex items-center justify-center text-[10px] font-black text-[#303a7f]">
-                                                                    {res.nombre.charAt(0)}
-                                                                </div>
-                                                                <span className="text-xs font-black text-[#303a7f] uppercase">{res.nombre}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="py-4 text-[10px] font-black text-gray-400 uppercase">{res.cargo}</td>
-                                                        <td className="py-4 text-center">
-                                                            <span className="text-sm font-black text-[#303a7f] tabular-nums">{res.horasSupervisor}h</span>
-                                                        </td>
-                                                        <td className="py-4 text-center">
-                                                            <span className="text-sm font-black text-[#303a7f] tabular-nums">{res.horasBiometrico}h</span>
-                                                        </td>
-                                                        <td className="py-4 text-center">
-                                                            <span className="text-sm font-black text-[#6bbdb7] tabular-nums">${res.pagoKBS.toFixed(2)}</span>
-                                                        </td>
-                                                        <td className="py-4 text-center">
-                                                            <span className="text-sm font-black text-[#303a7f] tabular-nums">${res.pagoLSG.toFixed(2)}</span>
-                                                        </td>
-                                                        <td className="py-4 text-right">
-                                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${res.status === 'valido'
-                                                                ? 'bg-green-50 text-green-600 border border-green-100'
-                                                                : res.status === 'discrepancia'
-                                                                    ? 'bg-amber-50 text-amber-600 border border-amber-100'
-                                                                    : 'bg-red-50 text-red-600 border border-red-100'
-                                                                }`}>
-                                                                {res.status === 'solo_supervisor' ? 'Sin Bio' : res.status}
-                                                            </span>
+                                            <tbody className="divide-y-[3px] divide-gray-200">
+                                                {semanaTableData.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="10" className="py-24 text-center text-gray-300 font-extrabold uppercase text-xs tracking-[0.3em] italic">
+                                                            Esperando el despliegue de datos del supervisor...
                                                         </td>
                                                     </tr>
-                                                ))}
+                                                ) : (
+                                                    semanaTableData.map((row, idx) => (
+                                                        <tr key={idx} className="group hover:bg-[#303a7f]/[0.02] transition-colors">
+                                                            <td className="p-5 border-r-[2px] border-gray-100">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
+                                                                    <span className="text-[9px] font-black text-[#6bbdb7] tabular-nums tracking-[0.1em] mt-1">ID: {row.codigo || '----'}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-5 border-r-[2px] border-gray-100 italic">
+                                                                <span className="text-[10px] font-extrabold text-gray-500 uppercase leading-tight bg-gray-50 px-2 py-1 rounded-md">{row.cargo}</span>
+                                                            </td>
+                                                            {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
+                                                                <td key={day} className="p-5 text-center border-l-[3px] border-gray-200">
+                                                                    <div className="flex items-center justify-between gap-3">
+                                                                        <span className="text-xs font-black text-[#303a7f] tabular-nums">{row[day].sup || '0'}</span>
+                                                                        <div className="h-5 w-[2px] bg-gray-200 rounded-full" />
+                                                                        <span className={`text-xs font-black tabular-nums ${row[day].bio > 0 ? 'text-[#6bbdb7]' : 'text-gray-200'}`}>
+                                                                            {row[day].bio > 0 ? row[day].bio : '0'}
+                                                                        </span>
+                                                                    </div>
+                                                                </td>
+                                                            ))}
+                                                            <td className="p-5 text-right bg-gray-50/50 border-l-[3px] border-gray-200">
+                                                                <div className="flex items-center justify-end gap-6">
+                                                                    <span className="text-base font-black text-[#303a7f] tabular-nums">{row.total.sup}h</span>
+                                                                    <div className="h-7 w-[3px] bg-white shadow-inner" />
+                                                                    <span className={`text-base font-black tabular-nums ${row.total.bio > 0 ? 'text-[#6bbdb7]' : 'text-gray-200'}`}>
+                                                                        {row.total.bio > 0 ? `${row.total.bio}h` : '0h'}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
-
-                                    <div className="mt-10 flex justify-end gap-4 border-t-2 border-gray-50 pt-8">
-                                        <button
-                                            onClick={() => setPayrollResults([])}
-                                            className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-red-500 transition-colors"
-                                        >
-                                            Limpiar Resultados
-                                        </button>
-                                        <button
-                                            className="px-8 py-3 bg-[#6bbdb7] text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/10 hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-2"
-                                        >
-                                            <CreditCard size={14} />
-                                            Procesar Pago
-                                        </button>
-                                    </div>
+                                    
+                                    {semanaTableData.length > 0 && (
+                                        <div className="mt-10 flex justify-end gap-4 border-t-2 border-gray-50 pt-8">
+                                            <button
+                                                onClick={() => {
+                                                    setSemanaTableData([]);
+                                                    setPayrollResults([]);
+                                                }}
+                                                className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-red-500 transition-colors"
+                                            >
+                                                Limpiar Tabla
+                                            </button>
+                                            <button
+                                                className="px-8 py-3 bg-[#303a7f] text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/10 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2"
+                                            >
+                                                <CreditCard size={14} />
+                                                Finalizar Nómina
+                                            </button>
+                                        </div>
+                                    )}
                                 </section>
-                            )}
+                            </div>
                         </div>
                     )}
 
-                    {(activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees') && (
+                    {activeTab === 'settings' && (
+                        <div className="max-w-2xl mx-auto py-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                            <section className="bg-white rounded-[2.5rem] p-10 shadow-2xl border-2 border-brand-primary/5">
+                                <div className="flex items-center gap-4 mb-10">
+                                    <div className="p-4 bg-[#303a7f]/5 rounded-2xl text-[#303a7f]">
+                                        <Settings size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Ajustes del Sistema</h3>
+                                        <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Configuración Global de LogicPay</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-8">
+                                    <div className="p-6 bg-[#f9f9f9] rounded-3xl border-2 border-gray-50 group hover:border-[#303a7f]/10 transition-all">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-[#303a7f] shadow-sm">
+                                                <Lock size={16} />
+                                            </div>
+                                            <label className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest">Google Gemini API Key</label>
+                                        </div>
+                                        <input 
+                                            type="password"
+                                            value={geminiApiKey}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setGeminiApiKey(val);
+                                                localStorage.setItem('lgm_gemini_key', val);
+                                            }}
+                                            placeholder="Ingrese su nueva API Key..."
+                                            className="w-full bg-white border-2 border-brand-primary/10 rounded-2xl p-4 text-sm font-bold focus:border-[#303a7f]/30 outline-none transition-all placeholder:text-gray-200"
+                                        />
+                                        <p className="mt-3 text-[9px] text-gray-400 font-bold uppercase tracking-tight leading-relaxed px-1">
+                                            Esta clave es necesaria para el procesamiento de nómina bi-semanal. Se guarda localmente en su navegador para máxima seguridad.
+                                        </p>
+                                    </div>
+
+                                    <div className="p-8 bg-[#303a7f] rounded-3xl text-white relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform duration-1000">
+                                            <CheckCircle size={100} />
+                                        </div>
+                                        <h4 className="text-sm font-black uppercase tracking-widest mb-2 relative z-10">Estado del Sistema</h4>
+                                        <div className="flex items-center gap-3 relative z-10">
+                                            <div className="h-2.5 w-2.5 rounded-full bg-green-400 animate-pulse" />
+                                            <span className="text-[10px] font-black uppercase tracking-tighter">Motor de Nómina Fase 1 Activo</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    )}
+
+                    {(activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'settings') && (
                         <div className="flex flex-col items-center justify-center py-32 text-center animate-in fade-in zoom-in-95 duration-1000">
                             <div className="p-12 bg-white rounded-[2rem] border-2 border-brand-primary/10 mb-10 relative shadow-2xl shadow-blue-900/[0.06]">
                                 <div
