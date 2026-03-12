@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
     Users,
     Store as StoreIcon,
@@ -28,6 +30,10 @@ import {
     LogOut
 } from 'lucide-react';
 
+
+// ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
+const GENAI_API_KEY = "AIzaSyDxy2BOTmC6_VBK9SL_JJk0veO1ulQpG8A";
+const genAI = new GoogleGenerativeAI(GENAI_API_KEY);
 
 // ─── BASE DE DATOS: Google Sheets via Apps Script (escritura) ───────────────
 const API_URL = 'https://script.google.com/macros/s/AKfycbwOP1GRmKw_QeKq-tFcGU7VbFYWk6jyBSIS-npnLuVodsUAPj_hyRviBoDF25_rBOKthw/exec';
@@ -62,7 +68,7 @@ const formatDateForInput = (dateStr) => {
     if (!dateStr) return '';
     // Si ya viene en formato ISO (yyyy-mm-dd), lo devolvemos tal cual
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-    
+
     // Si viene en formato mm/dd/aaaa
     const parts = dateStr.split('/');
     if (parts.length === 3) {
@@ -82,7 +88,7 @@ const formatDateForInput = (dateStr) => {
 
 const formatDateForDisplay = (dateStr) => {
     if (!dateStr || dateStr === '--') return '--';
-    
+
     // Si ya viene en formato mm/dd/aaaa, lo devolvemos tal cual para evitar re-formateos raros
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
 
@@ -287,47 +293,47 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
 const StoreCard = ({ store, employees = [], onEdit }) => {
     const assignedCount = (employees || []).filter(emp => emp.tienda === store.nombre).length;
     return (
-    <div
-        onClick={() => onEdit(store)}
-        className="card cursor-pointer group hover:border-[#6bbdb7]/60 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/10 relative overflow-hidden bg-white/80 backdrop-blur-sm border-transparent hover:-translate-y-2 active:scale-95"
-    >
-        <div className="flex justify-between items-start mb-5">
-            <div className="w-12 h-12 bg-[#f9f9f9] rounded-2xl group-hover:bg-[#6bbdb7]/10 transition-colors border border-transparent overflow-hidden flex items-center justify-center">
-                {store.imagen ? (
-                    <img src={store.imagen} alt={store.nombre} className="w-full h-full object-cover" />
-                ) : (
-                    <StoreIcon className="text-gray-400 group-hover:text-[#6bbdb7]" size={20} />
-                )}
-            </div>
-            <span className="bg-[#303a7f]/5 text-[#303a7f] text-[10px] font-black px-3 py-1.5 rounded-xl self-start uppercase tracking-widest border border-transparent shadow-sm group-hover:bg-[#303a7f] group-hover:text-white transition-all duration-300">
-                {store.codigo || 'S/N'}
-            </span>
-        </div>
-
-        <h3 className="text-lg font-black text-[#333333] mb-1 group-hover:text-[#303a7f] transition-colors tracking-tight">{store.nombre}</h3>
-        <p className="text-[#6bbdb7] text-[9px] font-black mb-4 uppercase tracking-[0.2em]">{store.estado || 'ARIZONA'}</p>
-
-        <div className="space-y-3 pt-4 border-t border-gray-50">
-            <div className="flex items-center justify-between text-[10px]">
-                <div className="flex items-center gap-2 text-gray-500">
-                    <Users size={12} className="text-[#6bbdb7]/60" />
-                    <span className="font-semibold uppercase tracking-tighter">Personal</span>
+        <div
+            onClick={() => onEdit(store)}
+            className="card cursor-pointer group hover:border-[#6bbdb7]/60 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/10 relative overflow-hidden bg-white/80 backdrop-blur-sm border-transparent hover:-translate-y-2 active:scale-95"
+        >
+            <div className="flex justify-between items-start mb-5">
+                <div className="w-12 h-12 bg-[#f9f9f9] rounded-2xl group-hover:bg-[#6bbdb7]/10 transition-colors border border-transparent overflow-hidden flex items-center justify-center">
+                    {store.imagen ? (
+                        <img src={store.imagen} alt={store.nombre} className="w-full h-full object-cover" />
+                    ) : (
+                        <StoreIcon className="text-gray-400 group-hover:text-[#6bbdb7]" size={20} />
+                    )}
                 </div>
-                <span className="text-[#333333] font-black">{assignedCount} Empleados</span>
+                <span className="bg-[#303a7f]/5 text-[#303a7f] text-[10px] font-black px-3 py-1.5 rounded-xl self-start uppercase tracking-widest border border-transparent shadow-sm group-hover:bg-[#303a7f] group-hover:text-white transition-all duration-300">
+                    {store.codigo || 'S/N'}
+                </span>
             </div>
-            <div className="flex items-center justify-between text-[10px]">
-                <div className="flex items-center gap-2 text-gray-500">
-                    <Clock8 size={12} className="text-[#6bbdb7]/60" />
-                    <span className="font-semibold uppercase tracking-tighter">Capacidad</span>
-                </div>
-                <span className="text-[#333333] font-black">{store.max_horas} hrs / mes</span>
-            </div>
-        </div>
 
-        <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-transparent group-hover:bg-[#303a7f]/5 transition-colors">
-            <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Supervisor LSG</span>
-            <span className="text-[9px] font-black text-[#303a7f] uppercase">{store.supervisor_lsg || 'Sin Asignar'}</span>
-        </div>
+            <h3 className="text-lg font-black text-[#333333] mb-1 group-hover:text-[#303a7f] transition-colors tracking-tight">{store.nombre}</h3>
+            <p className="text-[#6bbdb7] text-[9px] font-black mb-4 uppercase tracking-[0.2em]">{store.estado || 'ARIZONA'}</p>
+
+            <div className="space-y-3 pt-4 border-t border-gray-50">
+                <div className="flex items-center justify-between text-[10px]">
+                    <div className="flex items-center gap-2 text-gray-500">
+                        <Users size={12} className="text-[#6bbdb7]/60" />
+                        <span className="font-semibold uppercase tracking-tighter">Personal</span>
+                    </div>
+                    <span className="text-[#333333] font-black">{assignedCount} Empleados</span>
+                </div>
+                <div className="flex items-center justify-between text-[10px]">
+                    <div className="flex items-center gap-2 text-gray-500">
+                        <Clock8 size={12} className="text-[#6bbdb7]/60" />
+                        <span className="font-semibold uppercase tracking-tighter">Capacidad</span>
+                    </div>
+                    <span className="text-[#333333] font-black">{store.max_horas} hrs / mes</span>
+                </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-transparent group-hover:bg-[#303a7f]/5 transition-colors">
+                <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Supervisor LSG</span>
+                <span className="text-[9px] font-black text-[#303a7f] uppercase">{store.supervisor_lsg || 'Sin Asignar'}</span>
+            </div>
         </div>
     );
 };
@@ -414,7 +420,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
 
     const updateTarifa = (cargo, tipo, value) => {
         if (!isEditing) return;
-    
+
         // Allow only numbers and a single dot
         const sanitizedValue = value.replace(/[^\d.]/g, '');
         const parts = sanitizedValue.split('.');
@@ -422,7 +428,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
         if (parts.length > 2) {
             finalValue = `${parts[0]}.${parts.slice(1).join('')}`;
         }
-    
+
         setEditedStore(prev => {
             const currentTarifas = prev.tarifas || defaultTarifas;
             const currentCargo = currentTarifas[cargo] || { kbs: 0, lsg: 0 };
@@ -468,14 +474,14 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
     const handleSave = () => {
         // Create a deep copy to modify before saving
         const storeToSave = JSON.parse(JSON.stringify(editedStore));
-    
+
         // Iterate over tarifas and parse them to floats
         for (const cargo in storeToSave.tarifas) {
             for (const tipo in storeToSave.tarifas[cargo]) {
                 storeToSave.tarifas[cargo][tipo] = parseFloat(storeToSave.tarifas[cargo][tipo]) || 0;
             }
         }
-    
+
         onSave(storeToSave);
         setIsEditing(false);
     };
@@ -736,7 +742,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                             <div className="pt-2 flex justify-between items-center">
                                                 <span className="text-[8px] font-black text-gray-300 uppercase">Margen Est.</span>
                                                 <span className="text-[10px] font-black text-[#6bbdb7]">
-                                                +${(parseFloat(editedStore.tarifas[cargo.id].kbs) - parseFloat(editedStore.tarifas[cargo.id].lsg)).toFixed(2)}/hr
+                                                    +${(parseFloat(editedStore.tarifas[cargo.id].kbs) - parseFloat(editedStore.tarifas[cargo.id].lsg)).toFixed(2)}/hr
                                                 </span>
                                             </div>
                                         </div>
@@ -1421,7 +1427,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                         <div className="flex flex-col items-center text-center">
                             <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mb-6 text-red-500"><Trash2 size={36} /></div>
                             <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter mb-3 uppercase">¿Eliminar empleado?</h3>
-                            <p className="text-gray-400 text-xs mb-8">Escriba el nombre para confirmar: <br/><span className="font-black text-[#333333]">"{employee.nombre}"</span></p>
+                            <p className="text-gray-400 text-xs mb-8">Escriba el nombre para confirmar: <br /><span className="font-black text-[#333333]">"{employee.nombre}"</span></p>
                             <input
                                 type="text"
                                 value={confirmName}
@@ -1580,6 +1586,101 @@ function App() {
     // Estados para archivos de Nómina
     const [supervisorFile, setSupervisorFile] = useState(null);
     const [biometricFile, setBiometricFile] = useState(null);
+    const [payrollStore, setPayrollStore] = useState('');
+    const [payrollResults, setPayrollResults] = useState([]);
+    const [isProcessingPayroll, setIsProcessingPayroll] = useState(false);
+
+    // --- Lógica de Procesamiento de Nómina (Impulsado por Gemini AI) ---
+    const processPayroll = async () => {
+        if (!supervisorFile || !biometricFile || !payrollStore) return;
+
+        setIsProcessingPayroll(true);
+        try {
+            const readAsArrayBuffer = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsArrayBuffer(file);
+                });
+            };
+
+            const supervisorData = await readAsArrayBuffer(supervisorFile);
+            const biometricData = await readAsArrayBuffer(biometricFile);
+
+            const supervisorWorkbook = XLSX.read(supervisorData);
+            const biometricWorkbook = XLSX.read(biometricData);
+
+            const supervisorSheet = supervisorWorkbook.Sheets[supervisorWorkbook.SheetNames[0]];
+            const biometricSheet = biometricWorkbook.Sheets[biometricWorkbook.SheetNames[0]];
+
+            const supervisorJson = XLSX.utils.sheet_to_json(supervisorSheet);
+            const biometricJson = XLSX.utils.sheet_to_json(biometricSheet);
+
+            const storeRef = stores.find(s => s.nombre === payrollStore);
+
+            // Preparar contexto para la IA
+            const contextData = {
+                tienda: {
+                    nombre: storeRef.nombre,
+                    tarifas: storeRef.tarifas
+                },
+                empleados: employees.map(e => ({
+                    codigo_empleado: e.codigo_empleado,
+                    nombre: e.nombre,
+                    cargo: e.cargo
+                })),
+                datosSource: {
+                    supervisor: supervisorJson,
+                    biometrico: biometricJson
+                }
+            };
+
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+            const prompt = `
+            Eres un experto en nómina. Tu tarea es procesar el cruce de datos entre un reporte de Supervisor y un reporte Biométrico.
+            
+            DIRECCIONES:
+            1. Cruza los datos por el código de empleado.
+            2. Identifica el cargo del empleado en la lista de 'empleados'.
+            3. Si un empleado no está en el biométrico pero sí en el supervisor, márcalo como 'solo_supervisor'.
+            4. Si hay una diferencia mayor a 0.1 horas entre ambos reportes, márcalo como 'discrepancia'.
+            5. Si coinciden, márcalo como 'valido'.
+            6. Calcula el Pago KBS y Pago LSG multiplicando las horas del SUPERVISOR por la tarifa correspondiente al cargo del empleado en esa tienda.
+            
+            CONTEXTO:
+            ${JSON.stringify(contextData)}
+            
+            RESPUESTA ESPERADA:
+            Devuelve ÚNICAMENTE un array de objetos JSON con la siguiente estructura:
+            [{
+                "codigo": "ID del empleado",
+                "nombre": "Nombre completo",
+                "horasSupervisor": número,
+                "horasBiometrico": número,
+                "status": "valido" | "discrepancia" | "solo_supervisor",
+                "cargo": "Cargo del empleado",
+                "pagoKBS": número,
+                "pagoLSG": número
+            }]
+            `;
+
+            const result = await model.generateContent(prompt);
+            const responseText = result.response.text();
+
+            // Limpiar respuesta por si la IA añade markdown block
+            const cleanedJson = responseText.replace(/```json|```/g, '').trim();
+            const results = JSON.parse(cleanedJson);
+
+            setPayrollResults(results);
+        } catch (error) {
+            console.error('[Payroll IA] Error crítico:', error);
+            alert("La IA tuvo un problema procesando los datos. Intente de nuevo.");
+        } finally {
+            setIsProcessingPayroll(false);
+        }
+    };
 
     const USER_REGISTRY = [
         { name: "David Torres", role: "Asistente" },
@@ -2001,10 +2102,14 @@ function App() {
                                     <div className="md:col-span-7 space-y-2">
                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Unidad Receptora</label>
                                         <div className="relative group">
-                                            <select className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner pr-14 text-sm">
-                                                <option>--- ELIJA UNA TIENDA ---</option>
-                                                {storeNames.map((name, i) => (
-                                                    <option key={i}>{name}</option>
+                                            <select
+                                                value={payrollStore}
+                                                onChange={(e) => setPayrollStore(e.target.value)}
+                                                className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner pr-14 text-sm"
+                                            >
+                                                <option value="">--- ELIJA UNA TIENDA ---</option>
+                                                {stores.map((s, i) => (
+                                                    <option key={i} value={s.nombre}>{s.nombre}</option>
                                                 ))}
                                             </select>
                                             <div className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 pointer-events-none group-focus-within:rotate-180 transition-transform">
@@ -2025,36 +2130,34 @@ function App() {
                                             </div>
                                             <p className={`text-xs font-black uppercase tracking-tight transition-colors duration-500 ${supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Reporte de Supervisor</p>
                                         </div>
-                                        
+
                                         <div className="flex items-center gap-2">
                                             <div className="relative group/btn">
-                                                <button 
+                                                <button
                                                     style={{ backgroundColor: supervisorFile ? '#6bbdb7' : '#303a7f' }}
-                                                    className={`px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 ${
-                                                        supervisorFile 
-                                                        ? 'shadow-teal-900/10 hover:bg-[#59aba5]' 
+                                                    className={`px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 ${supervisorFile
+                                                        ? 'shadow-teal-900/10 hover:bg-[#59aba5]'
                                                         : 'shadow-blue-900/10 hover:bg-[#252a5e]'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {supervisorFile && <CheckCircle size={14} className="animate-in zoom-in duration-300" />}
                                                     {supervisorFile ? 'Cargado' : 'Cargar'}
                                                 </button>
-                                                <input 
-                                                    type="file" 
-                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                                                <input
+                                                    type="file"
+                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
                                                     onChange={(e) => setSupervisorFile(e.target.files[0])}
                                                     accept=".xlsx,.xls,.csv"
                                                 />
                                             </div>
-                                            
-                                            <button 
+
+                                            <button
                                                 onClick={() => setSupervisorFile(null)}
                                                 disabled={!supervisorFile}
-                                                className={`p-2.5 rounded-xl border-2 transition-all active:scale-95 group/clear ${
-                                                    supervisorFile 
-                                                    ? 'border-red-100 text-red-500 bg-white hover:bg-red-50 hover:border-red-200' 
+                                                className={`p-2.5 rounded-xl border-2 transition-all active:scale-95 group/clear ${supervisorFile
+                                                    ? 'border-red-100 text-red-500 bg-white hover:bg-red-50 hover:border-red-200'
                                                     : 'border-gray-50 text-gray-200 bg-gray-50 cursor-not-allowed'
-                                                }`}
+                                                    }`}
                                             >
                                                 <Trash2 size={16} className={`${supervisorFile ? 'group-hover:rotate-12 transition-transform' : ''}`} />
                                             </button>
@@ -2076,36 +2179,34 @@ function App() {
                                             </div>
                                             <p className={`text-xs font-black uppercase tracking-tight transition-colors duration-500 ${biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Control Biométrico</p>
                                         </div>
-                                        
+
                                         <div className="flex items-center gap-2">
                                             <div className="relative group/btn">
-                                                <button 
+                                                <button
                                                     style={{ backgroundColor: biometricFile ? '#6bbdb7' : '#303a7f' }}
-                                                    className={`px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 ${
-                                                        biometricFile 
-                                                        ? 'shadow-teal-900/10 hover:bg-[#59aba5]' 
+                                                    className={`px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 ${biometricFile
+                                                        ? 'shadow-teal-900/10 hover:bg-[#59aba5]'
                                                         : 'shadow-blue-900/10 hover:bg-[#252a5e]'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {biometricFile && <CheckCircle size={14} className="animate-in zoom-in duration-300" />}
                                                     {biometricFile ? 'Cargado' : 'Cargar'}
                                                 </button>
-                                                <input 
-                                                    type="file" 
-                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                                                <input
+                                                    type="file"
+                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
                                                     onChange={(e) => setBiometricFile(e.target.files[0])}
                                                     accept=".xlsx,.xls,.csv,.txt"
                                                 />
                                             </div>
-                                            
-                                            <button 
+
+                                            <button
                                                 onClick={() => setBiometricFile(null)}
                                                 disabled={!biometricFile}
-                                                className={`p-2.5 rounded-xl border-2 transition-all active:scale-95 group/clear ${
-                                                    biometricFile 
-                                                    ? 'border-red-100 text-red-500 bg-white hover:bg-red-50 hover:border-red-200' 
+                                                className={`p-2.5 rounded-xl border-2 transition-all active:scale-95 group/clear ${biometricFile
+                                                    ? 'border-red-100 text-red-500 bg-white hover:bg-red-50 hover:border-red-200'
                                                     : 'border-gray-50 text-gray-200 bg-gray-50 cursor-not-allowed'
-                                                }`}
+                                                    }`}
                                             >
                                                 <Trash2 size={16} className={`${biometricFile ? 'group-hover:rotate-12 transition-transform' : ''}`} />
                                             </button>
@@ -2119,7 +2220,124 @@ function App() {
                                         <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Base de Datos (In/Out)</p>
                                     </div>
                                 </div>
+
+                                {/* Botón de Procesamiento */}
+                                <div className="mt-10 flex justify-center relative z-10">
+                                    <button
+                                        onClick={processPayroll}
+                                        disabled={!supervisorFile || !biometricFile || !payrollStore || isProcessingPayroll}
+                                        style={{ backgroundColor: (supervisorFile && biometricFile && payrollStore) ? '#303a7f' : '#f3f4f6' }}
+                                        className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl flex items-center gap-3 ${(supervisorFile && biometricFile && payrollStore)
+                                            ? 'text-white shadow-blue-900/20 active:scale-95 hover:bg-[#252a5e]'
+                                            : 'text-gray-300 cursor-not-allowed shadow-none'
+                                            }`}
+                                    >
+                                        {isProcessingPayroll ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                Procesando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Settings size={18} className={(supervisorFile && biometricFile && payrollStore) ? "animate-spin-slow" : ""} />
+                                                Procesar Nómina
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
                             </section>
+
+                            {/* Tabla de Resultados de Previsualización */}
+                            {payrollResults.length > 0 && (
+                                <section className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-blue-900/[0.04] border-2 border-brand-primary/5 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+                                    <div className="flex items-center justify-between mb-8">
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-3 bg-[#6bbdb7]/10 rounded-xl">
+                                                <Users size={20} className="text-[#6bbdb7]" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-black text-[#303a7f] tracking-tighter leading-none mb-1">Previsualización de Resultados</h3>
+                                                <p className="text-gray-400 font-black uppercase text-[8px] tracking-[0.2em] opacity-80">Tienda: {payrollStore}</p>
+                                            </div>
+                                        </div>
+                                        <div className="px-4 py-2 bg-[#f9f9f9] rounded-xl border-2 border-gray-50">
+                                            <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">
+                                                {payrollResults.length} Empleados
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left">
+                                            <thead>
+                                                <tr className="border-b-2 border-gray-50">
+                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Código</th>
+                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Empleado</th>
+                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Cargo</th>
+                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Sup. Hrs</th>
+                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Bio. Hrs</th>
+                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Pago KBS</th>
+                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Pago LSG</th>
+                                                    <th className="pb-4 pt-2 text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Estatus</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-50">
+                                                {payrollResults.map((res, idx) => (
+                                                    <tr key={idx} className="group hover:bg-[#f9f9f9]/50 transition-colors">
+                                                        <td className="py-4 text-xs font-black text-gray-300 tabular-nums">#{res.codigo}</td>
+                                                        <td className="py-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-8 h-8 rounded-lg bg-brand-primary/5 flex items-center justify-center text-[10px] font-black text-[#303a7f]">
+                                                                    {res.nombre.charAt(0)}
+                                                                </div>
+                                                                <span className="text-xs font-black text-[#303a7f] uppercase">{res.nombre}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-4 text-[10px] font-black text-gray-400 uppercase">{res.cargo}</td>
+                                                        <td className="py-4 text-center">
+                                                            <span className="text-sm font-black text-[#303a7f] tabular-nums">{res.horasSupervisor}h</span>
+                                                        </td>
+                                                        <td className="py-4 text-center">
+                                                            <span className="text-sm font-black text-[#303a7f] tabular-nums">{res.horasBiometrico}h</span>
+                                                        </td>
+                                                        <td className="py-4 text-center">
+                                                            <span className="text-sm font-black text-[#6bbdb7] tabular-nums">${res.pagoKBS.toFixed(2)}</span>
+                                                        </td>
+                                                        <td className="py-4 text-center">
+                                                            <span className="text-sm font-black text-[#303a7f] tabular-nums">${res.pagoLSG.toFixed(2)}</span>
+                                                        </td>
+                                                        <td className="py-4 text-right">
+                                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${res.status === 'valido'
+                                                                ? 'bg-green-50 text-green-600 border border-green-100'
+                                                                : res.status === 'discrepancia'
+                                                                    ? 'bg-amber-50 text-amber-600 border border-amber-100'
+                                                                    : 'bg-red-50 text-red-600 border border-red-100'
+                                                                }`}>
+                                                                {res.status === 'solo_supervisor' ? 'Sin Bio' : res.status}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div className="mt-10 flex justify-end gap-4 border-t-2 border-gray-50 pt-8">
+                                        <button
+                                            onClick={() => setPayrollResults([])}
+                                            className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-red-500 transition-colors"
+                                        >
+                                            Limpiar Resultados
+                                        </button>
+                                        <button
+                                            className="px-8 py-3 bg-[#6bbdb7] text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/10 hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-2"
+                                        >
+                                            <CreditCard size={14} />
+                                            Procesar Pago
+                                        </button>
+                                    </div>
+                                </section>
+                            )}
                         </div>
                     )}
 
