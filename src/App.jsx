@@ -141,16 +141,29 @@ const csvRowToStore = (flat) => ({
     }
 });
 
-const csvRowToEmployee = (flat) => ({
-    nombre: flat.nombre || '',
-    codigo_empleado: (flat.codigo_empleado || '').replace(/^'/, ''),
-    fecha_ingreso: flat.fecha_ingreso || '',
-    fecha_egreso: flat.fecha_egreso || '',
-    cargo: flat.cargo || '',
-    tienda: flat.tienda || '',
-    cuenta_bancaria: flat.cuenta_bancaria || '',
-    imagen: flat.imagen || ''
-});
+const csvRowToEmployee = (flat) => {
+    // Buscar llaves que puedan estar truncadas o con variantes
+    const findValue = (keys) => {
+        for (let k of keys) {
+            if (flat[k] !== undefined) return flat[k];
+            // Buscar variaciones como 'codigo_emple' o 'cuenta_banca'
+            const found = Object.keys(flat).find(key => key.toLowerCase().startsWith(k.toLowerCase().slice(0, 10)));
+            if (found) return flat[found];
+        }
+        return '';
+    };
+
+    return {
+        nombre: findValue(['nombre']) || '',
+        codigo_empleado: (findValue(['codigo_empleado', 'codigo_emple']) || '').toString().replace(/^'/, ''),
+        fecha_ingreso: findValue(['fecha_ingreso']) || '',
+        fecha_egreso: findValue(['fecha_egreso']) || '',
+        cargo: findValue(['cargo']) || '',
+        tienda: findValue(['tienda']) || '',
+        cuenta_bancaria: findValue(['cuenta_bancaria', 'cuenta_banca']) || '',
+        imagen: findValue(['imagen']) || ''
+    };
+};
 
 // Función para comprimir imágenes antes de enviar a Sheets (evita límites de celda/POST)
 const compressImage = (base64Str, maxWidth = 300, quality = 0.7) => {
@@ -1539,7 +1552,11 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
             alert("Nombre y Código son obligatorios.");
             return;
         }
-        onSave(newEmployee);
+        const formattedEmployee = {
+            ...newEmployee,
+            cargo: newEmployee.cargo.charAt(0).toUpperCase() + newEmployee.cargo.slice(1).toLowerCase()
+        };
+        onSave(formattedEmployee);
     };
 
     return (
@@ -1611,6 +1628,173 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
         </div>
     );
 };
+
+const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores }) => {
+    const [localResults, setLocalResults] = useState(results);
+
+    useEffect(() => {
+        setLocalResults(results);
+    }, [results]);
+
+    if (!isOpen) return null;
+
+    const handleUpdateField = (index, field, value) => {
+        const updated = [...localResults];
+        updated[index][field] = value;
+        setLocalResults(updated);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-6xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-brand-primary/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+                {/* Header */}
+                <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
+                    <div className="flex items-center gap-5">
+                        <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <UserPlus size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Verificación de Personal Nuevo</h3>
+                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Empleados detectados en el Excel que no están en el sistema</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-8 bg-[#fcfdfe]">
+                    {localResults.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center opacity-30 italic">
+                            <CheckCircle size={64} className="mb-4 text-green-500" />
+                            <p className="text-sm font-black uppercase tracking-[0.3em]">Todo el personal está al día</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto rounded-3xl border-[3px] border-gray-200">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-50/50">
+                                        <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200">ID / Código</th>
+                                        <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200">Nombre Completo</th>
+                                        <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200">Cargo</th>
+                                        <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200">Tienda Asignada</th>
+                                        <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y-[3px] divide-gray-200">
+                                    {localResults.map((emp, idx) => (
+                                        <tr key={idx} className="hover:bg-blue-50/10 transition-colors">
+                                            <td className="p-4">
+                                                <input
+                                                    type="text"
+                                                    value={emp.codigo_empleado}
+                                                    onChange={(e) => handleUpdateField(idx, 'codigo_empleado', e.target.value)}
+                                                    className="w-full bg-transparent border-b-2 border-transparent focus:border-[#303a7f] outline-none text-xs font-black text-[#303a7f] tabular-nums"
+                                                />
+                                            </td>
+                                            <td className="p-4">
+                                                <input
+                                                    type="text"
+                                                    value={emp.nombre}
+                                                    onChange={(e) => handleUpdateField(idx, 'nombre', e.target.value)}
+                                                    className="w-full bg-transparent border-b-2 border-transparent focus:border-[#303a7f] outline-none text-xs font-black text-[#303a7f] uppercase"
+                                                />
+                                            </td>
+                                            <td className="p-4">
+                                                <input
+                                                    type="text"
+                                                    value={emp.cargo}
+                                                    onChange={(e) => handleUpdateField(idx, 'cargo', e.target.value)}
+                                                    className="w-full bg-transparent border-b-2 border-transparent focus:border-[#303a7f] outline-none text-[10px] font-bold text-gray-500 uppercase"
+                                                />
+                                            </td>
+                                            <td className="p-4">
+                                                <select
+                                                    value={emp.tienda}
+                                                    onChange={(e) => handleUpdateField(idx, 'tienda', e.target.value)}
+                                                    className="w-full bg-transparent border-b-2 border-transparent focus:border-[#303a7f] outline-none text-[10px] font-bold text-gray-500 uppercase cursor-pointer"
+                                                >
+                                                    <option value="">Seleccionar Tienda</option>
+                                                    {stores.map((s, i) => (
+                                                        <option key={i} value={s.nombre}>{s.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <div className="flex justify-center">
+                                                    <div className="p-2 bg-gray-50 text-[#303a7f] rounded-lg">
+                                                        <Edit2 size={12} />
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="p-8 border-t-2 border-gray-50 bg-gray-50/30 flex justify-between items-center">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        Total a procesar: <span className="text-[#303a7f] font-black">{localResults.length} nuevos empleados</span>
+                    </p>
+                    <div className="flex gap-4">
+                        <button onClick={onClose} className="px-8 py-3 bg-white border-2 border-brand-primary/10 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95">
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={() => onAddAll(localResults)}
+                            disabled={localResults.length === 0}
+                            className="px-10 py-3 bg-[#303a7f] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2"
+                        >
+                            <CheckCircle size={14} />
+                            Agregar Personal
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const BatchSyncProgressModal = ({ isOpen, current, total }) => {
+    if (!isOpen) return null;
+    const percentage = Math.round((current / total) * 100);
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl bg-[#303a7f]/40 animate-in fade-in duration-500">
+            <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-[0_32px_120px_-20px_rgba(48,58,127,0.4)] border-2 border-white/50 text-center animate-in zoom-in-95 duration-500">
+                <div className="mb-8 relative inline-block">
+                    <div className="w-24 h-24 rounded-full border-4 border-gray-100 border-t-[#6bbdb7] animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-xl font-black text-[#303a7f] leading-none">{percentage}%</span>
+                    </div>
+                </div>
+                
+                <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase mb-2">Guardando Personal</h3>
+                <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-8">
+                    Cargando empleado <span className="text-[#303a7f]">{current}</span> de <span className="text-[#303a7f]">{total}</span>
+                </p>
+
+                {/* Progress Bar Container */}
+                <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden mb-4 border-2 border-gray-50 shadow-inner">
+                    <div 
+                        className="h-full bg-gradient-to-r from-[#303a7f] to-[#6bbdb7] transition-all duration-500 ease-out"
+                        style={{ width: `${percentage}%` }}
+                    />
+                </div>
+                
+                <p className="text-[8px] text-gray-300 font-black uppercase tracking-[0.3em] animate-pulse">
+                    No cierre la ventana ni refresque la página
+                </p>
+            </div>
+        </div>
+    );
+};
+
 function App() {
     const [activeTab, setActiveTab] = useState(() => {
         return localStorage.getItem('lgm_active_tab') || 'stores';
@@ -1641,7 +1825,131 @@ function App() {
     const [payrollResults, setPayrollResults] = useState([]);
     const [isProcessingPayroll, setIsProcessingPayroll] = useState(false);
     const [isProcessingIA, setIsProcessingIA] = useState(false);
-    const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('lgm_gemini_key') || 'AIzaSyCotBrSZnpuD8GQowmyPdAXeBb72IAveaU');
+    const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('lgm_gemini_key') || import.meta.env.VITE_GEMINI_API_KEY || '');
+    const [verificationResults, setVerificationResults] = useState([]); // FASE 4: Resultados de verificación
+    const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false); // FASE 4: Control del modal
+    const [isSyncingBatch, setIsSyncingBatch] = useState(false); // FASE 4.8: Estado de sincronización masiva
+    const [syncProgress, setSyncProgress] = useState(0); // FASE 4.8: Progreso actual
+    const [syncTotal, setSyncTotal] = useState(0); // FASE 4.8: Total de registros
+
+    const handleVerifyPersonal = async (file) => {
+        if (!file) return;
+        setIsLoading(true);
+        try {
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data);
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet, { range: 1 }); // Empezar en fila 2
+
+            const getValue = (row, keys) => {
+                for (let key of keys) {
+                    if (row[key] !== undefined) return row[key].toString().trim();
+                    const foundKey = Object.keys(row).find(k => k.toLowerCase().trim() === key.toLowerCase().trim());
+                    if (foundKey) return row[foundKey].toString().trim();
+                }
+                return '';
+            };
+
+            const undetected = json.map(row => {
+                const codigo = getValue(row, ['Código', 'Codigo', 'ID', 'Empleado ID', 'Nro']).toString().trim();
+                const nombre = getValue(row, ['Nombre y Apellidos', 'Nombre y Apellido', 'Nombre', 'Empleado']).toString().trim();
+                const cargo = getValue(row, ['Servicio', 'Cargo', 'Puesto']).toString().trim();
+
+                // Verificar si existe en el estado global 'employees' usando llave compuesta: Nombre + ID
+                const exists = employees.some(e => 
+                    e.codigo_empleado.toString().trim().toLowerCase() === codigo.toLowerCase() &&
+                    e.nombre.toString().trim().toLowerCase() === nombre.toLowerCase()
+                );
+                
+                if (!exists && codigo && nombre) {
+                    const cargoFormatted = cargo ? (cargo.charAt(0).toUpperCase() + cargo.slice(1).toLowerCase()) : 'Janitorial';
+                    return {
+                        codigo_empleado: codigo,
+                        nombre: nombre,
+                        fecha_ingreso: `${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getDate()).padStart(2, '0')}/${new Date().getFullYear()}`, // Formato MM/DD/YYYY
+                        fecha_egreso: '',
+                        cargo: cargoFormatted,
+                        tienda: '',
+                        cuenta_bancaria: '',
+                        imagen: ''
+                    };
+                }
+                return null;
+            }).filter(Boolean);
+
+            // Eliminar duplicados en el mismo Excel por llave compuesta
+            const uniqueResults = [];
+            const seenKeys = new Set();
+            undetected.forEach(emp => {
+                const key = `${emp.nombre}-${emp.codigo_empleado}`.toLowerCase();
+                if (!seenKeys.has(key)) {
+                    seenKeys.add(key);
+                    uniqueResults.push(emp);
+                }
+            });
+
+            setVerificationResults(uniqueResults);
+            setIsVerificationModalOpen(true);
+        } catch (error) {
+            console.error('[Verify] Error procesando archivo:', error);
+            alert("Error al procesar el archivo de personal.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAddVerifiedEmployees = async (newEmployees) => {
+        setIsLoading(true);
+        setIsSyncingBatch(true);
+        setSyncProgress(0);
+        setSyncTotal(newEmployees.length);
+        
+        // Bloquear scroll
+        document.body.style.overflow = 'hidden';
+
+        try {
+            // Sincronizar de forma secuencial para evitar bloqueos por concurrencia
+            let current = 0;
+            for (let emp of newEmployees) {
+                // Asegurar formato de Cargo (Primera Mayúscula) y Código (Con prefijo ' para preservar ceros)
+                const formattedEmp = {
+                    ...emp,
+                    cargo: emp.cargo.charAt(0).toUpperCase() + emp.cargo.slice(1).toLowerCase()
+                };
+
+                const syncEmp = {
+                    ...formattedEmp,
+                    codigo_empleado: `'${formattedEmp.codigo_empleado}`
+                };
+
+                // Sincronización optimista en el estado local (usando el objeto sin la comilla interna)
+                setEmployees(prev => [formattedEmp, ...prev]);
+                // Enviar a Google Sheets de forma secuencial (con la comilla para Sheets)
+                await syncToSheets('upsert', syncEmp, 'Personal', true); // true = saltar refresh individual
+                
+                current++;
+                setSyncProgress(current);
+            }
+            
+            // Recarga final única y refresco de página después de procesar todo el lote
+            setTimeout(() => {
+                fetchEmployees();
+                setDbStatus('conectado');
+                window.location.reload(); // Recarga la página después de completar todo
+            }, 1000);
+
+            setIsVerificationModalOpen(false);
+            setVerificationResults([]);
+        } catch (error) {
+            console.error('[AddVerified] Error agregando empleados:', error);
+            alert("Error al registrar el personal nuevo.");
+        } finally {
+            setIsLoading(false);
+            setIsSyncingBatch(false);
+            // Desbloquear scroll
+            document.body.style.overflow = 'auto';
+        }
+    };
 
     // --- Lógica de Procesamiento de Nómina (Impulsado por Gemini AI) ---
     // --- FASE 1: Procesar Solo Datos del Supervisor ---
@@ -1669,7 +1977,7 @@ function App() {
 
             const supervisorJson = XLSX.utils.sheet_to_json(supervisorSheet, { range: 1 });
             console.log('[Payroll] Filas cargadas (desde Fila 2):', supervisorJson.length);
-            
+
             const semanaRows = supervisorJson.map(row => {
                 const getValue = (keys) => {
                     for (let key of keys) {
@@ -1697,15 +2005,15 @@ function App() {
                     sabado: { sup: getValue(['Sabado', 'Sábado', 'SAB']) || 0, bio: 0 },
                     total: { sup: getValue(['TOTAL', 'Total', 'Total Horas']) || 0, bio: 0 }
                 };
-            }).filter(r => 
-                r.nombre !== 'N/A' && 
-                r.nombre.trim() !== '' && 
+            }).filter(r =>
+                r.nombre !== 'N/A' &&
+                r.nombre.trim() !== '' &&
                 !r.nombre.toLowerCase().includes('nombre y apellido')
             );
 
             console.log('[Payroll] Filas finales procesadas:', semanaRows.length);
             setSemanaTableData(semanaRows);
-            setPayrollResults([]); 
+            setPayrollResults([]);
 
             // --- AUTOMATIZACIÓN FASE 2: Iniciar procesamiento de IA inmediatamente ---
             if (biometricFile && geminiApiKey) {
@@ -1751,7 +2059,7 @@ function App() {
             setRawBiometricData(biometricData); // Guardamos la data cruda para el modal de detalles
 
             const genAI = new GoogleGenerativeAI(geminiApiKey);
-            const model = genAI.getGenerativeModel({ 
+            const model = genAI.getGenerativeModel({
                 model: "gemini-2.5-flash",
                 generationConfig: { responseMimeType: "application/json" }
             });
@@ -1900,22 +2208,25 @@ function App() {
     // Usa mode: 'no-cors' con Content-Type: 'text/plain' (CORS-safelisted).
     // El Apps Script recibe el JSON en e.postData.contents y lo procesa.
     // Tras un breve delay, recarga los datos para confirmar la escritura.
-    const syncToSheets = (action, data, sheetName = 'Tiendas') => {
+    const syncToSheets = (action, data, sheetName = 'Tiendas', skipRefresh = false) => {
         setDbStatus('sincronizando');
-        fetch(API_URL, {
+        return fetch(API_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action, data, sheetName })
         })
+            .then(() => {
+                if (!skipRefresh) {
+                    setTimeout(() => {
+                        fetchStores();
+                        if (sheetName === 'Personal') fetchEmployees();
+                    }, 2000);
+                }
+            })
             .catch(error => {
                 console.error(`[LogicPay] Error en POST a ${sheetName}:`, error);
-            })
-            .finally(() => {
-                setTimeout(() => {
-                    fetchStores();
-                    if (sheetName === 'Personal') fetchEmployees();
-                }, 2000);
+                throw error;
             });
     };
 
@@ -1944,7 +2255,8 @@ function App() {
     const handleSaveEmployee = (updatedEmployee) => {
         setEmployees(prev => prev.map(e => e.codigo_empleado === updatedEmployee.codigo_empleado ? updatedEmployee : e));
         setEditingEmployee(updatedEmployee);
-        syncToSheets('upsert', updatedEmployee, 'Personal');
+        // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda
+        syncToSheets('upsert', { ...updatedEmployee, codigo_empleado: `'${updatedEmployee.codigo_empleado}` }, 'Personal');
     };
 
     const handleDeleteEmployee = (empCodigo) => {
@@ -1956,7 +2268,8 @@ function App() {
     const handleCreateEmployee = (newEmp) => {
         setEmployees(prev => [newEmp, ...prev]);
         setIsAddingEmployee(false);
-        syncToSheets('upsert', newEmp, 'Personal');
+        // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda
+        syncToSheets('upsert', { ...newEmp, codigo_empleado: `'${newEmp.codigo_empleado}` }, 'Personal');
     };
 
     const storeNames = stores.map(s => s.nombre);
@@ -2011,6 +2324,20 @@ function App() {
                 />
             )}
 
+            <EmployeeVerificationModal
+                isOpen={isVerificationModalOpen}
+                onClose={() => setIsVerificationModalOpen(false)}
+                results={verificationResults}
+                onAddAll={handleAddVerifiedEmployees}
+                stores={stores}
+            />
+
+            <BatchSyncProgressModal
+                isOpen={isSyncingBatch}
+                current={syncProgress}
+                total={syncTotal}
+            />
+
             {/* Logo y Status Bar Superior */}
             <header className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-b-2 border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-6">
@@ -2051,25 +2378,24 @@ function App() {
             {/* Main Content Area con padding ajustado para top y bottom navs */}
             <main className="flex-1 h-screen overflow-y-auto px-4 pt-24 pb-32 lg:px-10 relative">
 
-            {/* Navigation Inferior (Mobile & Desktop) */}
-            <nav className="fixed bottom-0 inset-x-0 z-50 bg-white border-t-2 border-gray-100 px-6 py-4 flex items-center justify-center gap-2 md:gap-8 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-                {navItems.map((item) => (
-                    <button
-                        key={item.id}
-                        onClick={() => setActiveTab(item.id)}
-                        className={`flex items-center gap-3 px-6 py-3 rounded-2xl transition-all duration-300 ${
-                            activeTab === item.id 
-                            ? 'bg-[#303a7f] text-white shadow-xl shadow-blue-900/20 scale-105' 
-                            : 'text-gray-400 hover:bg-gray-50 hover:text-[#303a7f]'
-                        }`}
-                    >
-                        <item.icon size={20} />
-                        <span className={`text-[10px] font-black uppercase tracking-widest hidden md:block`}>
-                            {item.label}
-                        </span>
-                    </button>
-                ))}
-            </nav>
+                {/* Navigation Inferior (Mobile & Desktop) */}
+                <nav className="fixed bottom-0 inset-x-0 z-50 bg-white border-t-2 border-gray-100 px-6 py-4 flex items-center justify-center gap-2 md:gap-8 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+                    {navItems.map((item) => (
+                        <button
+                            key={item.id}
+                            onClick={() => setActiveTab(item.id)}
+                            className={`flex items-center gap-3 px-6 py-3 rounded-2xl transition-all duration-300 ${activeTab === item.id
+                                    ? 'bg-[#303a7f] text-white shadow-xl shadow-blue-900/20 scale-105'
+                                    : 'text-gray-400 hover:bg-gray-50 hover:text-[#303a7f]'
+                                }`}
+                        >
+                            <item.icon size={20} />
+                            <span className={`text-[10px] font-black uppercase tracking-widest hidden md:block`}>
+                                {item.label}
+                            </span>
+                        </button>
+                    ))}
+                </nav>
                 {/* Subtle page-level decoration */}
                 <div
                     style={{ backgroundColor: 'rgba(48,58,127,0.02)' }}
@@ -2201,7 +2527,7 @@ function App() {
                                             <EmployeeRow key={i} employee={employee} onEdit={setEditingEmployee} />
                                         ))}
                                     </div>
-                                    
+
                                     {employees.length === 0 && (
                                         <div className="py-32 text-center bg-white/50 border-2 border-dashed border-gray-100/80 m-4 rounded-[1.5rem]">
                                             <Users size={48} className="text-gray-100 mx-auto mb-6" />
@@ -2270,7 +2596,43 @@ function App() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
+                                    {/* Control 0: Verificar Personal */}
+                                    <div className={`rounded-2xl p-6 border-2 shadow-sm transition-all duration-500 border-brand-primary/5 bg-[#f9f9f9]`}>
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className={`p-2 rounded-lg bg-[#303a7f]/5`}>
+                                                <UserPlus size={18} className="text-[#303a7f]" />
+                                            </div>
+                                            <p className="text-xs font-black uppercase tracking-tight text-[#303a7f]">Verificar Personal</p>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <div className="relative group/btn">
+                                                <button
+                                                    style={{ backgroundColor: '#303a7f' }}
+                                                    className="px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg shadow-blue-900/10 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2"
+                                                >
+                                                    Cargar
+                                                </button>
+                                                <input
+                                                    type="file"
+                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                                    onChange={(e) => {
+                                                        handleVerifyPersonal(e.target.files[0]);
+                                                        e.target.value = null; // Reset para permitir cargar el mismo archivo
+                                                    }}
+                                                    accept=".xlsx,.xls,.csv"
+                                                />
+                                            </div>
+                                            <div className="flex-1 bg-white border-2 border-brand-primary/10 rounded-xl px-4 py-2.5 flex items-center overflow-hidden">
+                                                <span className="text-[10px] font-bold uppercase truncate text-gray-300">
+                                                    Comparar con base
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Auditoría de nuevos ingresos</p>
+                                    </div>
+
                                     {/* Control 1: Reporte de Supervisor */}
                                     <div className={`rounded-2xl p-6 border-2 shadow-sm transition-all duration-500 ${supervisorFile ? 'border-[#6bbdb7]/20 bg-[#6bbdb7]/[0.02]' : 'border-brand-primary/5 bg-[#f9f9f9]'}`}>
                                         <div className="flex items-center gap-3 mb-4">
@@ -2410,7 +2772,7 @@ function App() {
                                                 <p className="text-gray-400 font-black uppercase text-[8px] tracking-[0.2em] opacity-80">Comparativa Supervisor (S) vs Biométrico (B)</p>
                                             </div>
                                         </div>
-                                        
+
                                         <div className="flex items-center gap-4">
                                             <div className="px-4 py-2 bg-[#f9f9f9] rounded-xl border-2 border-gray-50 flex items-center gap-3">
                                                 <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest leading-none">
@@ -2489,7 +2851,7 @@ function App() {
                                             </tbody>
                                         </table>
                                     </div>
-                                    
+
                                     {semanaTableData.length > 0 && (
                                         <div className="mt-10 flex justify-end gap-4 border-t-2 border-gray-50 pt-8">
                                             <button
@@ -2532,14 +2894,14 @@ function App() {
                                                         {biometricTableData.length} Empleados
                                                     </span>
                                                 </div>
-                                                <button 
+                                                <button
                                                     onClick={() => setIsDetailsModalOpen(true)}
                                                     className="px-4 py-2 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#6bbdb7]/20 transition-all active:scale-95 flex items-center gap-2 border border-[#6bbdb7]/30"
                                                 >
                                                     <FileText size={14} />
                                                     Detalles
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => setBiometricTableData([])}
                                                     className="text-[9px] font-black uppercase tracking-widest text-red-300 hover:text-red-500 transition-colors"
                                                 >
@@ -2640,7 +3002,7 @@ function App() {
                                     <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Desglose detallado por empleado y jornada diaria</p>
                                 </div>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setIsDetailsModalOpen(false)}
                                 className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
                             >
