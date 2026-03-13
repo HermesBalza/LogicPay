@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
@@ -111,6 +111,47 @@ const formatDateForDisplay = (dateStr) => {
     const day = String(date.getUTCDate()).padStart(2, '0');
     const year = date.getUTCFullYear();
     return `${month}/${day}/${year}`;
+};
+
+const handleDateInputChange = (value, setter) => {
+    const clean = value.replace(/\D/g, '');
+    let formatted = clean;
+    if (clean.length > 2) {
+        formatted = clean.slice(0, 2) + '/' + clean.slice(2);
+    }
+    if (clean.length > 4) {
+        formatted = formatted.slice(0, 5) + '/' + clean.slice(4, 8);
+    }
+    setter(formatted.slice(0, 10));
+};
+
+const getFormattedDateForDay = (baseDate, offset) => {
+    if (!baseDate || baseDate.length < 10) return '--/--';
+    
+    let date;
+    if (baseDate.includes('/')) {
+        const [m, d, y] = baseDate.split('/');
+        date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+    } else {
+        date = new Date(baseDate);
+        date.setDate(date.getDate() + 1); 
+    }
+    
+    if (isNaN(date.getTime())) return '--/--';
+
+    const resultDate = new Date(date);
+    resultDate.setDate(date.getDate() + offset); 
+    
+    const dd = String(resultDate.getDate()).padStart(2, '0');
+    const mm = String(resultDate.getMonth() + 1).padStart(2, '0');
+    return `${mm}/${dd}`; // Formato USA: mm/dd
+};
+
+const handleNativeDateChange = (e, setter) => {
+    const dateVal = e.target.value; // yyyy-mm-dd
+    if (!dateVal) return;
+    const [y, m, d] = dateVal.split('-');
+    setter(`${m}/${d}/${y}`);
 };
 
 // Convierte una fila plana del CSV a la estructura de tienda que usa la app.
@@ -1763,6 +1804,15 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores 
 };
 
 const PayrollProgressModal = ({ isOpen, step, current, total }) => {
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [isOpen]);
+
     if (!isOpen) return null;
     const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
     
@@ -1806,6 +1856,15 @@ const PayrollProgressModal = ({ isOpen, step, current, total }) => {
 };
 
 const BatchSyncProgressModal = ({ isOpen, current, total }) => {
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [isOpen]);
+
     if (!isOpen) return null;
     const percentage = Math.round((current / total) * 100);
 
@@ -1879,6 +1938,11 @@ function App() {
     const [payrollProgress, setPayrollProgress] = useState(0); // FASE 5: Progreso Nómina
     const [payrollTotalRows, setPayrollTotalRows] = useState(0); // FASE 5: Total filas Nómina
     const [payrollStep, setPayrollStep] = useState('supervisor'); // 'supervisor' | 'ia' | 'crossover'
+    const [fechaDesde, setFechaDesde] = useState('');
+    const [fechaHasta, setFechaHasta] = useState('');
+
+    const fechaDesdeRef = useRef(null);
+    const fechaHastaRef = useRef(null);
 
     const handleVerifyPersonal = async (file) => {
         if (!file) return;
@@ -2430,6 +2494,13 @@ function App() {
                 total={syncTotal}
             />
 
+            <PayrollProgressModal
+                isOpen={isProcessingPayroll}
+                step={payrollStep}
+                current={payrollProgress}
+                total={payrollTotalRows}
+            />
+
             {/* Logo y Status Bar Superior */}
             <header className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-b-2 border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-6">
@@ -2653,40 +2724,95 @@ function App() {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-10 relative z-10">
-                                    <div className="md:col-span-7 space-y-2">
-                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Unidad Receptora</label>
-                                        <div className="relative group">
-                                            <select
-                                                value={payrollStore}
-                                                onChange={(e) => setPayrollStore(e.target.value)}
-                                                className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner pr-14 text-sm"
-                                            >
-                                                <option value="">--- ELIJA UNA TIENDA ---</option>
-                                                {stores.map((s, i) => (
-                                                    <option key={i} value={s.nombre}>{s.nombre}</option>
-                                                ))}
-                                            </select>
-                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 pointer-events-none group-focus-within:rotate-180 transition-transform">
-                                                <ChevronDown className="text-[#303a7f]" size={16} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="md:col-span-5 flex items-end">
-                                        {!geminiApiKey && (
-                                            <div className="w-full p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in duration-500 mb-2">
-                                                <div className="p-2 bg-amber-100 rounded-xl text-amber-600">
-                                                    <Lock size={14} />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <p className="text-[9px] font-black text-amber-700 uppercase tracking-tight">IA Desactivada</p>
-                                                    <p className="text-[8px] text-amber-600 font-bold leading-tight">
+                                     <div className="md:col-span-4 space-y-2">
+                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Unidad Receptora</label>
+                                         <div className="relative group">
+                                             <select
+                                                 value={payrollStore}
+                                                 onChange={(e) => setPayrollStore(e.target.value)}
+                                                 className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner pr-14 text-sm"
+                                             >
+                                                 <option value="">--- ELIJA UNA TIENDA ---</option>
+                                                 {stores.map((s, i) => (
+                                                     <option key={i} value={s.nombre}>{s.nombre}</option>
+                                                 ))}
+                                             </select>
+                                             <div className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 pointer-events-none group-focus-within:rotate-180 transition-transform">
+                                                 <ChevronDown className="text-[#303a7f]" size={16} />
+                                             </div>
+                                         </div>
+                                     </div>
+
+                                     <div className="md:col-span-3 space-y-2">
+                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Desde:</label>
+                                         <div className="relative group">
+                                             <input 
+                                                 type="text"
+                                                 placeholder="mm/dd/aaaa"
+                                                 maxLength={10}
+                                                 value={fechaDesde}
+                                                 onChange={(e) => handleDateInputChange(e.target.value, setFechaDesde)}
+                                                 className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all shadow-inner text-sm tracking-widest pr-12"
+                                             />
+                                             <input 
+                                                 type="date"
+                                                 ref={fechaDesdeRef}
+                                                 className="absolute opacity-0 pointer-events-none w-0 h-0"
+                                                 onChange={(e) => handleNativeDateChange(e, setFechaDesde)}
+                                             />
+                                             <div 
+                                                 className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 cursor-pointer hover:bg-gray-50 text-[#303a7f] transition-colors"
+                                                 onClick={() => fechaDesdeRef.current?.showPicker ? fechaDesdeRef.current.showPicker() : (fechaDesdeRef.current?.focus(), fechaDesdeRef.current?.click())}
+                                                 title="Abrir calendario"
+                                             >
+                                                 <Calendar size={14} />
+                                             </div>
+                                         </div>
+                                     </div>
+
+                                     <div className="md:col-span-3 space-y-2">
+                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Hasta:</label>
+                                         <div className="relative group">
+                                             <input 
+                                                 type="text"
+                                                 placeholder="mm/dd/aaaa"
+                                                 maxLength={10}
+                                                 value={fechaHasta}
+                                                 onChange={(e) => handleDateInputChange(e.target.value, setFechaHasta)}
+                                                 className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all shadow-inner text-sm tracking-widest pr-12"
+                                             />
+                                             <input 
+                                                 type="date"
+                                                 ref={fechaHastaRef}
+                                                 className="absolute opacity-0 pointer-events-none w-0 h-0"
+                                                 onChange={(e) => handleNativeDateChange(e, setFechaHasta)}
+                                             />
+                                             <div 
+                                                 className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 cursor-pointer hover:bg-gray-50 text-[#303a7f] transition-colors"
+                                                 onClick={() => fechaHastaRef.current?.showPicker ? fechaHastaRef.current.showPicker() : (fechaHastaRef.current?.focus(), fechaHastaRef.current?.click())}
+                                                 title="Abrir calendario"
+                                             >
+                                                 <Calendar size={14} />
+                                             </div>
+                                         </div>
+                                     </div>
+
+                                     <div className="md:col-span-2 flex items-end">
+                                         {!geminiApiKey && (
+                                             <div className="w-full p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in duration-500 mb-0">
+                                                 <div className="p-2 bg-amber-100 rounded-xl text-amber-600 shrink-0">
+                                                     <Lock size={14} />
+                                                 </div>
+                                                 <div className="flex-1 min-w-0">
+                                                     <p className="text-[9px] font-black text-amber-700 uppercase tracking-tight truncate">IA OFF</p>
+                                                     <p className="text-[8px] text-amber-600 font-bold leading-tight">
                                                         Configure su nueva clave en <button onClick={() => setActiveTab('settings')} className="underline font-black hover:text-amber-800 transition-colors tracking-tight">Ajustes</button> para activar el cruce inteligente.
                                                     </p>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                                                 </div>
+                                             </div>
+                                         )}
+                                     </div>
+                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
                                     {/* Control 0: Verificar Personal */}
@@ -2815,22 +2941,22 @@ function App() {
                                             </button>
 
                                             <div className={`flex-1 bg-white border-2 rounded-xl px-4 py-2.5 flex items-center overflow-hidden transition-colors duration-500 ${biometricFile ? 'border-[#6bbdb7]/20' : 'border-brand-primary/10'}`}>
-                                                <span className={`text-[10px] font-bold uppercase truncate transition-colors duration-500 ${biometricFile ? 'text-[#303a7f]' : 'text-gray-300'}`}>
-                                                    {biometricFile ? biometricFile.name : 'Sin archivo seleccionado'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Base de Datos (In/Out)</p>
-                                    </div>
-                                </div>
+                                                 <span className={`text-[10px] font-bold uppercase truncate transition-colors duration-500 ${biometricFile ? 'text-[#303a7f]' : 'text-gray-300'}`}>
+                                                     {biometricFile ? biometricFile.name : 'Sin archivo seleccionado'}
+                                                 </span>
+                                             </div>
+                                         </div>
+                                         <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Base de Datos (In/Out)</p>
+                                     </div>
+                                 </div>
 
                                 {/* Botón de Procesamiento */}
                                 <div className="mt-10 flex justify-center relative z-10">
                                     <button
                                         onClick={processPayroll}
-                                        disabled={!supervisorFile || !biometricFile || !payrollStore || isProcessingPayroll}
-                                        style={{ backgroundColor: (supervisorFile && biometricFile && payrollStore) ? '#303a7f' : '#f3f4f6' }}
-                                        className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl flex items-center gap-3 ${(supervisorFile && biometricFile && payrollStore)
+                                        disabled={!supervisorFile || !biometricFile || !payrollStore || !fechaDesde || !fechaHasta || isProcessingPayroll}
+                                        style={{ backgroundColor: (supervisorFile && biometricFile && payrollStore && fechaDesde && fechaHasta) ? '#303a7f' : '#f3f4f6' }}
+                                        className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl flex items-center gap-3 ${(supervisorFile && biometricFile && payrollStore && fechaDesde && fechaHasta)
                                             ? 'text-white shadow-blue-900/20 active:scale-95 hover:bg-[#252a5e]'
                                             : 'text-gray-300 cursor-not-allowed shadow-none'
                                             }`}
@@ -2888,9 +3014,14 @@ function App() {
                                                 <tr className="bg-[#f9f9f9]/80">
                                                     <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
                                                     <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Cargo</th>
-                                                    {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map(day => (
+                                                    {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map((day, idx) => (
                                                         <th key={day} className="p-4 text-[10px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[110px] bg-gray-50/20">
-                                                            {day}
+                                                            <div className="flex flex-col items-center">
+                                                                <span>{day}</span>
+                                                                <span className="text-[8px] text-gray-400 font-bold opacity-70">
+                                                                    {fechaDesde ? getFormattedDateForDay(fechaDesde, idx) : '--/--'}
+                                                                </span>
+                                                            </div>
                                                             <div className="flex justify-around mt-1 pt-1 border-t-2 border-gray-100">
                                                                 <span className="text-[8px] text-[#303a7f]">S</span>
                                                                 <span className="text-[8px] text-[#6bbdb7]">B</span>
@@ -3012,9 +3143,14 @@ function App() {
                                                 <thead>
                                                     <tr className="bg-gray-50/50">
                                                         <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200">ID Empleado (Como Nombre)</th>
-                                                        {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map(day => (
-                                                            <th key={day} className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[80px]">
-                                                                {day}
+                                                        {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map((day, idx) => (
+                                                            <th key={day} className="p-4 text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-teal-100/30">
+                                                                <div className="flex flex-col items-center">
+                                                                    <span>{day}</span>
+                                                                    <span className="text-[8px] text-[#6bbdb7]/60 font-bold">
+                                                                        {fechaDesde ? getFormattedDateForDay(fechaDesde, idx) : '--/--'}
+                                                                    </span>
+                                                                </div>
                                                             </th>
                                                         ))}
                                                         <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-200 min-w-[100px] bg-[#6bbdb7]/5">
