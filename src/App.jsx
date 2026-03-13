@@ -31,7 +31,9 @@ import {
     Lock,
     LogOut,
     LayoutGrid,
-    List
+    List,
+    Cpu,
+    Info
 } from 'lucide-react';
 
 
@@ -1760,6 +1762,49 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores 
     );
 };
 
+const PayrollProgressModal = ({ isOpen, step, current, total }) => {
+    if (!isOpen) return null;
+    const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
+    
+    const steps = {
+        'supervisor': { title: 'Cargando Supervisor', icon: FileText, color: '#303a7f' },
+        'ia': { title: 'Motor de Inteligencia Artificial', icon: Cpu, color: '#6bbdb7' },
+        'crossover': { title: 'Cruzando Datos de Nómina', icon: Settings, color: '#303a7f' }
+    };
+
+    const currentStep = steps[step] || steps['supervisor'];
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl bg-[#303a7f]/40 animate-in fade-in duration-500">
+            <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-[0_32px_120px_-20px_rgba(48,58,127,0.4)] border-2 border-white/50 text-center animate-in zoom-in-95 duration-500">
+                <div className="mb-8 relative inline-block">
+                    <div className="w-24 h-24 rounded-full border-4 border-gray-100 border-t-[#6bbdb7] animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        {currentStep.icon && <currentStep.icon size={32} style={{ color: currentStep.color }} className="animate-pulse" />}
+                    </div>
+                </div>
+                
+                <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase mb-2">{currentStep.title}</h3>
+                <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-8">
+                    {step === 'ia' ? 'Analizando registros biométricos...' : `Procesando registro ${current} de ${total}`}
+                </p>
+
+                {/* Progress Bar Container */}
+                <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden mb-4 border-2 border-gray-50 shadow-inner">
+                    <div 
+                        className="h-full bg-gradient-to-r from-[#303a7f] to-[#6bbdb7] transition-all duration-500 ease-out"
+                        style={{ width: `${step === 'ia' && current === 0 ? '50%' : `${percentage}%`}` }}
+                    />
+                </div>
+                
+                <p className="text-[8px] text-gray-300 font-black uppercase tracking-[0.3em] animate-pulse">
+                    Optimizando resultados con Gemini AI... No cierre la ventana
+                </p>
+            </div>
+        </div>
+    );
+};
+
 const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     if (!isOpen) return null;
     const percentage = Math.round((current / total) * 100);
@@ -1831,6 +1876,9 @@ function App() {
     const [isSyncingBatch, setIsSyncingBatch] = useState(false); // FASE 4.8: Estado de sincronización masiva
     const [syncProgress, setSyncProgress] = useState(0); // FASE 4.8: Progreso actual
     const [syncTotal, setSyncTotal] = useState(0); // FASE 4.8: Total de registros
+    const [payrollProgress, setPayrollProgress] = useState(0); // FASE 5: Progreso Nómina
+    const [payrollTotalRows, setPayrollTotalRows] = useState(0); // FASE 5: Total filas Nómina
+    const [payrollStep, setPayrollStep] = useState('supervisor'); // 'supervisor' | 'ia' | 'crossover'
 
     const handleVerifyPersonal = async (file) => {
         if (!file) return;
@@ -1961,6 +2009,13 @@ function App() {
         }
 
         setIsProcessingPayroll(true);
+        setPayrollStep('supervisor');
+        setPayrollProgress(0);
+        setPayrollTotalRows(0);
+        
+        // Bloquear scroll
+        document.body.style.overflow = 'hidden';
+
         try {
             const readAsArrayBuffer = (file) => {
                 return new Promise((resolve, reject) => {
@@ -1977,8 +2032,9 @@ function App() {
 
             const supervisorJson = XLSX.utils.sheet_to_json(supervisorSheet, { range: 1 });
             console.log('[Payroll] Filas cargadas (desde Fila 2):', supervisorJson.length);
+            setPayrollTotalRows(supervisorJson.length);
 
-            const semanaRows = supervisorJson.map(row => {
+            const semanaRows = supervisorJson.map((row, idx) => {
                 const getValue = (keys) => {
                     for (let key of keys) {
                         if (row[key] !== undefined) return row[key];
@@ -1992,18 +2048,21 @@ function App() {
                 const codigo = getValue(['Código', 'Codigo', 'ID', 'Empleado ID', 'Nro']);
                 const cargo = getValue(['Servicio', 'Cargo', 'Puesto']);
 
+                // Simulamos progreso de lectura
+                if (idx % 5 === 0) setPayrollProgress(idx);
+
                 return {
                     nombre: nombreCompleto || 'N/A',
                     codigo: codigo || '',
                     cargo: cargo || 'N/A',
-                    domingo: { sup: getValue(['Domingo', 'DOM']) || 0, bio: 0 },
-                    lunes: { sup: getValue(['Lunes', 'LUN']) || 0, bio: 0 },
-                    martes: { sup: getValue(['Martes', 'MAR']) || 0, bio: 0 },
-                    miercoles: { sup: getValue(['miercoles', 'Miércoles', 'Miercoles', 'MIE']) || 0, bio: 0 },
-                    jueves: { sup: getValue(['Jueves', 'JUE']) || 0, bio: 0 },
-                    viernes: { sup: getValue(['Viernes', 'VIE']) || 0, bio: 0 },
-                    sabado: { sup: getValue(['Sabado', 'Sábado', 'SAB']) || 0, bio: 0 },
-                    total: { sup: getValue(['TOTAL', 'Total', 'Total Horas']) || 0, bio: 0 }
+                    domingo: { sup: getValue(['Domingo', 'DOM']) || 0, bio: 'X' },
+                    lunes: { sup: getValue(['Lunes', 'LUN']) || 0, bio: 'X' },
+                    martes: { sup: getValue(['Martes', 'MAR']) || 0, bio: 'X' },
+                    miercoles: { sup: getValue(['miercoles', 'Miércoles', 'Miercoles', 'MIE']) || 0, bio: 'X' },
+                    jueves: { sup: getValue(['Jueves', 'JUE']) || 0, bio: 'X' },
+                    viernes: { sup: getValue(['Viernes', 'VIE']) || 0, bio: 'X' },
+                    sabado: { sup: getValue(['Sabado', 'Sábado', 'SAB']) || 0, bio: 'X' },
+                    total: { sup: getValue(['TOTAL', 'Total', 'Total Horas']) || 0, bio: 'X' }
                 };
             }).filter(r =>
                 r.nombre !== 'N/A' &&
@@ -2014,6 +2073,7 @@ function App() {
             console.log('[Payroll] Filas finales procesadas:', semanaRows.length);
             setSemanaTableData(semanaRows);
             setPayrollResults([]);
+            setPayrollProgress(supervisorJson.length);
 
             // --- AUTOMATIZACIÓN FASE 2: Iniciar procesamiento de IA inmediatamente ---
             if (biometricFile && geminiApiKey) {
@@ -2094,18 +2154,50 @@ function App() {
             `;
 
             const result = await model.generateContent(prompt);
+            setPayrollProgress(75);
             const response = await result.response;
             const text = response.text();
             const aiData = JSON.parse(text.replace(/```json|```/g, '').trim());
 
             if (aiData && aiData.rows) {
                 setBiometricTableData(aiData.rows);
+                
+                // --- FASE 3: CRUZAR DATOS ---
+                setPayrollStep('crossover');
+                setPayrollProgress(0);
+                
+                setSemanaTableData(prev => prev.map((emp, idx) => {
+                    const aiRow = aiData.rows.find(r => r.nombre.toString().trim() === emp.codigo.toString().trim());
+                    
+                    if (idx % 5 === 0) setPayrollProgress(idx);
+
+                    if (aiRow) {
+                        return {
+                            ...emp,
+                            domingo: { ...emp.domingo, bio: aiRow.domingo },
+                            lunes: { ...emp.lunes, bio: aiRow.lunes },
+                            martes: { ...emp.martes, bio: aiRow.martes },
+                            miercoles: { ...emp.miercoles, bio: aiRow.miercoles },
+                            jueves: { ...emp.jueves, bio: aiRow.jueves },
+                            viernes: { ...emp.viernes, bio: aiRow.viernes },
+                            sabado: { ...emp.sabado, bio: aiRow.sabado },
+                            total: { ...emp.total, bio: aiRow.total }
+                        };
+                    }
+                    return emp; // Mantiene 'X' si no hay coincidencia
+                }));
+
+                setPayrollProgress(semanaTableData.length);
             }
         } catch (error) {
             console.error('[IA] ERROR:', error);
             alert(`Error procesando con IA: ${error.message}`);
         } finally {
             setIsProcessingIA(false);
+            setIsProcessingPayroll(false);
+            setPayrollStep('supervisor');
+            // Desbloquear scroll
+            document.body.style.overflow = 'auto';
         }
     };
 
@@ -2774,6 +2866,14 @@ function App() {
                                         </div>
 
                                         <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={() => setIsDetailsModalOpen(true)}
+                                                className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-95 border-2 border-red-100/50 shadow-sm flex items-center gap-2 group"
+                                                title="Ver detalles de inconsistencias"
+                                            >
+                                                <Info size={16} className="group-hover:scale-110 transition-transform" />
+                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">Detalles</span>
+                                            </button>
                                             <div className="px-4 py-2 bg-[#f9f9f9] rounded-xl border-2 border-gray-50 flex items-center gap-3">
                                                 <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest leading-none">
                                                     {semanaTableData.length} Empleados
@@ -2830,24 +2930,28 @@ function App() {
                                                                     <div className="flex items-center justify-between gap-3">
                                                                         <span className="text-xs font-black text-[#303a7f] tabular-nums">{row[day].sup || '0'}</span>
                                                                         <div className="h-5 w-[2px] bg-gray-200 rounded-full" />
-                                                                        <span className={`text-xs font-black tabular-nums ${row[day].bio > 0 ? 'text-[#6bbdb7]' : 'text-gray-200'}`}>
-                                                                            {row[day].bio > 0 ? row[day].bio : '0'}
+                                                                        <span className={`text-xs font-black tabular-nums ${row[day].bio === 'X' ? 'text-red-500' : (parseFloat(row[day].bio) > 0 || (typeof row[day].bio === 'string' && row[day].bio !== '0:00')) ? 'text-[#6bbdb7]' : 'text-gray-200'}`}>
+                                                                            {row[day].bio}
                                                                         </span>
                                                                     </div>
                                                                 </td>
-                                                            ))}
-                                                            <td className="p-5 text-right bg-gray-50/50 border-l-[3px] border-gray-200">
-                                                                <div className="flex items-center justify-end gap-6">
-                                                                    <span className="text-base font-black text-[#303a7f] tabular-nums">{row.total.sup}h</span>
-                                                                    <div className="h-7 w-[3px] bg-white shadow-inner" />
-                                                                    <span className={`text-base font-black tabular-nums ${row.total.bio > 0 ? 'text-[#6bbdb7]' : 'text-gray-200'}`}>
-                                                                        {row.total.bio > 0 ? `${row.total.bio}h` : '0h'}
-                                                                    </span>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                )}
+                                                              ))}
+                                                              <td className="p-5 text-right bg-gray-50/50 border-l-[3px] border-gray-200">
+                                                                  <div className="flex items-center justify-end gap-4">
+                                                                      <div className="w-14 text-right">
+                                                                          <span className="text-base font-black text-[#303a7f] tabular-nums">{row.total.sup}h</span>
+                                                                      </div>
+                                                                      <div className="h-7 w-[3px] bg-white shadow-inner" />
+                                                                      <div className="w-14 text-right">
+                                                                          <span className={`text-base font-black tabular-nums ${row.total.bio === 'X' ? 'text-red-500' : (parseFloat(row.total.bio) > 0 || (typeof row.total.bio === 'string' && row.total.bio !== '0:00')) ? 'text-[#6bbdb7]' : 'text-gray-200'}`}>
+                                                                              {row.total.bio === 'X' ? 'X' : `${row.total.bio}${row.total.bio.includes(':') ? '' : 'h'}`}
+                                                                          </span>
+                                                                      </div>
+                                                                  </div>
+                                                              </td>
+                                                          </tr>
+                                                      ))
+                                                  )}
                                             </tbody>
                                         </table>
                                     </div>
@@ -2894,13 +2998,6 @@ function App() {
                                                         {biometricTableData.length} Empleados
                                                     </span>
                                                 </div>
-                                                <button
-                                                    onClick={() => setIsDetailsModalOpen(true)}
-                                                    className="px-4 py-2 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#6bbdb7]/20 transition-all active:scale-95 flex items-center gap-2 border border-[#6bbdb7]/30"
-                                                >
-                                                    <FileText size={14} />
-                                                    Detalles
-                                                </button>
                                                 <button
                                                     onClick={() => setBiometricTableData([])}
                                                     className="text-[9px] font-black uppercase tracking-widest text-red-300 hover:text-red-500 transition-colors"
