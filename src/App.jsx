@@ -127,21 +127,21 @@ const handleDateInputChange = (value, setter) => {
 
 const getFormattedDateForDay = (baseDate, offset) => {
     if (!baseDate || baseDate.length < 10) return '--/--';
-    
+
     let date;
     if (baseDate.includes('/')) {
         const [m, d, y] = baseDate.split('/');
         date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
     } else {
         date = new Date(baseDate);
-        date.setDate(date.getDate() + 1); 
+        date.setDate(date.getDate() + 1);
     }
-    
+
     if (isNaN(date.getTime())) return '--/--';
 
     const resultDate = new Date(date);
-    resultDate.setDate(date.getDate() + offset); 
-    
+    resultDate.setDate(date.getDate() + offset);
+
     const dd = String(resultDate.getDate()).padStart(2, '0');
     const mm = String(resultDate.getMonth() + 1).padStart(2, '0');
     return `${mm}/${dd}`; // Formato USA: mm/dd
@@ -1672,6 +1672,131 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
     );
 };
 
+const InvalidCodesModal = ({ isOpen, onClose, invalidEmployees }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-brand-primary/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500 p-8">
+                <div className="flex items-center gap-5 mb-8">
+                    <div className="p-4 bg-red-100 text-red-600 rounded-2xl">
+                        <X size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Códigos No Permitidos</h3>
+                        <p className="text-red-400 text-[10px] font-black uppercase tracking-widest opacity-80">Error de validación de sistema</p>
+                    </div>
+                </div>
+
+                <div className="mb-8 space-y-4">
+                    <p className="text-gray-500 font-bold text-sm">
+                        Se detectaron <span className="text-red-500 font-black">{invalidEmployees.length}</span> empleados con códigos no permitidos.
+                    </p>
+                    <div className="bg-gray-50 rounded-2xl p-4 max-h-48 overflow-y-auto border-2 border-gray-100">
+                        {invalidEmployees.map((emp, i) => (
+                            <div key={i} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                                <span className="text-xs font-black text-[#303a7f] uppercase">{emp.nombre}</span>
+                                <span className="text-xs font-bold text-red-400 tabular-nums">ID: {emp.codigo}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="text-[#303a7f] font-black text-[10px] uppercase tracking-widest leading-relaxed">
+                        Los códigos obligatoriamente deben ser de 4 dígitos (0-9).
+                    </p>
+                </div>
+
+                <button
+                    onClick={onClose}
+                    className="w-full py-4 bg-[#303a7f] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
+                >
+                    Ok
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const BiometricTableIVRModal = ({ isOpen, onClose, data, fechaDesde, getFormattedDateForDay }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#6bbdb7]/10 animate-in fade-in duration-300">
+            <div className="bg-white w-full h-[90vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(107,189,183,0.3)] border-2 border-[#6bbdb7]/20 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+                {/* Header */}
+                <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-teal-50/50 to-transparent">
+                    <div className="flex items-center gap-5">
+                        <div className="p-4 bg-[#6bbdb7] text-white rounded-2xl shadow-lg shadow-teal-900/20">
+                            <Clock8 size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Tabla IVR (Biométrico)</h3>
+                            <p className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-[0.2em] opacity-80">Resultado de procesamiento inteligente de ponches</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-[#6bbdb7]/20 text-[#6bbdb7] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-50 transition-all active:scale-95 shadow-sm"
+                    >
+                        <ArrowLeft size={16} />
+                        Volver a Nómina
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-8">
+                    <div className="overflow-x-auto rounded-[2rem] border-[3px] border-gray-100 shadow-sm">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50/50">
+                                    <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-100">ID Empleado / Nombre</th>
+                                    {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map((day, idx) => (
+                                        <th key={day} className="p-5 text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-teal-50">
+                                            <div className="flex flex-col items-center">
+                                                <span>{day}</span>
+                                                <span className="text-[8px] text-[#6bbdb7]/60 font-bold">
+                                                    {fechaDesde ? getFormattedDateForDay(fechaDesde, idx) : '--/--'}
+                                                </span>
+                                            </div>
+                                        </th>
+                                    ))}
+                                    <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-100 min-w-[120px] bg-[#6bbdb7]/5">
+                                        Total Biométrico
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y-[3px] divide-gray-100">
+                                {data.map((row, idx) => (
+                                    <tr key={idx} className="hover:bg-teal-50/10 transition-colors">
+                                        <td className="p-6 border-r-[2px] border-gray-50">
+                                            <span className="text-sm font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
+                                        </td>
+                                        {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => {
+                                            const value = row[day];
+                                            const isZero = !value || value === 0 || value === '0' || value === '0h' || value === '00:00' || value === '0:00';
+                                            return (
+                                                <td key={day} className="p-6 text-center border-l-[3px] border-gray-100">
+                                                    <span className={`text-sm font-black tabular-nums ${!isZero ? 'text-[#6bbdb7]' : 'text-gray-200'}`}>
+                                                        {!isZero ? (value.toString().includes('h') ? value : `${value}h`) : '0h'}
+                                                    </span>
+                                                </td>
+                                            );
+                                        })}
+                                        <td className="p-6 text-right bg-teal-50/30 border-l-[3px] border-gray-100">
+                                            <span className="text-base font-black text-[#6bbdb7] tabular-nums">
+                                                {row.total.toString().includes('h') ? row.total : `${row.total}h`}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores }) => {
     const [localResults, setLocalResults] = useState(results);
 
@@ -1782,20 +1907,32 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores 
                 {/* Footer */}
                 <div className="p-8 border-t-2 border-gray-50 bg-gray-50/30 flex justify-between items-center">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Total a procesar: <span className="text-[#303a7f] font-black">{localResults.length} nuevos empleados</span>
+                        {localResults.length === 0 ? 'Sin personal nuevo detectado' : `Total a procesar: ${localResults.length} nuevos empleados`}
                     </p>
                     <div className="flex gap-4">
-                        <button onClick={onClose} className="px-8 py-3 bg-white border-2 border-brand-primary/10 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95">
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={() => onAddAll(localResults)}
-                            disabled={localResults.length === 0}
-                            className="px-10 py-3 bg-[#303a7f] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2"
-                        >
-                            <CheckCircle size={14} />
-                            Agregar Personal
-                        </button>
+                        {localResults.length === 0 ? (
+                            <>
+                                <button onClick={onClose} className="px-8 py-3 bg-white border-2 border-brand-primary/10 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95">
+                                    Cancelar
+                                </button>
+                                <button onClick={onClose} className="px-10 py-3 bg-[#303a7f] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95">
+                                    Ok
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <button onClick={onClose} className="px-8 py-3 bg-white border-2 border-brand-primary/10 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95">
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => onAddAll(localResults)}
+                                    className="px-10 py-3 bg-[#303a7f] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2"
+                                >
+                                    <CheckCircle size={14} />
+                                    Agregar Personal
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -1815,9 +1952,9 @@ const PayrollProgressModal = ({ isOpen, step, current, total }) => {
 
     if (!isOpen) return null;
     const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
-    
+
     const steps = {
-        'supervisor': { title: 'Cargando Supervisor', icon: FileText, color: '#303a7f' },
+        'supervisor': { title: 'Procesando Data', icon: FileText, color: '#303a7f' },
         'ia': { title: 'Motor de Inteligencia Artificial', icon: Cpu, color: '#6bbdb7' },
         'crossover': { title: 'Cruzando Datos de Nómina', icon: Settings, color: '#303a7f' }
     };
@@ -1833,7 +1970,7 @@ const PayrollProgressModal = ({ isOpen, step, current, total }) => {
                         {currentStep.icon && <currentStep.icon size={32} style={{ color: currentStep.color }} className="animate-pulse" />}
                     </div>
                 </div>
-                
+
                 <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase mb-2">{currentStep.title}</h3>
                 <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-8">
                     {step === 'ia' ? 'Analizando registros biométricos...' : `Procesando registro ${current} de ${total}`}
@@ -1841,14 +1978,14 @@ const PayrollProgressModal = ({ isOpen, step, current, total }) => {
 
                 {/* Progress Bar Container */}
                 <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden mb-4 border-2 border-gray-50 shadow-inner">
-                    <div 
+                    <div
                         className="h-full bg-gradient-to-r from-[#303a7f] to-[#6bbdb7] transition-all duration-500 ease-out"
                         style={{ width: `${step === 'ia' && current === 0 ? '50%' : `${percentage}%`}` }}
                     />
                 </div>
-                
+
                 <p className="text-[8px] text-gray-300 font-black uppercase tracking-[0.3em] animate-pulse">
-                    Optimizando resultados con Gemini AI... No cierre la ventana
+                    No cierre la ventana ni refresque la página
                 </p>
             </div>
         </div>
@@ -1877,7 +2014,7 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
                         <span className="text-xl font-black text-[#303a7f] leading-none">{percentage}%</span>
                     </div>
                 </div>
-                
+
                 <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase mb-2">Guardando Personal</h3>
                 <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-8">
                     Cargando empleado <span className="text-[#303a7f]">{current}</span> de <span className="text-[#303a7f]">{total}</span>
@@ -1885,12 +2022,12 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
 
                 {/* Progress Bar Container */}
                 <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden mb-4 border-2 border-gray-50 shadow-inner">
-                    <div 
+                    <div
                         className="h-full bg-gradient-to-r from-[#303a7f] to-[#6bbdb7] transition-all duration-500 ease-out"
                         style={{ width: `${percentage}%` }}
                     />
                 </div>
-                
+
                 <p className="text-[8px] text-gray-300 font-black uppercase tracking-[0.3em] animate-pulse">
                     No cierre la ventana ni refresque la página
                 </p>
@@ -1944,6 +2081,10 @@ function App() {
     const fechaDesdeRef = useRef(null);
     const fechaHastaRef = useRef(null);
 
+    const [invalidCodes, setInvalidCodes] = useState([]);
+    const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
+    const [isBiometricIVRModalOpen, setIsBiometricIVRModalOpen] = useState(false);
+
     const handleVerifyPersonal = async (file) => {
         if (!file) return;
         setIsLoading(true);
@@ -1968,11 +2109,11 @@ function App() {
                 const cargo = getValue(row, ['Servicio', 'Cargo', 'Puesto']).toString().trim();
 
                 // Verificar si existe en el estado global 'employees' usando llave compuesta: Nombre + ID
-                const exists = employees.some(e => 
+                const exists = employees.some(e =>
                     e.codigo_empleado.toString().trim().toLowerCase() === codigo.toLowerCase() &&
                     e.nombre.toString().trim().toLowerCase() === nombre.toLowerCase()
                 );
-                
+
                 if (!exists && codigo && nombre) {
                     const cargoFormatted = cargo ? (cargo.charAt(0).toUpperCase() + cargo.slice(1).toLowerCase()) : 'Janitorial';
                     return {
@@ -1988,6 +2129,23 @@ function App() {
                 }
                 return null;
             }).filter(Boolean);
+
+            // Validar longitud de códigos (mínimo 4 dígitos)
+            const invalidEntries = json.map(row => {
+                const codigo = getValue(row, ['Código', 'Codigo', 'ID', 'Empleado ID', 'Nro']).toString().trim();
+                const nombre = getValue(row, ['Nombre y Apellidos', 'Nombre y Apellido', 'Nombre', 'Empleado']).toString().trim();
+                if (codigo && (codigo.length < 4 || !/^\d+$/.test(codigo))) {
+                    return { nombre, codigo };
+                }
+                return null;
+            }).filter(Boolean);
+
+            if (invalidEntries.length > 0) {
+                setInvalidCodes(invalidEntries);
+                setIsInvalidCodesModalOpen(true);
+                setIsLoading(false);
+                return;
+            }
 
             // Eliminar duplicados en el mismo Excel por llave compuesta
             const uniqueResults = [];
@@ -2015,7 +2173,7 @@ function App() {
         setIsSyncingBatch(true);
         setSyncProgress(0);
         setSyncTotal(newEmployees.length);
-        
+
         // Bloquear scroll
         document.body.style.overflow = 'hidden';
 
@@ -2038,11 +2196,11 @@ function App() {
                 setEmployees(prev => [formattedEmp, ...prev]);
                 // Enviar a Google Sheets de forma secuencial (con la comilla para Sheets)
                 await syncToSheets('upsert', syncEmp, 'Personal', true); // true = saltar refresh individual
-                
+
                 current++;
                 setSyncProgress(current);
             }
-            
+
             // Recarga final única y refresco de página después de procesar todo el lote
             setTimeout(() => {
                 fetchEmployees();
@@ -2076,7 +2234,7 @@ function App() {
         setPayrollStep('supervisor');
         setPayrollProgress(0);
         setPayrollTotalRows(0);
-        
+
         // Bloquear scroll
         document.body.style.overflow = 'hidden';
 
@@ -2225,14 +2383,14 @@ function App() {
 
             if (aiData && aiData.rows) {
                 setBiometricTableData(aiData.rows);
-                
+
                 // --- FASE 3: CRUZAR DATOS ---
                 setPayrollStep('crossover');
                 setPayrollProgress(0);
-                
+
                 setSemanaTableData(prev => prev.map((emp, idx) => {
                     const aiRow = aiData.rows.find(r => r.nombre.toString().trim() === emp.codigo.toString().trim());
-                    
+
                     if (idx % 5 === 0) setPayrollProgress(idx);
 
                     if (aiRow) {
@@ -2488,6 +2646,20 @@ function App() {
                 stores={stores}
             />
 
+            <InvalidCodesModal
+                isOpen={isInvalidCodesModalOpen}
+                onClose={() => setIsInvalidCodesModalOpen(false)}
+                invalidEmployees={invalidCodes}
+            />
+
+            <BiometricTableIVRModal
+                isOpen={isBiometricIVRModalOpen}
+                onClose={() => setIsBiometricIVRModalOpen(false)}
+                data={biometricTableData}
+                fechaDesde={fechaDesde}
+                getFormattedDateForDay={getFormattedDateForDay}
+            />
+
             <BatchSyncProgressModal
                 isOpen={isSyncingBatch}
                 current={syncProgress}
@@ -2548,8 +2720,8 @@ function App() {
                             key={item.id}
                             onClick={() => setActiveTab(item.id)}
                             className={`flex items-center gap-3 px-6 py-3 rounded-2xl transition-all duration-300 ${activeTab === item.id
-                                    ? 'bg-[#303a7f] text-white shadow-xl shadow-blue-900/20 scale-105'
-                                    : 'text-gray-400 hover:bg-gray-50 hover:text-[#303a7f]'
+                                ? 'bg-[#303a7f] text-white shadow-xl shadow-blue-900/20 scale-105'
+                                : 'text-gray-400 hover:bg-gray-50 hover:text-[#303a7f]'
                                 }`}
                         >
                             <item.icon size={20} />
@@ -2724,95 +2896,95 @@ function App() {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-10 relative z-10">
-                                     <div className="md:col-span-4 space-y-2">
-                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Unidad Receptora</label>
-                                         <div className="relative group">
-                                             <select
-                                                 value={payrollStore}
-                                                 onChange={(e) => setPayrollStore(e.target.value)}
-                                                 className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner pr-14 text-sm"
-                                             >
-                                                 <option value="">--- ELIJA UNA TIENDA ---</option>
-                                                 {stores.map((s, i) => (
-                                                     <option key={i} value={s.nombre}>{s.nombre}</option>
-                                                 ))}
-                                             </select>
-                                             <div className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 pointer-events-none group-focus-within:rotate-180 transition-transform">
-                                                 <ChevronDown className="text-[#303a7f]" size={16} />
-                                             </div>
-                                         </div>
-                                     </div>
+                                    <div className="md:col-span-4 space-y-2">
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Unidad Receptora</label>
+                                        <div className="relative group">
+                                            <select
+                                                value={payrollStore}
+                                                onChange={(e) => setPayrollStore(e.target.value)}
+                                                className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner pr-14 text-sm"
+                                            >
+                                                <option value="">--- ELIJA UNA TIENDA ---</option>
+                                                {stores.map((s, i) => (
+                                                    <option key={i} value={s.nombre}>{s.nombre}</option>
+                                                ))}
+                                            </select>
+                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 pointer-events-none group-focus-within:rotate-180 transition-transform">
+                                                <ChevronDown className="text-[#303a7f]" size={16} />
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                     <div className="md:col-span-3 space-y-2">
-                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Desde:</label>
-                                         <div className="relative group">
-                                             <input 
-                                                 type="text"
-                                                 placeholder="mm/dd/aaaa"
-                                                 maxLength={10}
-                                                 value={fechaDesde}
-                                                 onChange={(e) => handleDateInputChange(e.target.value, setFechaDesde)}
-                                                 className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all shadow-inner text-sm tracking-widest pr-12"
-                                             />
-                                             <input 
-                                                 type="date"
-                                                 ref={fechaDesdeRef}
-                                                 className="absolute opacity-0 pointer-events-none w-0 h-0"
-                                                 onChange={(e) => handleNativeDateChange(e, setFechaDesde)}
-                                             />
-                                             <div 
-                                                 className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 cursor-pointer hover:bg-gray-50 text-[#303a7f] transition-colors"
-                                                 onClick={() => fechaDesdeRef.current?.showPicker ? fechaDesdeRef.current.showPicker() : (fechaDesdeRef.current?.focus(), fechaDesdeRef.current?.click())}
-                                                 title="Abrir calendario"
-                                             >
-                                                 <Calendar size={14} />
-                                             </div>
-                                         </div>
-                                     </div>
+                                    <div className="md:col-span-3 space-y-2">
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Desde:</label>
+                                        <div className="relative group">
+                                            <input
+                                                type="text"
+                                                placeholder="mm/dd/aaaa"
+                                                maxLength={10}
+                                                value={fechaDesde}
+                                                onChange={(e) => handleDateInputChange(e.target.value, setFechaDesde)}
+                                                className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all shadow-inner text-sm tracking-widest pr-12"
+                                            />
+                                            <input
+                                                type="date"
+                                                ref={fechaDesdeRef}
+                                                className="absolute opacity-0 pointer-events-none w-0 h-0"
+                                                onChange={(e) => handleNativeDateChange(e, setFechaDesde)}
+                                            />
+                                            <div
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 cursor-pointer hover:bg-gray-50 text-[#303a7f] transition-colors"
+                                                onClick={() => fechaDesdeRef.current?.showPicker ? fechaDesdeRef.current.showPicker() : (fechaDesdeRef.current?.focus(), fechaDesdeRef.current?.click())}
+                                                title="Abrir calendario"
+                                            >
+                                                <Calendar size={14} />
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                     <div className="md:col-span-3 space-y-2">
-                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Hasta:</label>
-                                         <div className="relative group">
-                                             <input 
-                                                 type="text"
-                                                 placeholder="mm/dd/aaaa"
-                                                 maxLength={10}
-                                                 value={fechaHasta}
-                                                 onChange={(e) => handleDateInputChange(e.target.value, setFechaHasta)}
-                                                 className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all shadow-inner text-sm tracking-widest pr-12"
-                                             />
-                                             <input 
-                                                 type="date"
-                                                 ref={fechaHastaRef}
-                                                 className="absolute opacity-0 pointer-events-none w-0 h-0"
-                                                 onChange={(e) => handleNativeDateChange(e, setFechaHasta)}
-                                             />
-                                             <div 
-                                                 className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 cursor-pointer hover:bg-gray-50 text-[#303a7f] transition-colors"
-                                                 onClick={() => fechaHastaRef.current?.showPicker ? fechaHastaRef.current.showPicker() : (fechaHastaRef.current?.focus(), fechaHastaRef.current?.click())}
-                                                 title="Abrir calendario"
-                                             >
-                                                 <Calendar size={14} />
-                                             </div>
-                                         </div>
-                                     </div>
+                                    <div className="md:col-span-3 space-y-2">
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Hasta:</label>
+                                        <div className="relative group">
+                                            <input
+                                                type="text"
+                                                placeholder="mm/dd/aaaa"
+                                                maxLength={10}
+                                                value={fechaHasta}
+                                                onChange={(e) => handleDateInputChange(e.target.value, setFechaHasta)}
+                                                className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all shadow-inner text-sm tracking-widest pr-12"
+                                            />
+                                            <input
+                                                type="date"
+                                                ref={fechaHastaRef}
+                                                className="absolute opacity-0 pointer-events-none w-0 h-0"
+                                                onChange={(e) => handleNativeDateChange(e, setFechaHasta)}
+                                            />
+                                            <div
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 cursor-pointer hover:bg-gray-50 text-[#303a7f] transition-colors"
+                                                onClick={() => fechaHastaRef.current?.showPicker ? fechaHastaRef.current.showPicker() : (fechaHastaRef.current?.focus(), fechaHastaRef.current?.click())}
+                                                title="Abrir calendario"
+                                            >
+                                                <Calendar size={14} />
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                     <div className="md:col-span-2 flex items-end">
-                                         {!geminiApiKey && (
-                                             <div className="w-full p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in duration-500 mb-0">
-                                                 <div className="p-2 bg-amber-100 rounded-xl text-amber-600 shrink-0">
-                                                     <Lock size={14} />
-                                                 </div>
-                                                 <div className="flex-1 min-w-0">
-                                                     <p className="text-[9px] font-black text-amber-700 uppercase tracking-tight truncate">IA OFF</p>
-                                                     <p className="text-[8px] text-amber-600 font-bold leading-tight">
+                                    <div className="md:col-span-2 flex items-end">
+                                        {!geminiApiKey && (
+                                            <div className="w-full p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in duration-500 mb-0">
+                                                <div className="p-2 bg-amber-100 rounded-xl text-amber-600 shrink-0">
+                                                    <Lock size={14} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[9px] font-black text-amber-700 uppercase tracking-tight truncate">IA OFF</p>
+                                                    <p className="text-[8px] text-amber-600 font-bold leading-tight">
                                                         Configure su nueva clave en <button onClick={() => setActiveTab('settings')} className="underline font-black hover:text-amber-800 transition-colors tracking-tight">Ajustes</button> para activar el cruce inteligente.
                                                     </p>
-                                                 </div>
-                                             </div>
-                                         )}
-                                     </div>
-                                 </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
                                     {/* Control 0: Verificar Personal */}
@@ -2941,14 +3113,14 @@ function App() {
                                             </button>
 
                                             <div className={`flex-1 bg-white border-2 rounded-xl px-4 py-2.5 flex items-center overflow-hidden transition-colors duration-500 ${biometricFile ? 'border-[#6bbdb7]/20' : 'border-brand-primary/10'}`}>
-                                                 <span className={`text-[10px] font-bold uppercase truncate transition-colors duration-500 ${biometricFile ? 'text-[#303a7f]' : 'text-gray-300'}`}>
-                                                     {biometricFile ? biometricFile.name : 'Sin archivo seleccionado'}
-                                                 </span>
-                                             </div>
-                                         </div>
-                                         <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Base de Datos (In/Out)</p>
-                                     </div>
-                                 </div>
+                                                <span className={`text-[10px] font-bold uppercase truncate transition-colors duration-500 ${biometricFile ? 'text-[#303a7f]' : 'text-gray-300'}`}>
+                                                    {biometricFile ? biometricFile.name : 'Sin archivo seleccionado'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Base de Datos (In/Out)</p>
+                                    </div>
+                                </div>
 
                                 {/* Botón de Procesamiento */}
                                 <div className="mt-10 flex justify-center relative z-10">
@@ -2992,6 +3164,15 @@ function App() {
                                         </div>
 
                                         <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={() => setIsBiometricIVRModalOpen(true)}
+                                                disabled={biometricTableData.length === 0}
+                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${biometricTableData.length > 0 ? 'bg-teal-50 text-[#6bbdb7] border-[#6bbdb7]/20 hover:bg-teal-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
+                                                title="Ver Tabla IVR"
+                                            >
+                                                <Clock8 size={16} className="group-hover:rotate-12 transition-transform" />
+                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">Tabla IVR</span>
+                                            </button>
                                             <button
                                                 onClick={() => setIsDetailsModalOpen(true)}
                                                 className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-95 border-2 border-red-100/50 shadow-sm flex items-center gap-2 group"
@@ -3066,23 +3247,23 @@ function App() {
                                                                         </span>
                                                                     </div>
                                                                 </td>
-                                                              ))}
-                                                              <td className="p-5 text-right bg-gray-50/50 border-l-[3px] border-gray-200">
-                                                                  <div className="flex items-center justify-end gap-4">
-                                                                      <div className="w-14 text-right">
-                                                                          <span className="text-base font-black text-[#303a7f] tabular-nums">{row.total.sup}h</span>
-                                                                      </div>
-                                                                      <div className="h-7 w-[3px] bg-white shadow-inner" />
-                                                                      <div className="w-14 text-right">
-                                                                          <span className={`text-base font-black tabular-nums ${row.total.bio === 'X' ? 'text-red-500' : (parseFloat(row.total.bio) > 0 || (typeof row.total.bio === 'string' && row.total.bio !== '0:00')) ? 'text-[#6bbdb7]' : 'text-gray-200'}`}>
-                                                                              {row.total.bio === 'X' ? 'X' : `${row.total.bio}${row.total.bio.includes(':') ? '' : 'h'}`}
-                                                                          </span>
-                                                                      </div>
-                                                                  </div>
-                                                              </td>
-                                                          </tr>
-                                                      ))
-                                                  )}
+                                                            ))}
+                                                            <td className="p-5 text-right bg-gray-50/50 border-l-[3px] border-gray-200">
+                                                                <div className="flex items-center justify-end gap-4">
+                                                                    <div className="w-14 text-right">
+                                                                        <span className="text-base font-black text-[#303a7f] tabular-nums">{row.total.sup}h</span>
+                                                                    </div>
+                                                                    <div className="h-7 w-[3px] bg-white shadow-inner" />
+                                                                    <div className="w-14 text-right">
+                                                                        <span className={`text-base font-black tabular-nums ${row.total.bio === 'X' ? 'text-red-500' : (parseFloat(row.total.bio) > 0 || (typeof row.total.bio === 'string' && row.total.bio !== '0:00')) ? 'text-[#6bbdb7]' : 'text-gray-200'}`}>
+                                                                            {row.total.bio === 'X' ? 'X' : `${row.total.bio}${row.total.bio.includes(':') ? '' : 'h'}`}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
@@ -3109,85 +3290,7 @@ function App() {
                                 </section>
                             </div>
 
-                            {/* FASE 2: TABLA PROVISIONAL BIOMÉTRICO (IA) */}
-                            {biometricTableData.length > 0 && (
-                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-12 duration-1000">
-                                    <section className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-teal-900/[0.04] border-2 border-[#6bbdb7]/20">
-                                        <div className="flex items-center justify-between mb-8">
-                                            <div className="flex items-center gap-4">
-                                                <div className="p-3 bg-[#6bbdb7]/10 rounded-xl">
-                                                    <Clock8 size={20} className="text-[#6bbdb7]" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Tabla Biométrico (Resultado IA)</h3>
-                                                    <p className="text-[#6bbdb7] font-black uppercase text-[8px] tracking-[0.2em] opacity-80">Conversión de ponches individuales a resumen semanal</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <div className="px-4 py-2 bg-[#6bbdb7]/5 rounded-xl border-2 border-[#6bbdb7]/10 flex items-center gap-3">
-                                                    <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest leading-none">
-                                                        {biometricTableData.length} Empleados
-                                                    </span>
-                                                </div>
-                                                <button
-                                                    onClick={() => setBiometricTableData([])}
-                                                    className="text-[9px] font-black uppercase tracking-widest text-red-300 hover:text-red-500 transition-colors"
-                                                >
-                                                    Ocultar Tabla
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="overflow-x-auto rounded-3xl border-[3px] border-gray-200">
-                                            <table className="w-full text-left border-collapse">
-                                                <thead>
-                                                    <tr className="bg-gray-50/50">
-                                                        <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200">ID Empleado (Como Nombre)</th>
-                                                        {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map((day, idx) => (
-                                                            <th key={day} className="p-4 text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-teal-100/30">
-                                                                <div className="flex flex-col items-center">
-                                                                    <span>{day}</span>
-                                                                    <span className="text-[8px] text-[#6bbdb7]/60 font-bold">
-                                                                        {fechaDesde ? getFormattedDateForDay(fechaDesde, idx) : '--/--'}
-                                                                    </span>
-                                                                </div>
-                                                            </th>
-                                                        ))}
-                                                        <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-200 min-w-[100px] bg-[#6bbdb7]/5">
-                                                            Total Biométrico
-                                                        </th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y-[3px] divide-gray-200">
-                                                    {biometricTableData.map((row, idx) => (
-                                                        <tr key={idx} className="hover:bg-teal-50/10 transition-colors">
-                                                            <td className="p-5 border-r-[2px] border-gray-100">
-                                                                <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
-                                                            </td>
-                                                            {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => {
-                                                                const value = row[day];
-                                                                const isZero = !value || value === 0 || value === '0' || value === '0h' || value === '00:00' || value === '0:00';
-                                                                return (
-                                                                    <td key={day} className="p-5 text-center border-l-[3px] border-gray-200">
-                                                                        <span className={`text-xs font-black tabular-nums ${!isZero ? 'text-[#6bbdb7]' : 'text-gray-300'}`}>
-                                                                            {!isZero ? (value.toString().includes('h') ? value : `${value}h`) : '0h'}
-                                                                        </span>
-                                                                    </td>
-                                                                );
-                                                            })}
-                                                            <td className="p-5 text-right bg-teal-50/30 border-l-[3px] border-gray-200">
-                                                                <span className="text-sm font-black text-[#6bbdb7] tabular-nums">
-                                                                    {row.total.toString().includes('h') ? row.total : `${row.total}h`}
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </section>
-                                </div>
-                            )}
+                            {/* FASE 2: TABLA PROVISIONAL BIOMÉTRICO (IA) - ELIMINADA DE AQUÍ, AHORA ES MODAL */}
                         </div>
                     )}
 
@@ -3322,7 +3425,7 @@ function App() {
 
                         {/* Footer del Modal */}
                         <div className="p-6 border-t font-black text-[10px] text-gray-400 text-center uppercase tracking-[0.2em] bg-white">
-                            LogicPay Audit Logic - Datos procesados con Gemini 2.5 Flash
+                            AdWisers Audit Logic
                         </div>
                     </div>
                 </div>
