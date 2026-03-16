@@ -1037,7 +1037,7 @@ const StoreAddView = ({ onSave, onBack }) => {
 
     const handleSave = () => {
         if (!newStore.nombre.trim() || !newStore.codigo.trim()) {
-            alert("Por favor, asigne al menos un Nombre y un Código a la tienda.");
+            showError("Por favor, asigne al menos un Nombre y un Código a la tienda.");
             return;
         }
         onSave(newStore);
@@ -1592,7 +1592,7 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
 
     const handleSave = () => {
         if (!newEmployee.nombre.trim() || !newEmployee.codigo_empleado.trim()) {
-            alert("Nombre y Código son obligatorios.");
+            showError("Nombre y Código son obligatorios.");
             return;
         }
         const formattedEmployee = {
@@ -2171,6 +2171,10 @@ function App() {
     const [earningsTableData, setEarningsTableData] = useState([]); // FASE 6: Reporte Monetario (LSG)
     const [kbsBillingTableData, setKbsBillingTableData] = useState([]); // FASE 6.5: Reporte Facturación (KBS)
     const [isWeeklyApproved, setIsWeeklyApproved] = useState(false); // FASE 6: Estado de aprobación
+    const [isStatusModalOpen, setIsStatusModalOpen] = useState(false); // FASE 7: Modal de estatus profesional
+    const [statusModalMessage, setStatusModalMessage] = useState('');
+    const [statusModalTitle, setStatusModalTitle] = useState('');
+    const [statusModalType, setStatusModalType] = useState('success'); // 'success' | 'error'
 
     const fechaDesdeRef = useRef(null);
     const fechaHastaRef = useRef(null);
@@ -2179,6 +2183,16 @@ function App() {
     const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
     const [isBiometricIVRModalOpen, setIsBiometricIVRModalOpen] = useState(false);
     const [isSupervisorModalOpen, setIsSupervisorModalOpen] = useState(false);
+
+    const showStatus = (title, message, type = 'success') => {
+        setStatusModalTitle(title);
+        setStatusModalMessage(message);
+        setStatusModalType(type);
+        setIsStatusModalOpen(true);
+    };
+
+    const showSuccess = (message) => showStatus("¡Operación Exitosa!", message, 'success');
+    const showError = (message) => showStatus("Error de Sistema", message, 'error');
 
     const handleVerifyPersonal = async (file) => {
         if (!file) return;
@@ -2257,7 +2271,7 @@ function App() {
             setIsVerificationModalOpen(true);
         } catch (error) {
             console.error('[Verify] Error procesando archivo:', error);
-            alert("Error al procesar el archivo de personal.");
+            showError("No se pudo procesar el archivo de personal seleccionado.");
         } finally {
             setIsLoading(false);
         }
@@ -2307,7 +2321,7 @@ function App() {
             setVerificationResults([]);
         } catch (error) {
             console.error('[AddVerified] Error agregando empleados:', error);
-            alert("Error al registrar el personal nuevo.");
+            showError("Hubo un error al registrar el personal nuevo en la base de datos.");
         } finally {
             setIsLoading(false);
             setIsSyncingBatch(false);
@@ -2321,7 +2335,7 @@ function App() {
     const processPayroll = async () => {
         console.log('[Payroll] Iniciando proceso...', { supervisorFile, biometricFile, payrollStore });
         if (!supervisorFile || !biometricFile || !payrollStore) {
-            alert("Faltan archivos o tienda por seleccionar. Supervisor: " + (supervisorFile ? "OK" : "FALTA") + ", Biometrico: " + (biometricFile ? "OK" : "FALTA") + ", Tienda: " + (payrollStore ? "OK" : "FALTA"));
+            showError(`Faltan requisitos para iniciar el proceso de nómina:\nSupervisor: ${supervisorFile ? "OK" : "FALTA"}\nBiométrico: ${biometricFile ? "OK" : "FALTA"}\nTienda: ${payrollStore ? "OK" : "FALTA"}`);
             return;
         }
 
@@ -2403,7 +2417,7 @@ function App() {
 
         } catch (error) {
             console.error('[Payroll] ERROR CARGANDO SUPERVISOR:', error);
-            alert("Error cargando el reporte del supervisor.");
+            showError("No se pudo cargar el reporte del supervisor. Error de formato.");
         } finally {
             setIsProcessingPayroll(false);
         }
@@ -2425,7 +2439,7 @@ function App() {
         try {
             const store = stores.find(s => s.nombre === payrollStore);
             if (!store) {
-                alert("Error: No se encontró la configuración de la tienda.");
+                showError("No se encontró la configuración de la tienda seleccionada.");
                 return;
             }
 
@@ -2490,11 +2504,11 @@ function App() {
                 setSyncProgress(i + 1);
             }
 
-            alert("Nómina aprobada y tiendas de empleados actualizadas exitosamente.");
+            showSuccess("Cálculo Semanal procesado y Ubicación del Personal actualizado exitosamente.");
             fetchEmployees();
         } catch (error) {
             console.error('[Payroll] Error al aprobar semana:', error);
-            alert("Error al procesar la aprobación de la nómina.");
+            showError("No se pudo procesar la aprobación de la nómina. Verifique la conexión.");
         } finally {
             setIsLoading(false);
             setIsSyncingBatch(false);
@@ -2601,7 +2615,7 @@ function App() {
             }
         } catch (error) {
             console.error('[IA] ERROR:', error);
-            alert(`Error procesando con IA: ${error.message}`);
+            showError(`Error procesando con IA: ${error.message}`);
         } finally {
             setIsProcessingIA(false);
             setIsProcessingPayroll(false);
@@ -3925,6 +3939,29 @@ function App() {
                         <div className="p-6 border-t font-black text-[10px] text-gray-400 text-center uppercase tracking-[0.2em] bg-white">
                             AdWisers Audit Logic
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* FASE 7: MODAL DE ESTATUS PROFESIONAL (Éxito/Error) */}
+            {isStatusModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/10 animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-[0_32px_80px_-20px_rgba(48,58,127,0.2)] border-2 border-[#6bbdb7]/10 p-10 text-center animate-in zoom-in-95 duration-500">
+                        <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-8 animate-bounce ${statusModalType === 'success' ? 'bg-[#6bbdb7]/10 text-[#6bbdb7]' : 'bg-red-50 text-red-500'}`}>
+                            {statusModalType === 'success' ? <CheckCircle size={48} /> : <X size={48} />}
+                        </div>
+                        <h3 className={`text-2xl font-black tracking-tighter uppercase leading-none mb-4 ${statusModalType === 'success' ? 'text-[#303a7f]' : 'text-red-600'}`}>
+                            {statusModalTitle}
+                        </h3>
+                        <p className="text-gray-500 font-bold text-sm leading-relaxed mb-10">
+                            {statusModalMessage}
+                        </p>
+                        <button
+                            onClick={() => setIsStatusModalOpen(false)}
+                            className={`w-full py-4 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 ${statusModalType === 'success' ? 'bg-[#303a7f] shadow-blue-900/10 hover:bg-[#252a5e]' : 'bg-red-500 shadow-red-900/10 hover:bg-red-600'}`}
+                        >
+                            Ok
+                        </button>
                     </div>
                 </div>
             )}
