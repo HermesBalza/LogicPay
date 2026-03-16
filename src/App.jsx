@@ -3356,8 +3356,8 @@ function App() {
                                                 <Calendar size={20} className="text-[#303a7f]" />
                                             </div>
                                             <div>
-                                                <h3 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Tabla "Semana"</h3>
-                                                <p className="text-gray-400 font-black uppercase text-[8px] tracking-[0.2em] opacity-80">Comparativa Supervisor (S) vs Biométrico (B)</p>
+                                                <h3 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Registro de Asisencia Semanal</h3>
+                                                <p className="text-[#6bbdb7] font-black uppercase text-[14px] tracking-[0.2em]">desde {fechaDesde || '--/--/----'} hasta {fechaHasta || '--/--/----'}</p>
                                             </div>
                                         </div>
 
