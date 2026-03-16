@@ -2168,7 +2168,8 @@ function App() {
     const [payrollStep, setPayrollStep] = useState('supervisor'); // 'supervisor' | 'ia' | 'crossover'
     const [fechaDesde, setFechaDesde] = useState('');
     const [fechaHasta, setFechaHasta] = useState('');
-    const [earningsTableData, setEarningsTableData] = useState([]); // FASE 6: Reporte Monetario
+    const [earningsTableData, setEarningsTableData] = useState([]); // FASE 6: Reporte Monetario (LSG)
+    const [kbsBillingTableData, setKbsBillingTableData] = useState([]); // FASE 6.5: Reporte Facturación (KBS)
     const [isWeeklyApproved, setIsWeeklyApproved] = useState(false); // FASE 6: Estado de aprobación
 
     const fechaDesdeRef = useRef(null);
@@ -2430,29 +2431,48 @@ function App() {
 
             const earnings = semanaTableData.map(emp => {
                 const cargoLower = emp.cargo.toLowerCase();
-                const cargoKey = cargoLower.includes('shift') ? 'shift_lead' :
-                    cargoLower.includes('utility') ? 'utility' : 'janitorial';
-
-                const rate = store.tarifas[cargoKey]?.lsg || 0;
-                const calcDay = (val) => hhmmToDecimal(val) * rate;
+                const cargoKey = cargoLower.includes('shift') ? 'shift_lead' : 
+                                 cargoLower.includes('utility') ? 'utility' : 'janitorial';
+                
+                const rateLSG = store.tarifas[cargoKey]?.lsg || 0;
+                const rateKBS = store.tarifas[cargoKey]?.kbs || 0;
+                
+                const calcDay = (val, rate) => hhmmToDecimal(val) * rate;
 
                 return {
-                    nombre: emp.nombre,
-                    codigo: emp.codigo,
-                    cargo: emp.cargo,
-                    rate: rate,
-                    domingo: calcDay(emp.domingo.final),
-                    lunes: calcDay(emp.lunes.final),
-                    martes: calcDay(emp.martes.final),
-                    miercoles: calcDay(emp.miercoles.final),
-                    jueves: calcDay(emp.jueves.final),
-                    viernes: calcDay(emp.viernes.final),
-                    sabado: calcDay(emp.sabado.final),
-                    total: hhmmToDecimal(emp.total.final) * rate
+                    lsg: {
+                        nombre: emp.nombre,
+                        codigo: emp.codigo,
+                        cargo: emp.cargo,
+                        rate: rateLSG,
+                        domingo: calcDay(emp.domingo.final, rateLSG),
+                        lunes: calcDay(emp.lunes.final, rateLSG),
+                        martes: calcDay(emp.martes.final, rateLSG),
+                        miercoles: calcDay(emp.miercoles.final, rateLSG),
+                        jueves: calcDay(emp.jueves.final, rateLSG),
+                        viernes: calcDay(emp.viernes.final, rateLSG),
+                        sabado: calcDay(emp.sabado.final, rateLSG),
+                        total: hhmmToDecimal(emp.total.final) * rateLSG
+                    },
+                    kbs: {
+                        nombre: emp.nombre,
+                        codigo: emp.codigo,
+                        cargo: emp.cargo,
+                        rate: rateKBS,
+                        domingo: calcDay(emp.domingo.final, rateKBS),
+                        lunes: calcDay(emp.lunes.final, rateKBS),
+                        martes: calcDay(emp.martes.final, rateKBS),
+                        miercoles: calcDay(emp.miercoles.final, rateKBS),
+                        jueves: calcDay(emp.jueves.final, rateKBS),
+                        viernes: calcDay(emp.viernes.final, rateKBS),
+                        sabado: calcDay(emp.sabado.final, rateKBS),
+                        total: hhmmToDecimal(emp.total.final) * rateKBS
+                    }
                 };
             });
 
-            setEarningsTableData(earnings);
+            setEarningsTableData(earnings.map(e => e.lsg));
+            setKbsBillingTableData(earnings.map(e => e.kbs));
             setIsWeeklyApproved(true);
 
             setIsSyncingBatch(true);
@@ -3679,6 +3699,85 @@ function App() {
                                                         <td className="p-4 text-right bg-[#303a7f] text-white border-l-[3px] border-gray-200">
                                                             <span className="text-sm tabular-nums">
                                                                 ${earningsTableData.reduce((acc, row) => acc + row.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </section>
+                                )}
+
+                                {isWeeklyApproved && kbsBillingTableData.length > 0 && (
+                                    <section className="bg-white rounded-[2.5rem] px-5 py-8 shadow-2xl shadow-blue-900/[0.04] border-2 border-[#303a7f]/10 min-h-[400px] animate-in fade-in slide-in-from-top-8 duration-700 mt-12">
+                                        <div className="flex items-center justify-between mb-8">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-3 bg-[#303a7f]/10 rounded-xl text-[#303a7f]">
+                                                    <CreditCard size={20} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Weekly KBS Billing Report</h3>
+                                                    <p className="text-gray-400 font-black uppercase text-[10px] tracking-[0.2em] opacity-80 pl-1">Facturación total proyectada para KBS</p>
+                                                </div>
+                                            </div>
+                                            <div className="px-6 py-3 bg-gray-50 rounded-2xl border-2 border-gray-100">
+                                                <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">
+                                                    Billing Total: <span className="text-lg ml-2 text-[#303a7f] tabular-nums">${kbsBillingTableData.reduce((acc, row) => acc + row.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="overflow-x-auto rounded-3xl border-[3px] border-gray-200">
+                                            <table className="w-full text-left border-collapse">
+                                                <thead>
+                                                    <tr className="bg-[#f9f9f9]/80">
+                                                        <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
+                                                        {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map((day) => (
+                                                            <th key={day} className="p-3 text-[10px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[100px] bg-gray-50/20">
+                                                                {day}
+                                                            </th>
+                                                        ))}
+                                                        <th className="p-3 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-200 min-w-[110px] bg-[#303a7f]/5">
+                                                            Billing Est.
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y-[3px] divide-gray-200">
+                                                    {kbsBillingTableData.map((row, idx) => (
+                                                        <tr key={idx} className="group hover:bg-[#303a7f]/[0.02] transition-colors">
+                                                            <td className="p-4 border-r-[2px] border-gray-100">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
+                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                        <span className="text-[9px] font-black text-gray-400 tabular-nums tracking-[0.1em]">ID: {row.codigo}</span>
+                                                                        <span className="text-[8px] bg-blue-50 px-1.5 py-0.5 rounded text-[#303a7f] font-black uppercase">KBS Rate: ${row.rate}/h</span>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
+                                                                <td key={day} className="p-3 text-center border-l-[3px] border-gray-200 font-bold text-gray-600 text-xs tabular-nums">
+                                                                    {row[day] > 0 ? `$${row[day].toFixed(2)}` : '--'}
+                                                                </td>
+                                                            ))}
+                                                            <td className="p-4 text-right bg-[#303a7f]/5 border-l-[3px] border-gray-200">
+                                                                <span className="text-sm font-black text-[#303a7f] tabular-nums">
+                                                                    ${row.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr className="bg-[#303a7f]/5 font-black">
+                                                        <td className="p-4 text-[10px] uppercase tracking-widest text-[#303a7f]">Total Por Día</td>
+                                                        {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
+                                                            <td key={day} className="p-3 text-center border-l-[3px] border-gray-200 text-[#303a7f] text-xs tabular-nums">
+                                                                ${kbsBillingTableData.reduce((acc, row) => acc + row[day], 0).toFixed(2)}
+                                                            </td>
+                                                        ))}
+                                                        <td className="p-4 text-right bg-[#303a7f] text-white border-l-[3px] border-gray-200">
+                                                            <span className="text-sm tabular-nums">
+                                                                ${kbsBillingTableData.reduce((acc, row) => acc + row.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                             </span>
                                                         </td>
                                                     </tr>
