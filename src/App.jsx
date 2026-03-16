@@ -1716,6 +1716,92 @@ const InvalidCodesModal = ({ isOpen, onClose, invalidEmployees }) => {
     );
 };
 
+const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedDateForDay }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-blue-900/10 animate-in fade-in duration-300">
+            <div className="bg-white w-full h-[90vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-blue-100/50 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+                {/* Header */}
+                <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/50 to-transparent">
+                    <div className="flex items-center gap-5">
+                        <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <FileText size={24} />
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-3 mb-1">
+                                <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none">Tabla del Supervisor</h3>
+                                <div className="px-3 py-1 bg-blue-100/50 rounded-full border border-blue-200">
+                                    <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">{data.length} Empleados</span>
+                                </div>
+                            </div>
+                            <p className="text-gray-400 font-black uppercase text-[10px] tracking-[0.2em] opacity-80">Data original reportada por los responsables de tienda</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-blue-100 text-[#303a7f] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
+                    >
+                        <ArrowLeft size={16} />
+                        Volver a Nómina
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-8">
+                    <div className="overflow-x-auto rounded-[2rem] border-[3px] border-gray-100 shadow-sm">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50/50">
+                                    <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-100">ID Empleado / Nombre</th>
+                                    {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map((day, idx) => (
+                                        <th key={day} className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-100 bg-gray-50/30">
+                                            <div className="flex flex-col items-center">
+                                                <span>{day}</span>
+                                                <span className="text-[8px] text-gray-400/60 font-bold">
+                                                    {fechaDesde ? getFormattedDateForDay(fechaDesde, idx) : '--/--'}
+                                                </span>
+                                            </div>
+                                        </th>
+                                    ))}
+                                    <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-100 min-w-[120px] bg-blue-50/20">
+                                        Total Supervisor
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y-[3px] divide-gray-100">
+                                {data.map((row, idx) => (
+                                    <tr key={idx} className="hover:bg-blue-50/10 transition-colors">
+                                        <td className="p-6 border-r-[2px] border-gray-50">
+                                            <span className="text-sm font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
+                                        </td>
+                                        {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => {
+                                            const value = row[day]?.sup;
+                                            const isZero = !value || value === 0 || value === '0';
+                                            return (
+                                                <td key={day} className="p-6 text-center border-l-[3px] border-gray-100">
+                                                    <span className={`text-sm font-black tabular-nums ${!isZero ? 'text-[#303a7f]' : 'text-gray-200'}`}>
+                                                        {!isZero ? value : '0'}
+                                                    </span>
+                                                </td>
+                                            );
+                                        })}
+                                        <td className="p-6 text-right bg-blue-50/10 border-l-[3px] border-gray-100">
+                                            <span className="text-base font-black text-[#303a7f] tabular-nums">
+                                                {row.total?.sup || 0}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const BiometricTableIVRModal = ({ isOpen, onClose, data, fechaDesde, getFormattedDateForDay }) => {
     if (!isOpen) return null;
 
@@ -1729,7 +1815,12 @@ const BiometricTableIVRModal = ({ isOpen, onClose, data, fechaDesde, getFormatte
                             <Clock8 size={24} />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Tabla IVR (Biométrico)</h3>
+                            <div className="flex items-center gap-3 mb-1">
+                                <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none">Tabla IVR (Biométrico)</h3>
+                                <div className="px-3 py-1 bg-teal-100/50 rounded-full border border-teal-200">
+                                    <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest">{data.length} Empleados</span>
+                                </div>
+                            </div>
                             <p className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-[0.2em] opacity-80">Resultado de procesamiento inteligente de ponches</p>
                         </div>
                     </div>
@@ -2084,6 +2175,7 @@ function App() {
     const [invalidCodes, setInvalidCodes] = useState([]);
     const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
     const [isBiometricIVRModalOpen, setIsBiometricIVRModalOpen] = useState(false);
+    const [isSupervisorModalOpen, setIsSupervisorModalOpen] = useState(false);
 
     const handleVerifyPersonal = async (file) => {
         if (!file) return;
@@ -2448,7 +2540,7 @@ function App() {
             const h = Math.floor(totalMinutos / 60);
             const m = Math.round(totalMinutos % 60);
             row.total = { ...row.total, final: `${h}:${m.toString().padStart(2, '0')}` };
-            
+
             updated[idx] = row;
             return updated;
         });
@@ -2459,7 +2551,7 @@ function App() {
             const updated = [...prev];
             const row = { ...updated[idx], auditSource: source }; // Persistir origen
             const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-            
+
             dias.forEach(day => {
                 const value = row[day][source];
                 if (value !== 'X') {
@@ -2742,12 +2834,22 @@ function App() {
                 stores={stores}
             />
 
+            {/* Tabla Supervisor Modal */}
+            <SupervisorTableModal
+                isOpen={isSupervisorModalOpen}
+                onClose={() => setIsSupervisorModalOpen(false)}
+                data={semanaTableData}
+                fechaDesde={fechaDesde}
+                getFormattedDateForDay={getFormattedDateForDay}
+            />
+
             <InvalidCodesModal
                 isOpen={isInvalidCodesModalOpen}
                 onClose={() => setIsInvalidCodesModalOpen(false)}
                 invalidEmployees={invalidCodes}
             />
 
+            {/* Tabla IVR Modal */}
             <BiometricTableIVRModal
                 isOpen={isBiometricIVRModalOpen}
                 onClose={() => setIsBiometricIVRModalOpen(false)}
@@ -2807,7 +2909,7 @@ function App() {
             </header>
 
             {/* Main Content Area con padding ajustado para top y bottom navs */}
-            <main className="flex-1 h-screen overflow-y-auto px-4 pt-24 pb-32 lg:px-10 relative">
+            <main className="flex-1 h-screen overflow-y-auto px-2 pt-24 pb-32 lg:px-6 relative">
 
                 {/* Navigation Inferior (Mobile & Desktop) */}
                 <nav className="fixed bottom-0 inset-x-0 z-50 bg-white border-t-2 border-gray-100 px-6 py-4 flex items-center justify-center gap-2 md:gap-8 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
@@ -2833,7 +2935,7 @@ function App() {
                     className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[120px] -z-10 pointer-events-none"
                 />
 
-                <div className="max-w-[1400px] mx-auto">
+                <div className="max-w-[1600px] mx-auto">
                     <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-4 border-[#303a7f]/5 pb-8">
                         <div className="flex flex-col animate-in fade-in slide-in-from-left-4 duration-500">
                             <div className="flex items-center gap-3 mb-3">
@@ -3247,7 +3349,7 @@ function App() {
                             {/* Tablas de Resultados por Fases */}
                             {/* TABLA MAESTRA: SEMANA (Visible por defecto) */}
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-12 duration-1000">
-                                <section className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-blue-900/[0.04] border-2 border-brand-primary/5 min-h-[400px]">
+                                <section className="bg-white rounded-[2.5rem] px-5 py-8 shadow-2xl shadow-blue-900/[0.04] border-2 border-brand-primary/5 min-h-[400px]">
                                     <div className="flex items-center justify-between mb-8">
                                         <div className="flex items-center gap-4">
                                             <div className="p-3 bg-[#303a7f]/5 rounded-xl">
@@ -3260,6 +3362,15 @@ function App() {
                                         </div>
 
                                         <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={() => setIsSupervisorModalOpen(true)}
+                                                disabled={semanaTableData.length === 0}
+                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${semanaTableData.length > 0 ? 'bg-blue-50 text-[#303a7f] border-blue-100 hover:bg-blue-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
+                                                title="Ver Tabla del Supervisor"
+                                            >
+                                                <FileText size={16} className="group-hover:rotate-12 transition-transform" />
+                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">Tabla Supervisor</span>
+                                            </button>
                                             <button
                                                 onClick={() => setIsBiometricIVRModalOpen(true)}
                                                 disabled={biometricTableData.length === 0}
@@ -3289,10 +3400,10 @@ function App() {
                                         <table className="w-full text-left border-collapse">
                                             <thead>
                                                 <tr className="bg-[#f9f9f9]/80">
-                                                    <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
-                                                    <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Cargo</th>
+                                                    <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
+                                                    <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Cargo</th>
                                                     {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map((day, dIdx) => (
-                                                        <th key={day} className="p-4 text-[10px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[110px] bg-gray-50/20">
+                                                        <th key={day} className="p-3 text-[10px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[100px] bg-gray-50/20">
                                                             <div className="flex flex-col items-center">
                                                                 <span>{day}</span>
                                                                 <span className="text-[8px] text-gray-400 font-bold opacity-70">
@@ -3300,18 +3411,18 @@ function App() {
                                                                 </span>
                                                             </div>
                                                             <div className="flex justify-around mt-2 pt-1 border-t-2 border-gray-100">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => handleColumnBulkAudit(day, 'sup')}
                                                                     className="w-5 h-5 rounded-full bg-blue-50 text-[#303a7f] text-[7px] font-black flex items-center justify-center hover:bg-[#303a7f] hover:text-white transition-all shadow-sm active:scale-90"
                                                                 >S</button>
-                                                                <button 
+                                                                <button
                                                                     onClick={() => handleColumnBulkAudit(day, 'bio')}
                                                                     className="w-5 h-5 rounded-full bg-teal-50 text-[#6bbdb7] text-[7px] font-black flex items-center justify-center hover:bg-[#6bbdb7] hover:text-white transition-all shadow-sm active:scale-90"
                                                                 >B</button>
                                                             </div>
                                                         </th>
                                                     ))}
-                                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-200 min-w-[130px] bg-[#303a7f]/5">
+                                                    <th className="p-3 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-200 min-w-[110px] bg-[#303a7f]/5">
                                                         Total Hrs
                                                         <div className="flex justify-end gap-10 mt-1 pt-1 border-t-2 border-gray-200/50">
                                                             <span className="text-[8px] text-[#303a7f]">S</span>
@@ -3330,15 +3441,15 @@ function App() {
                                                 ) : (
                                                     semanaTableData.map((row, idx) => (
                                                         <tr key={idx} className="group hover:bg-[#303a7f]/[0.02] transition-colors">
-                                                            <td className="p-5 border-r-[2px] border-gray-100">
+                                                            <td className="p-4 border-r-[2px] border-gray-100">
                                                                 <div className="flex items-center gap-4">
                                                                     <div className="flex flex-col gap-1">
-                                                                        <button 
+                                                                        <button
                                                                             onClick={() => handleBulkAudit(idx, 'sup')}
                                                                             className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'sup' ? 'bg-[#303a7f] text-white border-[#303a7f]' : 'bg-blue-50 text-[#303a7f] border-blue-100 hover:bg-[#303a7f] hover:text-white'}`}
                                                                             title="Toda la semana: Supervisor"
                                                                         >S</button>
-                                                                        <button 
+                                                                        <button
                                                                             onClick={() => handleBulkAudit(idx, 'bio')}
                                                                             className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'bio' ? 'bg-[#6bbdb7] text-white border-[#6bbdb7]' : 'bg-teal-50 text-[#6bbdb7] border-teal-100 hover:bg-[#6bbdb7] hover:text-white'}`}
                                                                             title="Toda la semana: Biométrico"
@@ -3350,34 +3461,34 @@ function App() {
                                                                     </div>
                                                                 </div>
                                                             </td>
-                                                            <td className="p-5 border-r-[2px] border-gray-100 italic">
+                                                            <td className="p-4 border-r-[2px] border-gray-100 italic">
                                                                 <span className="text-[10px] font-extrabold text-gray-500 uppercase leading-tight bg-gray-50 px-2 py-1 rounded-md">{row.cargo}</span>
                                                             </td>
                                                             {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => {
                                                                 const dayVal = row[day];
                                                                 const isManual = dayVal.final !== dayVal.sup && dayVal.final !== dayVal.bio;
-                                                                
+
                                                                 return (
                                                                     <td key={day} className="p-3 text-center border-l-[3px] border-gray-200">
                                                                         <div className="flex flex-col gap-2">
                                                                             {/* Pills Interactivos */}
                                                                             <div className="flex justify-between gap-1">
-                                                                                <button 
+                                                                                <button
                                                                                     onClick={() => handleAuditChange(idx, day, dayVal.sup)}
                                                                                     className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.sup ? 'bg-blue-100/50 border-[#303a7f]/20 text-[#303a7f] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'}`}
                                                                                 >
                                                                                     {dayVal.sup}
                                                                                 </button>
-                                                                                <button 
+                                                                                <button
                                                                                     onClick={() => handleAuditChange(idx, day, dayVal.bio)}
-                                                                                    className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.bio ? 'bg-teal-50/50 border-[#6bbdb7]/20 text-[#6bbdb7] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'} ${dayVal.bio === 'X' && dayVal.final === dayVal.bio ? 'text-red-500' : ''}`}
+                                                                                    className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.bio ? 'bg-teal-50/50 border-[#6bbdb7]/20 text-[#6bbdb7] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'} ${dayVal.bio === 'X' ? '!text-red-500' : ''}`}
                                                                                 >
                                                                                     {dayVal.bio}
                                                                                 </button>
                                                                             </div>
                                                                             {/* Input de Auditoría */}
                                                                             <div className={`relative rounded-xl overflow-hidden shadow-sm transition-all duration-300 border-[2px] ${isManual ? 'border-[#6bbdb7] shadow-[0_0_15px_rgba(107,189,183,0.2)]' : 'border-[#303a7f]'}`}>
-                                                                                <input 
+                                                                                <input
                                                                                     type="text"
                                                                                     value={dayVal.final}
                                                                                     onChange={(e) => handleAuditChange(idx, day, e.target.value)}
@@ -3389,7 +3500,7 @@ function App() {
                                                                     </td>
                                                                 );
                                                             })}
-                                                            <td className="p-5 text-right bg-gray-100/30 border-l-[3px] border-gray-200">
+                                                            <td className="p-4 text-right bg-gray-100/30 border-l-[3px] border-gray-200">
                                                                 <div className="flex flex-col items-end gap-2">
                                                                     <div className="flex gap-4 opacity-40 text-[8px] font-black uppercase">
                                                                         <span>S: {row.total.sup}h</span>
@@ -3412,19 +3523,10 @@ function App() {
                                     {semanaTableData.length > 0 && (
                                         <div className="mt-10 flex justify-end gap-4 border-t-2 border-gray-50 pt-8">
                                             <button
-                                                onClick={() => {
-                                                    setSemanaTableData([]);
-                                                    setPayrollResults([]);
-                                                }}
-                                                className="px-6 py-3 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-red-500 transition-colors"
-                                            >
-                                                Limpiar Tabla
-                                            </button>
-                                            <button
                                                 className="px-8 py-3 bg-[#303a7f] text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/10 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2"
                                             >
                                                 <CreditCard size={14} />
-                                                Finalizar Nómina
+                                                Aprobar Semana
                                             </button>
                                         </div>
                                     )}
