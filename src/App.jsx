@@ -2277,14 +2277,15 @@ function App() {
                     nombre: nombreCompleto || 'N/A',
                     codigo: codigo || '',
                     cargo: cargo || 'N/A',
-                    domingo: { sup: getValue(['Domingo', 'DOM']) || 0, bio: 'X' },
-                    lunes: { sup: getValue(['Lunes', 'LUN']) || 0, bio: 'X' },
-                    martes: { sup: getValue(['Martes', 'MAR']) || 0, bio: 'X' },
-                    miercoles: { sup: getValue(['miercoles', 'Miércoles', 'Miercoles', 'MIE']) || 0, bio: 'X' },
-                    jueves: { sup: getValue(['Jueves', 'JUE']) || 0, bio: 'X' },
-                    viernes: { sup: getValue(['Viernes', 'VIE']) || 0, bio: 'X' },
-                    sabado: { sup: getValue(['Sabado', 'Sábado', 'SAB']) || 0, bio: 'X' },
-                    total: { sup: getValue(['TOTAL', 'Total', 'Total Horas']) || 0, bio: 'X' }
+                    domingo: { sup: getValue(['Domingo', 'DOM']) || 0, bio: 'X', final: String(getValue(['Domingo', 'DOM']) || '0') },
+                    lunes: { sup: getValue(['Lunes', 'LUN']) || 0, bio: 'X', final: String(getValue(['Lunes', 'LUN']) || '0') },
+                    martes: { sup: getValue(['Martes', 'MAR']) || 0, bio: 'X', final: String(getValue(['Martes', 'MAR']) || '0') },
+                    miercoles: { sup: getValue(['miercoles', 'Miércoles', 'Miercoles', 'MIE']) || 0, bio: 'X', final: String(getValue(['miercoles', 'Miércoles', 'Miercoles', 'MIE']) || '0') },
+                    jueves: { sup: getValue(['Jueves', 'JUE']) || 0, bio: 'X', final: String(getValue(['Jueves', 'JUE']) || '0') },
+                    viernes: { sup: getValue(['Viernes', 'VIE']) || 0, bio: 'X', final: String(getValue(['Viernes', 'VIE']) || '0') },
+                    sabado: { sup: getValue(['Sabado', 'Sábado', 'SAB']) || 0, bio: 'X', final: String(getValue(['Sabado', 'Sábado', 'SAB']) || '0') },
+                    total: { sup: getValue(['TOTAL', 'Total', 'Total Horas']) || 0, bio: 'X', final: String(getValue(['TOTAL', 'Total', 'Total Horas']) || '0') },
+                    auditSource: 'sup' // Por defecto inicia con Supervisor
                 };
             }).filter(r =>
                 r.nombre !== 'N/A' &&
@@ -2421,6 +2422,101 @@ function App() {
             // Desbloquear scroll
             document.body.style.overflow = 'auto';
         }
+    };
+
+    const handleAuditChange = (idx, day, value) => {
+        setSemanaTableData(prev => {
+            const updated = [...prev];
+            const row = { ...updated[idx], auditSource: 'manual' }; // Marcar como manual al editar individualmente
+            const dayData = { ...row[day], final: value };
+            row[day] = dayData;
+
+            // Recalcular total de auditoría para la fila
+            const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+            let totalMinutos = 0;
+            dias.forEach(d => {
+                const val = String(row[d].final || '0');
+                if (val && val !== 'X') {
+                    if (val.includes(':')) {
+                        const [h, m] = val.split(':').map(Number);
+                        totalMinutos += (h * 60) + (m || 0);
+                    } else {
+                        totalMinutos += parseFloat(val) * 60;
+                    }
+                }
+            });
+            const h = Math.floor(totalMinutos / 60);
+            const m = Math.round(totalMinutos % 60);
+            row.total = { ...row.total, final: `${h}:${m.toString().padStart(2, '0')}` };
+            
+            updated[idx] = row;
+            return updated;
+        });
+    };
+
+    const handleBulkAudit = (idx, source) => {
+        setSemanaTableData(prev => {
+            const updated = [...prev];
+            const row = { ...updated[idx], auditSource: source }; // Persistir origen
+            const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+            
+            dias.forEach(day => {
+                const value = row[day][source];
+                if (value !== 'X') {
+                    row[day] = { ...row[day], final: value };
+                }
+            });
+
+            // Recalcular total
+            let totalMinutos = 0;
+            dias.forEach(d => {
+                const val = String(row[d].final || '0');
+                if (val && val !== 'X') {
+                    if (val.includes(':')) {
+                        const [h, m] = val.split(':').map(Number);
+                        totalMinutos += (h * 60) + (m || 0);
+                    } else {
+                        totalMinutos += parseFloat(val) * 60;
+                    }
+                }
+            });
+            const h = Math.floor(totalMinutos / 60);
+            const m = Math.round(totalMinutos % 60);
+            row.total = { ...row.total, final: `${h}:${m.toString().padStart(2, '0')}` };
+
+            updated[idx] = row;
+            return updated;
+        });
+    };
+
+    const handleColumnBulkAudit = (dayKey, source) => {
+        setSemanaTableData(prev => prev.map((row, idx) => {
+            const value = row[dayKey][source];
+            if (value === 'X') return row;
+
+            const updatedRow = { ...row, auditSource: 'manual' }; // Se vuelve manual para la fila al cambiar por columna
+            updatedRow[dayKey] = { ...row[dayKey], final: value };
+
+            // Recalcular total
+            const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+            let totalMinutos = 0;
+            dias.forEach(d => {
+                const val = String(updatedRow[d].final || '0');
+                if (val && val !== 'X') {
+                    if (val.includes(':')) {
+                        const [h, m] = val.split(':').map(Number);
+                        totalMinutos += (h * 60) + (m || 0);
+                    } else {
+                        totalMinutos += parseFloat(val) * 60;
+                    }
+                }
+            });
+            const h = Math.floor(totalMinutos / 60);
+            const m = Math.round(totalMinutos % 60);
+            updatedRow.total = { ...updatedRow.total, final: `${h}:${m.toString().padStart(2, '0')}` };
+
+            return updatedRow;
+        }));
     };
 
     const USER_REGISTRY = [
@@ -3141,7 +3237,7 @@ function App() {
                                         ) : (
                                             <>
                                                 <Settings size={18} className={(supervisorFile && payrollStore) ? "animate-spin-slow" : ""} />
-                                                Procesar Nómina
+                                                Procesar Data
                                             </>
                                         )}
                                     </button>
@@ -3195,17 +3291,23 @@ function App() {
                                                 <tr className="bg-[#f9f9f9]/80">
                                                     <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
                                                     <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Cargo</th>
-                                                    {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map((day, idx) => (
+                                                    {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map((day, dIdx) => (
                                                         <th key={day} className="p-4 text-[10px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[110px] bg-gray-50/20">
                                                             <div className="flex flex-col items-center">
                                                                 <span>{day}</span>
                                                                 <span className="text-[8px] text-gray-400 font-bold opacity-70">
-                                                                    {fechaDesde ? getFormattedDateForDay(fechaDesde, idx) : '--/--'}
+                                                                    {fechaDesde ? getFormattedDateForDay(fechaDesde, dIdx) : '--/--'}
                                                                 </span>
                                                             </div>
-                                                            <div className="flex justify-around mt-1 pt-1 border-t-2 border-gray-100">
-                                                                <span className="text-[8px] text-[#303a7f]">S</span>
-                                                                <span className="text-[8px] text-[#6bbdb7]">B</span>
+                                                            <div className="flex justify-around mt-2 pt-1 border-t-2 border-gray-100">
+                                                                <button 
+                                                                    onClick={() => handleColumnBulkAudit(day, 'sup')}
+                                                                    className="w-5 h-5 rounded-full bg-blue-50 text-[#303a7f] text-[7px] font-black flex items-center justify-center hover:bg-[#303a7f] hover:text-white transition-all shadow-sm active:scale-90"
+                                                                >S</button>
+                                                                <button 
+                                                                    onClick={() => handleColumnBulkAudit(day, 'bio')}
+                                                                    className="w-5 h-5 rounded-full bg-teal-50 text-[#6bbdb7] text-[7px] font-black flex items-center justify-center hover:bg-[#6bbdb7] hover:text-white transition-all shadow-sm active:scale-90"
+                                                                >B</button>
                                                             </div>
                                                         </th>
                                                     ))}
@@ -3229,34 +3331,73 @@ function App() {
                                                     semanaTableData.map((row, idx) => (
                                                         <tr key={idx} className="group hover:bg-[#303a7f]/[0.02] transition-colors">
                                                             <td className="p-5 border-r-[2px] border-gray-100">
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
-                                                                    <span className="text-[9px] font-black text-[#6bbdb7] tabular-nums tracking-[0.1em] mt-1">ID: {row.codigo || '----'}</span>
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <button 
+                                                                            onClick={() => handleBulkAudit(idx, 'sup')}
+                                                                            className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'sup' ? 'bg-[#303a7f] text-white border-[#303a7f]' : 'bg-blue-50 text-[#303a7f] border-blue-100 hover:bg-[#303a7f] hover:text-white'}`}
+                                                                            title="Toda la semana: Supervisor"
+                                                                        >S</button>
+                                                                        <button 
+                                                                            onClick={() => handleBulkAudit(idx, 'bio')}
+                                                                            className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'bio' ? 'bg-[#6bbdb7] text-white border-[#6bbdb7]' : 'bg-teal-50 text-[#6bbdb7] border-teal-100 hover:bg-[#6bbdb7] hover:text-white'}`}
+                                                                            title="Toda la semana: Biométrico"
+                                                                        >B</button>
+                                                                    </div>
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
+                                                                        <span className="text-[9px] font-black text-[#6bbdb7] tabular-nums tracking-[0.1em] mt-1">ID: {row.codigo || '----'}</span>
+                                                                    </div>
                                                                 </div>
                                                             </td>
                                                             <td className="p-5 border-r-[2px] border-gray-100 italic">
                                                                 <span className="text-[10px] font-extrabold text-gray-500 uppercase leading-tight bg-gray-50 px-2 py-1 rounded-md">{row.cargo}</span>
                                                             </td>
-                                                            {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
-                                                                <td key={day} className="p-5 text-center border-l-[3px] border-gray-200">
-                                                                    <div className="flex items-center justify-between gap-3">
-                                                                        <span className="text-xs font-black text-[#303a7f] tabular-nums">{row[day].sup || '0'}</span>
-                                                                        <div className="h-5 w-[2px] bg-gray-200 rounded-full" />
-                                                                        <span className={`text-xs font-black tabular-nums ${row[day].bio === 'X' ? 'text-red-500' : (parseFloat(row[day].bio) > 0 || (typeof row[day].bio === 'string' && row[day].bio !== '0:00')) ? 'text-[#6bbdb7]' : 'text-gray-200'}`}>
-                                                                            {row[day].bio}
-                                                                        </span>
+                                                            {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => {
+                                                                const dayVal = row[day];
+                                                                const isManual = dayVal.final !== dayVal.sup && dayVal.final !== dayVal.bio;
+                                                                
+                                                                return (
+                                                                    <td key={day} className="p-3 text-center border-l-[3px] border-gray-200">
+                                                                        <div className="flex flex-col gap-2">
+                                                                            {/* Pills Interactivos */}
+                                                                            <div className="flex justify-between gap-1">
+                                                                                <button 
+                                                                                    onClick={() => handleAuditChange(idx, day, dayVal.sup)}
+                                                                                    className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.sup ? 'bg-blue-100/50 border-[#303a7f]/20 text-[#303a7f] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'}`}
+                                                                                >
+                                                                                    {dayVal.sup}
+                                                                                </button>
+                                                                                <button 
+                                                                                    onClick={() => handleAuditChange(idx, day, dayVal.bio)}
+                                                                                    className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.bio ? 'bg-teal-50/50 border-[#6bbdb7]/20 text-[#6bbdb7] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'} ${dayVal.bio === 'X' && dayVal.final === dayVal.bio ? 'text-red-500' : ''}`}
+                                                                                >
+                                                                                    {dayVal.bio}
+                                                                                </button>
+                                                                            </div>
+                                                                            {/* Input de Auditoría */}
+                                                                            <div className={`relative rounded-xl overflow-hidden shadow-sm transition-all duration-300 border-[2px] ${isManual ? 'border-[#6bbdb7] shadow-[0_0_15px_rgba(107,189,183,0.2)]' : 'border-[#303a7f]'}`}>
+                                                                                <input 
+                                                                                    type="text"
+                                                                                    value={dayVal.final}
+                                                                                    onChange={(e) => handleAuditChange(idx, day, e.target.value)}
+                                                                                    className="w-full bg-[#f9f9f9] px-2 py-2 text-center text-[12px] font-black text-[#303a7f] tabular-nums outline-none border-none placeholder-gray-300"
+                                                                                    placeholder="0:00"
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            })}
+                                                            <td className="p-5 text-right bg-gray-100/30 border-l-[3px] border-gray-200">
+                                                                <div className="flex flex-col items-end gap-2">
+                                                                    <div className="flex gap-4 opacity-40 text-[8px] font-black uppercase">
+                                                                        <span>S: {row.total.sup}h</span>
+                                                                        <span>B: {row.total.bio}h</span>
                                                                     </div>
-                                                                </td>
-                                                            ))}
-                                                            <td className="p-5 text-right bg-gray-50/50 border-l-[3px] border-gray-200">
-                                                                <div className="flex items-center justify-end gap-4">
-                                                                    <div className="w-14 text-right">
-                                                                        <span className="text-base font-black text-[#303a7f] tabular-nums">{row.total.sup}h</span>
-                                                                    </div>
-                                                                    <div className="h-7 w-[3px] bg-white shadow-inner" />
-                                                                    <div className="w-14 text-right">
-                                                                        <span className={`text-base font-black tabular-nums ${row.total.bio === 'X' ? 'text-red-500' : (parseFloat(row.total.bio) > 0 || (typeof row.total.bio === 'string' && row.total.bio !== '0:00')) ? 'text-[#6bbdb7]' : 'text-gray-200'}`}>
-                                                                            {row.total.bio === 'X' ? 'X' : `${row.total.bio}${row.total.bio.includes(':') ? '' : 'h'}`}
+                                                                    <div className="bg-[#303a7f] px-4 py-2 rounded-2xl shadow-lg shadow-blue-900/10">
+                                                                        <span className="text-lg font-black text-white tabular-nums tracking-tighter">
+                                                                            {row.total.final}{String(row.total.final || '').includes(':') ? '' : 'h'}
                                                                         </span>
                                                                     </div>
                                                                 </div>
