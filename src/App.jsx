@@ -1939,6 +1939,130 @@ const WeeklyPayrollRegisterModal = ({ isOpen, onClose, data, fechaDesde, fechaHa
     );
 };
 
+
+const WeeklyPayrollRegisterModal = ({ isOpen, onClose, data, fechaDesde, fechaHasta, storeName }) => {
+    if (!isOpen) return null;
+
+    const totalGrossPay = data.reduce((sum, row) => sum + row.grossPay, 0);
+
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-emerald-900/10 animate-in fade-in duration-300">
+            <div className="bg-white w-full h-[90vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(16,185,129,0.3)] border-2 border-emerald-100/50 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+                {/* Header */}
+                <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-emerald-50/50 to-transparent">
+                    <div className="flex items-center gap-5">
+                        <div className="p-4 bg-[#10b981] text-white rounded-2xl shadow-lg shadow-emerald-900/20">
+                            <DollarSign size={24} />
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-3 mb-1">
+                                <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none">Weekly Payroll Register</h3>
+                                <div className="px-3 py-1 bg-emerald-100/50 rounded-full border border-emerald-200">
+                                    <span className="text-[10px] font-black text-[#10b981] uppercase tracking-widest">{data.length} Registros</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <p className="text-gray-400 font-black uppercase text-[10px] tracking-[0.2em] opacity-80">Weekly Earnings Summary • {storeName}</p>
+                                <span className="text-emerald-500 font-black text-[10px] uppercase tracking-widest">
+                                    {fechaDesde} - {fechaHasta}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-6">
+                        <div className="text-right">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Gross Payroll</p>
+                            <p className="text-3xl font-black text-[#10b981] tabular-nums tracking-tighter">
+                                $ {totalGrossPay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="flex items-center gap-3 px-6 py-4 bg-white border-2 border-emerald-100 text-[#10b981] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50 transition-all active:scale-95 shadow-sm"
+                        >
+                            <ArrowLeft size={16} />
+                            Volver a Nómina
+                        </button>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-8">
+                    <div className="overflow-x-auto rounded-[2rem] border-[3px] border-gray-100 shadow-sm bg-white">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50/50">
+                                    <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-100">Empleado / ID</th>
+                                    <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b-[3px] border-gray-100">Cargo</th>
+                                    <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center border-b-[3px] border-gray-100 bg-gray-50/20">Horas Auditadas</th>
+                                    <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center border-b-[3px] border-gray-100">Tarifa LSG (Hr)</th>
+                                    <th className="p-5 text-[10px] font-black text-[#10b981] uppercase tracking-widest text-right border-b-[3px] border-gray-100 min-w-[140px] bg-emerald-50/20">
+                                        Gross Pay (USD)
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y-[3px] divide-gray-100">
+                                {data.map((row, idx) => (
+                                    <tr key={idx} className="hover:bg-emerald-50/10 transition-colors">
+                                        <td className="p-6">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
+                                                <span className="text-[10px] font-bold text-[#6bbdb7] tracking-[0.1em]">{row.codigo}</span>
+                                            </div>
+                                        </td>
+                                        <td className="p-6">
+                                            <span className="px-3 py-1.5 bg-gray-100 rounded-lg text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                                                {row.cargo}
+                                            </span>
+                                        </td>
+                                        <td className="p-6 text-center bg-gray-50/30">
+                                            <span className="text-sm font-black text-gray-600 tabular-nums">
+                                                {row.hoursDecimal.toFixed(2)} hrs
+                                            </span>
+                                        </td>
+                                        <td className="p-6 text-center">
+                                            <span className="text-sm font-black text-[#303a7f] tabular-nums">
+                                                $ {row.rate.toFixed(2)}
+                                            </span>
+                                        </td>
+                                        <td className="p-6 text-right bg-emerald-50/10">
+                                            <span className="text-base font-black text-[#10b981] tabular-nums">
+                                                $ {row.grossPay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {data.length === 0 && (
+                                    <tr>
+                                        <td colSpan="5" className="py-24 text-center">
+                                            <DollarSign size={40} className="text-gray-100 mx-auto mb-4" />
+                                            <p className="text-gray-300 font-bold uppercase tracking-widest text-xs">No hay datos de procesamiento monetario.</p>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Footer Info */}
+                <div className="px-10 py-6 bg-gray-50/50 border-t-2 border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                            Reporte auditado y listo para procesamiento bancario
+                        </p>
+                    </div>
+                    <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.3em]">
+                        &copy; 2026 Logic Group Management • Financial Module
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores }) => {
     const [localResults, setLocalResults] = useState(results);
 
@@ -2689,49 +2813,65 @@ function App() {
     };
 
     const handleApproveSemana = async () => {
-        if (semanaTableData.length === 0) return;
+        console.log('[Payroll] Iniciando proceso de aprobación...');
+        console.log('[Payroll] Registros en tabla:', semanaTableData.length);
+        console.log('[Payroll] Tienda seleccionada:', payrollStore);
+        console.log('[Payroll] Total tiendas cargadas:', stores.length);
+
+        if (semanaTableData.length === 0) {
+            console.warn('[Payroll] No hay datos en semanaTableData.');
+            return;
+        }
         
         const store = stores.find(s => s.nombre === payrollStore);
         if (!store) {
-            alert("No se pudo encontrar la información de la tienda.");
+            console.error('[Payroll] No se encontró la tienda:', payrollStore);
+            alert(`No se pudo encontrar la información de la tienda: ${payrollStore}`);
             return;
         }
 
-        const financialData = semanaTableData.map(row => {
-            const hoursDecimal = timeToDecimal(row.total.final);
-            const cargoKey = row.cargo.toLowerCase().replace(/\s+/g, '_');
-            
-            // Buscar tarifa LSG en la matriz de la tienda
-            let rate = 0;
-            if (store.tarifas[cargoKey]) {
-                rate = store.tarifas[cargoKey].lsg || 0;
-            } else {
-                // Fallback si el cargo no coincide exactamente
-                if (cargoKey.includes('janitorial')) rate = store.tarifas.janitorial.lsg;
-                else if (cargoKey.includes('utility')) rate = store.tarifas.utility.lsg;
-                else if (cargoKey.includes('lead')) rate = store.tarifas.shift_lead.lsg;
-            }
+        console.log('[Payroll] Tienda encontrada:', store.nombre);
 
-            return {
-                nombre: row.nombre,
-                codigo: row.codigo,
-                cargo: row.cargo,
-                hoursDecimal,
-                rate,
-                grossPay: hoursDecimal * rate
-            };
-        });
-
-        setPayrollRegisterData(financialData);
-        setIsPayrollRegisterModalOpen(true);
-
-        // --- Sincronización automática de tienda en hoja Personal ---
-        setIsLoading(true);
         try {
+            const financialData = semanaTableData.map(row => {
+                const hoursDecimal = timeToDecimal(row.total.final);
+                const cargoKey = (row.cargo || '').toLowerCase().replace(/\s+/g, '_');
+                
+                // Buscar tarifa LSG en la matriz de la tienda
+                let rate = 0;
+                if (store.tarifas && store.tarifas[cargoKey]) {
+                    rate = store.tarifas[cargoKey].lsg || 0;
+                } else if (store.tarifas) {
+                    // Fallback si el cargo no coincide exactamente
+                    if (cargoKey.includes('janitorial')) rate = store.tarifas.janitorial?.lsg || 0;
+                    else if (cargoKey.includes('utility')) rate = store.tarifas.utility?.lsg || 0;
+                    else if (cargoKey.includes('lead')) rate = store.tarifas.shift_lead?.lsg || 0;
+                }
+
+                return {
+                    nombre: row.nombre,
+                    codigo: row.codigo,
+                    cargo: row.cargo,
+                    hoursDecimal,
+                    rate,
+                    grossPay: hoursDecimal * rate
+                };
+            });
+
+            console.log('[Payroll] Cálculos financieros completados:', financialData.length, 'registros.');
+            setPayrollRegisterData(financialData);
+            setIsPayrollRegisterModalOpen(true);
+
+            // --- Sincronización automática de tienda en hoja Personal ---
+            console.log('[Sync] Iniciando sincronización de personal...');
+            setIsLoading(true);
+            
             // Sincronizar solo los empleados presentes en la tabla actual
-            for (let row of financialData) {
+            for (let i = 0; i < financialData.length; i++) {
+                const row = financialData[i];
                 const employee = employees.find(e => e.codigo_empleado.toString() === row.codigo.toString());
                 if (employee) {
+                    console.log(`[Sync] Actualizando ${row.nombre} (${i+1}/${financialData.length})...`);
                     const updatedEmployee = { ...employee, tienda: payrollStore };
                     await syncToSheets('upsert', { 
                         ...updatedEmployee, 
@@ -2739,9 +2879,12 @@ function App() {
                     }, 'Personal', true);
                 }
             }
+            
+            console.log('[Sync] Sincronización masiva completada.');
             fetchEmployees(); // Refrescar lista global al final
         } catch (error) {
-            console.error('[Sync] Error actualizando tiendas:', error);
+            console.error('[Payroll/Sync] Error crítico:', error);
+            alert('Ocurrió un error procesando la nómina o sincronizando los datos.');
         } finally {
             setIsLoading(false);
         }
@@ -3635,6 +3778,7 @@ function App() {
                                     {semanaTableData.length > 0 && (
                                         <div className="mt-10 flex justify-end gap-4 border-t-2 border-gray-50 pt-8">
                                             <button
+                                                onClick={handleApproveSemana}
                                                 className="px-8 py-3 bg-[#303a7f] text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/10 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2"
                                             >
                                                 <CreditCard size={14} />
