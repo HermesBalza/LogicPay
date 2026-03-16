@@ -2106,7 +2106,7 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
                     </div>
                 </div>
 
-                <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase mb-2">Guardando Personal</h3>
+                <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase mb-2">Actualizando Personal</h3>
                 <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-8">
                     Cargando empleado <span className="text-[#303a7f]">{current}</span> de <span className="text-[#303a7f]">{total}</span>
                 </p>
@@ -2168,6 +2168,8 @@ function App() {
     const [payrollStep, setPayrollStep] = useState('supervisor'); // 'supervisor' | 'ia' | 'crossover'
     const [fechaDesde, setFechaDesde] = useState('');
     const [fechaHasta, setFechaHasta] = useState('');
+    const [earningsTableData, setEarningsTableData] = useState([]); // FASE 6: Reporte Monetario
+    const [isWeeklyApproved, setIsWeeklyApproved] = useState(false); // FASE 6: Estado de aprobación
 
     const fechaDesdeRef = useRef(null);
     const fechaHastaRef = useRef(null);
@@ -2403,6 +2405,79 @@ function App() {
             alert("Error cargando el reporte del supervisor.");
         } finally {
             setIsProcessingPayroll(false);
+        }
+    };
+
+    const hhmmToDecimal = (hhmm) => {
+        if (!hhmm || hhmm === 'X' || hhmm === '0:00') return 0;
+        const val = String(hhmm);
+        if (val.includes(':')) {
+            const [h, m] = val.split(':').map(Number);
+            return h + (m || 0) / 60;
+        }
+        return parseFloat(val) || 0;
+    };
+
+    const handleApproveWeek = async () => {
+        if (!payrollStore) return;
+        setIsLoading(true);
+        try {
+            const store = stores.find(s => s.nombre === payrollStore);
+            if (!store) {
+                alert("Error: No se encontró la configuración de la tienda.");
+                return;
+            }
+
+            const earnings = semanaTableData.map(emp => {
+                const cargoLower = emp.cargo.toLowerCase();
+                const cargoKey = cargoLower.includes('shift') ? 'shift_lead' :
+                    cargoLower.includes('utility') ? 'utility' : 'janitorial';
+
+                const rate = store.tarifas[cargoKey]?.lsg || 0;
+                const calcDay = (val) => hhmmToDecimal(val) * rate;
+
+                return {
+                    nombre: emp.nombre,
+                    codigo: emp.codigo,
+                    cargo: emp.cargo,
+                    rate: rate,
+                    domingo: calcDay(emp.domingo.final),
+                    lunes: calcDay(emp.lunes.final),
+                    martes: calcDay(emp.martes.final),
+                    miercoles: calcDay(emp.miercoles.final),
+                    jueves: calcDay(emp.jueves.final),
+                    viernes: calcDay(emp.viernes.final),
+                    sabado: calcDay(emp.sabado.final),
+                    total: hhmmToDecimal(emp.total.final) * rate
+                };
+            });
+
+            setEarningsTableData(earnings);
+            setIsWeeklyApproved(true);
+
+            setIsSyncingBatch(true);
+            setSyncProgress(0);
+            setSyncTotal(semanaTableData.length);
+
+            for (let i = 0; i < semanaTableData.length; i++) {
+                const empRow = semanaTableData[i];
+                const employee = employees.find(e => e.codigo_empleado.toString().trim() === empRow.codigo.toString().trim());
+
+                if (employee) {
+                    const updatedEmp = { ...employee, tienda: payrollStore, codigo_empleado: `'${employee.codigo_empleado}` };
+                    await syncToSheets('upsert', updatedEmp, 'Personal', true);
+                }
+                setSyncProgress(i + 1);
+            }
+
+            alert("Nómina aprobada y tiendas de empleados actualizadas exitosamente.");
+            fetchEmployees();
+        } catch (error) {
+            console.error('[Payroll] Error al aprobar semana:', error);
+            alert("Error al procesar la aprobación de la nómina.");
+        } finally {
+            setIsLoading(false);
+            setIsSyncingBatch(false);
         }
     };
 
@@ -3270,13 +3345,13 @@ function App() {
                                         <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Horas Semanales (Dom - Sab)</p>
                                     </div>
 
-                                    {/* Control 2: Control Biométrico */}
+                                    {/* Control 2: Reporte IVR */}
                                     <div className={`rounded-2xl p-6 border-2 shadow-sm transition-all duration-500 ${biometricFile ? 'border-[#6bbdb7]/20 bg-[#6bbdb7]/[0.02]' : 'border-[#6bbdb7]/5 bg-[#f9f9f9]'}`}>
                                         <div className="flex items-center gap-3 mb-4">
                                             <div className={`p-2 rounded-lg transition-colors duration-500 ${biometricFile ? 'bg-[#6bbdb7]/10' : 'bg-[#6bbdb7]/5'}`}>
                                                 <Clock8 size={18} className={`transition-colors duration-500 ${biometricFile ? 'text-[#6bbdb7]' : 'text-[#6bbdb7]'}`} />
                                             </div>
-                                            <p className={`text-xs font-black uppercase tracking-tight transition-colors duration-500 ${biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Control Biométrico</p>
+                                            <p className={`text-xs font-black uppercase tracking-tight transition-colors duration-500 ${biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Reporte IVR</p>
                                         </div>
 
                                         <div className="flex items-center gap-2">
@@ -3356,7 +3431,7 @@ function App() {
                                                 <Calendar size={20} className="text-[#303a7f]" />
                                             </div>
                                             <div>
-                                                <h3 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Registro de Asisencia Semanal</h3>
+                                                <h3 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Registro de Asistencia Semanal</h3>
                                                 <p className="text-[#6bbdb7] font-black uppercase text-[14px] tracking-[0.2em]">desde {fechaDesde || '--/--/----'} hasta {fechaHasta || '--/--/----'}</p>
                                             </div>
                                         </div>
@@ -3523,6 +3598,8 @@ function App() {
                                     {semanaTableData.length > 0 && (
                                         <div className="mt-10 flex justify-end gap-4 border-t-2 border-gray-50 pt-8">
                                             <button
+                                                onClick={handleApproveWeek}
+                                                disabled={isLoading}
                                                 className="px-8 py-3 bg-[#303a7f] text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/10 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2"
                                             >
                                                 <CreditCard size={14} />
@@ -3531,6 +3608,85 @@ function App() {
                                         </div>
                                     )}
                                 </section>
+
+                                {isWeeklyApproved && earningsTableData.length > 0 && (
+                                    <section className="bg-white rounded-[2.5rem] px-5 py-8 shadow-2xl shadow-blue-900/[0.04] border-2 border-[#6bbdb7]/20 min-h-[400px] animate-in fade-in slide-in-from-top-8 duration-700">
+                                        <div className="flex items-center justify-between mb-8">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-3 bg-[#6bbdb7]/10 rounded-xl text-[#6bbdb7]">
+                                                    <DollarSign size={20} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Weekly Gross Earnings Report</h3>
+                                                    <p className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-[0.2em] opacity-80 pl-1">Cálculo monetario basado en matriz salarial LSG</p>
+                                                </div>
+                                            </div>
+                                            <div className="px-6 py-3 bg-gray-50 rounded-2xl border-2 border-gray-100">
+                                                <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">
+                                                    Grand Total: <span className="text-lg ml-2 text-[#6bbdb7] tabular-nums">${earningsTableData.reduce((acc, row) => acc + row.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="overflow-x-auto rounded-3xl border-[3px] border-gray-200">
+                                            <table className="w-full text-left border-collapse">
+                                                <thead>
+                                                    <tr className="bg-[#f9f9f9]/80">
+                                                        <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
+                                                        {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map((day, dIdx) => (
+                                                            <th key={day} className="p-3 text-[10px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[100px] bg-gray-50/20">
+                                                                {day}
+                                                            </th>
+                                                        ))}
+                                                        <th className="p-3 text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-200 min-w-[110px] bg-[#6bbdb7]/5">
+                                                            Total Est.
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y-[3px] divide-gray-200">
+                                                    {earningsTableData.map((row, idx) => (
+                                                        <tr key={idx} className="group hover:bg-[#6bbdb7]/[0.02] transition-colors">
+                                                            <td className="p-4 border-r-[2px] border-gray-100">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
+                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                        <span className="text-[9px] font-black text-[#6bbdb7] tabular-nums tracking-[0.1em]">ID: {row.codigo}</span>
+                                                                        <span className="text-[8px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-400 font-black uppercase">Rate: ${row.rate}/h</span>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
+                                                                <td key={day} className="p-3 text-center border-l-[3px] border-gray-200 font-bold text-gray-600 text-xs tabular-nums">
+                                                                    {row[day] > 0 ? `$${row[day].toFixed(2)}` : '--'}
+                                                                </td>
+                                                            ))}
+                                                            <td className="p-4 text-right bg-blue-50/20 border-l-[3px] border-gray-200">
+                                                                <span className="text-sm font-black text-[#303a7f] tabular-nums">
+                                                                    ${row.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr className="bg-[#303a7f]/5 font-black">
+                                                        <td className="p-4 text-[10px] uppercase tracking-widest text-[#303a7f]">Total Por Día</td>
+                                                        {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
+                                                            <td key={day} className="p-3 text-center border-l-[3px] border-gray-200 text-[#303a7f] text-xs tabular-nums">
+                                                                ${earningsTableData.reduce((acc, row) => acc + row[day], 0).toFixed(2)}
+                                                            </td>
+                                                        ))}
+                                                        <td className="p-4 text-right bg-[#303a7f] text-white border-l-[3px] border-gray-200">
+                                                            <span className="text-sm tabular-nums">
+                                                                ${earningsTableData.reduce((acc, row) => acc + row.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </section>
+                                )}
                             </div>
 
                             {/* FASE 2: TABLA PROVISIONAL BIOMÉTRICO (IA) - ELIMINADA DE AQUÍ, AHORA ES MODAL */}
