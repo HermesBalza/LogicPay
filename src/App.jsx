@@ -33,7 +33,8 @@ import {
     LayoutGrid,
     List,
     Cpu,
-    Info
+    Info,
+    ClipboardCheck
 } from 'lucide-react';
 
 
@@ -1716,6 +1717,115 @@ const InvalidCodesModal = ({ isOpen, onClose, invalidEmployees }) => {
     );
 };
 
+const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta }) => {
+    if (!isOpen) return null;
+
+    const store = stores.find(s => s.nombre === payrollStore);
+    const kbsId = store?.codigo || '---';
+
+    const hhmmToDecimal = (hhmm) => {
+        if (!hhmm || hhmm === 'X' || hhmm === '0:00') return 0;
+        const val = String(hhmm);
+        if (val.includes(':')) {
+            const [h, m] = val.split(':').map(Number);
+            return h + (m || 0) / 60;
+        }
+        return parseFloat(val) || 0;
+    };
+
+    const totalHours = data.reduce((acc, emp) => acc + hhmmToDecimal(emp.total.final), 0);
+
+    const getKbsRate = (cargo) => {
+        if (!store) return 0;
+        const cargoLower = cargo.toLowerCase();
+        const cargoKey = cargoLower.includes('shift') ? 'shift_lead' :
+                         cargoLower.includes('utility') ? 'utility' : 'janitorial';
+        return store.tarifas[cargoKey]?.kbs || 0;
+    };
+
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-blue-900/10 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-5xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-blue-100/50 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+                {/* Header */}
+                <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/50 to-transparent">
+                    <div className="flex items-center gap-5">
+                        <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <ClipboardCheck size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">REPORTE VWH</h3>
+                            <p className="text-[#6bbdb7] font-black uppercase text-[12px] tracking-[0.1em]">
+                                {payrollStore} | Week: {fechaDesde} - {fechaHasta}
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-blue-100 text-[#303a7f] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
+                    >
+                        <ArrowLeft size={16} />
+                        Volver a Nómina
+                    </button>
+                </div>
+
+                {/* Resumen de Tienda */}
+                <div className="px-8 py-6 bg-gray-50/50 border-b-2 border-gray-100 grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Site Name</p>
+                        <p className="text-sm font-black text-[#303a7f] uppercase">{payrollStore}</p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">KBS ID</p>
+                        <p className="text-sm font-black text-[#303a7f] uppercase">{kbsId}</p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Vendor Name</p>
+                        <p className="text-sm font-black text-[#303a7f] uppercase">Logic Group Management</p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">TOTAL HOURS</p>
+                        <p className="text-lg font-black text-[#6bbdb7]">{totalHours.toFixed(2)}</p>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-8">
+                    <div className="overflow-x-auto rounded-[2rem] border-[3px] border-gray-100 shadow-sm">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50/50">
+                                    <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-100">Employee Identifier</th>
+                                    <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-100">Hours</th>
+                                    <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-100">Job Code</th>
+                                    <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-100 bg-[#303a7f]/5">KBS Contract Hourly Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y-[3px] divide-gray-100">
+                                {data.map((row, idx) => (
+                                    <tr key={idx} className="hover:bg-blue-50/10 transition-colors">
+                                        <td className="p-5 border-r-[2px] border-gray-50">
+                                            <span className="text-sm font-black text-[#303a7f] uppercase">{row.nombre}</span>
+                                        </td>
+                                        <td className="p-5 text-center border-l-[2px] border-gray-50">
+                                            <span className="text-sm font-black tabular-nums text-gray-600">{row.total.final}</span>
+                                        </td>
+                                        <td className="p-5 text-center border-l-[2px] border-gray-50">
+                                            <span className="text-xs font-bold text-gray-500 uppercase">{row.cargo}</span>
+                                        </td>
+                                        <td className="p-5 text-right bg-blue-50/5 border-l-[2px] border-gray-50">
+                                            <span className="text-sm font-black text-[#303a7f] tabular-nums">${getKbsRate(row.cargo).toFixed(2)}</span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedDateForDay }) => {
     if (!isOpen) return null;
 
@@ -2183,6 +2293,7 @@ function App() {
     const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
     const [isBiometricIVRModalOpen, setIsBiometricIVRModalOpen] = useState(false);
     const [isSupervisorModalOpen, setIsSupervisorModalOpen] = useState(false);
+    const [isVWHModalOpen, setIsVWHModalOpen] = useState(false);
 
     const showStatus = (title, message, type = 'success') => {
         setStatusModalTitle(title);
@@ -2983,6 +3094,16 @@ function App() {
                 getFormattedDateForDay={getFormattedDateForDay}
             />
 
+            <VWHTableModal
+                isOpen={isVWHModalOpen}
+                onClose={() => setIsVWHModalOpen(false)}
+                data={semanaTableData}
+                payrollStore={payrollStore}
+                stores={stores}
+                fechaDesde={fechaDesde}
+                fechaHasta={fechaHasta}
+            />
+
             <BatchSyncProgressModal
                 isOpen={isSyncingBatch}
                 current={syncProgress}
@@ -3487,6 +3608,15 @@ function App() {
                                         </div>
 
                                         <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={() => setIsVWHModalOpen(true)}
+                                                disabled={semanaTableData.length === 0}
+                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${semanaTableData.length > 0 ? 'bg-indigo-50 text-[#303a7f] border-indigo-100 hover:bg-indigo-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
+                                                title="Ver Tabla VWH"
+                                            >
+                                                <ClipboardCheck size={16} className="group-hover:rotate-12 transition-transform" />
+                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">VWH</span>
+                                            </button>
                                             <button
                                                 onClick={() => setIsSupervisorModalOpen(true)}
                                                 disabled={semanaTableData.length === 0}
