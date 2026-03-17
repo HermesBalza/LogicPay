@@ -2848,19 +2848,28 @@ function App() {
     const handleSaveStore = (updatedStore) => {
         setStores(prev => prev.map(s => s.codigo === updatedStore.codigo ? updatedStore : s));
         setEditingStore(updatedStore);
-        syncToSheets('upsert', updatedStore);
+        // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda e integridad de datos
+        syncToSheets('upsert', { ...updatedStore, codigo: `'${updatedStore.codigo}` });
     };
 
     const handleDeleteStore = (storeCodigo) => {
-        setStores(prev => prev.filter(s => s.codigo !== storeCodigo));
-        setEditingStore(null);
-        syncToSheets('delete', { codigo: storeCodigo });
+        const storeToDelete = stores.find(s => s.codigo === storeCodigo);
+        if (storeToDelete) {
+            setStores(prev => prev.filter(s => s.codigo !== storeCodigo));
+            setEditingStore(null);
+            // Enviamos Nombre + Código con prefijo ' para que el servidor localice el registro exacto
+            syncToSheets('delete', { 
+                nombre: storeToDelete.nombre, 
+                codigo: `'${storeCodigo}` 
+            });
+        }
     };
 
     const handleCreateStore = (newStore) => {
         setStores(prev => [newStore, ...prev]);
         setIsAddingStore(false);
-        syncToSheets('upsert', newStore);
+        // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda e integridad de datos
+        syncToSheets('upsert', { ...newStore, codigo: `'${newStore.codigo}` });
     };
 
     const handleSaveEmployee = (updatedEmployee) => {
@@ -2871,9 +2880,16 @@ function App() {
     };
 
     const handleDeleteEmployee = (empCodigo) => {
-        setEmployees(prev => prev.filter(e => e.codigo_empleado !== empCodigo));
-        setEditingEmployee(null);
-        syncToSheets('delete', { codigo_empleado: empCodigo }, 'Personal');
+        const empToDelete = employees.find(e => e.codigo_empleado === empCodigo);
+        if (empToDelete) {
+            setEmployees(prev => prev.filter(e => e.codigo_empleado !== empCodigo));
+            setEditingEmployee(null);
+            // Enviamos Nombre + Código con prefijo ' para cumplimiento de Llave Compuesta
+            syncToSheets('delete', { 
+                nombre: empToDelete.nombre, 
+                codigo_empleado: `'${empCodigo}` 
+            }, 'Personal');
+        }
     };
 
     const handleCreateEmployee = (newEmp) => {
