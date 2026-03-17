@@ -42,7 +42,7 @@ import {
 const genAIClient = (key) => new GoogleGenerativeAI(key);
 
 // ─── BASE DE DATOS: Google Sheets via Apps Script (escritura) ───────────────
-const API_URL = 'https://script.google.com/macros/s/AKfycbwOP1GRmKw_QeKq-tFcGU7VbFYWk6jyBSIS-npnLuVodsUAPj_hyRviBoDF25_rBOKthw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycby0R4SsS0XZm4pCff6Z4jWzm_86qXjEvoIJPMaCSIwfEDG3zxD8s7YFV9_wy14HgSV8Pg/exec';
 
 // ─── BASE DE DATOS: Google Sheets publicado como CSV (lectura) ───────────────
 const SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=0&single=true&output=csv';
@@ -2296,15 +2296,10 @@ function App() {
                     cargo: emp.cargo.charAt(0).toUpperCase() + emp.cargo.slice(1).toLowerCase()
                 };
 
-                const syncEmp = {
-                    ...formattedEmp,
-                    codigo_empleado: `'${formattedEmp.codigo_empleado}`
-                };
-
-                // Sincronización optimista en el estado local (usando el objeto sin la comilla interna)
+                // Sincronización optimista en el estado local
                 setEmployees(prev => [formattedEmp, ...prev]);
-                // Enviar a Google Sheets de forma secuencial (con la comilla para Sheets)
-                await syncToSheets('upsert', syncEmp, 'Personal', true); // true = saltar refresh individual
+                // Enviar a Google Sheets con prefijo ' para preservar ceros a la izquierda
+                await syncToSheets('upsert', { ...formattedEmp, codigo_empleado: `'${formattedEmp.codigo_empleado}` }, 'Personal', true); // true = saltar refresh individual
 
                 current++;
                 setSyncProgress(current);
@@ -2495,9 +2490,14 @@ function App() {
 
             for (let i = 0; i < semanaTableData.length; i++) {
                 const empRow = semanaTableData[i];
-                const employee = employees.find(e => e.codigo_empleado.toString().trim() === empRow.codigo.toString().trim());
+                // Búsqueda por llave compuesta (Nombre + Código) según reglas de identidad y unicidad
+                const employee = employees.find(e => 
+                    e.codigo_empleado.toString().trim() === empRow.codigo.toString().trim() &&
+                    e.nombre.toString().trim().toLowerCase() === empRow.nombre.toString().trim().toLowerCase()
+                );
 
                 if (employee) {
+                    // Restauración obligatoria del prefijo ' para preservar ceros a la izquierda en Sheets
                     const updatedEmp = { ...employee, tienda: payrollStore, codigo_empleado: `'${employee.codigo_empleado}` };
                     await syncToSheets('upsert', updatedEmp, 'Personal', true);
                 }
