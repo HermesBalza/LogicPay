@@ -34,8 +34,11 @@ import {
     List,
     Cpu,
     Info,
-    ClipboardCheck
+    ClipboardCheck,
+    Download
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 
 // ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
@@ -1718,7 +1721,55 @@ const InvalidCodesModal = ({ isOpen, onClose, invalidEmployees }) => {
 };
 
 const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta }) => {
+    const reportRef = useRef(null);
     if (!isOpen) return null;
+
+    const downloadVWHAsPDF = async () => {
+        const element = reportRef.current;
+        if (!element) return;
+
+        // Clonar o modificar temporalmente el estilo para evitar truncamiento por scroll
+        const originalStyle = element.style.cssText;
+        const scrollableDiv = element.querySelector('.overflow-y-auto');
+        const originalScrollStyle = scrollableDiv ? scrollableDiv.style.cssText : '';
+
+        try {
+            // Forzamos expansión total para la captura
+            element.style.height = 'auto';
+            element.style.maxHeight = 'none';
+            element.style.overflow = 'visible';
+            if (scrollableDiv) {
+                scrollableDiv.style.height = 'auto';
+                scrollableDiv.style.maxHeight = 'none';
+                scrollableDiv.style.overflow = 'visible';
+            }
+
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: "#ffffff",
+                windowWidth: element.scrollWidth,
+                windowHeight: element.scrollHeight
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            
+            // Calculamos dimensiones para una "sola hoja" de tamaño personalizado
+            const imgWidth = 210; // A4 width en mm
+            const pageHeight = (canvas.height * imgWidth) / canvas.width;
+            
+            const pdf = new jsPDF('p', 'mm', [imgWidth, pageHeight]);
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
+            pdf.save(`VWH_Report_${payrollStore}_${fechaDesde.replace(/\//g, '-')}.pdf`);
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+        } finally {
+            // Restaurar estilos originales
+            element.style.cssText = originalStyle;
+            if (scrollableDiv) scrollableDiv.style.cssText = originalScrollStyle;
+        }
+    };
 
     const store = stores.find(s => s.nombre === payrollStore);
     const kbsId = store?.codigo || '---';
@@ -1745,7 +1796,7 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-blue-900/10 animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-5xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-blue-100/50 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+            <div ref={reportRef} className="bg-white w-full max-w-5xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-blue-100/50 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
                 {/* Header */}
                 <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/50 to-transparent">
                     <div className="flex items-center gap-5">
@@ -1759,13 +1810,22 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
                             </p>
                         </div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-blue-100 text-[#303a7f] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
-                    >
-                        <ArrowLeft size={16} />
-                        Volver a Nómina
-                    </button>
+                    <div className="flex gap-4" data-html2canvas-ignore="true">
+                        <button
+                            onClick={downloadVWHAsPDF}
+                            className="flex items-center gap-3 px-6 py-3 bg-[#6bbdb7] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 shadow-lg shadow-teal-900/20"
+                        >
+                            <Download size={16} />
+                            Descargar PDF
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-blue-100 text-[#303a7f] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
+                        >
+                            <ArrowLeft size={16} />
+                            Volver a Nómina
+                        </button>
+                    </div>
                 </div>
 
                 {/* Resumen de Tienda */}
