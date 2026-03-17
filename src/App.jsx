@@ -2298,7 +2298,7 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     );
 };
 
-const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek }) => {
+const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, inline = false }) => {
     const [selectedYear, setSelectedYear] = useState(2026);
     if (!isOpen) return null;
 
@@ -2385,28 +2385,30 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek }) => {
     const filteredPeriods = biweeklyPeriods.filter(p => p.filterYear === selectedYear);
 
     return (
-        <div className="fixed inset-0 z-[100] bg-[#f9f9f9] overflow-hidden flex flex-col animate-in fade-in duration-500">
-            {/* Header */}
-            <header className="px-12 py-8 bg-white border-b-2 border-gray-100 flex items-center justify-between sticky top-0 z-20">
-                <div className="flex items-center gap-5">
-                    <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
-                        <History size={28} />
+        <div className={`${inline ? 'w-full flex-1 flex flex-col' : 'fixed inset-0 z-[100] bg-[#f9f9f9] flex flex-col'} overflow-hidden animate-in fade-in duration-500`}>
+            {/* Header - Only show if not inline */}
+            {!inline && (
+                <header className="px-12 py-8 bg-white border-b-2 border-gray-100 flex items-center justify-between sticky top-0 z-20">
+                    <div className="flex items-center gap-5">
+                        <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <History size={28} />
+                        </div>
+                        <div>
+                            <h2 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Historial de Nómina</h2>
+                            <p className="text-[#6bbdb7] font-black uppercase text-xs tracking-widest">Calendario de Semanas</p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Historial de Nómina</h2>
-                        <p className="text-[#6bbdb7] font-black uppercase text-xs tracking-widest">Calendario de Semanas</p>
-                    </div>
-                </div>
-                <button
-                    onClick={onClose}
-                    className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100"
-                >
-                    <X size={28} />
-                </button>
-            </header>
+                    <button
+                        onClick={onClose}
+                        className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100"
+                    >
+                        <X size={28} />
+                    </button>
+                </header>
+            )}
 
             {/* Year Selector */}
-            <div className="bg-white border-b-2 border-gray-50 px-12 py-4 overflow-x-auto flex gap-4 custom-scrollbar sticky top-[108px] z-10">
+            <div className={`bg-white border-b-2 border-gray-50 px-12 py-4 overflow-x-auto flex gap-4 custom-scrollbar sticky ${inline ? 'top-0' : 'top-[108px]'} z-10`}>
                 {availableYears.map(year => (
                     <button
                         key={year}
@@ -2546,16 +2548,24 @@ function App() {
     const [statusModalMessage, setStatusModalMessage] = useState('');
     const [statusModalTitle, setStatusModalTitle] = useState('');
     const [statusModalType, setStatusModalType] = useState('success'); // 'success' | 'error'
-
-    const fechaDesdeRef = useRef(null);
-    const fechaHastaRef = useRef(null);
+    const [payrollView, setPayrollView] = useState('history'); // 'history' | 'engine'
 
     const [invalidCodes, setInvalidCodes] = useState([]);
     const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
     const [isBiometricIVRModalOpen, setIsBiometricIVRModalOpen] = useState(false);
     const [isSupervisorModalOpen, setIsSupervisorModalOpen] = useState(false);
+
+    const fechaDesdeRef = useRef(null);
+    const fechaHastaRef = useRef(null);
+
     const [isVWHModalOpen, setIsVWHModalOpen] = useState(false);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (activeTab === 'payroll') {
+            setPayrollView('history');
+        }
+    }, [activeTab]);
 
     const showStatus = (title, message, type = 'success') => {
         setStatusModalTitle(title);
@@ -3580,7 +3590,22 @@ function App() {
                         </>
                     )}
 
-                    {activeTab === 'payroll' && (
+                    {activeTab === 'payroll' && payrollView === 'history' && (
+                        <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+                             <PayrollHistoryModal 
+                                isOpen={true} 
+                                inline={true} 
+                                onClose={() => {}} 
+                                onSelectWeek={(start, end) => {
+                                    setFechaDesde(start);
+                                    setFechaHasta(end);
+                                    setPayrollView('engine');
+                                }} 
+                            />
+                        </div>
+                    )}
+
+                    {activeTab === 'payroll' && payrollView === 'engine' && (
                         <div className="grid grid-cols-1 gap-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
                             <section className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-blue-900/[0.04] overflow-hidden relative border-2 border-transparent lg:p-10">
                                 <div
@@ -3588,17 +3613,27 @@ function App() {
                                     className="absolute top-0 right-0 w-64 h-64 rounded-full -mr-32 -mt-32 blur-3xl"
                                 />
 
-                                <div className="flex items-center gap-4 mb-10 relative z-10">
-                                    <div
-                                        style={{ backgroundColor: '#303a7f' }}
-                                        className="p-3 rounded-xl shadow-2xl shadow-blue-900/30 flex items-center justify-center"
+                                <div className="flex items-center justify-between mb-10 relative z-10">
+                                    <div className="flex items-center gap-4">
+                                        <div
+                                            style={{ backgroundColor: '#303a7f' }}
+                                            className="p-3 rounded-xl shadow-2xl shadow-blue-900/30 flex items-center justify-center"
+                                        >
+                                            <Upload className="text-white" size={20} />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Motor de Nómina</h2>
+                                            <p className="text-[#6bbdb7] font-black uppercase text-[8px] tracking-[0.4em] opacity-80">PROCESAMIENTO INTELIGENTE V3.0</p>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => setPayrollView('history')}
+                                        className="p-3 bg-white text-[#303a7f] rounded-2xl hover:bg-gray-50 transition-all active:scale-95 border-2 border-[#303a7f]/10 shadow-sm flex items-center gap-3 group"
                                     >
-                                        <Upload className="text-white" size={20} />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Motor de Nómina</h2>
-                                        <p className="text-[#6bbdb7] font-black uppercase text-[8px] tracking-[0.4em] opacity-80">PROCESAMIENTO INTELIGENTE V3.0</p>
-                                    </div>
+                                        <History size={18} className="group-hover:-rotate-45 transition-transform" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest leading-none">Volver al Historial</span>
+                                    </button>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-10 relative z-10">
@@ -3878,14 +3913,6 @@ function App() {
                                             >
                                                 <ClipboardCheck size={16} className="group-hover:rotate-12 transition-transform" />
                                                 <span className="text-[9px] font-black uppercase tracking-widest leading-none">VWH</span>
-                                            </button>
-                                            <button
-                                                onClick={() => setIsHistoryModalOpen(true)}
-                                                className="p-2.5 bg-white text-[#303a7f] rounded-xl hover:bg-gray-50 transition-all active:scale-95 border-2 border-[#303a7f]/20 shadow-sm flex items-center gap-2 group"
-                                                title="Ver Historial"
-                                            >
-                                                <History size={16} className="group-hover:rotate-45 transition-transform" />
-                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">Historial</span>
                                             </button>
                                             <button
                                                 onClick={() => setIsSupervisorModalOpen(true)}
