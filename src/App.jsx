@@ -2475,12 +2475,14 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, inline = false }) 
                                     ))}
                                 </div>
 
-                                <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-50">
-                                    <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Estatus de Periodo</span>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-[#6bbdb7] animate-pulse" />
-                                        <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">Listo</span>
-                                    </div>
+                                <div className="mt-8 pt-6 border-t border-gray-50">
+                                    <button
+                                        onClick={() => {/* El flujo se definirá después */}}
+                                        className="w-full py-3.5 bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all duration-300 border-2 border-[#303a7f]/5 hover:border-[#303a7f] hover:shadow-xl hover:shadow-blue-900/20 active:scale-95 flex items-center justify-center gap-3 group"
+                                    >
+                                        <Cpu size={16} className="text-[#6bbdb7] group-hover:text-white transition-colors" />
+                                        Procesar Nómina
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -3398,6 +3400,17 @@ function App() {
                         className="h-8 w-auto object-contain"
                     />
                     <div className="h-6 w-px bg-gray-200 hidden md:block" />
+                    
+                    {/* Dynamic Section Title in Header */}
+                    <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
+                        <div className="p-1.5 bg-[#303a7f]/5 rounded-lg text-[#303a7f]">
+                            {navItems.find(i => i.id === activeTab)?.icon && React.createElement(navItems.find(i => i.id === activeTab).icon, { size: 14 })}
+                        </div>
+                        <h2 className="text-xs font-black text-[#303a7f] tracking-tighter uppercase leading-none m-0">
+                            {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : activeTab === 'settings' ? 'Configuración' : 'Dashboard'}
+                        </h2>
+                    </div>
+
                     <div className="hidden md:flex items-center gap-4">
                         <div className="flex items-center gap-2">
                             <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-[#6bbdb7] animate-pulse' : dbStatus === 'conectado' ? 'bg-green-500' : 'bg-red-400'}`} />
@@ -3454,19 +3467,6 @@ function App() {
                 />
 
                 <div className="max-w-[1600px] mx-auto">
-                    <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-4 border-[#303a7f]/5 pb-8">
-                        <div className="flex flex-col animate-in fade-in slide-in-from-left-4 duration-500">
-                            <div className="flex items-center gap-3 mb-3">
-                                <div className="p-2 bg-[#303a7f] rounded-lg text-white">
-                                    {navItems.find(i => i.id === activeTab)?.icon && React.createElement(navItems.find(i => i.id === activeTab).icon, { size: 18 })}
-                                </div>
-                                <h2 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none m-0">
-                                    {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : 'Configuración'}
-                                </h2>
-                            </div>
-                            <p className="text-[#6bbdb7] text-[10px] font-black leading-snug uppercase tracking-[0.3em] opacity-80 pl-1">Protocolo de gestión logística Logic Group Management</p>
-                        </div>
-                    </header>
 
                     {activeTab === 'stores' && (
                         <>
