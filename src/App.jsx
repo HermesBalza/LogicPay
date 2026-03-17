@@ -35,7 +35,8 @@ import {
     Cpu,
     Info,
     ClipboardCheck,
-    Download
+    Download,
+    History
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -1754,11 +1755,11 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
             });
 
             const imgData = canvas.toDataURL('image/png');
-            
+
             // Calculamos dimensiones para una "sola hoja" de tamaño personalizado
             const imgWidth = 210; // A4 width en mm
             const pageHeight = (canvas.height * imgWidth) / canvas.width;
-            
+
             const pdf = new jsPDF('p', 'mm', [imgWidth, pageHeight]);
             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
             pdf.save(`VWH_Report_${payrollStore}_${fechaDesde.replace(/\//g, '-')}.pdf`);
@@ -1790,7 +1791,7 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
         if (!store) return 0;
         const cargoLower = cargo.toLowerCase();
         const cargoKey = cargoLower.includes('shift') ? 'shift_lead' :
-                         cargoLower.includes('utility') ? 'utility' : 'janitorial';
+            cargoLower.includes('utility') ? 'utility' : 'janitorial';
         return store.tarifas[cargoKey]?.kbs || 0;
     };
 
@@ -2297,6 +2298,206 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     );
 };
 
+const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek }) => {
+    const [selectedYear, setSelectedYear] = useState(2026);
+    if (!isOpen) return null;
+
+    // Generar semanas del 2026 al 2040 agrupadas en pares con numeración anual reseteada
+    const generateBiweeklyPeriods = () => {
+        const weeks = [];
+        let current = new Date(2026, 0, 1);
+
+        // Ajustar al primer domingo del año 2026 (o el anterior)
+        while (current.getDay() !== 0) {
+            current.setDate(current.getDate() - 1);
+        }
+
+        const endTarget = new Date(2040, 11, 31);
+        const yearWeekCounts = {};
+
+        // Primero generamos todas las semanas individuales con su número dentro del año
+        while (current <= endTarget) {
+            const start = new Date(current);
+            const end = new Date(current);
+            end.setDate(end.getDate() + 6);
+
+            const saturdayYear = end.getFullYear();
+            if (!yearWeekCounts[saturdayYear]) yearWeekCounts[saturdayYear] = 0;
+            yearWeekCounts[saturdayYear]++;
+
+            weeks.push({
+                start: start.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
+                end: end.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
+                weekNumInYear: yearWeekCounts[saturdayYear],
+                weekYear: saturdayYear
+            });
+
+            current.setDate(current.getDate() + 7);
+        }
+
+        // Si queda una semana sola al final, agregamos una más para completar el par
+        if (weeks.length % 2 !== 0) {
+            const start = new Date(current);
+            const end = new Date(current);
+            end.setDate(end.getDate() + 6);
+            const saturdayYear = end.getFullYear();
+            if (!yearWeekCounts[saturdayYear]) yearWeekCounts[saturdayYear] = 0;
+            yearWeekCounts[saturdayYear]++;
+
+            weeks.push({
+                start: start.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
+                end: end.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
+                weekNumInYear: yearWeekCounts[saturdayYear],
+                weekYear: saturdayYear
+            });
+        }
+
+        // Agrupar en pares continuos
+        const biweekly = [];
+        for (let i = 0; i < weeks.length; i += 2) {
+            const w1 = weeks[i];
+            const w2 = weeks[i + 1];
+
+            // Etiqueta de semanas: "Semana X y Semana Y"
+            // Si son del mismo año: "Semanas X y Y"
+            // Si son de años distintos: "Semana X (Año1) y Semana Y (Año2)"
+            let weeksLabel = "";
+            if (w1.weekYear === w2.weekYear) {
+                weeksLabel = `Semanas ${w1.weekNumInYear} y ${w2.weekNumInYear}`;
+            } else {
+                weeksLabel = `S. ${w1.weekNumInYear} (${w1.weekYear}) y S. ${w2.weekNumInYear} (${w2.weekYear})`;
+            }
+
+            biweekly.push({
+                periodNum: (i / 2) + 1,
+                weeksLabel: weeksLabel,
+                yearsLabel: w1.weekYear === w2.weekYear ? `${w1.weekYear}` : `${w1.weekYear} - ${w2.weekYear}`,
+                filterYear: w1.weekYear,
+                w1: w1,
+                w2: w2
+            });
+        }
+        return biweekly;
+    };
+
+    const biweeklyPeriods = generateBiweeklyPeriods();
+    const availableYears = Array.from({ length: 15 }, (_, i) => 2026 + i);
+    const filteredPeriods = biweeklyPeriods.filter(p => p.filterYear === selectedYear);
+
+    return (
+        <div className="fixed inset-0 z-[100] bg-[#f9f9f9] overflow-hidden flex flex-col animate-in fade-in duration-500">
+            {/* Header */}
+            <header className="px-12 py-8 bg-white border-b-2 border-gray-100 flex items-center justify-between sticky top-0 z-20">
+                <div className="flex items-center gap-5">
+                    <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                        <History size={28} />
+                    </div>
+                    <div>
+                        <h2 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Historial de Nómina</h2>
+                        <p className="text-[#6bbdb7] font-black uppercase text-xs tracking-widest">Calendario de Semanas</p>
+                    </div>
+                </div>
+                <button
+                    onClick={onClose}
+                    className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100"
+                >
+                    <X size={28} />
+                </button>
+            </header>
+
+            {/* Year Selector */}
+            <div className="bg-white border-b-2 border-gray-50 px-12 py-4 overflow-x-auto flex gap-4 custom-scrollbar sticky top-[108px] z-10">
+                {availableYears.map(year => (
+                    <button
+                        key={year}
+                        onClick={() => setSelectedYear(year)}
+                        className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap ${selectedYear === year
+                                ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/20 scale-105'
+                                : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                            }`}
+                    >
+                        {year}
+                    </button>
+                ))}
+            </div>
+
+            {/* Content Container */}
+            <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
+                <div className="max-w-7xl mx-auto">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+                        {filteredPeriods.map((p) => (
+                            <div
+                                key={p.periodNum}
+                                className="group relative bg-white rounded-[2.5rem] border-2 border-gray-100 p-8 shadow-sm hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 flex flex-col"
+                            >
+                                {/* Periodo Header */}
+                                <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-[#303a7f]/5 flex items-center justify-center text-[#303a7f]">
+                                            <Calendar size={18} />
+                                        </div>
+                                        <div>
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Periodo</span>
+                                            <span className="text-xs font-black text-[#303a7f] uppercase tracking-tighter">Bi-Semana {p.periodNum}</span>
+                                        </div>
+                                    </div>
+                                    <div className="px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{p.yearsLabel}</span>
+                                    </div>
+                                </div>
+
+                                {/* Contenedor de Semanas (Lado a Lado) */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    {[p.w1, p.w2].map((w, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => onSelectWeek(w.start, w.end)}
+                                            className="group/week bg-gray-50/50 hover:bg-[#6bbdb7] p-5 rounded-3xl border-2 border-transparent hover:border-[#6bbdb7] transition-all duration-300 text-left relative overflow-hidden active:scale-95"
+                                        >
+                                            <div className="relative z-10">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <span className="text-[10px] font-black text-[#303a7f] group-hover/week:text-white uppercase tracking-widest transition-colors">W{w.weekNumInYear}</span>
+                                                    <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center opacity-0 group-hover/week:opacity-100 transition-opacity">
+                                                        <ChevronRight size={14} className="text-white" />
+                                                    </div>
+                                                </div>
+                                                <h5 className="text-[11px] font-black text-[#303a7f] group-hover/week:text-white uppercase tracking-tight mb-3 transition-colors">Semana {w.weekNumInYear}</h5>
+                                                <div className="space-y-1">
+                                                    <p className="text-[9px] font-bold text-gray-400 group-hover/week:text-white/60 uppercase tracking-widest transition-colors">Inicia: {w.start.split('/')[0]}/{w.start.split('/')[1]}</p>
+                                                    <p className="text-[9px] font-black text-[#6bbdb7] group-hover/week:text-white uppercase tracking-widest transition-colors">Termina: {w.end.split('/')[0]}/{w.end.split('/')[1]}</p>
+                                                </div>
+                                            </div>
+                                            {/* Decorative indicator */}
+                                            <div className="absolute bottom-[-10px] right-[-10px] w-12 h-12 bg-white/5 rounded-full blur-xl group-hover/week:bg-white/10" />
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-50">
+                                    <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Estatus de Periodo</span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-[#6bbdb7] animate-pulse" />
+                                        <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">Listo</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Decorative Brands */}
+            <div className="p-8 bg-white border-t-2 border-gray-100 flex items-center justify-center gap-12 text-[10px] font-black text-gray-300 uppercase tracking-[0.4em]">
+                <span>Logic Group Management</span>
+                <div className="w-2 h-2 rounded-full bg-gray-100" />
+                <span>Fiscal History 2026</span>
+                <div className="w-2 h-2 rounded-full bg-gray-100" />
+                <span>AdWisers Audit Logic</span>
+            </div>
+        </div>
+    );
+};
+
 function App() {
     const [activeTab, setActiveTab] = useState(() => {
         return localStorage.getItem('lgm_active_tab') || 'stores';
@@ -2354,6 +2555,7 @@ function App() {
     const [isBiometricIVRModalOpen, setIsBiometricIVRModalOpen] = useState(false);
     const [isSupervisorModalOpen, setIsSupervisorModalOpen] = useState(false);
     const [isVWHModalOpen, setIsVWHModalOpen] = useState(false);
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
     const showStatus = (title, message, type = 'success') => {
         setStatusModalTitle(title);
@@ -2611,12 +2813,12 @@ function App() {
 
             const earnings = semanaTableData.map(emp => {
                 const cargoLower = emp.cargo.toLowerCase();
-                const cargoKey = cargoLower.includes('shift') ? 'shift_lead' : 
-                                 cargoLower.includes('utility') ? 'utility' : 'janitorial';
-                
+                const cargoKey = cargoLower.includes('shift') ? 'shift_lead' :
+                    cargoLower.includes('utility') ? 'utility' : 'janitorial';
+
                 const rateLSG = store.tarifas[cargoKey]?.lsg || 0;
                 const rateKBS = store.tarifas[cargoKey]?.kbs || 0;
-                
+
                 const calcDay = (val, rate) => hhmmToDecimal(val) * rate;
 
                 return {
@@ -2662,7 +2864,7 @@ function App() {
             for (let i = 0; i < semanaTableData.length; i++) {
                 const empRow = semanaTableData[i];
                 // Búsqueda por llave compuesta (Nombre + Código) según reglas de identidad y unicidad
-                const employee = employees.find(e => 
+                const employee = employees.find(e =>
                     e.codigo_empleado.toString().trim() === empRow.codigo.toString().trim() &&
                     e.nombre.toString().trim().toLowerCase() === empRow.nombre.toString().trim().toLowerCase()
                 );
@@ -3029,9 +3231,9 @@ function App() {
             setStores(prev => prev.filter(s => s.codigo !== storeCodigo));
             setEditingStore(null);
             // Enviamos Nombre + Código con prefijo ' para que el servidor localice el registro exacto
-            syncToSheets('delete', { 
-                nombre: storeToDelete.nombre, 
-                codigo: `'${storeCodigo}` 
+            syncToSheets('delete', {
+                nombre: storeToDelete.nombre,
+                codigo: `'${storeCodigo}`
             });
         }
     };
@@ -3056,9 +3258,9 @@ function App() {
             setEmployees(prev => prev.filter(e => e.codigo_empleado !== empCodigo));
             setEditingEmployee(null);
             // Enviamos Nombre + Código con prefijo ' para cumplimiento de Llave Compuesta
-            syncToSheets('delete', { 
-                nombre: empToDelete.nombre, 
-                codigo_empleado: `'${empCodigo}` 
+            syncToSheets('delete', {
+                nombre: empToDelete.nombre,
+                codigo_empleado: `'${empCodigo}`
             }, 'Personal');
         }
     };
@@ -3678,6 +3880,14 @@ function App() {
                                                 <span className="text-[9px] font-black uppercase tracking-widest leading-none">VWH</span>
                                             </button>
                                             <button
+                                                onClick={() => setIsHistoryModalOpen(true)}
+                                                className="p-2.5 bg-white text-[#303a7f] rounded-xl hover:bg-gray-50 transition-all active:scale-95 border-2 border-[#303a7f]/20 shadow-sm flex items-center gap-2 group"
+                                                title="Ver Historial"
+                                            >
+                                                <History size={16} className="group-hover:rotate-45 transition-transform" />
+                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">Historial</span>
+                                            </button>
+                                            <button
                                                 onClick={() => setIsSupervisorModalOpen(true)}
                                                 disabled={semanaTableData.length === 0}
                                                 className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${semanaTableData.length > 0 ? 'bg-blue-50 text-[#303a7f] border-blue-100 hover:bg-blue-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
@@ -4040,6 +4250,17 @@ function App() {
                     )}
                 </div>
             </main>
+
+            {/* HISTORIAL DE NÓMINA (FASE 7.5: 2026 History) */}
+            <PayrollHistoryModal
+                isOpen={isHistoryModalOpen}
+                onClose={() => setIsHistoryModalOpen(false)}
+                onSelectWeek={(start, end) => {
+                    setFechaDesde(start);
+                    setFechaHasta(end);
+                    setIsHistoryModalOpen(false);
+                }}
+            />
 
             {/* FASE 2.5: VENTANA EMERGENTE DE DETALLES BIOMÉTRICOS */}
             {isDetailsModalOpen && (
