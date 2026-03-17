@@ -2424,63 +2424,58 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, inline = false }) 
             </div>
 
             {/* Content Container */}
-            <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
-                <div className="max-w-7xl mx-auto">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+            <div className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
+                <div className="max-w-[1600px] mx-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                         {filteredPeriods.map((p) => (
                             <div
                                 key={p.periodNum}
-                                className="group relative bg-white rounded-[2.5rem] border-2 border-gray-100 p-8 shadow-sm hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 flex flex-col"
+                                className="group relative bg-white rounded-[2rem] border-2 border-gray-100 hover:border-[#6bbdb7] p-5 shadow-sm hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 flex flex-col"
                             >
                                 {/* Periodo Header */}
-                                <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-50">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-[#303a7f]/5 flex items-center justify-center text-[#303a7f]">
-                                            <Calendar size={18} />
+                                <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-50">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-[#303a7f]/5 flex items-center justify-center text-[#303a7f]">
+                                            <Calendar size={15} />
                                         </div>
                                         <div>
-                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Periodo</span>
-                                            <span className="text-xs font-black text-[#303a7f] uppercase tracking-tighter">Bi-Semana {p.periodNum}</span>
+                                            <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest block leading-none mb-1">Rango de fechas</span>
+                                            <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-tighter">
+                                                {p.w1.start.split('/')[0]}/{p.w1.start.split('/')[1]} - {p.w2.end.split('/')[0]}/{p.w2.end.split('/')[1]}
+                                            </span>
                                         </div>
-                                    </div>
-                                    <div className="px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
-                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{p.yearsLabel}</span>
                                     </div>
                                 </div>
 
                                 {/* Contenedor de Semanas (Lado a Lado) */}
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-3">
                                     {[p.w1, p.w2].map((w, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => onSelectWeek(w.start, w.end)}
-                                            className="group/week bg-gray-50/50 hover:bg-[#6bbdb7] p-5 rounded-3xl border-2 border-transparent hover:border-[#6bbdb7] transition-all duration-300 text-left relative overflow-hidden active:scale-95"
+                                            className="group/week bg-gray-50/50 hover:bg-[#6bbdb7] p-3.5 rounded-2xl border-2 border-transparent hover:border-[#6bbdb7] transition-all duration-300 text-left relative overflow-hidden active:scale-95"
                                         >
                                             <div className="relative z-10">
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <span className="text-[10px] font-black text-[#303a7f] group-hover/week:text-white uppercase tracking-widest transition-colors">W{w.weekNumInYear}</span>
-                                                    <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center opacity-0 group-hover/week:opacity-100 transition-opacity">
-                                                        <ChevronRight size={14} className="text-white" />
-                                                    </div>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-[9px] font-black text-[#303a7f] group-hover/week:text-white uppercase tracking-widest transition-colors">{w.weekNumInYear}</span>
+                                                    <ChevronRight size={12} className="text-[#303a7f] group-hover/week:text-white opacity-0 group-hover/week:opacity-100 transition-all" />
                                                 </div>
-                                                <h5 className="text-[11px] font-black text-[#303a7f] group-hover/week:text-white uppercase tracking-tight mb-3 transition-colors">Semana {w.weekNumInYear}</h5>
-                                                <div className="space-y-1">
-                                                    <p className="text-[9px] font-bold text-gray-400 group-hover/week:text-white/60 uppercase tracking-widest transition-colors">Inicia: {w.start.split('/')[0]}/{w.start.split('/')[1]}</p>
-                                                    <p className="text-[9px] font-black text-[#6bbdb7] group-hover/week:text-white uppercase tracking-widest transition-colors">Termina: {w.end.split('/')[0]}/{w.end.split('/')[1]}</p>
+                                                <h5 className="text-[10px] font-black text-[#303a7f] group-hover/week:text-white uppercase tracking-tight mb-2 transition-colors">Semana {idx + 1}</h5>
+                                                <div className="space-y-0.5">
+                                                    <p className="text-[8px] font-bold text-gray-400 group-hover/week:text-white/60 uppercase tracking-widest transition-colors">{w.start.split('/')[0]}/{w.start.split('/')[1]}</p>
+                                                    <p className="text-[8px] font-black text-[#6bbdb7] group-hover/week:text-white uppercase tracking-widest transition-colors">{w.end.split('/')[0]}/{w.end.split('/')[1]}</p>
                                                 </div>
                                             </div>
-                                            {/* Decorative indicator */}
-                                            <div className="absolute bottom-[-10px] right-[-10px] w-12 h-12 bg-white/5 rounded-full blur-xl group-hover/week:bg-white/10" />
                                         </button>
                                     ))}
                                 </div>
 
-                                <div className="mt-8 pt-6 border-t border-gray-50">
+                                <div className="mt-5 pt-4 border-t border-gray-50">
                                     <button
                                         onClick={() => {/* El flujo se definirá después */}}
-                                        className="w-full py-3.5 bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all duration-300 border-2 border-[#303a7f]/5 hover:border-[#303a7f] hover:shadow-xl hover:shadow-blue-900/20 active:scale-95 flex items-center justify-center gap-3 group"
+                                        className="w-full py-2.5 bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white rounded-xl font-black text-[9px] uppercase tracking-[0.15em] transition-all duration-300 border-2 border-[#303a7f]/5 hover:border-[#303a7f] hover:shadow-lg hover:shadow-blue-900/10 active:scale-95 flex items-center justify-center gap-2 group"
                                     >
-                                        <Cpu size={16} className="text-[#6bbdb7] group-hover:text-white transition-colors" />
+                                        <Cpu size={14} className="text-[#6bbdb7] group-hover:text-white transition-colors" />
                                         Procesar Nómina
                                     </button>
                                 </div>
