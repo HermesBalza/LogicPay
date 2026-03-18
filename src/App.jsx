@@ -2414,8 +2414,8 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, inline = false }) 
                         key={year}
                         onClick={() => setSelectedYear(year)}
                         className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap ${selectedYear === year
-                                ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/20 scale-105'
-                                : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                            ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/20 scale-105'
+                            : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
                             }`}
                     >
                         {year}
@@ -2472,7 +2472,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, inline = false }) 
 
                                 <div className="mt-5 pt-4 border-t border-gray-50">
                                     <button
-                                        onClick={() => {/* El flujo se definirá después */}}
+                                        onClick={() => {/* El flujo se definirá después */ }}
                                         className="w-full py-2.5 bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white rounded-xl font-black text-[9px] uppercase tracking-[0.15em] transition-all duration-300 border-2 border-[#303a7f]/5 hover:border-[#303a7f] hover:shadow-lg hover:shadow-blue-900/10 active:scale-95 flex items-center justify-center gap-2 group"
                                     >
                                         <Cpu size={14} className="text-[#6bbdb7] group-hover:text-white transition-colors" />
@@ -3103,6 +3103,35 @@ function App() {
     };
 
     // --- FASE 8: Digitalizador de Planillas (IA vision) ---
+
+
+    const USER_REGISTRY = [
+        { name: "David Torres", role: "Asistente" },
+        { name: "Nirvana Márquez", role: "Asistente" },
+        { name: "Luis Rojas", role: "CEO" },
+        { name: "Reynaldo González", role: "CEO" },
+        { name: "Hermes Balza", role: "Desarrollador" },
+    ];
+
+    const handleLogin = (userName) => {
+        const found = USER_REGISTRY.find(u => u.name === userName);
+        const userData = { name: userName, role: found?.role || 'Invitado' };
+        setUser(userData);
+        localStorage.setItem('lgm_user', JSON.stringify(userData));
+    };
+
+    useEffect(() => {
+        localStorage.setItem('lgm_active_tab', activeTab);
+    }, [activeTab]);
+
+    const handleLogout = () => {
+        setUser(null);
+        localStorage.removeItem('lgm_user');
+    };
+
+    const [stores, setStores] = useState([]);
+    const [employees, setEmployees] = useState([]);
+
     const processSheetImagesWithAI = async () => {
         if (!sheetFiles.length || !geminiApiKey) {
             showError("Faltan imágenes o clave de API para procesar.");
@@ -3133,26 +3162,40 @@ function App() {
                 generationConfig: { responseMimeType: "application/json" }
             });
 
+            // Obtener lista de empleados de la tienda actual para contexto (Fuzzy Matching)
+            const storeEmployees = employees
+                .filter(p => p.tienda === payrollStore)
+                .map(e => `- ${e.nombre} (Cargo suggerido: ${e.cargo})`)
+                .join('\n');
+
             const prompt = `
                 Analiza estas fotos de planillas de asistencia escritas a mano. 
                 
+                REFERENCIA DE PERSONAL AUTORIZADO (Usa esta lista para corregir nombres mal escritos):
+                ${storeEmployees || "No hay personal previo registrado para esta tienda."}
+                
                 TAREA:
-                1. Extrae el nombre de los empleados.
-                2. Extrae el cargo. Valores Permitidos: "Janitorial", "Utility", "Shift Lead". Si no es uno de estos, deja vacío "".
-                3. Extrae la FECHA escrita en la planilla (ej: "02/25/26").
-                4. Extrae las horas trabajadas totales para esa fecha.
-                5. El Código de empleado debe quedar vacío "".
+                1. Extrae el nombre de los empleados. 
+                   IMPORTANTE: Compara el nombre escrito con la LISTA DE REFERENCIA. Si hay una coincidencia cercana (ej: "Walding" -> "Waldina"), USA EL NOMBRE DE LA LISTA.
+                2. EXCLUSIÓN CRÍTICA: Revisa la columna 'Company'. Si un empleado pertenece a "KBS", IGNÓRALO COMPLETAMENTE Y NO LO INCLUYAS EN EL RESULTADO.
+                3. Solo incluye empleados de "LGM" o aquellos que no tengan compañía especificada (asúmelos como LGM).
+                4. Extrae el cargo. Si no es legible o no aparece, usa el "Cargo sugerido" de la lista de referencia. Valores Permitidos: "Janitorial", "Utility", "Shift Lead".
+                5. Extrae la FECHA escrita en la planilla (ej: "02/25/26").
+                6. Extrae las horas trabajadas totales para esa fecha.
+                7. El Código de empleado debe quedar vacío "".
                 
                 REGLA DE SALIDA:
                 - Si hay varias planillas con diferentes fechas, agrupa los datos por empleado.
                 - Retorna una lista de "asistencias" por cada empleado, donde cada asistencia tiene la fecha y las horas.
+                - Si un empleado NO ESTÁ EN LA LISTA DE REFERENCIA (y no es KBS), márcalo como "es_nuevo": true.
                 
                 RETORNA UN JSON CON ESTA ESTRUCTURA EXACTA:
                 {
                   "employees": [
                     {
-                      "nombre": "Nombre del Empleado",
-                      "cargo": "Janitorial/Utility/Shift Lead/o vacío",
+                      "nombre": "Nombre del Empleado (Corregido según lista o extraído si es nuevo)",
+                      "cargo": "Janitorial/Utility/Shift Lead",
+                      "es_nuevo": true/false,
                       "asistencias": [
                         { "fecha": "MM/DD/YYYY", "horas": "HH:MM" }
                       ]
@@ -3191,7 +3234,7 @@ function App() {
                 const rowsToInsert = aiData.employees.map(emp => {
                     const row = {
                         "Nombre y Apellidos": emp.nombre,
-                        "Código": "",
+                        "Código": emp.es_nuevo ? "NO REGISTRADO" : "",
                         "Cargo": emp.cargo,
                         "Domingo": "00:00",
                         "Lunes": "00:00",
@@ -3253,8 +3296,8 @@ function App() {
 
                 XLSX.utils.sheet_add_aoa(ws, rowsToInsert, { origin: 2 });
                 XLSX.writeFile(wb, `Asistencia_IA_P_${payrollStore || 'Tienda'}_${new Date().getTime()}.xlsx`);
-                
-                showSuccess("Digitalización finalizada con éxito con validación de fechas en JS.");
+
+                showSuccess("Digitalización finalizada con éxito.");
                 setSheetFiles([]);
             }
         } catch (error) {
@@ -3264,33 +3307,6 @@ function App() {
             setIsProcessingSheets(false);
         }
     };
-
-    const USER_REGISTRY = [
-        { name: "David Torres", role: "Asistente" },
-        { name: "Nirvana Márquez", role: "Asistente" },
-        { name: "Luis Rojas", role: "CEO" },
-        { name: "Reynaldo González", role: "CEO" },
-        { name: "Hermes Balza", role: "Desarrollador" },
-    ];
-
-    const handleLogin = (userName) => {
-        const found = USER_REGISTRY.find(u => u.name === userName);
-        const userData = { name: userName, role: found?.role || 'Invitado' };
-        setUser(userData);
-        localStorage.setItem('lgm_user', JSON.stringify(userData));
-    };
-
-    useEffect(() => {
-        localStorage.setItem('lgm_active_tab', activeTab);
-    }, [activeTab]);
-
-    const handleLogout = () => {
-        setUser(null);
-        localStorage.removeItem('lgm_user');
-    };
-
-    const [stores, setStores] = useState([]);
-    const [employees, setEmployees] = useState([]);
 
     // ─── API: Cargar todas las tiendas desde CSV público de Google Sheets ────
     // Lee directamente la hoja publicada como CSV (sin CORS, sin Apps Script).
@@ -3560,7 +3576,7 @@ function App() {
                         className="h-8 w-auto object-contain"
                     />
                     <div className="h-6 w-px bg-gray-200 hidden md:block" />
-                    
+
                     {/* Dynamic Section Title in Header */}
                     <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
                         <div className="p-1.5 bg-[#303a7f]/5 rounded-lg text-[#303a7f]">
@@ -3752,15 +3768,15 @@ function App() {
 
                     {activeTab === 'payroll' && payrollView === 'history' && (
                         <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
-                             <PayrollHistoryModal 
-                                isOpen={true} 
-                                inline={true} 
-                                onClose={() => {}} 
+                            <PayrollHistoryModal
+                                isOpen={true}
+                                inline={true}
+                                onClose={() => { }}
                                 onSelectWeek={(start, end) => {
                                     setFechaDesde(start);
                                     setFechaHasta(end);
                                     setPayrollView('engine');
-                                }} 
+                                }}
                             />
                         </div>
                     )}
@@ -3952,7 +3968,7 @@ function App() {
                                                     accept="image/*"
                                                 />
                                             </div>
-                                            
+
                                             <button
                                                 onClick={processSheetImagesWithAI}
                                                 disabled={sheetFiles.length === 0 || isProcessingSheets}
