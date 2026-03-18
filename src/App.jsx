@@ -2595,7 +2595,7 @@ function App() {
             const undetected = json.map(row => {
                 const codigo = getValue(row, ['Código', 'Codigo', 'ID', 'Empleado ID', 'Nro']).toString().trim();
                 const nombre = getValue(row, ['Nombre y Apellidos', 'Nombre y Apellido', 'Nombre', 'Empleado']).toString().trim();
-                const cargo = getValue(row, ['Servicio', 'Cargo', 'Puesto']).toString().trim();
+                const cargo = getValue(row, ['Cargo', 'Servicio', 'Puesto']).toString().trim();
 
                 // Verificar si existe en el estado global 'employees' usando llave compuesta: Nombre + ID
                 const exists = employees.some(e =>
@@ -2709,8 +2709,8 @@ function App() {
     // --- FASE 1: Procesar Solo Datos del Supervisor ---
     const processPayroll = async () => {
         console.log('[Payroll] Iniciando proceso...', { supervisorFile, biometricFile, payrollStore });
-        if (!supervisorFile || !biometricFile || !payrollStore) {
-            showError(`Faltan requisitos para iniciar el proceso de nómina:\nSupervisor: ${supervisorFile ? "OK" : "FALTA"}\nBiométrico: ${biometricFile ? "OK" : "FALTA"}\nTienda: ${payrollStore ? "OK" : "FALTA"}`);
+        if (!supervisorFile || !payrollStore) {
+            showError(`Faltan requisitos para iniciar el proceso de nómina:\nSupervisor: ${supervisorFile ? "OK" : "FALTA"}\nTienda: ${payrollStore ? "OK" : "FALTA"}`);
             return;
         }
 
@@ -2752,7 +2752,7 @@ function App() {
 
                 const nombreCompleto = getValue(['Nombre y Apellidos', 'Nombre y Apellido', 'Nombre', 'Empleado']);
                 const codigo = getValue(['Código', 'Codigo', 'ID', 'Empleado ID', 'Nro']);
-                const cargo = getValue(['Servicio', 'Cargo', 'Puesto']);
+                const cargo = getValue(['Cargo', 'Servicio', 'Puesto']);
 
                 // Simulamos progreso de lectura
                 if (idx % 5 === 0) setPayrollProgress(idx);
@@ -3862,9 +3862,9 @@ function App() {
                                 <div className="mt-10 flex justify-center relative z-10">
                                     <button
                                         onClick={processPayroll}
-                                        disabled={!supervisorFile || !biometricFile || !payrollStore || !fechaDesde || !fechaHasta || isProcessingPayroll}
-                                        style={{ backgroundColor: (supervisorFile && biometricFile && payrollStore && fechaDesde && fechaHasta) ? '#303a7f' : '#f3f4f6' }}
-                                        className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl flex items-center gap-3 ${(supervisorFile && biometricFile && payrollStore && fechaDesde && fechaHasta)
+                                        disabled={!supervisorFile || !payrollStore || !fechaDesde || !fechaHasta || isProcessingPayroll}
+                                        style={{ backgroundColor: (supervisorFile && payrollStore && fechaDesde && fechaHasta) ? '#303a7f' : '#f3f4f6' }}
+                                        className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl flex items-center gap-3 ${(supervisorFile && payrollStore && fechaDesde && fechaHasta)
                                             ? 'text-white shadow-blue-900/20 active:scale-95 hover:bg-[#252a5e]'
                                             : 'text-gray-300 cursor-not-allowed shadow-none'
                                             }`}
