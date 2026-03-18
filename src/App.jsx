@@ -2254,6 +2254,45 @@ const PayrollProgressModal = ({ isOpen, step, current, total }) => {
     );
 };
 
+const SheetProgressModal = ({ isOpen }) => {
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl bg-[#303a7f]/40 animate-in fade-in duration-500">
+            <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-[0_32px_120px_-20px_rgba(48,58,127,0.4)] border-2 border-white/50 text-center animate-in zoom-in-95 duration-500">
+                <div className="mb-8 relative inline-block">
+                    <div className="w-24 h-24 rounded-full border-4 border-gray-100 border-t-[#6bbdb7] animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Cpu size={32} className="text-[#6bbdb7] animate-pulse" />
+                    </div>
+                </div>
+
+                <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase mb-2">Digitalizando Planillas</h3>
+                <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-8">
+                    El motor de Inteligencia Artificial está analizando las imágenes y generando el reporte...
+                </p>
+
+                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mb-4 border border-gray-50 shadow-inner">
+                    <div className="h-full bg-gradient-to-r from-[#303a7f] to-[#6bbdb7] animate-pulse opacity-60" style={{ width: '100%' }} />
+                </div>
+
+                <p className="text-[8px] text-gray-300 font-black uppercase tracking-[0.3em] animate-pulse">
+                    No cierre la ventana ni refresque la página
+                </p>
+            </div>
+        </div>
+    );
+};
+
 const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     useEffect(() => {
         if (isOpen) {
@@ -3179,9 +3218,11 @@ function App() {
                    IMPORTANTE: Compara el nombre escrito con la LISTA DE REFERENCIA. Si hay una coincidencia cercana (ej: "Walding" -> "Waldina"), USA EL NOMBRE DE LA LISTA.
                 2. EXCLUSIÓN CRÍTICA: Revisa la columna 'Company'. Si un empleado pertenece a "KBS", IGNÓRALO COMPLETAMENTE Y NO LO INCLUYAS EN EL RESULTADO.
                 3. Solo incluye empleados de "LGM" o aquellos que no tengan compañía especificada (asúmelos como LGM).
-                4. Extrae el cargo. Si no es legible o no aparece, usa el "Cargo sugerido" de la lista de referencia. Valores Permitidos: "Janitorial", "Utility", "Shift Lead".
-                5. Extrae la FECHA escrita en la planilla (ej: "02/25/26").
-                6. Extrae las horas trabajadas totales para esa fecha.
+                4. LOCALIZACIÓN DE FECHA AGNOSTICA: Escanea toda la planilla buscando cualquier fecha escrita a mano (formato MM/DD o MM/DD/YY). No te limites a una esquina ni busques la palabra "Date"; concéntrate en el patrón de fecha.
+                5. TIPO DE PLANILLA:
+                   - Si la planilla es de UN SOLO DÍA, extrae esa fecha y asocia las horas a ese día de la semana.
+                   - Si la planilla es SEMANAL o tiene un RANGO de fechas (ej: "02/22 al 02/28"), extrae cada fecha individual y asocia las horas a cada día correspondiente.
+                6. Extrae las horas trabajadas totales para cada fecha identificada.
                 7. El Código de empleado debe quedar vacío "".
                 
                 REGLA DE SALIDA:
@@ -3239,10 +3280,10 @@ function App() {
                         "Domingo": "00:00",
                         "Lunes": "00:00",
                         "Martes": "00:00",
-                        "Miércoles": "00:00",
+                        "miercoles": "00:00",
                         "Jueves": "00:00",
                         "Viernes": "00:00",
-                        "Sábado": "00:00",
+                        "Sabado": "00:00",
                         "TOTAL": "00:00"
                     };
 
@@ -3262,7 +3303,7 @@ function App() {
 
                         if (!isNaN(d.getTime())) {
                             const dayIdx = d.getDay(); // 0=Dom, 1=Lun, ..., 6=Sab
-                            const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+                            const dayNames = ["Domingo", "Lunes", "Martes", "miercoles", "Jueves", "Viernes", "Sabado"];
                             const dayKey = dayNames[dayIdx];
                             row[dayKey] = asist.horas;
 
@@ -3286,10 +3327,10 @@ function App() {
                         row["Domingo"],
                         row["Lunes"],
                         row["Martes"],
-                        row["Miércoles"],
+                        row["miercoles"],
                         row["Jueves"],
                         row["Viernes"],
-                        row["Sábado"],
+                        row["Sabado"],
                         row["TOTAL"]
                     ];
                 });
@@ -3566,6 +3607,8 @@ function App() {
                 current={payrollProgress}
                 total={payrollTotalRows}
             />
+
+            <SheetProgressModal isOpen={isProcessingSheets} />
 
             {/* Logo y Status Bar Superior */}
             <header className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-b-2 border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
