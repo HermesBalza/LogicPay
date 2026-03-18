@@ -2557,6 +2557,8 @@ function App() {
 
     const [isVWHModalOpen, setIsVWHModalOpen] = useState(false);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [sheetFiles, setSheetFiles] = useState([]); // FASE 8: Digitalizador
+    const [isProcessingSheets, setIsProcessingSheets] = useState(false); // FASE 8: Digitalizador
 
     useEffect(() => {
         if (activeTab === 'payroll') {
@@ -3098,6 +3100,169 @@ function App() {
 
             return updatedRow;
         }));
+    };
+
+    // --- FASE 8: Digitalizador de Planillas (IA vision) ---
+    const processSheetImagesWithAI = async () => {
+        if (!sheetFiles.length || !geminiApiKey) {
+            showError("Faltan imágenes o clave de API para procesar.");
+            return;
+        }
+
+        setIsProcessingSheets(true);
+        try {
+            const fileToBase64 = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = (error) => reject(error);
+                });
+            };
+
+            const imageParts = await Promise.all(sheetFiles.map(async (file) => ({
+                inlineData: {
+                    data: await fileToBase64(file),
+                    mimeType: file.type
+                }
+            })));
+
+            const genAI = new GoogleGenerativeAI(geminiApiKey);
+            const model = genAI.getGenerativeModel({
+                model: "gemini-2.5-flash",
+                generationConfig: { responseMimeType: "application/json" }
+            });
+
+            const prompt = `
+                Analiza estas fotos de planillas de asistencia escritas a mano. 
+                
+                TAREA:
+                1. Extrae el nombre de los empleados.
+                2. Extrae el cargo. Valores Permitidos: "Janitorial", "Utility", "Shift Lead". Si no es uno de estos, deja vacío "".
+                3. Extrae la FECHA escrita en la planilla (ej: "02/25/26").
+                4. Extrae las horas trabajadas totales para esa fecha.
+                5. El Código de empleado debe quedar vacío "".
+                
+                REGLA DE SALIDA:
+                - Si hay varias planillas con diferentes fechas, agrupa los datos por empleado.
+                - Retorna una lista de "asistencias" por cada empleado, donde cada asistencia tiene la fecha y las horas.
+                
+                RETORNA UN JSON CON ESTA ESTRUCTURA EXACTA:
+                {
+                  "employees": [
+                    {
+                      "nombre": "Nombre del Empleado",
+                      "cargo": "Janitorial/Utility/Shift Lead/o vacío",
+                      "asistencias": [
+                        { "fecha": "MM/DD/YYYY", "horas": "HH:MM" }
+                      ]
+                    }
+                  ]
+                }
+            `;
+
+            const result = await model.generateContent([prompt, ...imageParts]);
+            const response = await result.response;
+            const text = response.text();
+            const aiData = JSON.parse(text.replace(/```json|```/g, '').trim());
+
+            if (aiData && aiData.employees) {
+                // 1. Intentar cargar el template oficial desde /public
+                let wb;
+                try {
+                    const templateResp = await fetch('/Formato_de_Carga_de_Asistencia.xlsx');
+                    if (!templateResp.ok) throw new Error("Template not found");
+                    const templateData = await templateResp.arrayBuffer();
+                    wb = XLSX.read(templateData);
+                } catch (e) {
+                    console.warn("No se pudo cargar el template, generando uno nuevo básico.");
+                    wb = XLSX.utils.book_new();
+                    const ws = XLSX.utils.aoa_to_sheet([
+                        ["Nombre de Tienda"],
+                        ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"]
+                    ]);
+                    XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
+                }
+
+                const wsName = wb.SheetNames[0];
+                const ws = wb.Sheets[wsName];
+
+                // 2. Procesar datos con lógica de fecha en JS para precisión total
+                const rowsToInsert = aiData.employees.map(emp => {
+                    const row = {
+                        "Nombre y Apellidos": emp.nombre,
+                        "Código": "",
+                        "Cargo": emp.cargo,
+                        "Domingo": "00:00",
+                        "Lunes": "00:00",
+                        "Martes": "00:00",
+                        "Miércoles": "00:00",
+                        "Jueves": "00:00",
+                        "Viernes": "00:00",
+                        "Sábado": "00:00",
+                        "TOTAL": "00:00"
+                    };
+
+                    let totalMinutos = 0;
+                    emp.asistencias.forEach(asist => {
+                        const dateParts = asist.fecha.split('/');
+                        let d;
+                        if (dateParts.length === 3) {
+                            const m = parseInt(dateParts[0]) - 1;
+                            const dDay = parseInt(dateParts[1]);
+                            let y = parseInt(dateParts[2]);
+                            if (y < 100) y += 2000;
+                            d = new Date(y, m, dDay);
+                        } else {
+                            d = new Date(asist.fecha);
+                        }
+
+                        if (!isNaN(d.getTime())) {
+                            const dayIdx = d.getDay(); // 0=Dom, 1=Lun, ..., 6=Sab
+                            const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+                            const dayKey = dayNames[dayIdx];
+                            row[dayKey] = asist.horas;
+
+                            const hoursParts = asist.horas.split(':');
+                            if (hoursParts.length === 2) {
+                                const h = parseInt(hoursParts[0]);
+                                const min = parseInt(hoursParts[1]);
+                                totalMinutos += (h * 60) + (min || 0);
+                            }
+                        }
+                    });
+
+                    const totalH = Math.floor(totalMinutos / 60);
+                    const totalM = Math.round(totalMinutos % 60);
+                    row["TOTAL"] = `${totalH}:${totalM.toString().padStart(2, '0')}`;
+
+                    return [
+                        row["Nombre y Apellidos"],
+                        row["Código"],
+                        row["Cargo"],
+                        row["Domingo"],
+                        row["Lunes"],
+                        row["Martes"],
+                        row["Miércoles"],
+                        row["Jueves"],
+                        row["Viernes"],
+                        row["Sábado"],
+                        row["TOTAL"]
+                    ];
+                });
+
+                XLSX.utils.sheet_add_aoa(ws, rowsToInsert, { origin: 2 });
+                XLSX.writeFile(wb, `Asistencia_IA_P_${payrollStore || 'Tienda'}_${new Date().getTime()}.xlsx`);
+                
+                showSuccess("Digitalización finalizada con éxito con validación de fechas en JS.");
+                setSheetFiles([]);
+            }
+        } catch (error) {
+            console.error('[Digitalizador] ERROR:', error);
+            showError(`Error al digitalizar planillas: ${error.message}`);
+        } finally {
+            setIsProcessingSheets(false);
+        }
     };
 
     const USER_REGISTRY = [
@@ -3722,7 +3887,7 @@ function App() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10">
                                     {/* Control 0: Verificar Personal */}
                                     <div className={`rounded-2xl p-6 border-2 shadow-sm transition-all duration-500 border-brand-primary/5 bg-[#f9f9f9]`}>
                                         <div className="flex items-center gap-3 mb-4">
@@ -3757,6 +3922,47 @@ function App() {
                                             </div>
                                         </div>
                                         <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Auditoría de nuevos ingresos</p>
+                                    </div>
+
+                                    {/* Control 0.5: Digitalizador de Planillas (IA) */}
+                                    <div className={`rounded-2xl p-6 border-2 shadow-sm transition-all duration-500 ${sheetFiles.length > 0 ? 'border-[#6bbdb7]/20 bg-[#6bbdb7]/[0.02]' : 'border-brand-primary/5 bg-[#f9f9f9]'}`}>
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className={`p-2 rounded-lg transition-colors duration-500 ${sheetFiles.length > 0 ? 'bg-[#6bbdb7]/10' : 'bg-[#303a7f]/5'}`}>
+                                                <Camera size={18} className={`transition-colors duration-500 ${sheetFiles.length > 0 ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`} />
+                                            </div>
+                                            <p className={`text-[10px] font-black uppercase tracking-tight transition-colors duration-500 ${sheetFiles.length > 0 ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Digitalizador de Planillas</p>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <div className="relative group/btn">
+                                                <button
+                                                    style={{ backgroundColor: sheetFiles.length > 0 ? '#6bbdb7' : '#303a7f' }}
+                                                    className={`px-4 py-2 text-white font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 ${sheetFiles.length > 0
+                                                        ? 'shadow-teal-900/10 hover:bg-[#59aba5]'
+                                                        : 'shadow-blue-900/10 hover:bg-[#252a5e]'
+                                                        }`}
+                                                >
+                                                    {sheetFiles.length > 0 ? 'Fotos OK' : 'Subir Fotos'}
+                                                </button>
+                                                <input
+                                                    type="file"
+                                                    multiple
+                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                                    onChange={(e) => setSheetFiles(Array.from(e.target.files))}
+                                                    accept="image/*"
+                                                />
+                                            </div>
+                                            
+                                            <button
+                                                onClick={processSheetImagesWithAI}
+                                                disabled={sheetFiles.length === 0 || isProcessingSheets}
+                                                className={`p-2 rounded-xl border-2 transition-all active:scale-95 flex items-center justify-center ${sheetFiles.length > 0 && !isProcessingSheets ? 'bg-[#303a7f] text-white border-[#303a7f] shadow-lg' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
+                                                title="Procesar con IA y bajar Excel"
+                                            >
+                                                {isProcessingSheets ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Cpu size={16} />}
+                                            </button>
+                                        </div>
+                                        <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Handwritten to Excel (AI)</p>
                                     </div>
 
                                     {/* Control 1: Reporte de Supervisor */}
