@@ -2551,7 +2551,7 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
                         </div>
                         <div>
                             <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Previsualización de Planillas</h3>
-                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Añade comentarios para ayudar a la IA con fechas o exclusiones</p>
+                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Añade comentarios para ayudar a la IA con infomación</p>
                         </div>
                     </div>
                     <button
@@ -2616,7 +2616,7 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
                         ) : (
                             <Send size={18} />
                         )}
-                        {isProcessing ? 'Procesando...' : 'Enviar al Motor'}
+                        {isProcessing ? 'Procesando...' : 'Enviar Imágenes'}
                     </button>
                 </div>
             </div>
