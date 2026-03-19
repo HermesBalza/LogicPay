@@ -2169,6 +2169,12 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores 
 
     if (!isOpen) return null;
 
+    const formatHistory = (history) => {
+        if (!Array.isArray(history) || history.length === 0) return null;
+        const uniqueStores = [...new Set(history.map(h => h.tienda))].reverse().slice(0, 3);
+        return uniqueStores.join(", ");
+    };
+
     const handleUpdateResolution = (index, employee) => {
         const updated = [...localResults];
         updated[index].resolvedEmployee = employee;
@@ -2180,6 +2186,12 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores 
         const updated = [...localResults];
         updated[index].resolvedEmployee = null;
         updated[index].isNew = true;
+        setLocalResults(updated);
+    };
+
+    const handleCancelNew = (index) => {
+        const updated = [...localResults];
+        updated[index].isNew = false;
         setLocalResults(updated);
     };
 
@@ -2262,10 +2274,68 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores 
                                         </div>
 
                                         <div className="w-full">
-                                            {res.type === 'verified' ? (
-                                                <div className="flex items-center gap-4 text-green-600 font-bold bg-white p-4 rounded-2xl border-2 border-green-100 shadow-sm">
+                                            {res.isNew || res.type === 'new' ? (
+                                                <div className="w-full relative">
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full bg-white p-4 rounded-3xl border-2 border-gray-100 shadow-sm relative overflow-hidden animate-in zoom-in-95 duration-300">
+                                                        <div className="flex flex-col gap-1">
+                                                            <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest px-2">Asignar ID</label>
+                                                            <input
+                                                                type="text"
+                                                                value={res.tempCodigo}
+                                                                onChange={(e) => handleUpdateNewField(idx, 'tempCodigo', e.target.value)}
+                                                                className="w-full bg-blue-50/20 border-2 border-blue-100 rounded-xl p-2.5 text-xs font-black text-[#303a7f] tabular-nums"
+                                                                placeholder="0000"
+                                                            />
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest px-2">Confirmar Nombre</label>
+                                                            <input
+                                                                type="text"
+                                                                value={res.tempNombre}
+                                                                onChange={(e) => handleUpdateNewField(idx, 'tempNombre', e.target.value)}
+                                                                className="w-full bg-blue-50/20 border-2 border-blue-100 rounded-xl p-2.5 text-xs font-black text-[#303a7f] uppercase"
+                                                            />
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest px-2">Tienda Inicial</label>
+                                                            <select
+                                                                value={res.tempTienda}
+                                                                onChange={(e) => handleUpdateNewField(idx, 'tempTienda', e.target.value)}
+                                                                className="w-full bg-blue-50/20 border-2 border-blue-100 rounded-xl p-2.5 text-[10px] font-bold text-gray-500 uppercase"
+                                                            >
+                                                                <option value="">Seleccionar...</option>
+                                                                {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    {res.type !== 'new' && (
+                                                        <button
+                                                            onClick={() => handleCancelNew(idx)}
+                                                            className="absolute -top-2 -right-2 p-2 bg-white border-2 border-gray-100 text-gray-400 hover:text-red-500 hover:border-red-100 rounded-xl shadow-xl transition-all active:scale-90 group"
+                                                            title="Cancelar y volver a sugerencia"
+                                                        >
+                                                            <X size={14} className="group-hover:rotate-90 transition-transform" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ) : res.type === 'verified' ? (
+                                                <div className="flex items-center gap-4 text-green-600 font-bold bg-white p-4 rounded-2xl border-2 border-green-100 shadow-sm relative overflow-hidden">
                                                     <CheckCircle size={20} />
-                                                    <div className="text-sm">Persona verificada: <span className="font-black">ID {res.employee?.codigo_empleado || '----'}</span></div>
+                                                    <div className="text-sm">
+                                                        Persona verificada: <span className="font-black">ID {res.employee?.codigo_empleado || '----'}</span>
+                                                        <div className="flex flex-wrap gap-2 mt-1.5">
+                                                            <div className="text-[9px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md font-black uppercase tracking-tight">{res.employee?.tienda || 'Sin Asignar'}</div>
+                                                            {formatHistory(res.employee?.locationHistory) && (
+                                                                <div className="text-[9px] text-gray-400 font-bold italic">Trayectoria: {formatHistory(res.employee.locationHistory)}</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleMarkAsNew(idx); }}
+                                                        className="ml-auto px-3 py-1.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl text-[9px] font-black uppercase transition-all border border-transparent hover:border-red-100"
+                                                    >
+                                                        No es esta persona
+                                                    </button>
                                                 </div>
                                             ) : res.type === 'suggested' ? (
                                                 <div className="flex items-center justify-between gap-4 text-blue-600 font-bold bg-white p-4 rounded-2xl border-2 border-blue-100 shadow-sm">
@@ -2274,22 +2344,46 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores 
                                                         <div className="text-sm">
                                                             {res.resolvedEmployee ? "Vínculo confirmado:" : "Sugerencia:"}
                                                             <span className="font-black ml-2">{res.employee?.nombre || 'Desconocido'} (ID {res.employee?.codigo_empleado || '----'})</span>
+                                                            <div className="flex flex-wrap gap-2 mt-1.5">
+                                                                <div className="text-[9px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md font-black uppercase tracking-tight">{res.employee?.tienda || 'Sin Asignar'}</div>
+                                                                {formatHistory(res.employee?.locationHistory) && (
+                                                                    <div className="text-[9px] text-gray-400 font-bold italic">Trayectoria: {formatHistory(res.employee.locationHistory)}</div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    {res.resolvedEmployee ? (
-                                                        <div className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[9px] font-black uppercase flex items-center gap-2">
-                                                            <CheckCircle size={14} /> Listo
-                                                        </div>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleUpdateResolution(idx, res.employee)}
-                                                            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 hover:bg-blue-700 transition-all"
-                                                        >
-                                                            Confirmar
-                                                        </button>
-                                                    )}
+                                                    <div className="flex items-center gap-2">
+                                                        {res.resolvedEmployee ? (
+                                                            <>
+                                                                <div className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[9px] font-black uppercase flex items-center gap-2">
+                                                                    <CheckCircle size={14} /> Listo
+                                                                </div>
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleMarkAsNew(idx); }}
+                                                                    className="px-3 py-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl text-[9px] font-black uppercase transition-all"
+                                                                >
+                                                                    Cambiar
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => handleUpdateResolution(idx, res.employee)}
+                                                                    className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 hover:bg-blue-700 transition-all"
+                                                                >
+                                                                    Confirmar
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleMarkAsNew(idx)}
+                                                                    className="px-3 py-2 bg-gray-100 text-gray-500 rounded-xl text-[10px] font-black uppercase hover:bg-gray-200 transition-all"
+                                                                >
+                                                                    Es Nuevo
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            ) : res.type === 'ambiguous' ? (
+                                            ) : (
                                                 <div className="space-y-3 w-full">
                                                     <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Selecciona el perfil correcto:</p>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -2303,81 +2397,24 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores 
                                                                     }`}
                                                             >
                                                                 <p className="text-[11px] font-black text-[#303a7f] uppercase">{m.nombre}</p>
-                                                                <p className="text-[9px] font-bold text-gray-400">Cargo: {m.cargo} | ID: {m.codigo_empleado}</p>
+                                                                <p className="text-[9px] font-bold text-gray-400 mb-1">Cargo: {m.cargo} | ID: {m.codigo_empleado}</p>
+                                                                <div className="flex flex-wrap gap-1 items-center">
+                                                                    <span className="text-[8px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-black uppercase">{m.tienda || 'Sin Asignar'}</span>
+                                                                    {formatHistory(m.locationHistory) && (
+                                                                        <span className="text-[8px] text-gray-400 font-bold italic">Trayectoria: {formatHistory(m.locationHistory)}</span>
+                                                                    )}
+                                                                </div>
                                                             </button>
                                                         ))}
                                                         <button
                                                             onClick={() => handleMarkAsNew(idx)}
-                                                            className={`p-3 rounded-2xl border-2 border-dashed text-left transition-all ${res.isNew
-                                                                ? 'border-green-500 bg-green-50 shadow-md'
-                                                                : 'border-gray-300 bg-gray-50/30 hover:border-green-400'
-                                                                }`}
+                                                            className={`p-3 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50/30 text-left transition-all hover:border-green-400`}
                                                         >
                                                             <p className="text-[11px] font-black text-green-600 uppercase flex items-center gap-2">
                                                                 <UserPlus size={12} /> Es un nuevo empleado
                                                             </p>
                                                             <p className="text-[9px] font-bold text-gray-400">Registrar desde cero</p>
                                                         </button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full bg-white p-4 rounded-3xl border-2 border-gray-100 shadow-sm">
-                                                    <div className="flex flex-col gap-1">
-                                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest px-2">Asignar ID</label>
-                                                        <input
-                                                            type="text"
-                                                            value={res.tempCodigo}
-                                                            onChange={(e) => handleUpdateNewField(idx, 'tempCodigo', e.target.value)}
-                                                            className="w-full bg-gray-50 border-2 border-transparent focus:border-blue-200 rounded-xl p-2.5 text-xs font-black text-[#303a7f] tabular-nums"
-                                                            placeholder="0000"
-                                                        />
-                                                    </div>
-                                                    <div className="flex flex-col gap-1">
-                                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest px-2">Confirmar Nombre</label>
-                                                        <input
-                                                            type="text"
-                                                            value={res.tempNombre}
-                                                            onChange={(e) => handleUpdateNewField(idx, 'tempNombre', e.target.value)}
-                                                            className="w-full bg-gray-50 border-2 border-transparent focus:border-blue-200 rounded-xl p-2.5 text-xs font-black text-[#303a7f] uppercase"
-                                                        />
-                                                    </div>
-                                                    <div className="flex flex-col gap-1">
-                                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest px-2">Tienda Inicial</label>
-                                                        <select
-                                                            value={res.tempTienda}
-                                                            onChange={(e) => handleUpdateNewField(idx, 'tempTienda', e.target.value)}
-                                                            className="w-full bg-gray-50 border-2 border-transparent focus:border-blue-200 rounded-xl p-2.5 text-[10px] font-bold text-gray-500 uppercase"
-                                                        >
-                                                            <option value="">Seleccionar...</option>
-                                                            {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Resolution for New or Ambiguous-as-New */}
-                                            {res.isNew && res.type === 'ambiguous' && (
-                                                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 w-full animate-in slide-in-from-top-2 duration-300">
-                                                    <div className="flex flex-col gap-1">
-                                                        <label className="text-[8px] font-black text-green-600 uppercase tracking-widest px-2">ID para nuevo empleado</label>
-                                                        <input
-                                                            type="text"
-                                                            value={res.tempCodigo}
-                                                            onChange={(e) => handleUpdateNewField(idx, 'tempCodigo', e.target.value)}
-                                                            className="w-full bg-green-50/30 border-2 border-green-100 rounded-xl p-2.5 text-xs font-black text-[#303a7f] tabular-nums"
-                                                            placeholder="ID único..."
-                                                        />
-                                                    </div>
-                                                    <div className="flex flex-col gap-1">
-                                                        <label className="text-[8px] font-black text-green-600 uppercase tracking-widest px-2">Tienda Inicial</label>
-                                                        <select
-                                                            value={res.tempTienda}
-                                                            onChange={(e) => handleUpdateNewField(idx, 'tempTienda', e.target.value)}
-                                                            className="w-full bg-green-50/30 border-2 border-green-100 rounded-xl p-2.5 text-[10px] font-bold text-gray-500 uppercase"
-                                                        >
-                                                            <option value="">Seleccionar Tienda...</option>
-                                                            {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
-                                                        </select>
                                                     </div>
                                                 </div>
                                             )}
@@ -2918,6 +2955,11 @@ function App() {
 
     // --- Helper de Verificación de Personal (Reutilizable) ---
     const getPersonnelVerificationResults = (json, currentEmployees) => {
+        const normalizeName = (name) => {
+            if (!name) return '';
+            return name.toString().trim().toLowerCase().replace(/\s+/g, ' ');
+        };
+
         const getValueFromRow = (row, keys) => {
             for (let key of keys) {
                 if (row[key] !== undefined && row[key] !== null) return row[key].toString().trim();
@@ -2934,19 +2976,21 @@ function App() {
 
             if (!nombre || nombre.toLowerCase().includes('nombre y apellido')) return null;
 
+            const normNombre = normalizeName(nombre);
+
             // 1. Exact Match (ID + Name)
             const exactMatch = currentEmployees.find(e =>
                 String(e.codigo_empleado ?? '').trim().toLowerCase() === codigo.toLowerCase() &&
-                String(e.nombre ?? '').trim().toLowerCase() === nombre.toLowerCase()
+                normalizeName(e.nombre) === normNombre
             );
 
             if (exactMatch) {
                 return { type: 'verified', employee: exactMatch, excelRow: { nombre, codigo, cargo } };
             }
 
-            // 2. Name Match (Fuzzy)
+            // 2. Name Match (Fuzzy/Normalized)
             const nameMatches = currentEmployees.filter(e =>
-                String(e.nombre ?? '').trim().toLowerCase() === nombre.toLowerCase()
+                normalizeName(e.nombre) === normNombre
             );
 
             if (nameMatches.length === 1) {
@@ -2960,11 +3004,11 @@ function App() {
             return { type: 'new', excelRow: { nombre, codigo, cargo }, isInvalidCode };
         }).filter(Boolean);
 
-        // Deduplicar resultados por Nombre + Código para el modal
+        // Deduplicar resultados por Nombre Normalizado + Código para el modal
         const uniqueResults = [];
         const seenKeys = new Set();
         rows.forEach(res => {
-            const key = `${res.excelRow.nombre}-${res.excelRow.codigo}`.toLowerCase();
+            const key = `${normalizeName(res.excelRow.nombre)}-${res.excelRow.codigo}`.toLowerCase();
             if (!seenKeys.has(key)) {
                 seenKeys.add(key);
                 uniqueResults.push(res);
