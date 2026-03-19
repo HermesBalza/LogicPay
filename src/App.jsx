@@ -153,6 +153,25 @@ const getFormattedDateForDay = (baseDate, offset) => {
     return `${mm}/${dd}`; // Formato USA: mm/dd
 };
 
+const getFullDateForDay = (baseDate, offset) => {
+    if (!baseDate || baseDate.length < 10) return null;
+    let date;
+    if (baseDate.includes('/')) {
+        const [m, d, y] = baseDate.split('/');
+        date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+    } else {
+        date = new Date(baseDate);
+        date.setDate(date.getDate() + 1);
+    }
+    if (isNaN(date.getTime())) return null;
+    const resultDate = new Date(date);
+    resultDate.setDate(date.getDate() + offset);
+    const dd = String(resultDate.getDate()).padStart(2, '0');
+    const mm = String(resultDate.getMonth() + 1).padStart(2, '0');
+    const yyyy = resultDate.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+};
+
 const handleNativeDateChange = (e, setter) => {
     const dateVal = e.target.value; // yyyy-mm-dd
     if (!dateVal) return;
@@ -210,7 +229,16 @@ const csvRowToEmployee = (flat) => {
         cargo: findValue(['cargo']) || '',
         tienda: findValue(['tienda']) || '',
         cuenta_bancaria: findValue(['cuenta_bancaria', 'cuenta_banca']) || '',
-        imagen: findValue(['imagen']) || ''
+        imagen: findValue(['imagen']) || '',
+        locationHistory: (() => {
+            try {
+                const val = findValue(['locationHistory', 'location_history', 'historial_ubicaciones']);
+                return val ? JSON.parse(val) : [];
+            } catch (e) {
+                console.error("Error parsing locationHistory:", e);
+                return [];
+            }
+        })()
     };
 };
 
@@ -1522,6 +1550,61 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                         />
                                     </div>
                                 </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    {/* Historial de Ubicaciones */}
+                    <div className="lg:col-span-12">
+                        <section className={`bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
+                            <h3 className="text-[#333333] font-black flex items-center gap-3 mb-8 text-base uppercase tracking-widest">
+                                <div className="bg-[#303a7f] p-2 rounded-lg shadow-lg shadow-blue-900/10">
+                                    <MapPin size={18} className="text-white" />
+                                </div>
+                                Trayectoria y Estancia en Tiendas
+                            </h3>
+
+                            <div className="relative pl-8 border-l-2 border-gray-100 space-y-8 ml-4">
+                                {(editedEmployee.locationHistory && Array.isArray(editedEmployee.locationHistory) && editedEmployee.locationHistory.length > 0) ? (
+                                    [...editedEmployee.locationHistory].reverse().map((hist, idx) => (
+                                        <div key={idx} className="relative animate-in fade-in slide-in-from-left-4 duration-500" style={{ animationDelay: `${idx * 100}ms` }}>
+                                            {/* Dot */}
+                                            <div className="absolute -left-[41px] top-1 w-4 h-4 rounded-full bg-white border-4 border-[#303a7f] shadow-sm z-10" />
+
+                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50 p-6 rounded-[1.5rem] border border-gray-100 hover:border-[#303a7f]/20 hover:bg-white hover:shadow-xl hover:shadow-blue-900/5 transition-all group">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:bg-[#303a7f]/5 transition-colors">
+                                                        <StoreIcon size={20} className="text-[#303a7f]" />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="text-sm font-black text-[#303a7f] uppercase tracking-tight">{hist.tienda}</h4>
+                                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Estancia en sucursal</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-6">
+                                                    <div className="text-right">
+                                                        <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mb-1">Desde</p>
+                                                        <p className="text-xs font-black text-[#333333] tabular-nums">{hist.inicio}</p>
+                                                    </div>
+                                                    <div className="h-8 w-[1px] bg-gray-200 hidden md:block" />
+                                                    <div className="text-right">
+                                                        <p className="text-[9px] text-[#6bbdb7] font-black uppercase tracking-widest mb-1">Hasta</p>
+                                                        <p className="text-xs font-black text-[#333333] tabular-nums">{hist.fin}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-16 bg-gray-50/50 rounded-[2rem] border-2 border-dashed border-gray-100 flex flex-col items-center">
+                                        <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
+                                            <History size={40} className="text-gray-200" />
+                                        </div>
+                                        <p className="text-gray-400 font-black uppercase tracking-[0.2em] text-[10px]">Sin registros históricos de ubicación.</p>
+                                        <p className="text-[9px] text-gray-300 mt-2 uppercase font-bold">El historial se actualizará automáticamente con cada aprobación de nómina.</p>
+                                    </div>
+                                )}
                             </div>
                         </section>
                     </div>
@@ -3007,8 +3090,63 @@ function App() {
                 );
 
                 if (employee) {
+                    // --- Lógica de Historial de Ubicaciones ---
+                    const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                    let newSegments = [];
+                    let currentSeg = null;
+
+                    dias.forEach((dia, dIdx) => {
+                        const cell = empRow[dia];
+                        const hours = hhmmToDecimal(cell?.final);
+                        if (hours > 0) {
+                            const dateStr = getFullDateForDay(fechaDesde, dIdx);
+                            if (!currentSeg) {
+                                currentSeg = { tienda: payrollStore, inicio: dateStr, fin: dateStr };
+                            } else {
+                                currentSeg.fin = dateStr;
+                            }
+                        } else {
+                            if (currentSeg) {
+                                newSegments.push(currentSeg);
+                                currentSeg = null;
+                            }
+                        }
+                    });
+                    if (currentSeg) newSegments.push(currentSeg);
+
+                    // Fusionar con historial existente
+                    let history = Array.isArray(employee.locationHistory) ? [...employee.locationHistory] : [];
+                    newSegments.forEach(s => history.push(s));
+
+                    // Ordenar cronológicamente
+                    history.sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
+
+                    // Consolidar segmentos contiguos de la misma tienda
+                    let merged = [];
+                    history.forEach(seg => {
+                        if (merged.length === 0) {
+                            merged.push(seg);
+                        } else {
+                            let last = merged[merged.length - 1];
+                            const lastFin = new Date(last.fin);
+                            const nextInic = new Date(seg.inicio);
+                            const diffDays = (nextInic - lastFin) / (1000 * 60 * 60 * 24);
+
+                            if (last.tienda === seg.tienda && diffDays <= 1) {
+                                if (new Date(seg.fin) > lastFin) last.fin = seg.fin;
+                            } else {
+                                merged.push(seg);
+                            }
+                        }
+                    });
+
                     // Restauración obligatoria del prefijo ' para preservar ceros a la izquierda en Sheets
-                    const updatedEmp = { ...employee, tienda: payrollStore, codigo_empleado: `'${employee.codigo_empleado}` };
+                    const updatedEmp = {
+                        ...employee,
+                        tienda: payrollStore,
+                        codigo_empleado: `'${employee.codigo_empleado}`,
+                        locationHistory: JSON.stringify(merged)
+                    };
                     await syncToSheets('upsert', updatedEmp, 'Personal', true);
                 }
                 setSyncProgress(i + 1);
@@ -4060,14 +4198,16 @@ function App() {
                                         <div className="flex items-center gap-2">
                                             <div className="relative group/btn">
                                                 <button
-                                                    style={{ backgroundColor: '#303a7f' }}
-                                                    className="px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg shadow-blue-900/10 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2"
+                                                    disabled={!payrollStore}
+                                                    style={{ backgroundColor: payrollStore ? '#303a7f' : '#f3f4f6' }}
+                                                    className="px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg shadow-blue-900/10 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400 disabled:cursor-not-allowed"
                                                 >
                                                     Cargar
                                                 </button>
                                                 <input
                                                     type="file"
-                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                                    disabled={!payrollStore}
+                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
                                                     onChange={(e) => {
                                                         handleVerifyPersonal(e.target.files[0]);
                                                         e.target.value = null; // Reset para permitir cargar el mismo archivo
@@ -4096,8 +4236,9 @@ function App() {
                                         <div className="flex items-center gap-2">
                                             <div className="relative group/btn">
                                                 <button
-                                                    style={{ backgroundColor: sheetFiles.length > 0 ? '#6bbdb7' : '#303a7f' }}
-                                                    className={`px-4 py-2 text-white font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 ${sheetFiles.length > 0
+                                                    disabled={!payrollStore}
+                                                    style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (sheetFiles.length > 0 ? '#6bbdb7' : '#303a7f') }}
+                                                    className={`px-4 py-2 text-white font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400 disabled:cursor-not-allowed ${sheetFiles.length > 0
                                                         ? 'shadow-teal-900/10 hover:bg-[#59aba5]'
                                                         : 'shadow-blue-900/10 hover:bg-[#252a5e]'
                                                         }`}
@@ -4107,7 +4248,8 @@ function App() {
                                                 <input
                                                     type="file"
                                                     multiple
-                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                                    disabled={!payrollStore}
+                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
                                                     onChange={(e) => {
                                                         const selected = Array.from(e.target.files);
                                                         if (selected.length > 0) {
@@ -4141,8 +4283,9 @@ function App() {
                                         <div className="flex items-center gap-2">
                                             <div className="relative group/btn">
                                                 <button
-                                                    style={{ backgroundColor: supervisorFile ? '#6bbdb7' : '#303a7f' }}
-                                                    className={`px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 ${supervisorFile
+                                                    disabled={!payrollStore}
+                                                    style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (supervisorFile ? '#6bbdb7' : '#303a7f') }}
+                                                    className={`px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400 disabled:cursor-not-allowed ${supervisorFile
                                                         ? 'shadow-teal-900/10 hover:bg-[#59aba5]'
                                                         : 'shadow-blue-900/10 hover:bg-[#252a5e]'
                                                         }`}
@@ -4152,7 +4295,8 @@ function App() {
                                                 </button>
                                                 <input
                                                     type="file"
-                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                                    disabled={!payrollStore}
+                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
                                                     onChange={(e) => setSupervisorFile(e.target.files[0])}
                                                     accept=".xlsx,.xls,.csv"
                                                 />
@@ -4190,8 +4334,9 @@ function App() {
                                         <div className="flex items-center gap-2">
                                             <div className="relative group/btn">
                                                 <button
-                                                    style={{ backgroundColor: biometricFile ? '#6bbdb7' : '#303a7f' }}
-                                                    className={`px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 ${biometricFile
+                                                    disabled={!payrollStore}
+                                                    style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (biometricFile ? '#6bbdb7' : '#303a7f') }}
+                                                    className={`px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400 disabled:cursor-not-allowed ${biometricFile
                                                         ? 'shadow-teal-900/10 hover:bg-[#59aba5]'
                                                         : 'shadow-blue-900/10 hover:bg-[#252a5e]'
                                                         }`}
@@ -4201,7 +4346,8 @@ function App() {
                                                 </button>
                                                 <input
                                                     type="file"
-                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                                    disabled={!payrollStore}
+                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
                                                     onChange={(e) => setBiometricFile(e.target.files[0])}
                                                     accept=".xlsx,.xls,.csv,.txt"
                                                 />
