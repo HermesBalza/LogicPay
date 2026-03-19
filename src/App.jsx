@@ -26,6 +26,7 @@ import {
     Calendar,
     ArrowLeft,
     ArrowLeftRight,
+    ArrowRight,
     UserPlus,
     ChevronDown,
     Lock,
@@ -37,7 +38,10 @@ import {
     ClipboardCheck,
     Download,
     History,
-    Send
+    Send,
+    ShieldCheck,
+    AlertTriangle,
+    Save
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -425,7 +429,7 @@ const StoreCard = ({ store, employees = [], onEdit }) => {
             </div>
 
             <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-transparent group-hover:bg-[#303a7f]/5 transition-colors">
-                <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Supervisor LSG</span>
+                <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Supervisor LGM</span>
                 <span className="text-[9px] font-black text-[#303a7f] uppercase">{store.supervisor_lsg || 'Sin Asignar'}</span>
             </div>
         </div>
@@ -810,7 +814,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                         />
                                     </div>
                                     <div className="group">
-                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Supervisor LSG</label>
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Supervisor LGM</label>
                                         <input
                                             type="text"
                                             value={editedStore.supervisor_lsg}
@@ -862,7 +866,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                                 </div>
                                             </div>
                                             <div className="relative">
-                                                <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">LSG (Paga)</label>
+                                                <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">LGM (Paga)</label>
                                                 <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-2 border-brand-primary/20'} rounded-xl px-4 py-2.5 shadow-sm`}>
                                                     <span className={`${!isEditing ? 'text-gray-300' : 'text-[#303a7f]'} font-black mr-2`}>$</span>
                                                     <input
@@ -1243,7 +1247,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                                     </div>
                                                 </div>
                                                 <div className="relative">
-                                                    <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-gray-50 px-1 z-10">LSG (Paga)</label>
+                                                    <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-gray-50 px-1 z-10">LGM (Paga)</label>
                                                     <div className="flex items-center bg-white border-2 border-brand-primary/20 rounded-xl px-4 py-2.5 shadow-sm">
                                                         <span className="text-[#303a7f] font-black mr-2">$</span>
                                                         <input
@@ -1281,7 +1285,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                     />
                                 </div>
                                 <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Supervisor LSG</label>
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Supervisor LGM</label>
                                     <input
                                         type="text"
                                         placeholder="Nombre del supervisor..."
@@ -2144,32 +2148,77 @@ const BiometricTableIVRModal = ({ isOpen, onClose, data, fechaDesde, getFormatte
 };
 
 const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores }) => {
-    const [localResults, setLocalResults] = useState(results);
+    const [localResults, setLocalResults] = useState([]);
 
     useEffect(() => {
-        setLocalResults(results);
+        // Inicializar resoluciones basadas en el tipo
+        const initial = (results || []).map(res => {
+            const baseObj = {
+                ...res,
+                resolvedEmployee: res.type === 'verified' || res.type === 'suggested' ? res.employee : null,
+                isNew: res.type === 'new',
+                tempCodigo: res.excelRow.codigo || '',
+                tempNombre: res.excelRow.nombre || '',
+                tempCargo: res.excelRow.cargo || 'Janitorial',
+                tempTienda: ''
+            };
+            return baseObj;
+        });
+        setLocalResults(initial);
     }, [results]);
 
     if (!isOpen) return null;
 
-    const handleUpdateField = (index, field, value) => {
+    const handleUpdateResolution = (index, employee) => {
+        const updated = [...localResults];
+        updated[index].resolvedEmployee = employee;
+        updated[index].isNew = false;
+        setLocalResults(updated);
+    };
+
+    const handleMarkAsNew = (index) => {
+        const updated = [...localResults];
+        updated[index].resolvedEmployee = null;
+        updated[index].isNew = true;
+        setLocalResults(updated);
+    };
+
+    const handleUpdateNewField = (index, field, value) => {
         const updated = [...localResults];
         updated[index][field] = value;
         setLocalResults(updated);
     };
 
+    const handleFinalize = () => {
+        const finalData = localResults.map(res => {
+            if (res.resolvedEmployee && !res.isNew) {
+                return { ...res.resolvedEmployee, _action: 'update' };
+            } else {
+                return {
+                    nombre: res.tempNombre,
+                    codigo_empleado: res.tempCodigo,
+                    cargo: res.tempCargo,
+                    tienda: res.tempTienda,
+                    fecha_ingreso: new Date().toLocaleDateString('en-US'),
+                    _action: 'create'
+                };
+            }
+        });
+        onAddAll(finalData);
+    };
+
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-6xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-brand-primary/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+            <div className="bg-white w-full max-w-7xl h-[90vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-brand-primary/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
                 {/* Header */}
                 <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
                     <div className="flex items-center gap-5">
                         <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
-                            <UserPlus size={24} />
+                            <ShieldCheck size={24} />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Verificación de Personal Nuevo</h3>
-                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Empleados detectados en el Excel que no están en el sistema</p>
+                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Centro de Resolución de Personal</h3>
+                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Mapeo inteligente y detección de duplicados</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90">
@@ -2178,107 +2227,203 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores 
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-8 bg-[#fcfdfe]">
+                <div className="flex-1 overflow-y-auto p-8 space-y-4">
                     {localResults.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center opacity-30 italic">
                             <CheckCircle size={64} className="mb-4 text-green-500" />
                             <p className="text-sm font-black uppercase tracking-[0.3em]">Todo el personal está al día</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto rounded-3xl border-[3px] border-gray-200">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-50/50">
-                                        <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200">ID / Código</th>
-                                        <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200">Nombre Completo</th>
-                                        <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200">Cargo</th>
-                                        <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200">Tienda Asignada</th>
-                                        <th className="p-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 text-center">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y-[3px] divide-gray-200">
-                                    {localResults.map((emp, idx) => (
-                                        <tr key={idx} className="hover:bg-blue-50/10 transition-colors">
-                                            <td className="p-4">
-                                                <input
-                                                    type="text"
-                                                    value={emp.codigo_empleado}
-                                                    onChange={(e) => handleUpdateField(idx, 'codigo_empleado', e.target.value)}
-                                                    className="w-full bg-transparent border-b-2 border-transparent focus:border-[#303a7f] outline-none text-xs font-black text-[#303a7f] tabular-nums"
-                                                />
-                                            </td>
-                                            <td className="p-4">
-                                                <input
-                                                    type="text"
-                                                    value={emp.nombre}
-                                                    onChange={(e) => handleUpdateField(idx, 'nombre', e.target.value)}
-                                                    className="w-full bg-transparent border-b-2 border-transparent focus:border-[#303a7f] outline-none text-xs font-black text-[#303a7f] uppercase"
-                                                />
-                                            </td>
-                                            <td className="p-4">
-                                                <input
-                                                    type="text"
-                                                    value={emp.cargo}
-                                                    onChange={(e) => handleUpdateField(idx, 'cargo', e.target.value)}
-                                                    className="w-full bg-transparent border-b-2 border-transparent focus:border-[#303a7f] outline-none text-[10px] font-bold text-gray-500 uppercase"
-                                                />
-                                            </td>
-                                            <td className="p-4">
-                                                <select
-                                                    value={emp.tienda}
-                                                    onChange={(e) => handleUpdateField(idx, 'tienda', e.target.value)}
-                                                    className="w-full bg-transparent border-b-2 border-transparent focus:border-[#303a7f] outline-none text-[10px] font-bold text-gray-500 uppercase cursor-pointer"
-                                                >
-                                                    <option value="">Seleccionar Tienda</option>
-                                                    {stores.map((s, i) => (
-                                                        <option key={i} value={s.nombre}>{s.nombre}</option>
-                                                    ))}
-                                                </select>
-                                            </td>
-                                            <td className="p-4 text-center">
-                                                <div className="flex justify-center">
-                                                    <div className="p-2 bg-gray-50 text-[#303a7f] rounded-lg">
-                                                        <Edit2 size={12} />
+                        localResults.map((res, idx) => (
+                            <div key={idx} className={`p-6 rounded-[2rem] border-2 transition-all duration-300 ${res.type === 'verified' ? 'bg-green-50/30 border-green-100' :
+                                res.type === 'suggested' ? 'bg-blue-50/30 border-blue-100 ml-4' :
+                                    res.type === 'ambiguous' ? 'bg-amber-50/30 border-amber-100 shadow-lg' :
+                                        'bg-gray-50/50 border-gray-100'
+                                }`}>
+                                <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+                                    {/* Excel Side */}
+                                    <div className="flex-1 min-w-[300px]">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div className="px-2 py-0.5 bg-gray-200 text-gray-500 rounded text-[9px] font-black uppercase tracking-widest">En Excel</div>
+                                            {res.type === 'ambiguous' && (
+                                                <div className="px-2 py-0.5 bg-amber-500 text-white rounded text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+                                                    <AlertTriangle size={10} /> Nombre Duplicado
+                                                </div>
+                                            )}
+                                        </div>
+                                        <h4 className="text-lg font-black text-[#303a7f] uppercase leading-tight mb-1">{res.excelRow.nombre}</h4>
+                                        <p className="text-xs font-bold text-gray-400">ID: {res.excelRow.codigo || 'VACÍO'} | Cargo: {res.excelRow.cargo}</p>
+                                    </div>
+
+                                    {/* Resolution Side */}
+                                    <div className="flex-[2] flex flex-col md:flex-row items-center gap-6">
+                                        <div className="hidden lg:block text-gray-300">
+                                            <ArrowRight size={24} />
+                                        </div>
+
+                                        <div className="w-full">
+                                            {res.type === 'verified' ? (
+                                                <div className="flex items-center gap-4 text-green-600 font-bold bg-white p-4 rounded-2xl border-2 border-green-100 shadow-sm">
+                                                    <CheckCircle size={20} />
+                                                    <div className="text-sm">Persona verificada: <span className="font-black">ID {res.employee?.codigo_empleado || '----'}</span></div>
+                                                </div>
+                                            ) : res.type === 'suggested' ? (
+                                                <div className="flex items-center justify-between gap-4 text-blue-600 font-bold bg-white p-4 rounded-2xl border-2 border-blue-100 shadow-sm">
+                                                    <div className="flex items-center gap-4">
+                                                        <Search size={20} />
+                                                        <div className="text-sm">
+                                                            {res.resolvedEmployee ? "Vínculo confirmado:" : "Sugerencia:"}
+                                                            <span className="font-black ml-2">{res.employee?.nombre || 'Desconocido'} (ID {res.employee?.codigo_empleado || '----'})</span>
+                                                        </div>
+                                                    </div>
+                                                    {res.resolvedEmployee ? (
+                                                        <div className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[9px] font-black uppercase flex items-center gap-2">
+                                                            <CheckCircle size={14} /> Listo
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleUpdateResolution(idx, res.employee)}
+                                                            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 hover:bg-blue-700 transition-all"
+                                                        >
+                                                            Confirmar
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ) : res.type === 'ambiguous' ? (
+                                                <div className="space-y-3 w-full">
+                                                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Selecciona el perfil correcto:</p>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                        {res.matches.map((m, midx) => (
+                                                            <button
+                                                                key={midx}
+                                                                onClick={() => handleUpdateResolution(idx, m)}
+                                                                className={`p-3 rounded-2xl border-2 text-left transition-all ${res.resolvedEmployee?.codigo_empleado === m.codigo_empleado
+                                                                    ? 'border-blue-500 bg-blue-50 shadow-md'
+                                                                    : 'border-gray-100 bg-white hover:border-blue-200'
+                                                                    }`}
+                                                            >
+                                                                <p className="text-[11px] font-black text-[#303a7f] uppercase">{m.nombre}</p>
+                                                                <p className="text-[9px] font-bold text-gray-400">Cargo: {m.cargo} | ID: {m.codigo_empleado}</p>
+                                                            </button>
+                                                        ))}
+                                                        <button
+                                                            onClick={() => handleMarkAsNew(idx)}
+                                                            className={`p-3 rounded-2xl border-2 border-dashed text-left transition-all ${res.isNew
+                                                                ? 'border-green-500 bg-green-50 shadow-md'
+                                                                : 'border-gray-300 bg-gray-50/30 hover:border-green-400'
+                                                                }`}
+                                                        >
+                                                            <p className="text-[11px] font-black text-green-600 uppercase flex items-center gap-2">
+                                                                <UserPlus size={12} /> Es un nuevo empleado
+                                                            </p>
+                                                            <p className="text-[9px] font-bold text-gray-400">Registrar desde cero</p>
+                                                        </button>
                                                     </div>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full bg-white p-4 rounded-3xl border-2 border-gray-100 shadow-sm">
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest px-2">Asignar ID</label>
+                                                        <input
+                                                            type="text"
+                                                            value={res.tempCodigo}
+                                                            onChange={(e) => handleUpdateNewField(idx, 'tempCodigo', e.target.value)}
+                                                            className="w-full bg-gray-50 border-2 border-transparent focus:border-blue-200 rounded-xl p-2.5 text-xs font-black text-[#303a7f] tabular-nums"
+                                                            placeholder="0000"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest px-2">Confirmar Nombre</label>
+                                                        <input
+                                                            type="text"
+                                                            value={res.tempNombre}
+                                                            onChange={(e) => handleUpdateNewField(idx, 'tempNombre', e.target.value)}
+                                                            className="w-full bg-gray-50 border-2 border-transparent focus:border-blue-200 rounded-xl p-2.5 text-xs font-black text-[#303a7f] uppercase"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest px-2">Tienda Inicial</label>
+                                                        <select
+                                                            value={res.tempTienda}
+                                                            onChange={(e) => handleUpdateNewField(idx, 'tempTienda', e.target.value)}
+                                                            className="w-full bg-gray-50 border-2 border-transparent focus:border-blue-200 rounded-xl p-2.5 text-[10px] font-bold text-gray-500 uppercase"
+                                                        >
+                                                            <option value="">Seleccionar...</option>
+                                                            {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Resolution for New or Ambiguous-as-New */}
+                                            {res.isNew && res.type === 'ambiguous' && (
+                                                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 w-full animate-in slide-in-from-top-2 duration-300">
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-[8px] font-black text-green-600 uppercase tracking-widest px-2">ID para nuevo empleado</label>
+                                                        <input
+                                                            type="text"
+                                                            value={res.tempCodigo}
+                                                            onChange={(e) => handleUpdateNewField(idx, 'tempCodigo', e.target.value)}
+                                                            className="w-full bg-green-50/30 border-2 border-green-100 rounded-xl p-2.5 text-xs font-black text-[#303a7f] tabular-nums"
+                                                            placeholder="ID único..."
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-[8px] font-black text-green-600 uppercase tracking-widest px-2">Tienda Inicial</label>
+                                                        <select
+                                                            value={res.tempTienda}
+                                                            onChange={(e) => handleUpdateNewField(idx, 'tempTienda', e.target.value)}
+                                                            className="w-full bg-green-50/30 border-2 border-green-100 rounded-xl p-2.5 text-[10px] font-bold text-gray-500 uppercase"
+                                                        >
+                                                            <option value="">Seleccionar Tienda...</option>
+                                                            {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
                     )}
                 </div>
 
                 {/* Footer */}
                 <div className="p-8 border-t-2 border-gray-50 bg-gray-50/30 flex justify-between items-center">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        {localResults.length === 0 ? 'Sin personal nuevo detectado' : `Total a procesar: ${localResults.length} nuevos empleados`}
-                    </p>
+                    <div className="flex items-center gap-6">
+                        <div className="flex flex-col">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total de registros</p>
+                            <p className="text-xl font-black text-[#303a7f] leading-none">{localResults.length}</p>
+                        </div>
+                        <div className="h-8 w-px bg-gray-200" />
+                        <div className="flex gap-4">
+                            <div className="flex flex-col">
+                                <span className="text-[8px] font-black text-green-500 uppercase tracking-wider">Listos</span>
+                                <span className="text-xs font-black text-gray-600">{localResults.filter(r => r.resolvedEmployee || r.isNew).length}</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[8px] font-black text-amber-500 uppercase tracking-wider">Pendientes</span>
+                                <span className="text-xs font-black text-gray-600">{localResults.filter(r => !r.resolvedEmployee && !r.isNew).length}</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="flex gap-4">
-                        {localResults.length === 0 ? (
-                            <>
-                                <button onClick={onClose} className="px-8 py-3 bg-white border-2 border-brand-primary/10 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95">
-                                    Cancelar
-                                </button>
-                                <button onClick={onClose} className="px-10 py-3 bg-[#303a7f] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95">
-                                    Ok
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <button onClick={onClose} className="px-8 py-3 bg-white border-2 border-brand-primary/10 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95">
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={() => onAddAll(localResults)}
-                                    className="px-10 py-3 bg-[#303a7f] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2"
-                                >
-                                    <CheckCircle size={14} />
-                                    Agregar Personal
-                                </button>
-                            </>
-                        )}
+                        <button onClick={onClose} className="px-8 py-4 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95 shadow-sm">
+                            Cancelar y Revisar Excel
+                        </button>
+                        <button
+                            disabled={localResults.filter(r => !r.resolvedEmployee && !r.isNew).length > 0}
+                            onClick={handleFinalize}
+                            className={`px-12 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-3 ${localResults.filter(r => !r.resolvedEmployee && !r.isNew).length > 0
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                : 'bg-[#303a7f] text-white shadow-blue-900/20 hover:bg-[#252a5e]'
+                                }`}
+                        >
+                            <Save size={14} />
+                            Sincronizar Todo
+                        </button>
                     </div>
                 </div>
             </div>
@@ -2652,7 +2797,7 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
                             <div key={item.id} className="bg-white rounded-[2.5rem] border-2 border-gray-100 shadow-sm overflow-hidden group hover:border-[#6bbdb7]/30 transition-all">
                                 <div className="relative aspect-[4/3] bg-gray-100 flex items-center justify-center overflow-hidden">
                                     <img src={item.preview} className="w-full h-full object-contain" alt="Preview" />
-                                    
+
                                     {/* Badge con Nombre de Archivo */}
                                     <div className="absolute top-4 left-4 right-14 bg-[#303a7f]/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/20 shadow-lg">
                                         <p className="text-[9px] font-black text-white uppercase tracking-widest truncate">
@@ -2771,6 +2916,64 @@ function App() {
     const [isProcessingSheets, setIsProcessingSheets] = useState(false); // FASE 8: Digitalizador
     const [isSheetPreviewOpen, setIsSheetPreviewOpen] = useState(false); // MODAL PREVIEW
 
+    // --- Helper de Verificación de Personal (Reutilizable) ---
+    const getPersonnelVerificationResults = (json, currentEmployees) => {
+        const getValueFromRow = (row, keys) => {
+            for (let key of keys) {
+                if (row[key] !== undefined && row[key] !== null) return row[key].toString().trim();
+                const foundKey = Object.keys(row).find(k => k.toLowerCase().trim() === key.toLowerCase().trim());
+                if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null) return row[foundKey].toString().trim();
+            }
+            return '';
+        };
+
+        const rows = json.map(row => {
+            const codigo = getValueFromRow(row, ['Código', 'Codigo', 'ID', 'Empleado ID', 'Nro']);
+            const nombre = getValueFromRow(row, ['Nombre y Apellidos', 'Nombre y Apellido', 'Nombre', 'Empleado']);
+            const cargo = getValueFromRow(row, ['Cargo', 'Servicio', 'Puesto']);
+
+            if (!nombre || nombre.toLowerCase().includes('nombre y apellido')) return null;
+
+            // 1. Exact Match (ID + Name)
+            const exactMatch = currentEmployees.find(e =>
+                String(e.codigo_empleado ?? '').trim().toLowerCase() === codigo.toLowerCase() &&
+                String(e.nombre ?? '').trim().toLowerCase() === nombre.toLowerCase()
+            );
+
+            if (exactMatch) {
+                return { type: 'verified', employee: exactMatch, excelRow: { nombre, codigo, cargo } };
+            }
+
+            // 2. Name Match (Fuzzy)
+            const nameMatches = currentEmployees.filter(e =>
+                String(e.nombre ?? '').trim().toLowerCase() === nombre.toLowerCase()
+            );
+
+            if (nameMatches.length === 1) {
+                return { type: 'suggested', employee: nameMatches[0], excelRow: { nombre, codigo, cargo } };
+            } else if (nameMatches.length > 1) {
+                return { type: 'ambiguous', matches: nameMatches, excelRow: { nombre, codigo, cargo } };
+            }
+
+            // 3. New / Invalid
+            const isInvalidCode = codigo && (codigo.length < 4 || !/^\d+$/.test(codigo));
+            return { type: 'new', excelRow: { nombre, codigo, cargo }, isInvalidCode };
+        }).filter(Boolean);
+
+        // Deduplicar resultados por Nombre + Código para el modal
+        const uniqueResults = [];
+        const seenKeys = new Set();
+        rows.forEach(res => {
+            const key = `${res.excelRow.nombre}-${res.excelRow.codigo}`.toLowerCase();
+            if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                uniqueResults.push(res);
+            }
+        });
+
+        return uniqueResults;
+    };
+
     useEffect(() => {
         if (activeTab === 'payroll') {
             setPayrollView('history');
@@ -2794,53 +2997,15 @@ function App() {
             const data = await file.arrayBuffer();
             const workbook = XLSX.read(data);
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const json = XLSX.utils.sheet_to_json(sheet, { range: 1 }); // Empezar en fila 2
+            const json = XLSX.utils.sheet_to_json(sheet, { range: 1 });
 
-            const getValue = (row, keys) => {
-                for (let key of keys) {
-                    if (row[key] !== undefined) return row[key].toString().trim();
-                    const foundKey = Object.keys(row).find(k => k.toLowerCase().trim() === key.toLowerCase().trim());
-                    if (foundKey) return row[foundKey].toString().trim();
-                }
-                return '';
-            };
+            const verificationRows = getPersonnelVerificationResults(json, employees);
 
-            const undetected = json.map(row => {
-                const codigo = getValue(row, ['Código', 'Codigo', 'ID', 'Empleado ID', 'Nro']).toString().trim();
-                const nombre = getValue(row, ['Nombre y Apellidos', 'Nombre y Apellido', 'Nombre', 'Empleado']).toString().trim();
-                const cargo = getValue(row, ['Cargo', 'Servicio', 'Puesto']).toString().trim();
-
-                // Verificar si existe en el estado global 'employees' usando llave compuesta: Nombre + ID
-                const exists = employees.some(e =>
-                    e.codigo_empleado.toString().trim().toLowerCase() === codigo.toLowerCase() &&
-                    e.nombre.toString().trim().toLowerCase() === nombre.toLowerCase()
-                );
-
-                if (!exists && codigo && nombre) {
-                    const cargoFormatted = cargo ? (cargo.charAt(0).toUpperCase() + cargo.slice(1).toLowerCase()) : 'Janitorial';
-                    return {
-                        codigo_empleado: codigo,
-                        nombre: nombre,
-                        fecha_ingreso: `${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getDate()).padStart(2, '0')}/${new Date().getFullYear()}`, // Formato MM/DD/YYYY
-                        fecha_egreso: '',
-                        cargo: cargoFormatted,
-                        tienda: '',
-                        cuenta_bancaria: '',
-                        imagen: ''
-                    };
-                }
-                return null;
-            }).filter(Boolean);
-
-            // Validar longitud de códigos (mínimo 4 dígitos)
-            const invalidEntries = json.map(row => {
-                const codigo = getValue(row, ['Código', 'Codigo', 'ID', 'Empleado ID', 'Nro']).toString().trim();
-                const nombre = getValue(row, ['Nombre y Apellidos', 'Nombre y Apellido', 'Nombre', 'Empleado']).toString().trim();
-                if (codigo && (codigo.length < 4 || !/^\d+$/.test(codigo))) {
-                    return { nombre, codigo };
-                }
-                return null;
-            }).filter(Boolean);
+            // Filtrar errores de código antes de proceder
+            const invalidEntries = verificationRows.filter(r => r.isInvalidCode).map(r => ({
+                nombre: r.excelRow.nombre,
+                codigo: r.excelRow.codigo
+            }));
 
             if (invalidEntries.length > 0) {
                 setInvalidCodes(invalidEntries);
@@ -2849,18 +3014,7 @@ function App() {
                 return;
             }
 
-            // Eliminar duplicados en el mismo Excel por llave compuesta
-            const uniqueResults = [];
-            const seenKeys = new Set();
-            undetected.forEach(emp => {
-                const key = `${emp.nombre}-${emp.codigo_empleado}`.toLowerCase();
-                if (!seenKeys.has(key)) {
-                    seenKeys.add(key);
-                    uniqueResults.push(emp);
-                }
-            });
-
-            setVerificationResults(uniqueResults);
+            setVerificationResults(verificationRows);
             setIsVerificationModalOpen(true);
         } catch (error) {
             console.error('[Verify] Error procesando archivo:', error);
@@ -2870,29 +3024,39 @@ function App() {
         }
     };
 
-    const handleAddVerifiedEmployees = async (newEmployees) => {
+    const handleAddVerifiedEmployees = async (resolutions) => {
         setIsLoading(true);
         setIsSyncingBatch(true);
         setSyncProgress(0);
-        setSyncTotal(newEmployees.length);
+        setSyncTotal(resolutions.length);
 
         // Bloquear scroll
         document.body.style.overflow = 'hidden';
 
         try {
-            // Sincronizar de forma secuencial para evitar bloqueos por concurrencia
             let current = 0;
-            for (let emp of newEmployees) {
-                // Asegurar formato de Cargo (Primera Mayúscula) y Código (Con prefijo ' para preservar ceros)
-                const formattedEmp = {
-                    ...emp,
-                    cargo: emp.cargo.charAt(0).toUpperCase() + emp.cargo.slice(1).toLowerCase()
-                };
+            for (let res of resolutions) {
+                const isUpdate = res._action === 'update';
+                const formattedEmp = { ...res };
+                delete formattedEmp._action;
 
-                // Sincronización optimista en el estado local
-                setEmployees(prev => [formattedEmp, ...prev]);
+                // Asegurar formato de Cargo (Primera Mayúscula)
+                if (formattedEmp.cargo) {
+                    formattedEmp.cargo = formattedEmp.cargo.charAt(0).toUpperCase() + formattedEmp.cargo.slice(1).toLowerCase();
+                }
+
+                if (isUpdate) {
+                    // Actualizar empleado existente localmente por Nombre (con guardia contra nulos)
+                    setEmployees(prev => prev.map(e =>
+                        (e.nombre || '').toLowerCase().trim() === (formattedEmp.nombre || '').toLowerCase().trim() ? formattedEmp : e
+                    ));
+                } else {
+                    // Sincronización optimista para nuevos
+                    setEmployees(prev => [formattedEmp, ...prev]);
+                }
+
                 // Enviar a Google Sheets con prefijo ' para preservar ceros a la izquierda
-                await syncToSheets('upsert', { ...formattedEmp, codigo_empleado: `'${formattedEmp.codigo_empleado}` }, 'Personal', true); // true = saltar refresh individual
+                await syncToSheets('upsert', { ...formattedEmp, codigo_empleado: `'${formattedEmp.codigo_empleado}` }, 'Personal', true);
 
                 current++;
                 setSyncProgress(current);
@@ -2902,18 +3066,17 @@ function App() {
             setTimeout(() => {
                 fetchEmployees();
                 setDbStatus('conectado');
-                window.location.reload(); // Recarga la página después de completar todo
+                window.location.reload();
             }, 1000);
 
             setIsVerificationModalOpen(false);
             setVerificationResults([]);
         } catch (error) {
             console.error('[AddVerified] Error agregando empleados:', error);
-            showError("Hubo un error al registrar el personal nuevo en la base de datos.");
+            showError("Hubo un error al sincronizar el personal. Verifique la base de datos.");
         } finally {
             setIsLoading(false);
             setIsSyncingBatch(false);
-            // Desbloquear scroll
             document.body.style.overflow = 'auto';
         }
     };
@@ -2951,6 +3114,21 @@ function App() {
 
             const supervisorJson = XLSX.utils.sheet_to_json(supervisorSheet, { range: 1 });
             console.log('[Payroll] Filas cargadas (desde Fila 2):', supervisorJson.length);
+
+            // --- INTEGRACIÓN: VALIDACIÓN DE PERSONAL ---
+            const verificationResults = getPersonnelVerificationResults(supervisorJson, employees);
+            const needsResolution = verificationResults.some(r => r.type !== 'verified');
+
+            if (needsResolution) {
+                console.log('[Payroll] Inconsistencias detectadas. Abriendo Centro de Resolución...');
+                setVerificationResults(verificationResults);
+                setIsVerificationModalOpen(true);
+                setIsProcessingPayroll(false);
+                showStatus("Validación Requerida", "Se detectaron empleados nuevos o con ID faltante. Por favor, resuelva estas identidades antes de procesar la nómina.", "error");
+                document.body.style.overflow = 'auto';
+                return;
+            }
+
             setPayrollTotalRows(supervisorJson.length);
 
             const semanaRows = supervisorJson.map((row, idx) => {
