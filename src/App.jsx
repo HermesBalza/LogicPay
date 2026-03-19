@@ -36,7 +36,8 @@ import {
     Info,
     ClipboardCheck,
     Download,
-    History
+    History,
+    Send
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -2536,6 +2537,93 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, inline = false }) 
     );
 };
 
+const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, onConfirm, isProcessing }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-5xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+                {/* Header */}
+                <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
+                    <div className="flex items-center gap-5">
+                        <div className="p-4 bg-[#6bbdb7] text-white rounded-2xl shadow-lg shadow-teal-900/20">
+                            <Camera size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Previsualización de Planillas</h3>
+                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Añade comentarios para ayudar a la IA con fechas o exclusiones</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                    >
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-8 bg-[#fcfdfe] custom-scrollbar">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {files.map((item, idx) => (
+                            <div key={item.id} className="bg-white rounded-[2.5rem] border-2 border-gray-100 shadow-sm overflow-hidden group hover:border-[#6bbdb7]/30 transition-all">
+                                <div className="relative aspect-[4/3] bg-gray-100 flex items-center justify-center overflow-hidden">
+                                    <img src={item.preview} className="w-full h-full object-contain" alt="Preview" />
+                                    
+                                    {/* Badge con Nombre de Archivo */}
+                                    <div className="absolute top-4 left-4 right-14 bg-[#303a7f]/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/20 shadow-lg">
+                                        <p className="text-[9px] font-black text-white uppercase tracking-widest truncate">
+                                            {item.file.name}
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        onClick={() => onRemove(item.id)}
+                                        className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100 active:scale-90"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                                <div className="p-6">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 px-1">Instrucciones o Comentarios</label>
+                                    <textarea
+                                        value={item.comment}
+                                        onChange={(e) => onCommentChange(item.id, e.target.value)}
+                                        placeholder="Ej: Solo esta fecha 02/25. No tomar en cuenta a Juan Pérez..."
+                                        className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl p-4 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7]/30 focus:bg-white transition-all h-24 resize-none placeholder:text-gray-200"
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-8 border-t-2 border-gray-50 flex items-center justify-end gap-4 bg-white">
+                    <button
+                        onClick={onClose}
+                        className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-100 transition-all active:scale-95"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={isProcessing || files.length === 0}
+                        className="px-12 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400"
+                    >
+                        {isProcessing ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <Send size={18} />
+                        )}
+                        {isProcessing ? 'Procesando...' : 'Enviar al Motor'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 function App() {
     const [activeTab, setActiveTab] = useState(() => {
         return localStorage.getItem('lgm_active_tab') || 'stores';
@@ -2598,6 +2686,7 @@ function App() {
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [sheetFiles, setSheetFiles] = useState([]); // FASE 8: Digitalizador
     const [isProcessingSheets, setIsProcessingSheets] = useState(false); // FASE 8: Digitalizador
+    const [isSheetPreviewOpen, setIsSheetPreviewOpen] = useState(false); // MODAL PREVIEW
 
     useEffect(() => {
         if (activeTab === 'payroll') {
@@ -2965,9 +3054,11 @@ function App() {
 
             const genAI = new GoogleGenerativeAI(geminiApiKey);
             const model = genAI.getGenerativeModel({
-                model: "gemini-2.5-flash",
+                model: "gemini-3-flash-preview",
                 generationConfig: { responseMimeType: "application/json" }
             });
+
+            console.log("Sincronización con Motor Gemini 3 Flash establecida correctamente");
 
             const prompt = `
                 Eres un motor de procesamiento de nómina especializado. Tengo registros de ponches biométricos en JSON.
@@ -3188,18 +3279,26 @@ function App() {
                 });
             };
 
-            const imageParts = await Promise.all(sheetFiles.map(async (file) => ({
-                inlineData: {
-                    data: await fileToBase64(file),
-                    mimeType: file.type
-                }
-            })));
+            const imageParts = await Promise.all(sheetFiles.map(async (item) => {
+                const base64 = await fileToBase64(item.file);
+                return [
+                    { text: `Comentario/Instrucción del usuario para la siguiente imagen: ${item.comment || "Sin comentarios adicionales."}` },
+                    {
+                        inlineData: {
+                            data: base64,
+                            mimeType: item.file.type
+                        }
+                    }
+                ];
+            }));
 
             const genAI = new GoogleGenerativeAI(geminiApiKey);
             const model = genAI.getGenerativeModel({
-                model: "gemini-2.5-flash",
+                model: "gemini-3-flash-preview",
                 generationConfig: { responseMimeType: "application/json" }
             });
+
+            console.log("Sincronización con Motor Gemini 3 Flash establecida correctamente");
 
             // Obtener lista de empleados de la tienda actual para contexto (Fuzzy Matching)
             const storeEmployees = employees
@@ -3224,6 +3323,7 @@ function App() {
                    - Si la planilla es SEMANAL o tiene un RANGO de fechas (ej: "02/22 al 02/28"), extrae cada fecha individual y asocia las horas a cada día correspondiente.
                 6. Extrae las horas trabajadas totales para cada fecha identificada.
                 7. El Código de empleado debe quedar vacío "".
+                8. PRIORIDAD DE COMENTARIOS: Si una imagen viene acompañada de un comentario del usuario, PRIORIZA esa información (ej: fechas específicas, nombres a ignorar, cargos correctos).
                 
                 REGLA DE SALIDA:
                 - Si hay varias planillas con diferentes fechas, agrupa los datos por empleado.
@@ -3245,7 +3345,8 @@ function App() {
                 }
             `;
 
-            const result = await model.generateContent([prompt, ...imageParts]);
+            const flattenedParts = [{ text: prompt }, ...imageParts.flat()];
+            const result = await model.generateContent(flattenedParts);
             const response = await result.response;
             const text = response.text();
             const aiData = JSON.parse(text.replace(/```json|```/g, '').trim());
@@ -3263,7 +3364,7 @@ function App() {
                     wb = XLSX.utils.book_new();
                     const ws = XLSX.utils.aoa_to_sheet([
                         ["Nombre de Tienda"],
-                        ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"]
+                        ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"]
                     ]);
                     XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
                 }
@@ -3280,7 +3381,7 @@ function App() {
                         "Domingo": "00:00",
                         "Lunes": "00:00",
                         "Martes": "00:00",
-                        "miercoles": "00:00",
+                        "Miercoles": "00:00",
                         "Jueves": "00:00",
                         "Viernes": "00:00",
                         "Sabado": "00:00",
@@ -3303,7 +3404,7 @@ function App() {
 
                         if (!isNaN(d.getTime())) {
                             const dayIdx = d.getDay(); // 0=Dom, 1=Lun, ..., 6=Sab
-                            const dayNames = ["Domingo", "Lunes", "Martes", "miercoles", "Jueves", "Viernes", "Sabado"];
+                            const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
                             const dayKey = dayNames[dayIdx];
                             row[dayKey] = asist.horas;
 
@@ -3327,7 +3428,7 @@ function App() {
                         row["Domingo"],
                         row["Lunes"],
                         row["Martes"],
-                        row["miercoles"],
+                        row["Miercoles"],
                         row["Jueves"],
                         row["Viernes"],
                         row["Sabado"],
@@ -4001,25 +4102,29 @@ function App() {
                                                         : 'shadow-blue-900/10 hover:bg-[#252a5e]'
                                                         }`}
                                                 >
-                                                    {sheetFiles.length > 0 ? 'Fotos OK' : 'Subir Fotos'}
+                                                    {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos OK') : 'Subir Fotos'}
                                                 </button>
                                                 <input
                                                     type="file"
                                                     multiple
                                                     className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                                                    onChange={(e) => setSheetFiles(Array.from(e.target.files))}
+                                                    onChange={(e) => {
+                                                        const selected = Array.from(e.target.files);
+                                                        if (selected.length > 0) {
+                                                            const newItems = selected.map(file => ({
+                                                                id: Math.random().toString(36).substr(2, 9),
+                                                                file: file,
+                                                                preview: URL.createObjectURL(file),
+                                                                comment: ''
+                                                            }));
+                                                            setSheetFiles(prev => [...prev, ...newItems]);
+                                                            setIsSheetPreviewOpen(true);
+                                                        }
+                                                        e.target.value = null; // Reset para permitir re-selección
+                                                    }}
                                                     accept="image/*"
                                                 />
                                             </div>
-
-                                            <button
-                                                onClick={processSheetImagesWithAI}
-                                                disabled={sheetFiles.length === 0 || isProcessingSheets}
-                                                className={`p-2 rounded-xl border-2 transition-all active:scale-95 flex items-center justify-center ${sheetFiles.length > 0 && !isProcessingSheets ? 'bg-[#303a7f] text-white border-[#303a7f] shadow-lg' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
-                                                title="Procesar con IA y bajar Excel"
-                                            >
-                                                {isProcessingSheets ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Cpu size={16} />}
-                                            </button>
                                         </div>
                                         <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Handwritten to Excel (AI)</p>
                                     </div>
@@ -4656,6 +4761,26 @@ function App() {
                     </div>
                 </div>
             )}
+
+            {/* FASE 8: MODAL DE PREVIEW DE PLANILLAS */}
+            <SheetPreviewModal
+                isOpen={isSheetPreviewOpen}
+                files={sheetFiles}
+                onClose={() => {
+                    setSheetFiles([]);
+                    setIsSheetPreviewOpen(false);
+                }}
+                onRemove={(id) => setSheetFiles(prev => prev.filter(f => f.id !== id))}
+                onCommentChange={(id, comment) => setSheetFiles(prev => prev.map(f => f.id === id ? { ...f, comment } : f))}
+                onConfirm={async () => {
+                    // Primero iniciamos el proceso
+                    await processSheetImagesWithAI();
+                    // Una vez terminado (o al menos disparado el proceso que descarga el Excel), cerramos el modal.
+                    // Nota: processSheetImagesWithAI ya tiene su propio manejo de isLoading (isProcessingSheets).
+                    setIsSheetPreviewOpen(false);
+                }}
+                isProcessing={isProcessingSheets}
+            />
 
             {/* FASE 7: MODAL DE ESTATUS PROFESIONAL (Éxito/Error) */}
             {isStatusModalOpen && (
