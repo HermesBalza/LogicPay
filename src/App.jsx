@@ -61,6 +61,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby0R4SsS0XZm4pCff6Z4jWz
 // ─── BASE DE DATOS: Google Sheets publicado como CSV (lectura) ───────────────
 const SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=0&single=true&output=csv';
 const EMPLOYEES_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=866070317&single=true&output=csv';
+const NOMINA_HISTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=1638753782&single=true&output=csv';
 
 // Parsea una fila CSV respetando campos entre comillas
 const parseCSVRow = (row) => {
@@ -2259,9 +2260,8 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                     ) : (
                         localResults.map((res, idx) => (
                             <div key={idx} className="group relative">
-                                <div className={`flex items-center gap-4 py-3 px-6 rounded-2xl border-2 transition-all duration-200 hover:shadow-md ${
-                                    res.resolvedEmployee ? 'bg-green-50/20 border-green-100' : 'bg-white border-gray-100'
-                                }`}>
+                                <div className={`flex items-center gap-4 py-3 px-6 rounded-2xl border-2 transition-all duration-200 hover:shadow-md ${res.resolvedEmployee ? 'bg-green-50/20 border-green-100' : 'bg-white border-gray-100'
+                                    }`}>
                                     {/* Left: Excel Data (Gris Oscuro) */}
                                     <div className="w-[280px] shrink-0">
                                         <div className="flex items-center gap-2 mb-0.5">
@@ -2282,26 +2282,26 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                                             <div className="flex items-center gap-3 bg-blue-50/50 p-2 rounded-xl border border-blue-100 animate-in fade-in zoom-in-95">
                                                 <div className="flex flex-col gap-0.5 flex-1">
                                                     <label className="text-[7px] font-black text-blue-500 uppercase px-1">ID</label>
-                                                    <input 
-                                                        type="text" 
-                                                        value={res.tempCodigo} 
+                                                    <input
+                                                        type="text"
+                                                        value={res.tempCodigo}
                                                         onChange={(e) => handleUpdateNewField(idx, 'tempCodigo', e.target.value)}
                                                         className="bg-white border border-blue-100 rounded-lg px-2 py-1 text-[11px] font-black text-[#303a7f] tabular-nums"
                                                     />
                                                 </div>
                                                 <div className="flex flex-col gap-0.5 flex-[2]">
                                                     <label className="text-[7px] font-black text-blue-500 uppercase px-1">Nombre</label>
-                                                    <input 
-                                                        type="text" 
-                                                        value={res.tempNombre} 
+                                                    <input
+                                                        type="text"
+                                                        value={res.tempNombre}
                                                         onChange={(e) => handleUpdateNewField(idx, 'tempNombre', e.target.value)}
                                                         className="bg-white border border-blue-100 rounded-lg px-2 py-1 text-[11px] font-black text-[#303a7f] uppercase"
                                                     />
                                                 </div>
                                                 <div className="flex flex-col gap-0.5 flex-[1.5]">
                                                     <label className="text-[7px] font-black text-blue-500 uppercase px-1">Tienda</label>
-                                                    <select 
-                                                        value={res.tempTienda} 
+                                                    <select
+                                                        value={res.tempTienda}
                                                         onChange={(e) => handleUpdateNewField(idx, 'tempTienda', e.target.value)}
                                                         className="bg-white border border-blue-100 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-500 uppercase"
                                                     >
@@ -2332,8 +2332,8 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                                             <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
                                                 <span className="text-[9px] font-black text-amber-600 uppercase shrink-0 mr-1">Elegir:</span>
                                                 {res.matches.map((m, midx) => (
-                                                    <button 
-                                                        key={midx} 
+                                                    <button
+                                                        key={midx}
                                                         onClick={() => handleUpdateResolution(idx, m)}
                                                         className="shrink-0 p-2 bg-amber-50 border border-amber-200 rounded-xl hover:border-amber-400 transition-all text-left"
                                                     >
@@ -2366,18 +2366,17 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                                             )}
                                         </div>
 
-                                        <button 
+                                        <button
                                             onClick={() => { setSearchingIdx(idx); setManualSearchTerm(res.excelRow.nombre || ''); }}
                                             className="px-4 py-2 bg-gray-50 text-[#303a7f] rounded-xl text-[9px] font-black uppercase tracking-widest border border-gray-100 hover:bg-[#303a7f] hover:text-white hover:border-[#303a7f] transition-all active:scale-95 shadow-sm flex items-center gap-2"
                                         >
                                             <Search size={12} />
                                             Buscar
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => handleMarkAsNew(idx)}
-                                            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm flex items-center gap-2 ${
-                                                res.isNew ? 'bg-[#6bbdb7] text-white shadow-[#6bbdb7]/20' : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-gray-100 hover:text-gray-600'
-                                            }`}
+                                            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm flex items-center gap-2 ${res.isNew ? 'bg-[#6bbdb7] text-white shadow-[#6bbdb7]/20' : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-gray-100 hover:text-gray-600'
+                                                }`}
                                         >
                                             <UserPlus size={12} />
                                             Nuevo
@@ -2404,7 +2403,7 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                                     <X size={20} />
                                 </button>
                             </div>
-                            
+
                             <div className="p-6 bg-gray-50/50">
                                 <div className="relative group">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={18} />
@@ -2423,8 +2422,8 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                                 {employees
                                     .filter(emp => {
                                         const query = manualSearchTerm.toLowerCase();
-                                        return emp.nombre?.toLowerCase().includes(query) || 
-                                               emp.codigo_empleado?.toLowerCase().includes(query);
+                                        return emp.nombre?.toLowerCase().includes(query) ||
+                                            emp.codigo_empleado?.toLowerCase().includes(query);
                                     })
                                     .slice(0, 50)
                                     .map((emp, eidx) => (
@@ -2452,13 +2451,13 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                                 }
                                 {manualSearchTerm && employees.filter(emp => {
                                     const query = manualSearchTerm.toLowerCase();
-                                    return emp.nombre?.toLowerCase().includes(query) || 
-                                           emp.codigo_empleado?.toLowerCase().includes(query);
+                                    return emp.nombre?.toLowerCase().includes(query) ||
+                                        emp.codigo_empleado?.toLowerCase().includes(query);
                                 }).length === 0 && (
-                                    <div className="py-12 text-center text-gray-300 italic uppercase text-[10px] font-black tracking-widest">
-                                        No se encontraron coincidencias en la base de datos
-                                    </div>
-                                )}
+                                        <div className="py-12 text-center text-gray-300 italic uppercase text-[10px] font-black tracking-widest">
+                                            No se encontraron coincidencias en la base de datos
+                                        </div>
+                                    )}
                             </div>
                         </div>
                     </div>
@@ -2641,9 +2640,20 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     );
 };
 
-const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, inline = false }) => {
+const PayrollHistoryModal = ({
+    isOpen, onClose, onSelectWeek, inline = false,
+    stores = [], selectedStore = '', onSelectStore = () => { }, historyData = []
+}) => {
     const [selectedYear, setSelectedYear] = useState(2026);
     if (!isOpen) return null;
+
+    const isWeekProcessed = (fechaInicio) => {
+        if (!selectedStore) return false;
+        return historyData.some(h =>
+            String(h.nombre).trim().toLowerCase() === String(selectedStore).trim().toLowerCase() &&
+            h.fecha_inicio === fechaInicio
+        );
+    };
 
     // Generar semanas del 2026 al 2040 agrupadas en pares con numeración anual reseteada
     const generateBiweeklyPeriods = () => {
@@ -2750,20 +2760,35 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, inline = false }) 
                 </header>
             )}
 
-            {/* Year Selector */}
-            <div className={`bg-white border-b-2 border-gray-50 px-12 py-4 overflow-x-auto flex gap-4 custom-scrollbar sticky ${inline ? 'top-0' : 'top-[108px]'} z-10`}>
-                {availableYears.map(year => (
-                    <button
-                        key={year}
-                        onClick={() => setSelectedYear(year)}
-                        className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap ${selectedYear === year
-                            ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/20 scale-105'
-                            : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                            }`}
+            {/* Store & Year Selector */}
+            <div className={`bg-white border-b-2 border-gray-50 px-12 py-4 flex flex-col md:flex-row gap-6 custom-scrollbar sticky ${inline ? 'top-0' : 'top-[108px]'} z-10`}>
+                <div className="flex-shrink-0 w-full md:w-80 border-r-0 md:border-r-2 md:border-gray-50 pr-0 md:pr-6">
+                    <label className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-2">Consultar / Procesar Tienda</label>
+                    <select
+                        value={selectedStore}
+                        onChange={(e) => onSelectStore(e.target.value)}
+                        className="w-full bg-gray-50 border-2 border-brand-primary/10 rounded-xl px-4 py-2.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all cursor-pointer shadow-inner appearance-none relative"
                     >
-                        {year}
-                    </button>
-                ))}
+                        <option value="">Selecciona una Tienda</option>
+                        {stores.map(s => (
+                            <option key={s.codigo} value={s.nombre}>{s.nombre}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="flex-1 overflow-x-auto flex items-end gap-3 pb-2 md:pb-0">
+                    {availableYears.map(year => (
+                        <button
+                            key={year}
+                            onClick={() => setSelectedYear(year)}
+                            className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap ${selectedYear === year
+                                ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/20 scale-105'
+                                : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                                }`}
+                        >
+                            {year}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Content Container */}
@@ -2792,25 +2817,31 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, inline = false }) 
 
                                 {/* Contenedor de Semanas (Lado a Lado) */}
                                 <div className="grid grid-cols-2 gap-3">
-                                    {[p.w1, p.w2].map((w, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => onSelectWeek(w.start, w.end)}
-                                            className="group/week bg-gray-50/50 hover:bg-[#6bbdb7] p-3.5 rounded-2xl border-2 border-transparent hover:border-[#6bbdb7] transition-all duration-300 text-left relative overflow-hidden active:scale-95"
-                                        >
-                                            <div className="relative z-10">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <span className="text-[9px] font-black text-[#303a7f] group-hover/week:text-white uppercase tracking-widest transition-colors">{w.weekNumInYear}</span>
-                                                    <ChevronRight size={12} className="text-[#303a7f] group-hover/week:text-white opacity-0 group-hover/week:opacity-100 transition-all" />
+                                    {[p.w1, p.w2].map((w, idx) => {
+                                        const processed = isWeekProcessed(w.start);
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() => onSelectWeek(w.start, w.end)}
+                                                className={`group/week transition-all duration-300 p-3.5 rounded-2xl border-2 text-left relative overflow-hidden active:scale-95 ${processed
+                                                        ? 'bg-[#6bbdb7] hover:bg-[#59aba5] border-[#59aba5] shadow-lg shadow-teal-900/20'
+                                                        : 'bg-gray-50/50 hover:bg-[#303a7f] border-transparent hover:border-[#303a7f]'
+                                                    }`}
+                                            >
+                                                <div className="relative z-10">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${processed ? 'text-white' : 'text-[#303a7f] group-hover/week:text-white'}`}>{w.weekNumInYear}</span>
+                                                        <ChevronRight size={12} className={`${processed ? 'text-white opacity-100' : 'text-[#303a7f] group-hover/week:text-white opacity-0 group-hover/week:opacity-100'} transition-all`} />
+                                                    </div>
+                                                    <h5 className={`text-[10px] font-black uppercase tracking-tight mb-2 transition-colors ${processed ? 'text-white' : 'text-[#303a7f] group-hover/week:text-white'}`}>Semana {idx + 1}</h5>
+                                                    <div className="space-y-0.5">
+                                                        <p className={`text-[8px] font-bold uppercase tracking-widest transition-colors ${processed ? 'text-teal-100' : 'text-gray-400 group-hover/week:text-white/60'}`}>{w.start.split('/')[0]}/{w.start.split('/')[1]}</p>
+                                                        <p className={`text-[8px] font-black uppercase tracking-widest transition-colors ${processed ? 'text-white' : 'text-[#6bbdb7] group-hover/week:text-white'}`}>{w.end.split('/')[0]}/{w.end.split('/')[1]}</p>
+                                                    </div>
                                                 </div>
-                                                <h5 className="text-[10px] font-black text-[#303a7f] group-hover/week:text-white uppercase tracking-tight mb-2 transition-colors">Semana {idx + 1}</h5>
-                                                <div className="space-y-0.5">
-                                                    <p className="text-[8px] font-bold text-gray-400 group-hover/week:text-white/60 uppercase tracking-widest transition-colors">{w.start.split('/')[0]}/{w.start.split('/')[1]}</p>
-                                                    <p className="text-[8px] font-black text-[#6bbdb7] group-hover/week:text-white uppercase tracking-widest transition-colors">{w.end.split('/')[0]}/{w.end.split('/')[1]}</p>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    ))}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
 
                                 <div className="mt-5 pt-4 border-t border-gray-50">
@@ -2976,6 +3007,9 @@ function App() {
     const [statusModalTitle, setStatusModalTitle] = useState('');
     const [statusModalType, setStatusModalType] = useState('success'); // 'success' | 'error'
     const [payrollView, setPayrollView] = useState('history'); // 'history' | 'engine'
+    const [nominaHistoryData, setNominaHistoryData] = useState([]); // FASE 9: Historial Persistente
+    const [selectedHistoryStore, setSelectedHistoryStore] = useState('');
+    const [isHistoricalDataLoaded, setIsHistoricalDataLoaded] = useState(false); // Flag para la UI
 
     const [invalidCodes, setInvalidCodes] = useState([]);
     const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
@@ -3455,7 +3489,38 @@ function App() {
                 setSyncProgress(i + 1);
             }
 
-            showSuccess("Cálculo Semanal procesado y Ubicación del Personal actualizado exitosamente.");
+            // FASE 9: Guardar Historial de Nómina en Sheet 'Nomina_Historico'
+            const payloadStr = JSON.stringify({
+                semanaTableData,
+                biometricTableData,
+                earningsTableData: earnings.map(e => e.lsg),
+                kbsBillingTableData: earnings.map(e => e.kbs),
+                rawBiometricData
+            });
+            const wkId = `'WK-${fechaDesde}`;
+            const historyObj = {
+                nombre: payrollStore,
+                codigo: wkId,
+                fecha_inicio: fechaDesde,
+                fecha_fin: fechaHasta,
+                data_json: payloadStr
+            };
+            await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'upsert',
+                    sheetName: 'Nomina_Historico',
+                    data: historyObj
+                })
+            });
+
+            // Recargar o actualizar el estado local para reflejarlo en la UI
+            setNominaHistoryData(prev => {
+                const updated = prev.filter(h => !(String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === fechaDesde));
+                return [...updated, historyObj];
+            });
+
+            showSuccess("Cálculo Semanal procesado, Guardado en Historial y Personal actualizado exitosamente.");
             fetchEmployees();
         } catch (error) {
             console.error('[Payroll] Error al aprobar semana:', error);
@@ -3954,9 +4019,33 @@ function App() {
         }
     };
 
+    const fetchNominaHistory = async () => {
+        try {
+            const response = await fetch(NOMINA_HISTORY_CSV_URL);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const csvText = await response.text();
+            const lines = csvText.trim().split('\n').filter(l => l.trim());
+            if (lines.length < 2) {
+                setNominaHistoryData([]);
+                return;
+            }
+            const headers = parseCSVRow(lines[0]);
+            const loaded = lines.slice(1).map(line => {
+                const values = parseCSVRow(line);
+                const flat = {};
+                headers.forEach((h, i) => { flat[h.trim()] = (values[i] || '').trim(); });
+                return flat;
+            });
+            setNominaHistoryData(loaded);
+        } catch (error) {
+            console.error('[LogicPay] Error cargando Nomina_Historico:', error);
+        }
+    };
+
     useEffect(() => {
         fetchStores();
         fetchEmployees();
+        fetchNominaHistory();
     }, []);
 
     // ─── API: Sincronizar cambios con Google Sheets ──────────────────────────
@@ -4385,8 +4474,33 @@ function App() {
                                 onSelectWeek={(start, end) => {
                                     setFechaDesde(start);
                                     setFechaHasta(end);
+                                    if (selectedHistoryStore) {
+                                        setPayrollStore(selectedHistoryStore);
+                                        const hData = nominaHistoryData.find(h =>
+                                            String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
+                                            h.fecha_inicio === start
+                                        );
+                                        if (hData) {
+                                            try {
+                                                const payload = JSON.parse(hData.data_json);
+                                                setSemanaTableData(payload.semanaTableData || []);
+                                                setBiometricTableData(payload.biometricTableData || []);
+                                                setEarningsTableData(payload.earningsTableData || []);
+                                                setKbsBillingTableData(payload.kbsBillingTableData || []);
+                                                setRawBiometricData(payload.rawBiometricData || []);
+                                                setIsHistoricalDataLoaded(true);
+                                            } catch (e) { console.error(e); }
+                                        } else {
+                                            setSemanaTableData([]);
+                                            setIsHistoricalDataLoaded(false);
+                                        }
+                                    }
                                     setPayrollView('engine');
                                 }}
+                                stores={stores}
+                                selectedStore={selectedHistoryStore}
+                                onSelectStore={setSelectedHistoryStore}
+                                historyData={nominaHistoryData}
                             />
                         </div>
                     )}
@@ -4424,20 +4538,11 @@ function App() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-10 relative z-10">
                                     <div className="md:col-span-4 space-y-2">
-                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Unidad Receptora</label>
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Unidad Receptora (Tienda)</label>
                                         <div className="relative group">
-                                            <select
-                                                value={payrollStore}
-                                                onChange={(e) => setPayrollStore(e.target.value)}
-                                                className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner pr-14 text-sm"
-                                            >
-                                                <option value="">--- ELIJA UNA TIENDA ---</option>
-                                                {stores.map((s, i) => (
-                                                    <option key={i} value={s.nombre}>{s.nombre}</option>
-                                                ))}
-                                            </select>
-                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 pointer-events-none group-focus-within:rotate-180 transition-transform">
-                                                <ChevronDown className="text-[#303a7f]" size={16} />
+                                            <div className="w-full bg-[#f9f9f9] border-[3px] border-[#6bbdb7]/30 text-[#303a7f] font-black rounded-xl p-3 shadow-inner shadow-teal-900/5 text-sm uppercase tracking-widest flex items-center gap-3 mt-1">
+                                                <div className="w-2 h-2 bg-[#6bbdb7] rounded-full animate-pulse shadow-[0_0_8px_rgba(107,189,183,0.8)]"></div>
+                                                {payrollStore || "S/A"}
                                             </div>
                                         </div>
                                     </div>
@@ -4445,26 +4550,9 @@ function App() {
                                     <div className="md:col-span-3 space-y-2">
                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Desde:</label>
                                         <div className="relative group">
-                                            <input
-                                                type="text"
-                                                placeholder="mm/dd/aaaa"
-                                                maxLength={10}
-                                                value={fechaDesde}
-                                                onChange={(e) => handleDateInputChange(e.target.value, setFechaDesde)}
-                                                className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all shadow-inner text-sm tracking-widest pr-12"
-                                            />
-                                            <input
-                                                type="date"
-                                                ref={fechaDesdeRef}
-                                                className="absolute opacity-0 pointer-events-none w-0 h-0"
-                                                onChange={(e) => handleNativeDateChange(e, setFechaDesde)}
-                                            />
-                                            <div
-                                                className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 cursor-pointer hover:bg-gray-50 text-[#303a7f] transition-colors"
-                                                onClick={() => fechaDesdeRef.current?.showPicker ? fechaDesdeRef.current.showPicker() : (fechaDesdeRef.current?.focus(), fechaDesdeRef.current?.click())}
-                                                title="Abrir calendario"
-                                            >
-                                                <Calendar size={14} />
+                                            <div className="w-full bg-[#f9f9f9] border-[3px] border-[#6bbdb7]/30 text-[#303a7f] font-black rounded-xl p-3 shadow-inner shadow-teal-900/5 text-sm uppercase tracking-widest flex items-center gap-3 mt-1">
+                                                <Calendar size={16} className="text-[#6bbdb7]" />
+                                                {fechaDesde || "S/A"}
                                             </div>
                                         </div>
                                     </div>
@@ -4472,26 +4560,9 @@ function App() {
                                     <div className="md:col-span-3 space-y-2">
                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Hasta:</label>
                                         <div className="relative group">
-                                            <input
-                                                type="text"
-                                                placeholder="mm/dd/aaaa"
-                                                maxLength={10}
-                                                value={fechaHasta}
-                                                onChange={(e) => handleDateInputChange(e.target.value, setFechaHasta)}
-                                                className="w-full bg-[#f9f9f9] border-2 border-brand-primary/20 text-[#333333] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all shadow-inner text-sm tracking-widest pr-12"
-                                            />
-                                            <input
-                                                type="date"
-                                                ref={fechaHastaRef}
-                                                className="absolute opacity-0 pointer-events-none w-0 h-0"
-                                                onChange={(e) => handleNativeDateChange(e, setFechaHasta)}
-                                            />
-                                            <div
-                                                className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-white rounded-lg shadow-sm border-2 border-brand-primary/10 cursor-pointer hover:bg-gray-50 text-[#303a7f] transition-colors"
-                                                onClick={() => fechaHastaRef.current?.showPicker ? fechaHastaRef.current.showPicker() : (fechaHastaRef.current?.focus(), fechaHastaRef.current?.click())}
-                                                title="Abrir calendario"
-                                            >
-                                                <Calendar size={14} />
+                                            <div className="w-full bg-[#f9f9f9] border-[3px] border-[#6bbdb7]/30 text-[#303a7f] font-black rounded-xl p-3 shadow-inner shadow-teal-900/5 text-sm uppercase tracking-widest flex items-center gap-3 mt-1">
+                                                <Calendar size={16} className="text-[#6bbdb7]" />
+                                                {fechaHasta || "S/A"}
                                             </div>
                                         </div>
                                     </div>
@@ -4739,7 +4810,14 @@ function App() {
                                             </div>
                                             <div>
                                                 <h3 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Registro de Asistencia Semanal</h3>
-                                                <p className="text-[#6bbdb7] font-black uppercase text-[14px] tracking-[0.2em]">desde {fechaDesde || '--/--/----'} hasta {fechaHasta || '--/--/----'}</p>
+                                                <div className="flex flex-col md:flex-row md:items-center gap-2 mt-1">
+                                                    <p className="text-[#6bbdb7] font-black uppercase text-[14px] tracking-[0.2em]">desde {fechaDesde || '--/--/----'} hasta {fechaHasta || '--/--/----'}</p>
+                                                    {isHistoricalDataLoaded && (
+                                                        <div title="Dato Histórico Recuperado" className="w-6 h-6 ml-2 bg-teal-50 border border-[#6bbdb7]/30 rounded-full flex items-center justify-center shadow-sm animate-in zoom-in-95 duration-500">
+                                                            <History size={13} className="text-[#6bbdb7]" />
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
 
@@ -5124,8 +5202,35 @@ function App() {
                 onSelectWeek={(start, end) => {
                     setFechaDesde(start);
                     setFechaHasta(end);
+                    if (selectedHistoryStore) {
+                        setPayrollStore(selectedHistoryStore);
+                        const hData = nominaHistoryData.find(h =>
+                            String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
+                            h.fecha_inicio === start
+                        );
+                        if (hData) {
+                            try {
+                                const payload = JSON.parse(hData.data_json);
+                                setSemanaTableData(payload.semanaTableData || []);
+                                setBiometricTableData(payload.biometricTableData || []);
+                                setEarningsTableData(payload.earningsTableData || []);
+                                setKbsBillingTableData(payload.kbsBillingTableData || []);
+                                setRawBiometricData(payload.rawBiometricData || []);
+                                setIsHistoricalDataLoaded(true);
+                            } catch (e) { console.error(e); }
+                        } else {
+                            setSemanaTableData([]);
+                            setIsHistoricalDataLoaded(false);
+                        }
+                    }
+                    setActiveTab('payroll');
+                    setPayrollView('engine');
                     setIsHistoryModalOpen(false);
                 }}
+                stores={stores}
+                selectedStore={selectedHistoryStore}
+                onSelectStore={setSelectedHistoryStore}
+                historyData={nominaHistoryData}
             />
 
             {/* FASE 2.5: VENTANA EMERGENTE DE DETALLES BIOMÉTRICOS */}
