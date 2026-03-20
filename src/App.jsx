@@ -42,7 +42,10 @@ import {
     ShieldCheck,
     AlertTriangle,
     Save,
-    FileSpreadsheet
+    FileSpreadsheet,
+    Check,
+    UserCheck,
+    UserMinus
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -2247,7 +2250,7 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-8 space-y-4">
+                <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-[#fcfdfe]">
                     {localResults.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center opacity-30 italic">
                             <CheckCircle size={64} className="mb-4 text-green-500" />
@@ -2255,193 +2258,130 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                         </div>
                     ) : (
                         localResults.map((res, idx) => (
-                            <div key={idx} className={`p-6 rounded-[2rem] border-2 transition-all duration-300 ${res.type === 'verified' ? 'bg-green-50/30 border-green-100' :
-                                res.type === 'suggested' ? 'bg-blue-50/30 border-blue-100 ml-4' :
-                                    res.type === 'ambiguous' ? 'bg-amber-50/30 border-amber-100 shadow-lg' :
-                                        'bg-gray-50/50 border-gray-100'
+                            <div key={idx} className="group relative">
+                                <div className={`flex items-center gap-4 py-3 px-6 rounded-2xl border-2 transition-all duration-200 hover:shadow-md ${
+                                    res.resolvedEmployee ? 'bg-green-50/20 border-green-100' : 'bg-white border-gray-100'
                                 }`}>
-                                <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-                                    {/* Excel Side */}
-                                    <div className="flex-1 min-w-[300px]">
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <div className="px-2 py-0.5 bg-gray-200 text-gray-500 rounded text-[9px] font-black uppercase tracking-widest">En Excel</div>
+                                    {/* Left: Excel Data (Gris Oscuro) */}
+                                    <div className="w-[280px] shrink-0">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">En Excel</span>
                                             {res.type === 'ambiguous' && (
-                                                <div className="px-2 py-0.5 bg-amber-500 text-white rounded text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
-                                                    <AlertTriangle size={10} /> Nombre Duplicado
+                                                <div className="px-1.5 py-0.5 bg-amber-500 text-white rounded text-[7px] font-black uppercase tracking-tight flex items-center gap-1">
+                                                    <AlertTriangle size={8} /> Duplicado
                                                 </div>
                                             )}
                                         </div>
-                                        <h4 className="text-lg font-black text-[#303a7f] uppercase leading-tight mb-1">{res.excelRow.nombre}</h4>
-                                        <p className="text-xs font-bold text-gray-400">ID: {res.excelRow.codigo || 'VACÍO'} | Cargo: {res.excelRow.cargo}</p>
+                                        <h4 className="text-[13px] font-black text-gray-700 uppercase leading-none truncate">{res.excelRow.nombre}</h4>
+                                        <p className="text-[10px] font-bold text-gray-400 mt-1">ID: {res.excelRow.codigo || '---'} | {res.excelRow.cargo}</p>
                                     </div>
 
-                                    {/* Resolution Side */}
-                                    <div className="flex-[2] flex flex-col md:flex-row items-center gap-6">
-                                        <div className="hidden lg:block text-gray-300">
-                                            <ArrowRight size={24} />
-                                        </div>
-
-                                        <div className="w-full">
-                                            {res.isNew || res.type === 'new' ? (
-                                                <div className="flex flex-col gap-2 relative">
-                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full bg-white p-4 rounded-3xl border-2 border-gray-100 shadow-sm relative overflow-hidden animate-in zoom-in-95 duration-300">
-                                                            <div className="flex flex-col gap-1">
-                                                                <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest px-2">Asignar ID</label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={res.tempCodigo}
-                                                                    onChange={(e) => handleUpdateNewField(idx, 'tempCodigo', e.target.value)}
-                                                                    className="w-full bg-blue-50/20 border-2 border-blue-100 rounded-xl p-2.5 text-xs font-black text-[#303a7f] tabular-nums"
-                                                                    placeholder="0000"
-                                                                />
-                                                            </div>
-                                                            <div className="flex flex-col gap-1">
-                                                                <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest px-2">Confirmar Nombre</label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={res.tempNombre}
-                                                                    onChange={(e) => handleUpdateNewField(idx, 'tempNombre', e.target.value)}
-                                                                    className="w-full bg-blue-50/20 border-2 border-blue-100 rounded-xl p-2.5 text-xs font-black text-[#303a7f] uppercase"
-                                                                />
-                                                            </div>
-                                                            <div className="flex flex-col gap-1">
-                                                                <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest px-2">Tienda Inicial</label>
-                                                                <select
-                                                                    value={res.tempTienda}
-                                                                    onChange={(e) => handleUpdateNewField(idx, 'tempTienda', e.target.value)}
-                                                                    className="w-full bg-blue-50/20 border-2 border-blue-100 rounded-xl p-2.5 text-[10px] font-bold text-gray-500 uppercase"
-                                                                >
-                                                                    <option value="">Seleccionar...</option>
-                                                                    {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
-                                                                </select>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {/* Opción de búsqueda manual si el sistema no lo detectó */}
-                                                        <div className="flex justify-between items-center px-2">
-                                                            <p className="text-[9px] font-bold text-gray-400 uppercase italic">¿El empleado ya existe en el sistema?</p>
-                                                            <button 
-                                                                onClick={() => {
-                                                                    setSearchingIdx(idx);
-                                                                    setManualSearchTerm(res.excelRow.nombre || '');
-                                                                }}
-                                                                className="text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b border-[#303a7f] pb-0.5 hover:text-[#6bbdb7] hover:border-[#6bbdb7] transition-all"
-                                                            >
-                                                                Vincular con Existente
-                                                            </button>
-                                                        </div>
-
-                                                        {res.type !== 'new' && (
-                                                            <button
-                                                                onClick={() => handleCancelNew(idx)}
-                                                                className="absolute -top-2 -right-2 p-2 bg-white border-2 border-gray-100 text-gray-400 hover:text-red-500 hover:border-red-100 rounded-xl shadow-xl transition-all active:scale-90 group z-10"
-                                                                title="Cancelar y volver a sugerencia"
-                                                            >
-                                                                <X size={14} className="group-hover:rotate-90 transition-transform" />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                            ) : res.type === 'verified' ? (
-                                                <div className="flex items-center gap-4 text-green-600 font-bold bg-white p-4 rounded-2xl border-2 border-green-100 shadow-sm relative overflow-hidden">
-                                                    <CheckCircle size={20} />
-                                                    <div className="text-sm">
-                                                        Persona verificada: <span className="font-black">ID {res.employee?.codigo_empleado || '----'}</span>
-                                                        <div className="flex flex-wrap gap-2 mt-1.5">
-                                                            <div className="text-[9px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md font-black uppercase tracking-tight">{res.employee?.tienda || 'Sin Asignar'}</div>
-                                                            {formatHistory(res.employee?.locationHistory) && (
-                                                                <div className="text-[9px] text-gray-400 font-bold italic">Trayectoria: {formatHistory(res.employee.locationHistory)}</div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleMarkAsNew(idx); }}
-                                                        className="ml-auto px-3 py-1.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl text-[9px] font-black uppercase transition-all border border-transparent hover:border-red-100"
-                                                    >
-                                                        No es esta persona
-                                                    </button>
+                                    {/* Middle: Match/Suggested (Verde) */}
+                                    <div className="flex-1 min-w-[300px]">
+                                        {res.isNew ? (
+                                            <div className="flex items-center gap-3 bg-blue-50/50 p-2 rounded-xl border border-blue-100 animate-in fade-in zoom-in-95">
+                                                <div className="flex flex-col gap-0.5 flex-1">
+                                                    <label className="text-[7px] font-black text-blue-500 uppercase px-1">ID</label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={res.tempCodigo} 
+                                                        onChange={(e) => handleUpdateNewField(idx, 'tempCodigo', e.target.value)}
+                                                        className="bg-white border border-blue-100 rounded-lg px-2 py-1 text-[11px] font-black text-[#303a7f] tabular-nums"
+                                                    />
                                                 </div>
-                                            ) : res.type === 'suggested' ? (
-                                                <div className="flex items-center justify-between gap-4 text-blue-600 font-bold bg-white p-4 rounded-2xl border-2 border-blue-100 shadow-sm">
-                                                    <div className="flex items-center gap-4">
-                                                        <Search size={20} />
-                                                        <div className="text-sm">
-                                                            {res.resolvedEmployee ? "Vínculo confirmado:" : "Sugerencia:"}
-                                                            <span className="font-black ml-2">{res.employee?.nombre || 'Desconocido'} (ID {res.employee?.codigo_empleado || '----'})</span>
-                                                            <div className="flex flex-wrap gap-2 mt-1.5">
-                                                                <div className="text-[9px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md font-black uppercase tracking-tight">{res.employee?.tienda || 'Sin Asignar'}</div>
-                                                                {formatHistory(res.employee?.locationHistory) && (
-                                                                    <div className="text-[9px] text-gray-400 font-bold italic">Trayectoria: {formatHistory(res.employee.locationHistory)}</div>
-                                                                )}
-                                                            </div>
-                                                        </div>
+                                                <div className="flex flex-col gap-0.5 flex-[2]">
+                                                    <label className="text-[7px] font-black text-blue-500 uppercase px-1">Nombre</label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={res.tempNombre} 
+                                                        onChange={(e) => handleUpdateNewField(idx, 'tempNombre', e.target.value)}
+                                                        className="bg-white border border-blue-100 rounded-lg px-2 py-1 text-[11px] font-black text-[#303a7f] uppercase"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-0.5 flex-[1.5]">
+                                                    <label className="text-[7px] font-black text-blue-500 uppercase px-1">Tienda</label>
+                                                    <select 
+                                                        value={res.tempTienda} 
+                                                        onChange={(e) => handleUpdateNewField(idx, 'tempTienda', e.target.value)}
+                                                        className="bg-white border border-blue-100 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-500 uppercase"
+                                                    >
+                                                        <option value="">Selecc...</option>
+                                                        {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                                    </select>
+                                                </div>
+                                                <button onClick={() => handleCancelNew(idx)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors" title="Cancelar">
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ) : res.resolvedEmployee ? (
+                                            <div className="flex items-center gap-3 text-green-600 animate-in slide-in-from-left-2 transition-all">
+                                                <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
+                                                    <UserCheck size={16} />
+                                                </div>
+                                                <div className="flex flex-col max-w-[400px]">
+                                                    <h5 className="text-[13px] font-black uppercase leading-none">{res.resolvedEmployee.nombre}</h5>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-[9px] font-black bg-green-100/50 px-1.5 py-0.5 rounded">ID {res.resolvedEmployee.codigo_empleado}</span>
+                                                        <span className="text-[9px] font-bold opacity-60 italic truncate">
+                                                            {res.resolvedEmployee.tienda} {formatHistory(res.resolvedEmployee.locationHistory) ? `(${formatHistory(res.resolvedEmployee.locationHistory)})` : ''}
+                                                        </span>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
-                                                        {res.resolvedEmployee ? (
-                                                            <>
-                                                                <div className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[9px] font-black uppercase flex items-center gap-2">
-                                                                    <CheckCircle size={14} /> Listo
-                                                                </div>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleMarkAsNew(idx); }}
-                                                                    className="px-3 py-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl text-[9px] font-black uppercase transition-all"
-                                                                >
-                                                                    Cambiar
-                                                                </button>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <button
-                                                                    onClick={() => handleUpdateResolution(idx, res.employee)}
-                                                                    className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 hover:bg-blue-700 transition-all"
-                                                                >
-                                                                    Confirmar
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleMarkAsNew(idx)}
-                                                                    className="px-3 py-2 bg-gray-100 text-gray-500 rounded-xl text-[10px] font-black uppercase hover:bg-gray-200 transition-all"
-                                                                >
-                                                                    Es Nuevo
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : res.type === 'ambiguous' ? (
+                                            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                                                <span className="text-[9px] font-black text-amber-600 uppercase shrink-0 mr-1">Elegir:</span>
+                                                {res.matches.map((m, midx) => (
+                                                    <button 
+                                                        key={midx} 
+                                                        onClick={() => handleUpdateResolution(idx, m)}
+                                                        className="shrink-0 p-2 bg-amber-50 border border-amber-200 rounded-xl hover:border-amber-400 transition-all text-left"
+                                                    >
+                                                        <p className="text-[10px] font-black text-amber-700 leading-none">{m.nombre}</p>
+                                                        <p className="text-[8px] font-bold text-amber-600/60 mt-0.5">ID: {m.codigo_empleado}</p>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-3 text-gray-300 italic opacity-60">
+                                                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                                                    <UserMinus size={16} />
+                                                </div>
+                                                <span className="text-[11px] font-black uppercase tracking-widest">Sin coincidencia automática</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Right: Options */}
+                                    <div className="flex items-center gap-3 shrink-0">
+                                        <div className="flex items-center gap-2 mr-2">
+                                            {res.resolvedEmployee ? (
+                                                <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center shadow-sm animate-in zoom-in duration-300" title="Auto-asociado">
+                                                    <Check size={18} strokeWidth={3} />
                                                 </div>
                                             ) : (
-                                                <div className="space-y-3 w-full">
-                                                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Selecciona el perfil correcto:</p>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                        {res.matches.map((m, midx) => (
-                                                            <button
-                                                                key={midx}
-                                                                onClick={() => handleUpdateResolution(idx, m)}
-                                                                className={`p-3 rounded-2xl border-2 text-left transition-all ${res.resolvedEmployee?.codigo_empleado === m.codigo_empleado
-                                                                    ? 'border-blue-500 bg-blue-50 shadow-md'
-                                                                    : 'border-gray-100 bg-white hover:border-blue-200'
-                                                                    }`}
-                                                            >
-                                                                <p className="text-[11px] font-black text-[#303a7f] uppercase">{m.nombre}</p>
-                                                                <p className="text-[9px] font-bold text-gray-400 mb-1">Cargo: {m.cargo} | ID: {m.codigo_empleado}</p>
-                                                                <div className="flex flex-wrap gap-1 items-center">
-                                                                    <span className="text-[8px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-black uppercase">{m.tienda || 'Sin Asignar'}</span>
-                                                                    {formatHistory(m.locationHistory) && (
-                                                                        <span className="text-[8px] text-gray-400 font-bold italic">Trayectoria: {formatHistory(m.locationHistory)}</span>
-                                                                    )}
-                                                                </div>
-                                                            </button>
-                                                        ))}
-                                                        <button
-                                                            onClick={() => handleMarkAsNew(idx)}
-                                                            className={`p-3 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50/30 text-left transition-all hover:border-green-400`}
-                                                        >
-                                                            <p className="text-[11px] font-black text-green-600 uppercase flex items-center gap-2">
-                                                                <UserPlus size={12} /> Es un nuevo empleado
-                                                            </p>
-                                                            <p className="text-[9px] font-bold text-gray-400">Registrar desde cero</p>
-                                                        </button>
-                                                    </div>
+                                                <div className="w-8 h-8 rounded-full bg-red-50 text-red-400 flex items-center justify-center shadow-sm opacity-50" title="Sin asociación">
+                                                    <X size={18} strokeWidth={3} />
                                                 </div>
                                             )}
                                         </div>
+
+                                        <button 
+                                            onClick={() => { setSearchingIdx(idx); setManualSearchTerm(res.excelRow.nombre || ''); }}
+                                            className="px-4 py-2 bg-gray-50 text-[#303a7f] rounded-xl text-[9px] font-black uppercase tracking-widest border border-gray-100 hover:bg-[#303a7f] hover:text-white hover:border-[#303a7f] transition-all active:scale-95 shadow-sm flex items-center gap-2"
+                                        >
+                                            <Search size={12} />
+                                            Buscar
+                                        </button>
+                                        <button 
+                                            onClick={() => handleMarkAsNew(idx)}
+                                            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm flex items-center gap-2 ${
+                                                res.isNew ? 'bg-[#6bbdb7] text-white shadow-[#6bbdb7]/20' : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-gray-100 hover:text-gray-600'
+                                            }`}
+                                        >
+                                            <UserPlus size={12} />
+                                            Nuevo
+                                        </button>
                                     </div>
                                 </div>
                             </div>
