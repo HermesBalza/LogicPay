@@ -41,7 +41,8 @@ import {
     Send,
     ShieldCheck,
     AlertTriangle,
-    Save
+    Save,
+    FileSpreadsheet
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -2952,6 +2953,8 @@ function App() {
     const [sheetFiles, setSheetFiles] = useState([]); // FASE 8: Digitalizador
     const [isProcessingSheets, setIsProcessingSheets] = useState(false); // FASE 8: Digitalizador
     const [isSheetPreviewOpen, setIsSheetPreviewOpen] = useState(false); // MODAL PREVIEW
+    const [isMassImportInfoOpen, setIsMassImportInfoOpen] = useState(false);
+    const massImportFileInputRef = useRef(null);
 
     // --- Helper de Verificación de Personal (Reutilizable) ---
     const getPersonnelVerificationResults = (json, currentEmployees) => {
@@ -2970,9 +2973,9 @@ function App() {
         };
 
         const rows = json.map(row => {
-            const codigo = getValueFromRow(row, ['Código', 'Codigo', 'ID', 'Empleado ID', 'Nro']);
-            const nombre = getValueFromRow(row, ['Nombre y Apellidos', 'Nombre y Apellido', 'Nombre', 'Empleado']);
-            const cargo = getValueFromRow(row, ['Cargo', 'Servicio', 'Puesto']);
+            const codigo = getValueFromRow(row, ['codigo_empleado', 'Código', 'Codigo', 'ID', 'Empleado ID', 'Nro']);
+            const nombre = getValueFromRow(row, ['nombre', 'Nombre y Apellidos', 'Nombre y Apellido', 'Nombre', 'Empleado']);
+            const cargo = getValueFromRow(row, ['cargo', 'Cargo', 'Servicio', 'Puesto']);
 
             if (!nombre || nombre.toLowerCase().includes('nombre y apellido')) return null;
 
@@ -3063,6 +3066,47 @@ function App() {
         } catch (error) {
             console.error('[Verify] Error procesando archivo:', error);
             showError("No se pudo procesar el archivo de personal seleccionado.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleEmployeeMassImport = async (file) => {
+        if (!file) return;
+        setIsLoading(true);
+        try {
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data);
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet);
+
+            const verificationRows = getPersonnelVerificationResults(json, employees);
+
+            // Enriquecer con datos completos del Excel para la importación masiva
+            const enriched = verificationRows.map(row => {
+                const fullExcelRow = json.find(item => 
+                    (item.nombre || item.Nombre || '').toString().toLowerCase().trim() === row.excelRow.nombre.toLowerCase().trim()
+                );
+                
+                return {
+                    ...row,
+                    excelRow: {
+                        ...row.excelRow,
+                        fecha_ingreso: fullExcelRow?.fecha_ingreso || fullExcelRow?.['Fecha Ingreso'] || '',
+                        fecha_egreso: fullExcelRow?.fecha_egreso || fullExcelRow?.['Fecha Egreso'] || '',
+                        cuenta_bancaria: fullExcelRow?.cuenta_bancaria || fullExcelRow?.['Cuenta Bancaria'] || '',
+                        tienda: fullExcelRow?.tienda || fullExcelRow?.Tienda || '',
+                        imagen: fullExcelRow?.imagen || '',
+                        locationHistory: fullExcelRow?.locationHistory || '[]'
+                    }
+                };
+            });
+
+            setVerificationResults(enriched);
+            setIsVerificationModalOpen(true);
+        } catch (error) {
+            console.error('[MassImport] Error:', error);
+            showError("No se pudo procesar el archivo de importación masiva.");
         } finally {
             setIsLoading(false);
         }
@@ -4150,21 +4194,21 @@ function App() {
 
                     {activeTab === 'stores' && (
                         <>
-                            <div className="flex flex-col md:flex-row gap-4 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="relative flex-1 group">
+                            <div className="flex flex-col md:flex-row gap-4 mb-10 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="relative flex-1 group h-11">
                                     <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={20} />
                                     <input
                                         type="text"
                                         placeholder="Filtrar por nombre de Tienda o Ubicación..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl py-3.5 pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-base placeholder:text-gray-200"
+                                        className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
                                     />
                                 </div>
                                 <button
                                     onClick={() => setIsAddingStore(true)}
                                     style={{ backgroundColor: '#303a7f' }}
-                                    className="text-white font-black py-3.5 px-8 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e]"
+                                    className="h-11 text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e] whitespace-nowrap"
                                 >
                                     <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
                                     <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" />
@@ -4189,23 +4233,23 @@ function App() {
 
                     {activeTab === 'employees' && (
                         <>
-                            <div className="flex flex-col md:flex-row gap-4 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="relative flex-1 group">
+                            <div className="flex flex-col md:flex-row gap-4 mb-10 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="relative flex-1 group h-11">
                                     <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={20} />
                                     <input
                                         type="text"
                                         placeholder="Filtrar por nombre o cargo..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl py-3.5 pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-base placeholder:text-gray-200"
+                                        className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
                                     />
                                 </div>
 
                                 {/* Toggle de Vistas: Lista / Cuadrícula */}
-                                <div className="bg-white border-2 border-brand-primary/10 rounded-2xl p-1.5 flex items-center gap-1 shadow-sm">
+                                <div className="h-11 bg-white border-2 border-brand-primary/10 rounded-2xl p-1 flex items-center gap-1 shadow-sm">
                                     <button
                                         onClick={() => setPersonalViewMode('list')}
-                                        className={`p-2 rounded-xl transition-all flex items-center gap-2 group ${personalViewMode === 'list' ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:bg-gray-50'}`}
+                                        className={`h-full px-3 rounded-xl transition-all flex items-center gap-2 group ${personalViewMode === 'list' ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:bg-gray-50'}`}
                                         title="Vista de Lista"
                                     >
                                         <List size={18} />
@@ -4213,7 +4257,7 @@ function App() {
                                     </button>
                                     <button
                                         onClick={() => setPersonalViewMode('grid')}
-                                        className={`p-2 rounded-xl transition-all flex items-center gap-2 group ${personalViewMode === 'grid' ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:bg-gray-50'}`}
+                                        className={`h-full px-3 rounded-xl transition-all flex items-center gap-2 group ${personalViewMode === 'grid' ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:bg-gray-50'}`}
                                         title="Vista de Cuadrícula"
                                     >
                                         <LayoutGrid size={18} />
@@ -4221,15 +4265,39 @@ function App() {
                                     </button>
                                 </div>
 
-                                <button
-                                    onClick={() => setIsAddingEmployee(true)}
-                                    style={{ backgroundColor: '#303a7f' }}
-                                    className="text-white font-black py-3.5 px-8 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e]"
-                                >
-                                    <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-                                    <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" />
-                                    <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
-                                </button>
+                                <div className="flex gap-2 h-11">
+                                    <div className="relative group/btn h-full">
+                                        <button
+                                            onClick={() => setIsMassImportInfoOpen(true)}
+                                            style={{ backgroundColor: '#6bbdb7' }}
+                                            className="h-full text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-teal-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#59aba5] whitespace-nowrap"
+                                        >
+                                            <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                                            <FileSpreadsheet size={16} className="group-hover:scale-110 transition-transform duration-500" />
+                                            <span className="tracking-widest uppercase text-[10px]">Importar Excel</span>
+                                        </button>
+                                        <input
+                                            type="file"
+                                            ref={massImportFileInputRef}
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                handleEmployeeMassImport(e.target.files[0]);
+                                                e.target.value = null;
+                                            }}
+                                            accept=".xlsx,.xls,.csv"
+                                        />
+                                    </div>
+
+                                    <button
+                                        onClick={() => setIsAddingEmployee(true)}
+                                        style={{ backgroundColor: '#303a7f' }}
+                                        className="h-full text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e] whitespace-nowrap"
+                                    >
+                                        <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
+                                        <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
+                                    </button>
+                                </div>
                             </div>
 
                             {personalViewMode === 'grid' ? (
@@ -5149,6 +5217,63 @@ function App() {
                 }}
                 isProcessing={isProcessingSheets}
             />
+
+            {/* FASE 9: MODAL INFORMATIVO DE IMPORTACIÓN MASIVA */}
+            {isMassImportInfoOpen && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/20 animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-[0_32px_80px_-20px_rgba(48,58,127,0.2)] border-2 border-[#6bbdb7]/10 p-10 animate-in zoom-in-95 duration-500">
+                        <div className="w-20 h-20 rounded-3xl bg-[#6bbdb7]/10 text-[#6bbdb7] flex items-center justify-center mb-8 mx-auto shadow-inner">
+                            <FileSpreadsheet size={40} />
+                        </div>
+                        
+                        <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-4 text-center">
+                            Importación Masiva de Personal
+                        </h3>
+                        
+                        <p className="text-gray-500 font-bold text-sm leading-relaxed mb-8 text-center px-4">
+                            Esta función le permite cargar múltiples empleados simultáneamente mediante un archivo Excel. Para garantizar el éxito de la carga, asegúrese de utilizar el formato oficial del sistema.
+                        </p>
+
+                        <div className="bg-gray-50 rounded-3xl p-6 border-2 border-dashed border-gray-200 mb-10 group hover:border-[#6bbdb7]/30 transition-all">
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="p-3 bg-white rounded-xl text-[#303a7f] shadow-sm">
+                                    <Download size={20} />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest leading-none mb-1">Formato Requerido</p>
+                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Excel (.xlsx) - Estructura Predeterminada</p>
+                                </div>
+                            </div>
+                            <a 
+                                href="/Formato_de_Carga_de_Personal.xlsx" 
+                                download
+                                className="w-full py-4 bg-white border-2 border-gray-100 rounded-2xl text-[10px] font-black text-[#303a7f] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-[#6bbdb7] hover:text-white hover:border-[#6bbdb7] transition-all shadow-sm active:scale-95"
+                            >
+                                <Download size={14} />
+                                Descargar Plantilla
+                            </a>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setIsMassImportInfoOpen(false)}
+                                className="flex-1 py-4 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-50 transition-all active:scale-95"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setIsMassImportInfoOpen(false);
+                                    massImportFileInputRef.current?.click();
+                                }}
+                                className="flex-1 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-900/10 hover:bg-[#252a5e] transition-all active:scale-95"
+                            >
+                                Continuar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* FASE 7: MODAL DE ESTATUS PROFESIONAL (Éxito/Error) */}
             {isStatusModalOpen && (
