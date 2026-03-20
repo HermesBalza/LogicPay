@@ -2148,8 +2148,10 @@ const BiometricTableIVRModal = ({ isOpen, onClose, data, fechaDesde, getFormatte
     );
 };
 
-const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores }) => {
+const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores, employees }) => {
     const [localResults, setLocalResults] = useState([]);
+    const [searchingIdx, setSearchingIdx] = useState(null);
+    const [manualSearchTerm, setManualSearchTerm] = useState('');
 
     useEffect(() => {
         // Inicializar resoluciones basadas en el tipo
@@ -2179,7 +2181,12 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores 
     const handleUpdateResolution = (index, employee) => {
         const updated = [...localResults];
         updated[index].resolvedEmployee = employee;
+        updated[index].employee = employee; // Asegura que el nombre en la UI cambie
         updated[index].isNew = false;
+        // Si era nuevo o ambiguo, lo pasamos a 'suggested' para que muestre la UI de confirmado
+        if (updated[index].type === 'new' || updated[index].type === 'ambiguous') {
+            updated[index].type = 'suggested';
+        }
         setLocalResults(updated);
     };
 
@@ -2276,49 +2283,64 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores 
 
                                         <div className="w-full">
                                             {res.isNew || res.type === 'new' ? (
-                                                <div className="w-full relative">
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full bg-white p-4 rounded-3xl border-2 border-gray-100 shadow-sm relative overflow-hidden animate-in zoom-in-95 duration-300">
-                                                        <div className="flex flex-col gap-1">
-                                                            <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest px-2">Asignar ID</label>
-                                                            <input
-                                                                type="text"
-                                                                value={res.tempCodigo}
-                                                                onChange={(e) => handleUpdateNewField(idx, 'tempCodigo', e.target.value)}
-                                                                className="w-full bg-blue-50/20 border-2 border-blue-100 rounded-xl p-2.5 text-xs font-black text-[#303a7f] tabular-nums"
-                                                                placeholder="0000"
-                                                            />
+                                                <div className="flex flex-col gap-2 relative">
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full bg-white p-4 rounded-3xl border-2 border-gray-100 shadow-sm relative overflow-hidden animate-in zoom-in-95 duration-300">
+                                                            <div className="flex flex-col gap-1">
+                                                                <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest px-2">Asignar ID</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={res.tempCodigo}
+                                                                    onChange={(e) => handleUpdateNewField(idx, 'tempCodigo', e.target.value)}
+                                                                    className="w-full bg-blue-50/20 border-2 border-blue-100 rounded-xl p-2.5 text-xs font-black text-[#303a7f] tabular-nums"
+                                                                    placeholder="0000"
+                                                                />
+                                                            </div>
+                                                            <div className="flex flex-col gap-1">
+                                                                <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest px-2">Confirmar Nombre</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={res.tempNombre}
+                                                                    onChange={(e) => handleUpdateNewField(idx, 'tempNombre', e.target.value)}
+                                                                    className="w-full bg-blue-50/20 border-2 border-blue-100 rounded-xl p-2.5 text-xs font-black text-[#303a7f] uppercase"
+                                                                />
+                                                            </div>
+                                                            <div className="flex flex-col gap-1">
+                                                                <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest px-2">Tienda Inicial</label>
+                                                                <select
+                                                                    value={res.tempTienda}
+                                                                    onChange={(e) => handleUpdateNewField(idx, 'tempTienda', e.target.value)}
+                                                                    className="w-full bg-blue-50/20 border-2 border-blue-100 rounded-xl p-2.5 text-[10px] font-bold text-gray-500 uppercase"
+                                                                >
+                                                                    <option value="">Seleccionar...</option>
+                                                                    {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                                                </select>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex flex-col gap-1">
-                                                            <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest px-2">Confirmar Nombre</label>
-                                                            <input
-                                                                type="text"
-                                                                value={res.tempNombre}
-                                                                onChange={(e) => handleUpdateNewField(idx, 'tempNombre', e.target.value)}
-                                                                className="w-full bg-blue-50/20 border-2 border-blue-100 rounded-xl p-2.5 text-xs font-black text-[#303a7f] uppercase"
-                                                            />
-                                                        </div>
-                                                        <div className="flex flex-col gap-1">
-                                                            <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest px-2">Tienda Inicial</label>
-                                                            <select
-                                                                value={res.tempTienda}
-                                                                onChange={(e) => handleUpdateNewField(idx, 'tempTienda', e.target.value)}
-                                                                className="w-full bg-blue-50/20 border-2 border-blue-100 rounded-xl p-2.5 text-[10px] font-bold text-gray-500 uppercase"
+                                                        
+                                                        {/* Opción de búsqueda manual si el sistema no lo detectó */}
+                                                        <div className="flex justify-between items-center px-2">
+                                                            <p className="text-[9px] font-bold text-gray-400 uppercase italic">¿El empleado ya existe en el sistema?</p>
+                                                            <button 
+                                                                onClick={() => {
+                                                                    setSearchingIdx(idx);
+                                                                    setManualSearchTerm(res.excelRow.nombre || '');
+                                                                }}
+                                                                className="text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b border-[#303a7f] pb-0.5 hover:text-[#6bbdb7] hover:border-[#6bbdb7] transition-all"
                                                             >
-                                                                <option value="">Seleccionar...</option>
-                                                                {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
-                                                            </select>
+                                                                Vincular con Existente
+                                                            </button>
                                                         </div>
+
+                                                        {res.type !== 'new' && (
+                                                            <button
+                                                                onClick={() => handleCancelNew(idx)}
+                                                                className="absolute -top-2 -right-2 p-2 bg-white border-2 border-gray-100 text-gray-400 hover:text-red-500 hover:border-red-100 rounded-xl shadow-xl transition-all active:scale-90 group z-10"
+                                                                title="Cancelar y volver a sugerencia"
+                                                            >
+                                                                <X size={14} className="group-hover:rotate-90 transition-transform" />
+                                                            </button>
+                                                        )}
                                                     </div>
-                                                    {res.type !== 'new' && (
-                                                        <button
-                                                            onClick={() => handleCancelNew(idx)}
-                                                            className="absolute -top-2 -right-2 p-2 bg-white border-2 border-gray-100 text-gray-400 hover:text-red-500 hover:border-red-100 rounded-xl shadow-xl transition-all active:scale-90 group"
-                                                            title="Cancelar y volver a sugerencia"
-                                                        >
-                                                            <X size={14} className="group-hover:rotate-90 transition-transform" />
-                                                        </button>
-                                                    )}
-                                                </div>
                                             ) : res.type === 'verified' ? (
                                                 <div className="flex items-center gap-4 text-green-600 font-bold bg-white p-4 rounded-2xl border-2 border-green-100 shadow-sm relative overflow-hidden">
                                                     <CheckCircle size={20} />
@@ -2426,6 +2448,81 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores 
                         ))
                     )}
                 </div>
+
+                {/* Buscador de Empleados Manual */}
+                {searchingIdx !== null && (
+                    <div className="absolute inset-0 z-[100] flex items-center justify-center p-12 backdrop-blur-md bg-[#303a7f]/40 animate-in fade-in duration-300">
+                        <div className="bg-white w-full max-w-2xl h-[70vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.5)] border-2 border-[#6bbdb7]/20 flex flex-col overflow-hidden">
+                            <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                                        <Search size={20} />
+                                    </div>
+                                    <h4 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase">Vincular Registro</h4>
+                                </div>
+                                <button onClick={() => setSearchingIdx(null)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            
+                            <div className="p-6 bg-gray-50/50">
+                                <div className="relative group">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={18} />
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        placeholder="Buscar por Nombre o ID (Código de Empleado)..."
+                                        value={manualSearchTerm}
+                                        onChange={(e) => setManualSearchTerm(e.target.value)}
+                                        className="w-full bg-white border-2 border-gray-100 rounded-2xl pl-12 pr-6 py-4 text-sm font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all shadow-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-6 space-y-3">
+                                {employees
+                                    .filter(emp => {
+                                        const query = manualSearchTerm.toLowerCase();
+                                        return emp.nombre?.toLowerCase().includes(query) || 
+                                               emp.codigo_empleado?.toLowerCase().includes(query);
+                                    })
+                                    .slice(0, 50)
+                                    .map((emp, eidx) => (
+                                        <button
+                                            key={eidx}
+                                            onClick={() => {
+                                                handleUpdateResolution(searchingIdx, emp);
+                                                setSearchingIdx(null);
+                                            }}
+                                            className="w-full p-4 bg-white border-2 border-gray-100 rounded-2xl hover:border-[#6bbdb7] hover:bg-teal-50/30 transition-all flex items-center justify-between group"
+                                        >
+                                            <div className="text-left">
+                                                <p className="text-sm font-black text-[#303a7f] uppercase group-hover:text-[#303a7f]">{emp.nombre}</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest">ID: {emp.codigo_empleado}</span>
+                                                    <span className="text-[10px] text-gray-400 font-bold uppercase">• {emp.cargo}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-black uppercase">{emp.tienda || 'Sin Asignar'}</span>
+                                                <ChevronRight size={16} className="text-gray-300 group-hover:translate-x-1 group-hover:text-[#6bbdb7] transition-all" />
+                                            </div>
+                                        </button>
+                                    ))
+                                }
+                                {manualSearchTerm && employees.filter(emp => {
+                                    const query = manualSearchTerm.toLowerCase();
+                                    return emp.nombre?.toLowerCase().includes(query) || 
+                                           emp.codigo_empleado?.toLowerCase().includes(query);
+                                }).length === 0 && (
+                                    <div className="py-12 text-center text-gray-300 italic uppercase text-[10px] font-black tracking-widest">
+                                        No se encontraron coincidencias en la base de datos
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Footer */}
                 <div className="p-8 border-t-2 border-gray-50 bg-gray-50/30 flex justify-between items-center">
@@ -3084,10 +3181,10 @@ function App() {
 
             // Enriquecer con datos completos del Excel para la importación masiva
             const enriched = verificationRows.map(row => {
-                const fullExcelRow = json.find(item => 
+                const fullExcelRow = json.find(item =>
                     (item.nombre || item.Nombre || '').toString().toLowerCase().trim() === row.excelRow.nombre.toLowerCase().trim()
                 );
-                
+
                 return {
                     ...row,
                     excelRow: {
@@ -4064,6 +4161,7 @@ function App() {
                 results={verificationResults}
                 onAddAll={handleAddVerifiedEmployees}
                 stores={stores}
+                employees={employees}
             />
 
             {/* Tabla Supervisor Modal */}
@@ -4238,7 +4336,7 @@ function App() {
                                     <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={20} />
                                     <input
                                         type="text"
-                                        placeholder="Filtrar por nombre o cargo..."
+                                        placeholder="Filtrar por nombre o apellido..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
@@ -5225,11 +5323,11 @@ function App() {
                         <div className="w-20 h-20 rounded-3xl bg-[#6bbdb7]/10 text-[#6bbdb7] flex items-center justify-center mb-8 mx-auto shadow-inner">
                             <FileSpreadsheet size={40} />
                         </div>
-                        
+
                         <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-4 text-center">
                             Importación Masiva de Personal
                         </h3>
-                        
+
                         <p className="text-gray-500 font-bold text-sm leading-relaxed mb-8 text-center px-4">
                             Esta función le permite cargar múltiples empleados simultáneamente mediante un archivo Excel. Para garantizar el éxito de la carga, asegúrese de utilizar el formato oficial del sistema.
                         </p>
@@ -5244,8 +5342,8 @@ function App() {
                                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Excel (.xlsx) - Estructura Predeterminada</p>
                                 </div>
                             </div>
-                            <a 
-                                href="/Formato_de_Carga_de_Personal.xlsx" 
+                            <a
+                                href="/Formato_de_Carga_de_Personal.xlsx"
                                 download
                                 className="w-full py-4 bg-white border-2 border-gray-100 rounded-2xl text-[10px] font-black text-[#303a7f] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-[#6bbdb7] hover:text-white hover:border-[#6bbdb7] transition-all shadow-sm active:scale-95"
                             >
