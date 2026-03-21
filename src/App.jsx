@@ -7,6 +7,7 @@ import {
     CreditCard,
     LayoutDashboard,
     ChevronRight,
+    ChevronLeft,
     Upload,
     FileText,
     CheckCircle,
@@ -2761,13 +2762,13 @@ const PayrollHistoryModal = ({
             )}
 
             {/* Store & Year Selector */}
-            <div className={`bg-white border-b-2 border-gray-50 px-12 py-4 flex flex-col md:flex-row gap-6 custom-scrollbar sticky ${inline ? 'top-0' : 'top-[108px]'} z-10`}>
+            <div className={`bg-white border-b-2 border-gray-50 px-12 py-4 flex flex-col md:flex-row gap-8 items-end custom-scrollbar sticky ${inline ? 'top-0' : 'top-[108px]'} z-10`}>
                 <div className="flex-shrink-0 w-full md:w-80 border-r-0 md:border-r-2 md:border-gray-50 pr-0 md:pr-6">
                     <label className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-2">Consultar / Procesar Tienda</label>
                     <select
                         value={selectedStore}
                         onChange={(e) => onSelectStore(e.target.value)}
-                        className="w-full bg-gray-50 border-2 border-brand-primary/10 rounded-xl px-4 py-2.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all cursor-pointer shadow-inner appearance-none relative"
+                        className="w-full bg-gray-50 border-2 border-brand-primary/10 rounded-xl px-4 py-2.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all cursor-pointer shadow-inner appearance-none relative h-[44px]"
                     >
                         <option value="">Selecciona una Tienda</option>
                         {stores.map(s => (
@@ -2775,20 +2776,33 @@ const PayrollHistoryModal = ({
                         ))}
                     </select>
                 </div>
-                <div className="flex-1 overflow-x-auto flex items-end gap-3 pb-2 md:pb-0">
-                    {availableYears.map(year => (
+                
+                <div className="flex-shrink-0">
+                    <label className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-2 opacity-0 hidden md:block">Año Fiscal</label>
+                    <div className="bg-[#f9f9f9] border-[3px] border-brand-primary/5 rounded-2xl flex items-center shadow-inner h-[44px] p-0.5">
                         <button
-                            key={year}
-                            onClick={() => setSelectedYear(year)}
-                            className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap ${selectedYear === year
-                                ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/20 scale-105'
-                                : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                                }`}
+                            onClick={() => setSelectedYear(y => Math.max(2026, y - 1))}
+                            disabled={selectedYear <= 2026}
+                            className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:bg-white hover:text-[#303a7f] hover:shadow-sm disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-95"
                         >
-                            {year}
+                            <ChevronLeft size={16} strokeWidth={3} />
                         </button>
-                    ))}
+                        
+                        <div className="px-6 flex items-center justify-center min-w-[100px]">
+                            <span className="text-[#303a7f] font-black text-sm tracking-widest">{selectedYear}</span>
+                        </div>
+                        
+                        <button
+                            onClick={() => setSelectedYear(y => Math.min(2040, y + 1))}
+                            disabled={selectedYear >= 2040}
+                            className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:bg-white hover:text-[#303a7f] hover:shadow-sm disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-95"
+                        >
+                            <ChevronRight size={16} strokeWidth={3} />
+                        </button>
+                    </div>
                 </div>
+                
+                <div className="flex-1"></div>
             </div>
 
             {/* Content Container */}
@@ -4513,62 +4527,52 @@ function App() {
                                     className="absolute top-0 right-0 w-64 h-64 rounded-full -mr-32 -mt-32 blur-3xl"
                                 />
 
-                                <div className="flex items-center justify-between mb-10 relative z-10">
-                                    <div className="flex items-center gap-4">
-                                        <div
-                                            style={{ backgroundColor: '#303a7f' }}
-                                            className="p-3 rounded-xl shadow-2xl shadow-blue-900/30 flex items-center justify-center"
-                                        >
-                                            <Upload className="text-white" size={20} />
-                                        </div>
-                                        <div>
-                                            <h2 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Motor de Nómina</h2>
-                                            <p className="text-[#6bbdb7] font-black uppercase text-[8px] tracking-[0.4em] opacity-80">PROCESAMIENTO INTELIGENTE V3.0</p>
-                                        </div>
-                                    </div>
 
-                                    <button
-                                        onClick={() => setPayrollView('history')}
-                                        className="p-3 bg-white text-[#303a7f] rounded-2xl hover:bg-gray-50 transition-all active:scale-95 border-2 border-[#303a7f]/10 shadow-sm flex items-center gap-3 group"
-                                    >
-                                        <History size={18} className="group-hover:-rotate-45 transition-transform" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest leading-none">Volver al Historial</span>
-                                    </button>
-                                </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-10 relative z-10">
-                                    <div className="md:col-span-4 space-y-2">
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-5 mb-10 relative z-10">
+                                    <div className="md:col-span-4 lg:col-span-4 space-y-2">
                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Unidad Receptora (Tienda)</label>
                                         <div className="relative group">
-                                            <div className="w-full bg-[#f9f9f9] border-[3px] border-[#6bbdb7]/30 text-[#303a7f] font-black rounded-xl p-3 shadow-inner shadow-teal-900/5 text-sm uppercase tracking-widest flex items-center gap-3 mt-1">
-                                                <div className="w-2 h-2 bg-[#6bbdb7] rounded-full animate-pulse shadow-[0_0_8px_rgba(107,189,183,0.8)]"></div>
-                                                {payrollStore || "S/A"}
+                                            <div className="w-full bg-[#f9f9f9] border-[3px] border-[#6bbdb7]/30 text-[#303a7f] font-black rounded-xl px-4 py-3.5 shadow-inner shadow-teal-900/5 text-[11px] uppercase tracking-widest flex items-center gap-3 mt-1 h-[48px] truncate">
+                                                <div className="w-2 h-2 bg-[#6bbdb7] rounded-full animate-pulse shadow-[0_0_8px_rgba(107,189,183,0.8)] shrink-0"></div>
+                                                <span className="truncate">{payrollStore || "S/A"}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="md:col-span-3 space-y-2">
+                                    <div className="md:col-span-3 lg:col-span-3 space-y-2">
                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Desde:</label>
                                         <div className="relative group">
-                                            <div className="w-full bg-[#f9f9f9] border-[3px] border-[#6bbdb7]/30 text-[#303a7f] font-black rounded-xl p-3 shadow-inner shadow-teal-900/5 text-sm uppercase tracking-widest flex items-center gap-3 mt-1">
-                                                <Calendar size={16} className="text-[#6bbdb7]" />
-                                                {fechaDesde || "S/A"}
+                                            <div className="w-full bg-[#f9f9f9] border-[3px] border-[#6bbdb7]/30 text-[#303a7f] font-black rounded-xl px-4 py-3.5 shadow-inner shadow-teal-900/5 text-xs uppercase tracking-widest flex items-center gap-3 mt-1 h-[48px]">
+                                                <Calendar size={16} className="text-[#6bbdb7] shrink-0" />
+                                                <span className="truncate">{fechaDesde || "S/A"}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="md:col-span-3 space-y-2">
+                                    <div className="md:col-span-3 lg:col-span-3 space-y-2">
                                         <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Hasta:</label>
                                         <div className="relative group">
-                                            <div className="w-full bg-[#f9f9f9] border-[3px] border-[#6bbdb7]/30 text-[#303a7f] font-black rounded-xl p-3 shadow-inner shadow-teal-900/5 text-sm uppercase tracking-widest flex items-center gap-3 mt-1">
-                                                <Calendar size={16} className="text-[#6bbdb7]" />
-                                                {fechaHasta || "S/A"}
+                                            <div className="w-full bg-[#f9f9f9] border-[3px] border-[#6bbdb7]/30 text-[#303a7f] font-black rounded-xl px-4 py-3.5 shadow-inner shadow-teal-900/5 text-xs uppercase tracking-widest flex items-center gap-3 mt-1 h-[48px]">
+                                                <Calendar size={16} className="text-[#6bbdb7] shrink-0" />
+                                                <span className="truncate">{fechaHasta || "S/A"}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="md:col-span-2 flex items-end">
-                                        {!geminiApiKey && (
+                                    <div className="md:col-span-2 lg:col-span-2 flex items-end">
+                                        <button
+                                            onClick={() => setPayrollView('history')}
+                                            className="w-full bg-white text-[#303a7f] rounded-xl hover:bg-gray-50 transition-all active:scale-95 border-[3px] border-[#303a7f]/20 shadow-sm flex items-center justify-center gap-2 group h-[48px]"
+                                        >
+                                            <History size={16} className="group-hover:-rotate-45 transition-transform text-[#303a7f] shrink-0" />
+                                            <span className="text-[9px] font-black uppercase tracking-widest leading-none truncate hidden lg:inline">Volver</span>
+                                            <span className="text-[9px] font-black uppercase tracking-widest leading-none truncate lg:hidden">Volver al Historial</span>
+                                        </button>
+                                    </div>
+
+                                    {!geminiApiKey && (
+                                        <div className="md:col-span-12 mt-2">
                                             <div className="w-full p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in duration-500 mb-0">
                                                 <div className="p-2 bg-amber-100 rounded-xl text-amber-600 shrink-0">
                                                     <Lock size={14} />
@@ -4580,196 +4584,134 @@ function App() {
                                                     </p>
                                                 </div>
                                             </div>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10">
-                                    {/* Control 0: Verificar Personal */}
-                                    <div className={`rounded-2xl p-6 border-2 shadow-sm transition-all duration-500 border-brand-primary/5 bg-[#f9f9f9]`}>
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <div className={`p-2 rounded-lg bg-[#303a7f]/5`}>
-                                                <UserPlus size={18} className="text-[#303a7f]" />
-                                            </div>
-                                            <p className="text-xs font-black uppercase tracking-tight text-[#303a7f]">Verificar Personal</p>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <div className="relative group/btn">
-                                                <button
-                                                    disabled={!payrollStore}
-                                                    style={{ backgroundColor: payrollStore ? '#303a7f' : '#f3f4f6' }}
-                                                    className="px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg shadow-blue-900/10 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400 disabled:cursor-not-allowed"
-                                                >
-                                                    Cargar
-                                                </button>
-                                                <input
-                                                    type="file"
-                                                    disabled={!payrollStore}
-                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
-                                                    onChange={(e) => {
-                                                        handleVerifyPersonal(e.target.files[0]);
-                                                        e.target.value = null; // Reset para permitir cargar el mismo archivo
-                                                    }}
-                                                    accept=".xlsx,.xls,.csv"
-                                                />
-                                            </div>
-                                            <div className="flex-1 bg-white border-2 border-brand-primary/10 rounded-xl px-4 py-2.5 flex items-center overflow-hidden">
-                                                <span className="text-[10px] font-bold uppercase truncate text-gray-300">
-                                                    Comparar con base
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Auditoría de nuevos ingresos</p>
-                                    </div>
-
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
                                     {/* Control 0.5: Digitalizador de Planillas (IA) */}
-                                    <div className={`rounded-2xl p-6 border-2 shadow-sm transition-all duration-500 ${sheetFiles.length > 0 ? 'border-[#6bbdb7]/20 bg-[#6bbdb7]/[0.02]' : 'border-brand-primary/5 bg-[#f9f9f9]'}`}>
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <div className={`p-2 rounded-lg transition-colors duration-500 ${sheetFiles.length > 0 ? 'bg-[#6bbdb7]/10' : 'bg-[#303a7f]/5'}`}>
-                                                <Camera size={18} className={`transition-colors duration-500 ${sheetFiles.length > 0 ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`} />
+                                    <div className={`rounded-xl border transition-all duration-300 p-4 flex flex-col justify-between gap-4 ${sheetFiles.length > 0 ? 'border-[#6bbdb7]/40 bg-teal-50/20' : 'border-gray-200 bg-[#fbfbfb] hover:border-[#303a7f]/20 hover:bg-white hover:shadow-sm'}`}>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${sheetFiles.length > 0 ? 'bg-[#6bbdb7]/10' : 'bg-[#303a7f]/5'}`}>
+                                                    <Camera size={14} className={sheetFiles.length > 0 ? 'text-[#6bbdb7]' : 'text-[#303a7f]'} />
+                                                </div>
+                                                <div>
+                                                    <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${sheetFiles.length > 0 ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Planillas IA</p>
+                                                    <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Digitalizador</p>
+                                                </div>
                                             </div>
-                                            <p className={`text-[10px] font-black uppercase tracking-tight transition-colors duration-500 ${sheetFiles.length > 0 ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Digitalizador de Planillas</p>
+                                            {sheetFiles.length > 0 && <CheckCircle size={14} className="text-[#6bbdb7] animate-in zoom-in duration-300" />}
                                         </div>
-
                                         <div className="flex items-center gap-2">
-                                            <div className="relative group/btn">
+                                            <div className="relative flex-1">
                                                 <button
                                                     disabled={!payrollStore}
                                                     style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (sheetFiles.length > 0 ? '#6bbdb7' : '#303a7f') }}
-                                                    className={`px-4 py-2 text-white font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400 disabled:cursor-not-allowed ${sheetFiles.length > 0
-                                                        ? 'shadow-teal-900/10 hover:bg-[#59aba5]'
-                                                        : 'shadow-blue-900/10 hover:bg-[#252a5e]'
-                                                        }`}
+                                                    className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${sheetFiles.length > 0 ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
                                                 >
-                                                    {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos OK') : 'Subir Fotos'}
+                                                    {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos Subidas') : 'Tomar Fotos'}
                                                 </button>
                                                 <input
-                                                    type="file"
-                                                    multiple
-                                                    disabled={!payrollStore}
+                                                    type="file" multiple disabled={!payrollStore}
                                                     className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
                                                     onChange={(e) => {
                                                         const selected = Array.from(e.target.files);
                                                         if (selected.length > 0) {
                                                             const newItems = selected.map(file => ({
-                                                                id: Math.random().toString(36).substr(2, 9),
-                                                                file: file,
-                                                                preview: URL.createObjectURL(file),
-                                                                comment: ''
+                                                                id: Math.random().toString(36).substr(2, 9), file: file, preview: URL.createObjectURL(file), comment: ''
                                                             }));
                                                             setSheetFiles(prev => [...prev, ...newItems]);
                                                             setIsSheetPreviewOpen(true);
                                                         }
-                                                        e.target.value = null; // Reset para permitir re-selección
+                                                        e.target.value = null;
                                                     }}
                                                     accept="image/*"
                                                 />
                                             </div>
                                         </div>
-                                        <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Handwritten to Excel (AI)</p>
                                     </div>
 
                                     {/* Control 1: Reporte de Supervisor */}
-                                    <div className={`rounded-2xl p-6 border-2 shadow-sm transition-all duration-500 ${supervisorFile ? 'border-[#6bbdb7]/20 bg-[#6bbdb7]/[0.02]' : 'border-brand-primary/5 bg-[#f9f9f9]'}`}>
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <div className={`p-2 rounded-lg transition-colors duration-500 ${supervisorFile ? 'bg-[#6bbdb7]/10' : 'bg-[#303a7f]/5'}`}>
-                                                <FileText size={18} className={`transition-colors duration-500 ${supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`} />
+                                    <div className={`rounded-xl border transition-all duration-300 p-4 flex flex-col justify-between gap-4 ${supervisorFile ? 'border-[#6bbdb7]/40 bg-teal-50/20' : 'border-gray-200 bg-[#fbfbfb] hover:border-[#303a7f]/20 hover:bg-white hover:shadow-sm'}`}>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${supervisorFile ? 'bg-[#6bbdb7]/10' : 'bg-[#303a7f]/5'}`}>
+                                                    <FileText size={14} className={supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'} />
+                                                </div>
+                                                <div>
+                                                    <p className={`text-[9px] font-black uppercase tracking-widest leading-none truncate ${supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>{supervisorFile ? supervisorFile.name : 'Reporte Sup.'}</p>
+                                                    <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Horas Diarias</p>
+                                                </div>
                                             </div>
-                                            <p className={`text-xs font-black uppercase tracking-tight transition-colors duration-500 ${supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Reporte de Supervisor</p>
+                                            {supervisorFile && <CheckCircle size={14} className="text-[#6bbdb7] animate-in zoom-in duration-300" />}
                                         </div>
-
                                         <div className="flex items-center gap-2">
-                                            <div className="relative group/btn">
+                                            <div className="relative flex-1">
                                                 <button
                                                     disabled={!payrollStore}
                                                     style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (supervisorFile ? '#6bbdb7' : '#303a7f') }}
-                                                    className={`px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400 disabled:cursor-not-allowed ${supervisorFile
-                                                        ? 'shadow-teal-900/10 hover:bg-[#59aba5]'
-                                                        : 'shadow-blue-900/10 hover:bg-[#252a5e]'
-                                                        }`}
+                                                    className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${supervisorFile ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
                                                 >
-                                                    {supervisorFile && <CheckCircle size={14} className="animate-in zoom-in duration-300" />}
-                                                    {supervisorFile ? 'Cargado' : 'Cargar'}
+                                                    {supervisorFile ? 'Data Lista' : 'Subir Excel'}
                                                 </button>
                                                 <input
-                                                    type="file"
-                                                    disabled={!payrollStore}
+                                                    type="file" disabled={!payrollStore}
                                                     className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
                                                     onChange={(e) => setSupervisorFile(e.target.files[0])}
                                                     accept=".xlsx,.xls,.csv"
                                                 />
                                             </div>
-
-                                            <button
-                                                onClick={() => setSupervisorFile(null)}
-                                                disabled={!supervisorFile}
-                                                className={`p-2.5 rounded-xl border-2 transition-all active:scale-95 group/clear ${supervisorFile
-                                                    ? 'border-red-100 text-red-500 bg-white hover:bg-red-50 hover:border-red-200'
-                                                    : 'border-gray-50 text-gray-200 bg-gray-50 cursor-not-allowed'
-                                                    }`}
-                                            >
-                                                <Trash2 size={16} className={`${supervisorFile ? 'group-hover:rotate-12 transition-transform' : ''}`} />
-                                            </button>
-
-                                            <div className={`flex-1 bg-white border-2 rounded-xl px-4 py-2.5 flex items-center overflow-hidden transition-colors duration-500 ${supervisorFile ? 'border-[#6bbdb7]/20' : 'border-brand-primary/10'}`}>
-                                                <span className={`text-[10px] font-bold uppercase truncate transition-colors duration-500 ${supervisorFile ? 'text-[#303a7f]' : 'text-gray-300'}`}>
-                                                    {supervisorFile ? supervisorFile.name : 'Sin archivo seleccionado'}
-                                                </span>
-                                            </div>
+                                            {supervisorFile && (
+                                                <button
+                                                    onClick={() => setSupervisorFile(null)}
+                                                    className="w-10 h-10 flex shrink-0 items-center justify-center rounded-lg border border-red-100 text-red-500 bg-red-50 hover:bg-red-100 transition-colors"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
                                         </div>
-                                        <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Horas Semanales (Dom - Sab)</p>
                                     </div>
 
                                     {/* Control 2: Reporte IVR */}
-                                    <div className={`rounded-2xl p-6 border-2 shadow-sm transition-all duration-500 ${biometricFile ? 'border-[#6bbdb7]/20 bg-[#6bbdb7]/[0.02]' : 'border-[#6bbdb7]/5 bg-[#f9f9f9]'}`}>
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <div className={`p-2 rounded-lg transition-colors duration-500 ${biometricFile ? 'bg-[#6bbdb7]/10' : 'bg-[#6bbdb7]/5'}`}>
-                                                <Clock8 size={18} className={`transition-colors duration-500 ${biometricFile ? 'text-[#6bbdb7]' : 'text-[#6bbdb7]'}`} />
+                                    <div className={`rounded-xl border transition-all duration-300 p-4 flex flex-col justify-between gap-4 ${biometricFile ? 'border-[#6bbdb7]/40 bg-teal-50/20' : 'border-gray-200 bg-[#fbfbfb] hover:border-[#303a7f]/20 hover:bg-white hover:shadow-sm'}`}>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${biometricFile ? 'bg-[#6bbdb7]/10' : 'bg-[#303a7f]/5'}`}>
+                                                    <Clock8 size={14} className={biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'} />
+                                                </div>
+                                                <div>
+                                                    <p className={`text-[9px] font-black uppercase tracking-widest leading-none truncate ${biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>{biometricFile ? biometricFile.name : 'Reporte IVR'}</p>
+                                                    <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Biométrico</p>
+                                                </div>
                                             </div>
-                                            <p className={`text-xs font-black uppercase tracking-tight transition-colors duration-500 ${biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Reporte IVR</p>
+                                            {biometricFile && <CheckCircle size={14} className="text-[#6bbdb7] animate-in zoom-in duration-300" />}
                                         </div>
-
                                         <div className="flex items-center gap-2">
-                                            <div className="relative group/btn">
+                                            <div className="relative flex-1">
                                                 <button
                                                     disabled={!payrollStore}
                                                     style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (biometricFile ? '#6bbdb7' : '#303a7f') }}
-                                                    className={`px-5 py-2.5 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400 disabled:cursor-not-allowed ${biometricFile
-                                                        ? 'shadow-teal-900/10 hover:bg-[#59aba5]'
-                                                        : 'shadow-blue-900/10 hover:bg-[#252a5e]'
-                                                        }`}
+                                                    className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${biometricFile ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
                                                 >
-                                                    {biometricFile && <CheckCircle size={14} className="animate-in zoom-in duration-300" />}
-                                                    {biometricFile ? 'Cargado' : 'Cargar'}
+                                                    {biometricFile ? 'Data Lista' : 'Subir Ponches'}
                                                 </button>
                                                 <input
-                                                    type="file"
-                                                    disabled={!payrollStore}
+                                                    type="file" disabled={!payrollStore}
                                                     className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
                                                     onChange={(e) => setBiometricFile(e.target.files[0])}
                                                     accept=".xlsx,.xls,.csv,.txt"
                                                 />
                                             </div>
-
-                                            <button
-                                                onClick={() => setBiometricFile(null)}
-                                                disabled={!biometricFile}
-                                                className={`p-2.5 rounded-xl border-2 transition-all active:scale-95 group/clear ${biometricFile
-                                                    ? 'border-red-100 text-red-500 bg-white hover:bg-red-50 hover:border-red-200'
-                                                    : 'border-gray-50 text-gray-200 bg-gray-50 cursor-not-allowed'
-                                                    }`}
-                                            >
-                                                <Trash2 size={16} className={`${biometricFile ? 'group-hover:rotate-12 transition-transform' : ''}`} />
-                                            </button>
-
-                                            <div className={`flex-1 bg-white border-2 rounded-xl px-4 py-2.5 flex items-center overflow-hidden transition-colors duration-500 ${biometricFile ? 'border-[#6bbdb7]/20' : 'border-brand-primary/10'}`}>
-                                                <span className={`text-[10px] font-bold uppercase truncate transition-colors duration-500 ${biometricFile ? 'text-[#303a7f]' : 'text-gray-300'}`}>
-                                                    {biometricFile ? biometricFile.name : 'Sin archivo seleccionado'}
-                                                </span>
-                                            </div>
+                                            {biometricFile && (
+                                                <button
+                                                    onClick={() => setBiometricFile(null)}
+                                                    className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg border border-red-100 text-red-500 bg-red-50 hover:bg-red-100 transition-colors"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
                                         </div>
-                                        <p className="mt-4 text-[8px] text-gray-400 font-black uppercase tracking-[0.2em] opacity-60">Base de Datos (In/Out)</p>
                                     </div>
                                 </div>
 
