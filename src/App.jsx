@@ -2641,8 +2641,60 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     );
 };
 
+const BiweeklyPayrollManagementView = ({ period, onBack }) => {
+    if (!period) return null;
+
+    return (
+        <div className="fixed inset-0 z-[150] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500 font-sans">
+            {/* Background Decorations */}
+            <div
+                style={{ backgroundColor: 'rgba(48,58,127,0.03)' }}
+                className="absolute top-0 right-0 w-[800px] h-[800px] blur-[150px] rounded-full -z-10 pointer-events-none"
+            />
+
+            <div className="max-w-7xl mx-auto p-4 lg:p-6 pb-12">
+                {/* Header Navigation */}
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-[#303a7f] text-white rounded-2xl flex items-center justify-center shadow-xl shadow-blue-900/10">
+                            <Cpu size={24} />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">Gestión de Nómina</h1>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[#6bbdb7] text-[9px] font-black uppercase tracking-[0.2em] opacity-80">{period.store}</span>
+                                <div className="w-1 h-1 rounded-full bg-gray-200" />
+                                <span className="text-gray-400 text-[9px] font-black uppercase tracking-[0.2em]">{period.range}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={onBack}
+                        className="group flex items-center gap-2.5 px-5 py-2.5 bg-white border-2 border-gray-100 text-[#303a7f] rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-blue-900/5 hover:border-[#303a7f] hover:shadow-blue-900/10 transition-all active:scale-95"
+                    >
+                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                        Volver a Nómina
+                    </button>
+                </div>
+
+                {/* Main Content Area (Empty for now) */}
+                <div className="bg-white/50 backdrop-blur-xl rounded-[3.5rem] border-2 border-white min-h-[60vh] flex flex-col items-center justify-center p-20 text-center shadow-2xl shadow-blue-900/5 border-dashed">
+                    <div className="w-24 h-24 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mb-8 border-2 border-dashed border-gray-200">
+                        <FileText size={40} className="text-gray-200" />
+                    </div>
+                    <h2 className="text-2xl font-black text-gray-200 uppercase tracking-tighter mb-4">Módulo de Gestión en Desarrollo</h2>
+                    <p className="max-w-md text-gray-300 font-bold text-sm leading-relaxed uppercase tracking-widest text-[9px]">
+                        Esta sección permitirá el cruce final de datos, ajustes de bonificaciones y deducciones antes del cierre oficial de la bisemana.
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const PayrollHistoryModal = ({
-    isOpen, onClose, onSelectWeek, inline = false,
+    isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false,
     stores = [], selectedStore = '', onSelectStore = () => { }, historyData = []
 }) => {
     const [selectedYear, setSelectedYear] = useState(2026);
@@ -2809,66 +2861,73 @@ const PayrollHistoryModal = ({
             <div className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
                 <div className="max-w-[1600px] mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                        {filteredPeriods.map((p) => (
-                            <div
-                                key={p.periodNum}
-                                className="group relative bg-white rounded-[2rem] border-2 border-gray-100 hover:border-[#6bbdb7] p-5 shadow-sm hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 flex flex-col"
-                            >
-                                {/* Periodo Header */}
-                                <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-50">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg bg-[#303a7f]/5 flex items-center justify-center text-[#303a7f]">
-                                            <Calendar size={15} />
-                                        </div>
-                                        <div>
-                                            <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest block leading-none mb-1">Rango de fechas</span>
-                                            <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-tighter">
-                                                {p.w1.start.split('/')[0]}/{p.w1.start.split('/')[1]} - {p.w2.end.split('/')[0]}/{p.w2.end.split('/')[1]}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Contenedor de Semanas (Lado a Lado) */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    {[p.w1, p.w2].map((w, idx) => {
-                                        const processed = isWeekProcessed(w.start);
-                                        return (
-                                            <button
-                                                key={idx}
-                                                onClick={() => onSelectWeek(w.start, w.end)}
-                                                className={`group/week transition-all duration-300 p-3.5 rounded-2xl border-2 text-left relative overflow-hidden active:scale-95 ${processed
-                                                    ? 'bg-[#6bbdb7] hover:bg-[#59aba5] border-[#59aba5] shadow-lg shadow-teal-900/20'
-                                                    : 'bg-gray-50/50 hover:bg-[#303a7f] border-transparent hover:border-[#303a7f]'
-                                                    }`}
-                                            >
-                                                <div className="relative z-10">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${processed ? 'text-white' : 'text-[#303a7f] group-hover/week:text-white'}`}>{w.weekNumInYear}</span>
-                                                        <ChevronRight size={12} className={`${processed ? 'text-white opacity-100' : 'text-[#303a7f] group-hover/week:text-white opacity-0 group-hover/week:opacity-100'} transition-all`} />
+                                {filteredPeriods.map((p) => {
+                                    const bothProcessed = isWeekProcessed(p.w1.start) && isWeekProcessed(p.w2.start);
+                                    return (
+                                        <div
+                                            key={p.periodNum}
+                                            className="group relative bg-white rounded-[2rem] border-2 border-gray-100 hover:border-[#6bbdb7] p-5 shadow-sm hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 flex flex-col"
+                                        >
+                                            {/* Periodo Header */}
+                                            <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-50">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="w-8 h-8 rounded-lg bg-[#303a7f]/5 flex items-center justify-center text-[#303a7f]">
+                                                        <Calendar size={15} />
                                                     </div>
-                                                    <h5 className={`text-[10px] font-black uppercase tracking-tight mb-2 transition-colors ${processed ? 'text-white' : 'text-[#303a7f] group-hover/week:text-white'}`}>Semana {idx + 1}</h5>
-                                                    <div className="space-y-0.5">
-                                                        <p className={`text-[8px] font-bold uppercase tracking-widest transition-colors ${processed ? 'text-teal-100' : 'text-gray-400 group-hover/week:text-white/60'}`}>{w.start.split('/')[0]}/{w.start.split('/')[1]}</p>
-                                                        <p className={`text-[8px] font-black uppercase tracking-widest transition-colors ${processed ? 'text-white' : 'text-[#6bbdb7] group-hover/week:text-white'}`}>{w.end.split('/')[0]}/{w.end.split('/')[1]}</p>
+                                                    <div>
+                                                        <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest block leading-none mb-1">Rango de fechas</span>
+                                                        <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-tighter">
+                                                            {p.w1.start.split('/')[0]}/{p.w1.start.split('/')[1]} - {p.w2.end.split('/')[0]}/{p.w2.end.split('/')[1]}
+                                                        </span>
                                                     </div>
                                                 </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                                            </div>
 
-                                <div className="mt-5 pt-4 border-t border-gray-50">
-                                    <button
-                                        onClick={() => {/* El flujo se definirá después */ }}
-                                        className="w-full py-2.5 bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white rounded-xl font-black text-[9px] uppercase tracking-[0.15em] transition-all duration-300 border-2 border-[#303a7f]/5 hover:border-[#303a7f] hover:shadow-lg hover:shadow-blue-900/10 active:scale-95 flex items-center justify-center gap-2 group"
-                                    >
-                                        <Cpu size={14} className="text-[#6bbdb7] group-hover:text-white transition-colors" />
-                                        Procesar Nómina
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                                            {/* Contenedor de Semanas (Lado a Lado) */}
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {[p.w1, p.w2].map((w, idx) => {
+                                                    const processed = isWeekProcessed(w.start);
+                                                    return (
+                                                        <button
+                                                            key={idx}
+                                                            onClick={() => onSelectWeek(w.start, w.end)}
+                                                            className={`group/week transition-all duration-300 p-3.5 rounded-2xl border-2 text-left relative overflow-hidden active:scale-95 ${processed
+                                                                ? 'bg-[#6bbdb7] hover:bg-[#59aba5] border-[#59aba5] shadow-lg shadow-teal-900/20'
+                                                                : 'bg-gray-50/50 hover:bg-[#303a7f] border-transparent hover:border-[#303a7f]'
+                                                                }`}
+                                                        >
+                                                            <div className="relative z-10">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${processed ? 'text-white' : 'text-[#303a7f] group-hover/week:text-white'}`}>{w.weekNumInYear}</span>
+                                                                    <ChevronRight size={12} className={`${processed ? 'text-white opacity-100' : 'text-[#303a7f] group-hover/week:text-white opacity-0 group-hover/week:opacity-100'} transition-all`} />
+                                                                </div>
+                                                                <h5 className={`text-[10px] font-black uppercase tracking-tight mb-2 transition-colors ${processed ? 'text-white' : 'text-[#303a7f] group-hover/week:text-white'}`}>Semana {idx + 1}</h5>
+                                                                <div className="space-y-0.5">
+                                                                    <p className={`text-[8px] font-bold uppercase tracking-widest transition-colors ${processed ? 'text-teal-100' : 'text-gray-400 group-hover/week:text-white/60'}`}>{w.start.split('/')[0]}/{w.start.split('/')[1]}</p>
+                                                                    <p className={`text-[8px] font-black uppercase tracking-widest transition-colors ${processed ? 'text-white' : 'text-[#6bbdb7] group-hover/week:text-white'}`}>{w.end.split('/')[0]}/{w.end.split('/')[1]}</p>
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <div className="mt-5 pt-4 border-t border-gray-50">
+                                                <button
+                                                    onClick={() => onProcessBiweekly(p)}
+                                                    disabled={!bothProcessed}
+                                                    className={`w-full py-2.5 rounded-xl font-black text-[9px] uppercase tracking-[0.15em] transition-all duration-300 border-2 active:scale-95 flex items-center justify-center gap-2 group ${bothProcessed
+                                                            ? 'bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white border-[#303a7f]/5 hover:border-[#303a7f] hover:shadow-lg hover:shadow-blue-900/10'
+                                                            : 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed opacity-60'
+                                                        }`}
+                                                >
+                                                    <Cpu size={14} className={`${bothProcessed ? 'text-[#6bbdb7] group-hover:text-white' : 'text-gray-300'} transition-colors`} />
+                                                    Procesar Nómina
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                     </div>
                 </div>
             </div>
@@ -3021,6 +3080,8 @@ function App() {
     const [statusModalTitle, setStatusModalTitle] = useState('');
     const [statusModalType, setStatusModalType] = useState('success'); // 'success' | 'error'
     const [payrollView, setPayrollView] = useState('history'); // 'history' | 'engine'
+    const [isBiweeklyManagementOpen, setIsBiweeklyManagementOpen] = useState(false);
+    const [selectedBiweeklyPeriod, setSelectedBiweeklyPeriod] = useState(null);
     const [nominaHistoryData, setNominaHistoryData] = useState([]); // FASE 9: Historial Persistente
     const [selectedHistoryStore, setSelectedHistoryStore] = useState('');
     const [isHistoricalDataLoaded, setIsHistoricalDataLoaded] = useState(false); // Flag para la UI
@@ -4489,6 +4550,14 @@ function App() {
                                 isOpen={true}
                                 inline={true}
                                 onClose={() => { }}
+                                onProcessBiweekly={(p) => {
+                                    setSelectedBiweeklyPeriod({
+                                        store: selectedHistoryStore,
+                                        range: `${p.w1.start} - ${p.w2.end}`,
+                                        period: p
+                                    });
+                                    setIsBiweeklyManagementOpen(true);
+                                }}
                                 onSelectWeek={(start, end) => {
                                     setFechaDesde(start);
                                     setFechaHasta(end);
@@ -5145,6 +5214,15 @@ function App() {
             <PayrollHistoryModal
                 isOpen={isHistoryModalOpen}
                 onClose={() => setIsHistoryModalOpen(false)}
+                onProcessBiweekly={(p) => {
+                    setSelectedBiweeklyPeriod({
+                        store: selectedHistoryStore,
+                        range: `${p.w1.start} - ${p.w2.end}`,
+                        period: p
+                    });
+                    setIsBiweeklyManagementOpen(true);
+                    setIsHistoryModalOpen(false);
+                }}
                 onSelectWeek={(start, end) => {
                     setFechaDesde(start);
                     setFechaHasta(end);
@@ -5285,6 +5363,16 @@ function App() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {isBiweeklyManagementOpen && (
+                <BiweeklyPayrollManagementView
+                    period={selectedBiweeklyPeriod}
+                    onBack={() => {
+                        setIsBiweeklyManagementOpen(false);
+                        setSelectedBiweeklyPeriod(null);
+                    }}
+                />
             )}
 
             {/* FASE 8: MODAL DE PREVIEW DE PLANILLAS */}
