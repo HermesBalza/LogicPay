@@ -442,6 +442,54 @@ const StoreCard = ({ store, employees = [], onEdit }) => {
     );
 };
 
+const StoreRow = ({ store, employees = [], onEdit }) => {
+    const assignedCount = (employees || []).filter(emp => emp.tienda === store.nombre).length;
+    return (
+        <div
+            onClick={() => onEdit(store)}
+            className="group bg-white hover:bg-[#6bbdb7]/5 border-b-[2px] border-gray-50 last:border-0 p-4 transition-all flex items-center gap-6 cursor-pointer hover:pl-6"
+        >
+            <div className="w-12 h-12 bg-gray-50 rounded-xl group-hover:bg-[#6bbdb7]/10 transition-colors border border-transparent overflow-hidden flex items-center justify-center flex-shrink-0">
+                {store.imagen ? (
+                    <img src={store.imagen} alt={store.nombre} className="w-full h-full object-cover" />
+                ) : (
+                    <StoreIcon className="text-gray-300 group-hover:text-[#6bbdb7]" size={20} />
+                )}
+            </div>
+
+            <div className="flex-1 min-w-0 md:w-64">
+                <h3 className="text-sm font-black text-[#333333] group-hover:text-[#303a7f] transition-colors truncate tracking-tight">{store.nombre}</h3>
+                <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">{store.codigo || 'S/N'}</span>
+                    <span className="text-[8px] text-gray-300">•</span>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{store.estado || 'ARIZONA'}</span>
+                </div>
+            </div>
+
+            <div className="hidden lg:flex w-40 items-center gap-2">
+                <Users size={12} className="text-[#6bbdb7]/60" />
+                <p className="text-[10px] font-black text-[#303a7f] opacity-80 uppercase tracking-tight truncate">{assignedCount} Empleados</p>
+            </div>
+
+            <div className="hidden md:flex w-40 items-center gap-2">
+                <Clock8 size={12} className="text-[#6bbdb7]/60" />
+                <span className="text-[10px] font-bold text-gray-500 uppercase truncate">{store.max_horas} hrs / mes</span>
+            </div>
+
+            <div className="hidden xl:flex flex-1 items-center gap-2 px-4 border-l-2 border-gray-50">
+                <span className="text-[8px] font-black uppercase tracking-widest text-gray-300">Supervisor:</span>
+                <span className="text-[10px] font-black text-[#303a7f] uppercase truncate">{store.supervisor_lsg || 'Sin Asignar'}</span>
+            </div>
+
+            <div className="w-10 flex justify-end ml-auto">
+                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-[#303a7f] group-hover:text-white transition-all">
+                    <ChevronRight size={14} />
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const EmployeeCard = ({ employee, onEdit }) => (
     <div
         onClick={() => onEdit(employee)}
@@ -3056,6 +3104,7 @@ function App() {
     const [semanaTableData, setSemanaTableData] = useState([]);
     const [biometricTableData, setBiometricTableData] = useState([]); // FASE 2: Resumen Biométrico IA
     const [personalViewMode, setPersonalViewMode] = useState('grid'); // Cuadrícula por defecto
+    const [storesViewMode, setStoresViewMode] = useState('grid'); // Cuadrícula por defecto para tiendas
     const [rawBiometricData, setRawBiometricData] = useState([]); // FASE 2.5: Datos crudos para detalles
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // FASE 2.5: Modal detalles
     const [payrollResults, setPayrollResults] = useState([]);
@@ -3100,7 +3149,9 @@ function App() {
     const [isProcessingSheets, setIsProcessingSheets] = useState(false); // FASE 8: Digitalizador
     const [isSheetPreviewOpen, setIsSheetPreviewOpen] = useState(false); // MODAL PREVIEW
     const [isMassImportInfoOpen, setIsMassImportInfoOpen] = useState(false);
+    const [isStoreMassImportInfoOpen, setIsStoreMassImportInfoOpen] = useState(false);
     const massImportFileInputRef = useRef(null);
+    const storeMassImportFileInputRef = useRef(null);
 
     // --- Helper de Verificación de Personal (Reutilizable) ---
     const getPersonnelVerificationResults = (json, currentEmployees) => {
@@ -3210,6 +3261,65 @@ function App() {
             showError("No se pudo procesar el archivo de personal seleccionado.");
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleStoreMassImport = async (file) => {
+        if (!file) return;
+        setIsLoading(true);
+        try {
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data);
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet);
+
+            if (json.length === 0) {
+                showError("El archivo Excel está vacío.");
+                return;
+            }
+
+            const defaultTarifas = {
+                janitorial: { kbs: 0, lsg: 0 },
+                utility: { kbs: 0, lsg: 0 },
+                shift_lead: { kbs: 0, lsg: 0 }
+            };
+
+            const newStores = json.map(row => ({
+                nombre: (row.Nombre || row.nombre || '').toString().trim(),
+                ubicacion: (row.Ubicacion || row.ubicacion || row.Ubicación || '').toString().trim(),
+                gerente: (row.Gerente || row.gerente || '').toString().trim(),
+                telefono: (row.Telefono || row.telefono || row.Teléfono || '').toString().trim(),
+                email: (row.Email || row.email || '').toString().trim(),
+                codigo: (row.Codigo || row.codigo || row.Código || '').toString().trim(),
+                tarifas: { ...defaultTarifas }
+            })).filter(s => s.nombre !== '');
+
+            if (newStores.length === 0) {
+                showError("No se encontraron tiendas válidas en el archivo.");
+                return;
+            }
+
+            // Actualizar estado local
+            setStores(prev => [...newStores, ...prev]);
+
+            // Sincronizar masivamente a Sheets
+            setIsSyncingBatch(true);
+            setSyncTotal(newStores.length);
+            setSyncProgress(0);
+
+            for (let i = 0; i < newStores.length; i++) {
+                const store = newStores[i];
+                await syncToSheets('upsert', { ...store, codigo: `'${store.codigo}` });
+                setSyncProgress(i + 1);
+            }
+
+            showSuccess(`Se han importado ${newStores.length} tiendas correctamente.`);
+        } catch (error) {
+            console.error('[StoreMassImport] Error:', error);
+            showError("No se pudo procesar el archivo de importación de tiendas.");
+        } finally {
+            setIsLoading(false);
+            setIsSyncingBatch(false);
         }
     };
 
@@ -4413,29 +4523,97 @@ function App() {
                                         className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
                                     />
                                 </div>
-                                <button
-                                    onClick={() => setIsAddingStore(true)}
-                                    style={{ backgroundColor: '#303a7f' }}
-                                    className="h-11 text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e] whitespace-nowrap"
-                                >
-                                    <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-                                    <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" />
-                                    <span className="tracking-widest uppercase text-[10px]">Agregar Tienda</span>
-                                </button>
+
+                                {/* Toggle de Vistas para Tiendas */}
+                                <div className="h-11 bg-white border-2 border-brand-primary/10 rounded-2xl p-1 flex items-center gap-1 shadow-sm">
+                                    <button
+                                        onClick={() => setStoresViewMode('list')}
+                                        className={`h-full px-3 rounded-xl transition-all flex items-center gap-2 group ${storesViewMode === 'list' ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:bg-gray-50'}`}
+                                        title="Vista de Lista"
+                                    >
+                                        <List size={18} />
+                                        <span className={`text-[9px] font-black uppercase tracking-widest overflow-hidden transition-all duration-300 ${storesViewMode === 'list' ? 'max-w-[60px] ml-1' : 'max-w-0'}`}>Lista</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setStoresViewMode('grid')}
+                                        className={`h-full px-3 rounded-xl transition-all flex items-center gap-2 group ${storesViewMode === 'grid' ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:bg-gray-50'}`}
+                                        title="Vista de Cuadrícula"
+                                    >
+                                        <LayoutGrid size={18} />
+                                        <span className={`text-[9px] font-black uppercase tracking-widest overflow-hidden transition-all duration-300 ${storesViewMode === 'grid' ? 'max-w-[80px] ml-1' : 'max-w-0'}`}>Cuadrícula</span>
+                                    </button>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setIsStoreMassImportInfoOpen(true)}
+                                        style={{ backgroundColor: '#6bbdb7' }}
+                                        className="h-11 text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-lg shadow-teal-900/10 hover:opacity-90 active:scale-95 group overflow-hidden relative whitespace-nowrap"
+                                    >
+                                        <FileSpreadsheet size={20} className="group-hover:scale-110 transition-transform duration-500" />
+                                        <span className="tracking-widest uppercase text-[10px]">Importar Excel</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setIsAddingStore(true)}
+                                        style={{ backgroundColor: '#303a7f' }}
+                                        className="h-11 text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e] whitespace-nowrap"
+                                    >
+                                        <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                                        <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" />
+                                        <span className="tracking-widest uppercase text-[10px]">Agregar Tienda</span>
+                                    </button>
+                                </div>
+                                <input
+                                    type="file"
+                                    ref={storeMassImportFileInputRef}
+                                    className="hidden"
+                                    accept=".xlsx,.xls,.csv"
+                                    onChange={(e) => {
+                                        if (e.target.files?.[0]) {
+                                            handleStoreMassImport(e.target.files[0]);
+                                            e.target.value = ''; // Reset input
+                                        }
+                                    }}
+                                />
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
-                                {filteredStores.map((store, i) => (
-                                    <StoreCard key={i} store={store} employees={employees} onEdit={setEditingStore} />
-                                ))}
+                            {storesViewMode === 'grid' ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+                                    {filteredStores.map((store, i) => (
+                                        <StoreCard key={i} store={store} employees={employees} onEdit={setEditingStore} />
+                                    ))}
 
-                                {filteredStores.length === 0 && (
-                                    <div className="col-span-full py-32 text-center bg-white/50 rounded-[2rem] border-2 border-dashed border-gray-100/80">
-                                        <StoreIcon size={48} className="text-gray-100 mx-auto mb-6" />
-                                        <p className="text-gray-400 font-black text-xl uppercase tracking-[0.2em] opacity-50">Sin coincidencias logísticas</p>
+                                    {filteredStores.length === 0 && (
+                                        <div className="col-span-full py-32 text-center bg-white/50 rounded-[2rem] border-2 border-dashed border-gray-100/80">
+                                            <StoreIcon size={48} className="text-gray-100 mx-auto mb-6" />
+                                            <p className="text-gray-400 font-black text-xl uppercase tracking-[0.2em] opacity-50">Sin coincidencias logísticas</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="bg-white rounded-[2rem] shadow-xl shadow-blue-900/5 border-2 border-brand-primary/10 overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-700">
+                                    <div className="bg-gray-50/50 px-6 py-4 border-b-2 border-gray-100 flex items-center gap-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                        <div className="w-12">Foto</div>
+                                        <div className="flex-1 md:w-64">Detalles de Tienda</div>
+                                        <div className="hidden lg:block w-40">Personal</div>
+                                        <div className="hidden md:block w-40">Capacidad</div>
+                                        <div className="hidden xl:block flex-1 pl-4">Supervisor Asignado</div>
+                                        <div className="w-10 text-right">Acción</div>
                                     </div>
-                                )}
-                            </div>
+                                    <div className="divide-y divide-gray-50 max-h-[1000px] overflow-y-auto">
+                                        {filteredStores.map((store, i) => (
+                                            <StoreRow key={i} store={store} employees={employees} onEdit={setEditingStore} />
+                                        ))}
+                                    </div>
+
+                                    {filteredStores.length === 0 && (
+                                        <div className="py-32 text-center bg-white/50 border-2 border-dashed border-gray-100/80 m-4 rounded-[1.5rem]">
+                                            <StoreIcon size={48} className="text-gray-100 mx-auto mb-6" />
+                                            <p className="text-gray-400 font-bold text-base uppercase tracking-[0.2em] opacity-50">Sin registros de tiendas</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </>
                     )}
 
@@ -5397,6 +5575,64 @@ function App() {
                 isProcessing={isProcessingSheets}
             />
 
+            {/* FASE 10: MODAL INFORMATIVO DE IMPORTACIÓN MASIVA DE TIENDAS */}
+            {isStoreMassImportInfoOpen && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/20 animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-[0_32px_80px_-20px_rgba(48,58,127,0.2)] border-2 border-[#6bbdb7]/10 p-10 animate-in zoom-in-95 duration-500">
+                        <div className="w-20 h-20 rounded-3xl bg-[#6bbdb7]/10 text-[#6bbdb7] flex items-center justify-center mb-8 mx-auto shadow-inner">
+                            <StoreIcon size={40} />
+                        </div>
+
+                        <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-4 text-center">
+                            Importación Masiva de Tiendas
+                        </h3>
+
+                        <p className="text-gray-500 font-bold text-sm leading-relaxed mb-8 text-center px-4">
+                            Esta función le permite cargar múltiples tiendas simultáneamente mediante un archivo Excel. Para garantizar el éxito de la carga, asegúrese de utilizar el formato oficial del sistema.
+                        </p>
+
+                        <div className="bg-gray-50 rounded-3xl p-6 border-2 border-dashed border-gray-200 mb-10 group hover:border-[#6bbdb7]/30 transition-all">
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="p-3 bg-white rounded-xl text-[#303a7f] shadow-sm">
+                                    <Download size={20} />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest leading-none mb-1">Formato Requerido</p>
+                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Excel (.xlsx) - Estructura Predeterminada</p>
+                                </div>
+                            </div>
+                            <a
+                                href="/Formato_de_Carga_de_Tiendas.xlsx"
+                                download
+                                className="w-full py-4 bg-white border-2 border-gray-100 rounded-2xl text-[10px] font-black text-[#303a7f] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-[#6bbdb7] hover:text-white hover:border-[#6bbdb7] transition-all shadow-sm active:scale-95"
+                            >
+                                <Download size={14} />
+                                Descargar Plantilla
+                            </a>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setIsStoreMassImportInfoOpen(false)}
+                                style={{ backgroundColor: '#6bbdb7' }}
+                                className="flex-1 py-4 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-teal-900/10 hover:opacity-90 transition-all active:scale-95"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setIsStoreMassImportInfoOpen(false);
+                                    storeMassImportFileInputRef.current?.click();
+                                }}
+                                className="flex-1 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-900/10 hover:bg-[#252a5e] transition-all active:scale-95"
+                            >
+                                Continuar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* FASE 9: MODAL INFORMATIVO DE IMPORTACIÓN MASIVA */}
             {isMassImportInfoOpen && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/20 animate-in fade-in duration-300">
@@ -5436,7 +5672,8 @@ function App() {
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setIsMassImportInfoOpen(false)}
-                                className="flex-1 py-4 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-50 transition-all active:scale-95"
+                                style={{ backgroundColor: '#6bbdb7' }}
+                                className="flex-1 py-4 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-teal-900/10 hover:opacity-90 transition-all active:scale-95"
                             >
                                 Cancelar
                             </button>
