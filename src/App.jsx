@@ -4367,10 +4367,10 @@ function App() {
             </header>
 
             {/* Main Content Area con padding ajustado para top y bottom navs */}
-            <main className="flex-1 h-screen overflow-y-auto px-2 pt-24 pb-32 lg:px-6 relative">
+            <main className="flex-1 h-screen overflow-y-auto px-2 pt-24 pb-44 lg:px-6 relative">
 
-                {/* Navigation Inferior (Mobile & Desktop) */}
-                <nav className="fixed bottom-0 inset-x-0 z-50 bg-white border-t-2 border-gray-100 px-6 py-4 flex items-center justify-center gap-2 md:gap-8 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+                {/* Navigation Inferior Minimalista (Franja Completa) */}
+                <nav className="fixed bottom-0 inset-x-0 z-50 bg-[#303a7f] border-t border-white/10 p-2 flex items-center justify-center gap-2 shadow-[0_-10px_40px_rgba(48,58,127,0.2)]">
                     {navItems.map((item) => (
                         <button
                             key={item.id}
@@ -4378,15 +4378,17 @@ function App() {
                                 setActiveTab(item.id);
                                 if (item.id === 'payroll') setPayrollView('history');
                             }}
-                            className={`flex items-center gap-3 px-6 py-3 rounded-2xl transition-all duration-300 ${activeTab === item.id
-                                ? 'bg-[#303a7f] text-white shadow-xl shadow-blue-900/20 scale-105'
-                                : 'text-gray-400 hover:bg-gray-50 hover:text-[#303a7f]'
+                            className={`flex items-center gap-2.5 px-6 py-2.5 rounded-[1.5rem] transition-all duration-300 relative group ${activeTab === item.id
+                                ? 'bg-white text-[#303a7f] shadow-lg scale-105'
+                                : 'text-white/40 hover:text-white hover:bg-white/5'
                                 }`}
                         >
-                            <item.icon size={20} />
-                            <span className={`text-[10px] font-black uppercase tracking-widest hidden md:block`}>
-                                {item.label}
-                            </span>
+                            <item.icon size={18} className={`${activeTab === item.id ? 'scale-110' : 'group-hover:scale-110'} transition-transform`} />
+                            {activeTab === item.id && (
+                                <span className="text-[10px] font-black uppercase tracking-widest animate-in fade-in slide-in-from-left-2 duration-300">
+                                    {item.label}
+                                </span>
+                            )}
                         </button>
                     ))}
                 </nav>
