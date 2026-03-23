@@ -3106,11 +3106,7 @@ function App() {
         return uniqueResults;
     };
 
-    useEffect(() => {
-        if (activeTab === 'payroll') {
-            setPayrollView('history');
-        }
-    }, [activeTab]);
+
 
     const showStatus = (title, message, type = 'success') => {
         setStatusModalTitle(title);
@@ -3542,6 +3538,7 @@ function App() {
         } finally {
             setIsLoading(false);
             setIsSyncingBatch(false);
+            setSupervisorFile(null);
         }
     };
 
@@ -4316,7 +4313,10 @@ function App() {
                     {navItems.map((item) => (
                         <button
                             key={item.id}
-                            onClick={() => setActiveTab(item.id)}
+                            onClick={() => {
+                                setActiveTab(item.id);
+                                if (item.id === 'payroll') setPayrollView('history');
+                            }}
                             className={`flex items-center gap-3 px-6 py-3 rounded-2xl transition-all duration-300 ${activeTab === item.id
                                 ? 'bg-[#303a7f] text-white shadow-xl shadow-blue-900/20 scale-105'
                                 : 'text-gray-400 hover:bg-gray-50 hover:text-[#303a7f]'
