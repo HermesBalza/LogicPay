@@ -2776,7 +2776,7 @@ const PayrollHistoryModal = ({
                         ))}
                     </select>
                 </div>
-                
+
                 <div className="flex-shrink-0">
                     <label className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-2 opacity-0 hidden md:block">Año Fiscal</label>
                     <div className="bg-[#f9f9f9] border-[3px] border-brand-primary/5 rounded-2xl flex items-center shadow-inner h-[44px] p-0.5">
@@ -2787,11 +2787,11 @@ const PayrollHistoryModal = ({
                         >
                             <ChevronLeft size={16} strokeWidth={3} />
                         </button>
-                        
+
                         <div className="px-6 flex items-center justify-center min-w-[100px]">
                             <span className="text-[#303a7f] font-black text-sm tracking-widest">{selectedYear}</span>
                         </div>
-                        
+
                         <button
                             onClick={() => setSelectedYear(y => Math.min(2040, y + 1))}
                             disabled={selectedYear >= 2040}
@@ -2801,7 +2801,7 @@ const PayrollHistoryModal = ({
                         </button>
                     </div>
                 </div>
-                
+
                 <div className="flex-1"></div>
             </div>
 
@@ -2838,8 +2838,8 @@ const PayrollHistoryModal = ({
                                                 key={idx}
                                                 onClick={() => onSelectWeek(w.start, w.end)}
                                                 className={`group/week transition-all duration-300 p-3.5 rounded-2xl border-2 text-left relative overflow-hidden active:scale-95 ${processed
-                                                        ? 'bg-[#6bbdb7] hover:bg-[#59aba5] border-[#59aba5] shadow-lg shadow-teal-900/20'
-                                                        : 'bg-gray-50/50 hover:bg-[#303a7f] border-transparent hover:border-[#303a7f]'
+                                                    ? 'bg-[#6bbdb7] hover:bg-[#59aba5] border-[#59aba5] shadow-lg shadow-teal-900/20'
+                                                    : 'bg-gray-50/50 hover:bg-[#303a7f] border-transparent hover:border-[#303a7f]'
                                                     }`}
                                             >
                                                 <div className="relative z-10">
@@ -3894,9 +3894,13 @@ function App() {
 
                 // 2. Procesar datos con lógica de fecha en JS para precisión total
                 const rowsToInsert = aiData.employees.map(emp => {
+                    // Match con la base de datos local para extraer el código oficial
+                    const localMatch = employees.find(e => e.nombre.toLowerCase() === emp.nombre.toLowerCase() && e.tienda === payrollStore);
+                    const codigoOficial = localMatch ? localMatch.codigo_empleado : "";
+
                     const row = {
                         "Nombre y Apellidos": emp.nombre,
-                        "Código": emp.es_nuevo ? "NO REGISTRADO" : "",
+                        "Código": emp.es_nuevo ? "NO REGISTRADO" : codigoOficial,
                         "Cargo": emp.cargo,
                         "Domingo": "00:00",
                         "Lunes": "00:00",
@@ -4610,7 +4614,7 @@ function App() {
                                                     style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (sheetFiles.length > 0 ? '#6bbdb7' : '#303a7f') }}
                                                     className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${sheetFiles.length > 0 ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
                                                 >
-                                                    {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos Subidas') : 'Tomar Fotos'}
+                                                    {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos Subidas') : 'Subir Fotos'}
                                                 </button>
                                                 <input
                                                     type="file" multiple disabled={!payrollStore}
