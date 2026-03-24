@@ -2689,8 +2689,120 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     );
 };
 
-const BiweeklyPayrollManagementView = ({ period, onBack }) => {
+const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] }) => {
+    // 1. Estados para ajustes y datos procesados
+    const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // 2. Lógica de consolidación (W1 + W2)
+    useEffect(() => {
+        if (!period || !nominaHistoryData.length) return;
+
+        // Buscar datos de W1 y W2 en el historial
+        const normalizeDate = (d) => {
+            if (!d) return '';
+            const parts = d.split('/');
+            if (parts.length === 3) {
+                return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+            }
+            return d;
+        };
+
+        const findWeekData = (fechaInicio) => {
+            const normalizedTarget = normalizeDate(fechaInicio);
+            const history = nominaHistoryData.find(h =>
+                String(h.nombre).trim().toLowerCase() === String(period.store).trim().toLowerCase() &&
+                normalizeDate(h.fecha_inicio) === normalizedTarget
+            );
+            if (history) {
+                try {
+                    return JSON.parse(history.data_json);
+                } catch (e) {
+                    console.error("Error parseando JSON de historial:", e);
+                    return null;
+                }
+            }
+            return null;
+        };
+
+        const w1Data = findWeekData(period.w1?.start);
+        const w2Data = findWeekData(period.w2?.start);
+
+        console.log(`[Biweekly] Buscando W1 (${period.w1?.start}):`, w1Data ? 'ENCONTRADA' : 'NO ENCONTRADA');
+        console.log(`[Biweekly] Buscando W2 (${period.w2?.start}):`, w2Data ? 'ENCONTRADA' : 'NO ENCONTRADA');
+
+        // Mapear empleados de ambas semanas
+        const allEmpIds = new Set();
+        const w1Map = {};
+        const w2Map = {};
+
+        if (w1Data?.semanaTableData) {
+            w1Data.semanaTableData.forEach(emp => {
+                const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
+                allEmpIds.add(empId);
+                w1Map[empId] = { 
+                    ...emp, 
+                    hours: Number(emp.total?.final || 0),
+                    rate: w1Data.earningsTableData?.find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)?.rate || 0
+                };
+            });
+        }
+
+        if (w2Data?.semanaTableData) {
+            w2Data.semanaTableData.forEach(emp => {
+                const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
+                allEmpIds.add(empId);
+                w2Map[empId] = { 
+                    ...emp, 
+                    hours: Number(emp.total?.final || 0),
+                    rate: w2Data.earningsTableData?.find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)?.rate || 0
+                };
+            });
+        }
+
+        // Crear lista consolidada
+        const consolidated = Array.from(allEmpIds).map(id => {
+            const empW1 = w1Map[id];
+            const empW2 = w2Map[id];
+            
+            const hoursW1 = empW1?.hours || 0;
+            const hoursW2 = empW2?.hours || 0;
+            const rate = empW1?.rate || empW2?.rate || 0;
+            const pe = 0; // Proyectos Especiales placeholder
+
+            // Lógica de colores según imagen
+            let rowColor = 'bg-white';
+            if (pe > 0) rowColor = 'bg-green-100/50';
+            else if (hoursW1 > 0 && hoursW2 === 0) rowColor = 'bg-cyan-50';
+            else if (hoursW1 === 0 && hoursW2 > 0) rowColor = 'bg-yellow-50';
+            else if (rate > 15.15) rowColor = 'bg-orange-50';
+            else if (id.endsWith('7') || id.endsWith('9')) rowColor = 'bg-pink-50'; // Mock logic for pink
+
+            return {
+                id: id,
+                nombre: empW1?.nombre || empW2?.nombre || 'Desconocido',
+                semana1: empW1 ? hoursW1 : null,
+                semana2: empW2 ? hoursW2 : null,
+                pe: pe,
+                rate: rate,
+                cargo: empW1?.cargo || empW2?.cargo || '',
+                rowColor: rowColor
+            };
+        });
+
+        // Ordenar por nombre
+        consolidated.sort((a, b) => a.nombre.localeCompare(b.nombre));
+        setBiweeklyEmployees(consolidated);
+    }, [period, nominaHistoryData]);
+
     if (!period) return null;
+
+    // 3. Cálculos de Totales
+    const calculateTotalHrs = (emp) => (Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0));
+    const calculatePagoTotal = (emp) => calculateTotalHrs(emp) * Number(emp.rate || 0);
+    
+    const subtotalNomina = biweeklyEmployees.reduce((acc, emp) => acc + calculatePagoTotal(emp), 0);
+    const totalFinal = subtotalNomina;
 
     return (
         <div className="fixed inset-0 z-[150] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500 font-sans">
@@ -2708,7 +2820,7 @@ const BiweeklyPayrollManagementView = ({ period, onBack }) => {
                             <Cpu size={24} />
                         </div>
                         <div>
-                            <h1 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">Gestión de Nómina</h1>
+                            <h1 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">Consolidado Bisemanal</h1>
                             <div className="flex items-center gap-2">
                                 <span className="text-[#6bbdb7] text-[9px] font-black uppercase tracking-[0.2em] opacity-80">{period.store}</span>
                                 <div className="w-1 h-1 rounded-full bg-gray-200" />
@@ -2726,15 +2838,72 @@ const BiweeklyPayrollManagementView = ({ period, onBack }) => {
                     </button>
                 </div>
 
-                {/* Main Content Area (Empty for now) */}
-                <div className="bg-white/50 backdrop-blur-xl rounded-[3.5rem] border-2 border-white min-h-[60vh] flex flex-col items-center justify-center p-20 text-center shadow-2xl shadow-blue-900/5 border-dashed">
-                    <div className="w-24 h-24 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mb-8 border-2 border-dashed border-gray-200">
-                        <FileText size={40} className="text-gray-200" />
+                {/* Table Header (Mimic the Excel Image) */}
+                <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/[0.04] border-2 border-brand-primary/5 p-8 lg:p-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    {/* Table */}
+                    <div className="overflow-x-auto rounded-[2rem] border-[3px] border-gray-100">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-[#303a7f] text-white">
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10">Name</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10">SEMANA 1</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10">SEMANA 2</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10">P.E</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10">TOTAL</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10">RATE</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-right">PAGO TOTAL</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y-2 divide-gray-50">
+                                {biweeklyEmployees.map((emp, idx) => {
+                                    const totalHours = calculateTotalHrs(emp);
+                                    const pagoTotal = calculatePagoTotal(emp);
+                                    
+                                    return (
+                                        <tr key={idx} className={`group transition-colors ${emp.rowColor} hover:brightness-95`}>
+                                            <td className="p-4 border-r-2 border-gray-100 font-black text-[#303a7f] text-xs uppercase tracking-tight">{emp.nombre}</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-xs tabular-nums">{emp.semana1 !== null ? Number(emp.semana1).toFixed(2) : '-'}</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-xs tabular-nums">{emp.semana2 !== null ? Number(emp.semana2).toFixed(2) : '-'}</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-400 text-xs tabular-nums italic">{emp.pe === 0 ? '-' : emp.pe.toFixed(2)}</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-black text-[#303a7f] text-xs tabular-nums">{totalHours.toFixed(2)}</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-[#6bbdb7] text-xs tabular-nums">${Number(emp.rate).toFixed(2)}</td>
+                                            <td className="p-4 text-right font-black text-[#303a7f] text-xs tabular-nums bg-opacity-30">${pagoTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                            <tfoot>
+
+                                <tr className="bg-[#303a7f] text-white font-black">
+                                    <td className="p-5 text-left text-[10px] uppercase tracking-widest bg-[#252a5e]">
+                                        Total Personal: {biweeklyEmployees.length}
+                                    </td>
+                                    <td colSpan="5" className="p-5 text-right text-[12px] uppercase tracking-[0.4em]">TOTAL DE NÓMINA:</td>
+                                    <td className="p-5 text-right text-lg tabular-nums">
+                                        ${totalFinal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
                     </div>
-                    <h2 className="text-2xl font-black text-gray-200 uppercase tracking-tighter mb-4">Módulo de Gestión en Desarrollo</h2>
-                    <p className="max-w-md text-gray-300 font-bold text-sm leading-relaxed uppercase tracking-widest text-[9px]">
-                        Esta sección permitirá el cruce final de datos, ajustes de bonificaciones y deducciones antes del cierre oficial de la bisemana.
-                    </p>
+
+                    {/* Action Bar */}
+                    <div className="mt-12 flex justify-end gap-4 border-t-2 border-gray-50 pt-10">
+                        <button
+                            onClick={() => { /* TODO: Implement PDF Export */ }}
+                            className="px-8 py-3.5 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-50 transition-all active:scale-95 flex items-center gap-3 shadow-sm"
+                        >
+                            <Download size={16} />
+                            Exportar PDF
+                        </button>
+                        <button
+                            onClick={() => { /* TODO: Implement syncToSheets logic for Biweekly Closure */ }}
+                            className="px-12 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3"
+                        >
+                            <CheckCircle size={16} />
+                            Cerrar Bisemana
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -4215,11 +4384,11 @@ function App() {
                 setNominaHistoryData([]);
                 return;
             }
-            const headers = parseCSVRow(lines[0]);
+            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, '').toLowerCase());
             const loaded = lines.slice(1).map(line => {
                 const values = parseCSVRow(line);
                 const flat = {};
-                headers.forEach((h, i) => { flat[h.trim()] = (values[i] || '').trim(); });
+                headers.forEach((h, i) => { if (h) flat[h] = (values[i] || '').trim(); });
                 return flat;
             });
             setNominaHistoryData(loaded);
@@ -4734,7 +4903,8 @@ function App() {
                                     setSelectedBiweeklyPeriod({
                                         store: selectedHistoryStore,
                                         range: `${p.w1.start} - ${p.w2.end}`,
-                                        period: p
+                                        w1: p.w1,
+                                        w2: p.w2
                                     });
                                     setIsBiweeklyManagementOpen(true);
                                 }}
@@ -5398,7 +5568,8 @@ function App() {
                     setSelectedBiweeklyPeriod({
                         store: selectedHistoryStore,
                         range: `${p.w1.start} - ${p.w2.end}`,
-                        period: p
+                        w1: p.w1,
+                        w2: p.w2
                     });
                     setIsBiweeklyManagementOpen(true);
                     setIsHistoryModalOpen(false);
@@ -5408,9 +5579,18 @@ function App() {
                     setFechaHasta(end);
                     if (selectedHistoryStore) {
                         setPayrollStore(selectedHistoryStore);
+                        const normalizeDate = (d) => {
+                            if (!d) return '';
+                            const parts = d.split('/');
+                            if (parts.length === 3) {
+                                return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+                            }
+                            return d;
+                        };
+                        const targetStart = normalizeDate(start);
                         const hData = nominaHistoryData.find(h =>
                             String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
-                            h.fecha_inicio === start
+                            normalizeDate(h.fecha_inicio) === targetStart
                         );
                         if (hData) {
                             try {
@@ -5548,6 +5728,7 @@ function App() {
             {isBiweeklyManagementOpen && (
                 <BiweeklyPayrollManagementView
                     period={selectedBiweeklyPeriod}
+                    nominaHistoryData={nominaHistoryData}
                     onBack={() => {
                         setIsBiweeklyManagementOpen(false);
                         setSelectedBiweeklyPeriod(null);
