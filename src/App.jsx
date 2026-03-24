@@ -2693,6 +2693,7 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
+    const biweeklyReportRef = useRef(null);
 
     // 2. Lógica de consolidación (W1 + W2)
     useEffect(() => {
@@ -2804,6 +2805,43 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
     const subtotalNomina = biweeklyEmployees.reduce((acc, emp) => acc + calculatePagoTotal(emp), 0);
     const totalFinal = subtotalNomina;
 
+    const handleExportPDF = async () => {
+        const element = biweeklyReportRef.current;
+        if (!element) return;
+
+        const originalStyle = element.style.cssText;
+        try {
+            // Forzar estilos para captura optimizada
+            element.style.height = 'auto';
+            element.style.maxHeight = 'none';
+            element.style.overflow = 'visible';
+            element.style.backgroundColor = '#ffffff';
+
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: "#ffffff",
+                windowWidth: element.scrollWidth,
+                windowHeight: element.scrollHeight
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            
+            // PDF de una sola página personalizada
+            const imgWidth = 210; // A4 width mm
+            const pageHeight = (canvas.height * imgWidth) / canvas.width;
+
+            const pdf = new jsPDF('p', 'mm', [imgWidth, pageHeight]);
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
+            pdf.save(`Consolidado_Bisemanal_${period.store}_${period.range.replace(/\//g, '-')}.pdf`);
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+        } finally {
+            element.style.cssText = originalStyle;
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[150] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500 font-sans">
             {/* Background Decorations */}
@@ -2812,7 +2850,7 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
                 className="absolute top-0 right-0 w-[800px] h-[800px] blur-[150px] rounded-full -z-10 pointer-events-none"
             />
 
-            <div className="max-w-7xl mx-auto p-4 lg:p-6 pb-12">
+            <div ref={biweeklyReportRef} className="max-w-7xl mx-auto p-4 lg:p-6 pb-12 bg-white rounded-[3rem] shadow-sm">
                 {/* Header Navigation */}
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-4">
@@ -2831,6 +2869,7 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
 
                     <button
                         onClick={onBack}
+                        data-html2canvas-ignore
                         className="group flex items-center gap-2.5 px-5 py-2.5 bg-white border-2 border-gray-100 text-[#303a7f] rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-blue-900/5 hover:border-[#303a7f] hover:shadow-blue-900/10 transition-all active:scale-95"
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
@@ -2888,10 +2927,10 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
                     </div>
 
                     {/* Action Bar */}
-                    <div className="mt-12 flex justify-end gap-4 border-t-2 border-gray-50 pt-10">
+                    <div data-html2canvas-ignore className="mt-12 flex justify-end gap-4 border-t-2 border-gray-50 pt-10">
                         <button
-                            onClick={() => { /* TODO: Implement PDF Export */ }}
-                            className="px-8 py-3.5 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-50 transition-all active:scale-95 flex items-center gap-3 shadow-sm"
+                            onClick={handleExportPDF}
+                            className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/10"
                         >
                             <Download size={16} />
                             Exportar PDF
