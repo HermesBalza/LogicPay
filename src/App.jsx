@@ -843,7 +843,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                                 </div>
 
                                 <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1 text-[#6bbdb7]">Correo Corporativo</label>
+                                    <label className="text-[9px] text-[#6bbdb7] uppercase font-black tracking-widest block mb-1 pl-1">Correo Corporativo</label>
                                     <div className="relative">
                                         <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
                                         <input
@@ -1657,7 +1657,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                 ) : (
                                     <div className="text-center py-16 bg-gray-50/50 rounded-[2rem] border-2 border-dashed border-gray-100 flex flex-col items-center">
                                         <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
-                                            <History size={40} className="text-gray-200" />
+                                            <History size={40} className="text-gray-100" />
                                         </div>
                                         <p className="text-gray-400 font-black uppercase tracking-[0.2em] text-[10px]">Sin registros históricos de ubicación.</p>
                                         <p className="text-[9px] text-gray-300 mt-2 uppercase font-bold">El historial se actualizará automáticamente con cada aprobación de nómina.</p>
@@ -2978,11 +2978,11 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
                             Exportar PDF
                         </button>
                         <button
-                            onClick={() => { /* TODO: Implement syncToSheets logic for Biweekly Closure */ }}
-                            className="px-12 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3"
+                            onClick={() => alert("Función de envío por correo en desarrollo...")}
+                            className="px-8 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/20"
                         >
-                            <CheckCircle size={16} />
-                            Cerrar Bisemana
+                            <Mail size={16} />
+                            Enviar por Correo
                         </button>
                     </div>
                 </div>
@@ -2991,10 +2991,7 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
     );
 };
 
-const PayrollHistoryModal = ({
-    isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false,
-    stores = [], selectedStore = '', onSelectStore = () => { }, historyData = []
-}) => {
+const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [] }) => {
     const [selectedYear, setSelectedYear] = useState(2026);
     if (!isOpen) return null;
 
@@ -3161,10 +3158,12 @@ const PayrollHistoryModal = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                                 {filteredPeriods.map((p) => {
                                     const bothProcessed = isWeekProcessed(p.w1.start) && isWeekProcessed(p.w2.start);
+                                    const periodKey = `${selectedStore}-${p.w1.start}-${p.w2.end}`;
+                                    const isProcessed = processedBiweeks.includes(periodKey);
                                     return (
                                         <div
                                             key={p.periodNum}
-                                            className="group relative bg-white rounded-[2rem] border-2 border-gray-100 hover:border-[#6bbdb7] p-5 shadow-sm hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 flex flex-col"
+                                            className={`group relative bg-white rounded-[2rem] border-2 p-5 shadow-sm hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 flex flex-col ${isProcessed ? 'border-[#6bbdb7]' : 'border-gray-100 hover:border-[#6bbdb7]'}`}
                                         >
                                             {/* Periodo Header */}
                                             <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-50">
@@ -3214,13 +3213,19 @@ const PayrollHistoryModal = ({
                                                 <button
                                                     onClick={() => onProcessBiweekly(p)}
                                                     disabled={!bothProcessed}
-                                                    className={`w-full py-2.5 rounded-xl font-black text-[9px] uppercase tracking-[0.15em] transition-all duration-300 border-2 active:scale-95 flex items-center justify-center gap-2 group ${bothProcessed
-                                                            ? 'bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white border-[#303a7f]/5 hover:border-[#303a7f] hover:shadow-lg hover:shadow-blue-900/10'
-                                                            : 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed opacity-60'
+                                                    className={`w-full py-2.5 rounded-xl font-black text-[9px] uppercase tracking-[0.15em] transition-all duration-300 border-2 active:scale-95 flex items-center justify-center gap-2 group ${isProcessed 
+                                                            ? 'bg-[#303a7f] text-white border-[#303a7f] shadow-lg shadow-blue-900/10'
+                                                            : bothProcessed
+                                                                ? 'bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white border-[#303a7f]/5 hover:border-[#303a7f] hover:shadow-lg hover:shadow-blue-900/10'
+                                                                : 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed opacity-60'
                                                         }`}
                                                 >
-                                                    <Cpu size={14} className={`${bothProcessed ? 'text-[#6bbdb7] group-hover:text-white' : 'text-gray-300'} transition-colors`} />
-                                                    Procesar Nómina
+                                                    {isProcessed ? (
+                                                        <CheckCircle size={14} className="text-white" />
+                                                    ) : (
+                                                        <Cpu size={14} className={`${bothProcessed ? 'text-[#6bbdb7] group-hover:text-white' : 'text-gray-300'} transition-colors`} />
+                                                    )}
+                                                    {isProcessed ? 'Nómina Procesada' : 'Procesar Nómina'}
                                                 </button>
                                             </div>
                                         </div>
@@ -3384,6 +3389,10 @@ function App() {
     const [nominaHistoryData, setNominaHistoryData] = useState([]); // FASE 9: Historial Persistente
     const [selectedHistoryStore, setSelectedHistoryStore] = useState('');
     const [isHistoricalDataLoaded, setIsHistoricalDataLoaded] = useState(false); // Flag para la UI
+    const [processedBiweeks, setProcessedBiweeks] = useState(() => {
+        const saved = localStorage.getItem('lgm_processed_biweeks');
+        return saved ? JSON.parse(saved) : [];
+    });
 
     const [invalidCodes, setInvalidCodes] = useState([]);
     const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
@@ -4981,6 +4990,12 @@ function App() {
                                 inline={true}
                                 onClose={() => { }}
                                 onProcessBiweekly={(p) => {
+                                    const periodKey = `${selectedHistoryStore}-${p.w1.start}-${p.w2.end}`;
+                                    if (!processedBiweeks.includes(periodKey)) {
+                                        const updated = [...processedBiweeks, periodKey];
+                                        setProcessedBiweeks(updated);
+                                        localStorage.setItem('lgm_processed_biweeks', JSON.stringify(updated));
+                                    }
                                     setSelectedBiweeklyPeriod({
                                         store: selectedHistoryStore,
                                         range: `${p.w1.start} - ${p.w2.end}`,
@@ -4988,6 +5003,7 @@ function App() {
                                         w2: p.w2
                                     });
                                     setIsBiweeklyManagementOpen(true);
+                                    setIsHistoryModalOpen(false);
                                 }}
                                 onSelectWeek={(start, end) => {
                                     setFechaDesde(start);
@@ -5019,6 +5035,7 @@ function App() {
                                 selectedStore={selectedHistoryStore}
                                 onSelectStore={setSelectedHistoryStore}
                                 historyData={nominaHistoryData}
+                                processedBiweeks={processedBiweeks}
                             />
                         </div>
                     )}
@@ -5646,6 +5663,12 @@ function App() {
                 isOpen={isHistoryModalOpen}
                 onClose={() => setIsHistoryModalOpen(false)}
                 onProcessBiweekly={(p) => {
+                    const periodKey = `${selectedHistoryStore}-${p.w1.start}-${p.w2.end}`;
+                    if (!processedBiweeks.includes(periodKey)) {
+                        const updated = [...processedBiweeks, periodKey];
+                        setProcessedBiweeks(updated);
+                        localStorage.setItem('lgm_processed_biweeks', JSON.stringify(updated));
+                    }
                     setSelectedBiweeklyPeriod({
                         store: selectedHistoryStore,
                         range: `${p.w1.start} - ${p.w2.end}`,
@@ -5696,6 +5719,7 @@ function App() {
                 selectedStore={selectedHistoryStore}
                 onSelectStore={setSelectedHistoryStore}
                 historyData={nominaHistoryData}
+                processedBiweeks={processedBiweeks}
             />
 
             {/* FASE 2.5: VENTANA EMERGENTE DE DETALLES BIOMÉTRICOS */}
