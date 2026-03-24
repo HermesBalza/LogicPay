@@ -2732,6 +2732,17 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
         console.log(`[Biweekly] Buscando W1 (${period.w1?.start}):`, w1Data ? 'ENCONTRADA' : 'NO ENCONTRADA');
         console.log(`[Biweekly] Buscando W2 (${period.w2?.start}):`, w2Data ? 'ENCONTRADA' : 'NO ENCONTRADA');
 
+        // Helper para manejar formatos "40" y "40:00"
+        const parseHours = (val) => {
+            if (!val || val === 'X' || val === '0:00') return 0;
+            const s = String(val).trim();
+            if (s.includes(':')) {
+                const [h, m] = s.split(':').map(Number);
+                return h + (m || 0) / 60;
+            }
+            return parseFloat(s) || 0;
+        };
+
         // Mapear empleados de ambas semanas
         const allEmpIds = new Set();
         const w1Map = {};
@@ -2743,8 +2754,8 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
                 allEmpIds.add(empId);
                 w1Map[empId] = { 
                     ...emp, 
-                    hours: Number(emp.total?.final || 0),
-                    rate: w1Data.earningsTableData?.find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)?.rate || 0
+                    hours: parseHours(emp.total?.final),
+                    rate: Number(w1Data.earningsTableData?.find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)?.rate || 0)
                 };
             });
         }
@@ -2755,8 +2766,8 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
                 allEmpIds.add(empId);
                 w2Map[empId] = { 
                     ...emp, 
-                    hours: Number(emp.total?.final || 0),
-                    rate: w2Data.earningsTableData?.find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)?.rate || 0
+                    hours: parseHours(emp.total?.final),
+                    rate: Number(w2Data.earningsTableData?.find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)?.rate || 0)
                 };
             });
         }
@@ -2771,13 +2782,7 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
             const rate = empW1?.rate || empW2?.rate || 0;
             const pe = 0; // Proyectos Especiales placeholder
 
-            // Lógica de colores según imagen
-            let rowColor = 'bg-white';
-            if (pe > 0) rowColor = 'bg-green-100/50';
-            else if (hoursW1 > 0 && hoursW2 === 0) rowColor = 'bg-cyan-50';
-            else if (hoursW1 === 0 && hoursW2 > 0) rowColor = 'bg-yellow-50';
-            else if (rate > 15.15) rowColor = 'bg-orange-50';
-            else if (id.endsWith('7') || id.endsWith('9')) rowColor = 'bg-pink-50'; // Mock logic for pink
+            const rowColor = 'bg-white'; // Hermes prefiere fondo limpio
 
             return {
                 id: id,
@@ -2809,26 +2814,65 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
         const element = biweeklyReportRef.current;
         if (!element) return;
 
-        const originalStyle = element.style.cssText;
         try {
-            // Forzar estilos para captura optimizada
-            element.style.height = 'auto';
-            element.style.maxHeight = 'none';
-            element.style.overflow = 'visible';
-            element.style.backgroundColor = '#ffffff';
-
             const canvas = await html2canvas(element, {
                 scale: 2,
                 useCORS: true,
                 logging: false,
                 backgroundColor: "#ffffff",
-                windowWidth: element.scrollWidth,
-                windowHeight: element.scrollHeight
+                windowWidth: 1300,
+                onclone: (clonedDoc) => {
+                    const clonedRoot = clonedDoc.getElementById('biweekly-report-pdf-root');
+                    if (clonedRoot) {
+                        // Forzar ancho estándar de 1300px solicitado por Hermes
+                        clonedRoot.style.width = '1300px';
+                        clonedRoot.style.maxWidth = 'none';
+                        clonedRoot.style.minWidth = '1300px';
+                        clonedRoot.style.height = 'auto';
+                        clonedRoot.style.overflow = 'visible';
+                        clonedRoot.style.boxShadow = 'none';
+
+                        const tableContainer = clonedRoot.querySelector('.overflow-x-auto');
+                        if (tableContainer) {
+                            tableContainer.style.overflow = 'visible';
+                            tableContainer.style.width = '100.2%'; 
+                            tableContainer.style.maxWidth = 'none';
+                        }
+
+                        // Asegurar que la tabla interna respete el ancho fijo de 1300px
+                        const table = clonedRoot.querySelector('table');
+                        if (table) {
+                            table.style.width = '100%';
+                            table.style.tableLayout = 'fixed';
+                        }
+
+                        // 4. Estandarizar a 20 filas si hay menos (Molde Hermes)
+                        const tableBody = clonedRoot.querySelector('tbody');
+                        if (tableBody) {
+                            const currentRows = tableBody.querySelectorAll('tr').length;
+                            if (currentRows < 20) {
+                                for (let i = currentRows; i < 20; i++) {
+                                    const emptyRow = document.createElement('tr');
+                                    // Mantener el estilo elegante y la altura uniforme
+                                    emptyRow.className = 'border-b border-gray-50 h-[48px]'; 
+                                    emptyRow.innerHTML = `
+                                        <td class="p-4 border-r-2 border-gray-100">&nbsp;</td>
+                                        <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
+                                        <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
+                                        <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
+                                        <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
+                                        <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
+                                        <td class="p-4 text-right font-black text-gray-200 text-xs">-</td>
+                                    `;
+                                    tableBody.appendChild(emptyRow);
+                                }
+                            }
+                        }
+                    }
+                }
             });
 
             const imgData = canvas.toDataURL('image/png');
-            
-            // PDF de una sola página personalizada
             const imgWidth = 210; // A4 width mm
             const pageHeight = (canvas.height * imgWidth) / canvas.width;
 
@@ -2837,8 +2881,6 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
             pdf.save(`Consolidado_Bisemanal_${period.store}_${period.range.replace(/\//g, '-')}.pdf`);
         } catch (error) {
             console.error('Error generating PDF:', error);
-        } finally {
-            element.style.cssText = originalStyle;
         }
     };
 
@@ -2850,7 +2892,7 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
                 className="absolute top-0 right-0 w-[800px] h-[800px] blur-[150px] rounded-full -z-10 pointer-events-none"
             />
 
-            <div ref={biweeklyReportRef} className="max-w-7xl mx-auto p-4 lg:p-6 pb-12 bg-white rounded-[3rem] shadow-sm">
+            <div id="biweekly-report-pdf-root" ref={biweeklyReportRef} className="max-w-7xl mx-auto p-4 lg:p-6 pb-12 bg-white rounded-[3rem] shadow-sm">
                 {/* Header Navigation */}
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-4">
@@ -2884,13 +2926,13 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-[#303a7f] text-white">
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10">Name</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10">SEMANA 1</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10">SEMANA 2</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10">P.E</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10">TOTAL</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10">RATE</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-right">PAGO TOTAL</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10 w-[240px]">Name</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[120px]">SEMANA 1</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[120px]">SEMANA 2</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[90px]">P.E</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[100px]">TOTAL</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[90px]">RATE</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-right w-[140px]">PAGO TOTAL</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y-2 divide-gray-50">
