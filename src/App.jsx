@@ -46,7 +46,8 @@ import {
     FileSpreadsheet,
     Check,
     UserCheck,
-    UserMinus
+    UserMinus,
+    Star
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -3112,16 +3113,21 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
             <div className={`bg-white border-b-2 border-gray-50 px-12 py-4 flex flex-col md:flex-row gap-8 items-end custom-scrollbar sticky ${inline ? 'top-0' : 'top-[108px]'} z-10`}>
                 <div className="flex-shrink-0 w-full md:w-80 border-r-0 md:border-r-2 md:border-gray-50 pr-0 md:pr-6">
                     <label className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-2">Consultar / Procesar Tienda</label>
-                    <select
-                        value={selectedStore}
-                        onChange={(e) => onSelectStore(e.target.value)}
-                        className="w-full bg-gray-50 border-2 border-brand-primary/10 rounded-xl px-4 py-2.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all cursor-pointer shadow-inner appearance-none relative h-[44px]"
-                    >
-                        <option value="">Selecciona una Tienda</option>
-                        {stores.map(s => (
-                            <option key={s.codigo} value={s.nombre}>{s.nombre}</option>
-                        ))}
-                    </select>
+                    <div className="relative group">
+                        <select
+                            value={selectedStore}
+                            onChange={(e) => onSelectStore(e.target.value)}
+                            className="w-full bg-gray-50 border-2 border-brand-primary/10 rounded-xl px-4 pr-10 py-2.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all cursor-pointer shadow-inner appearance-none h-[44px]"
+                        >
+                            <option value="">Selecciona una Tienda</option>
+                            {stores.map(s => (
+                                <option key={s.codigo} value={s.nombre}>{s.nombre}</option>
+                            ))}
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#303a7f]/50 group-hover:text-[#303a7f] transition-colors">
+                            <ChevronDown size={18} strokeWidth={3} />
+                        </div>
+                    </div>
                 </div>
 
                 <div className="flex-shrink-0">
@@ -3334,6 +3340,53 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
     );
 };
 
+const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose }) => {
+    return (
+        <div className="fixed inset-0 z-[120] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500 font-sans">
+            <div className="max-w-7xl mx-auto p-4 lg:p-6 pb-16">
+                {/* Header Section */}
+                <div className="flex flex-col md:flex-row items-center justify-between mb-6 bg-white p-5 rounded-[1.8rem] shadow-xl shadow-blue-900/5 border-2 border-brand-primary/5 gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-amber-500 p-2.5 rounded-xl shadow-lg shadow-amber-900/10 text-white">
+                            <Star size={18} fill="currentColor" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">Proyectos Especiales</h2>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-[#6bbdb7] font-black uppercase text-[9px] tracking-widest bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-100">{storeName}</span>
+                                <span className="text-gray-300 hidden md:block text-[9px]">•</span>
+                                <div className="flex items-center gap-1.5 text-gray-400 font-bold text-[8px] uppercase tracking-widest bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                                    <Calendar size={10} />
+                                    <span>Semana: {fechaDesde} - {fechaHasta}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={onClose}
+                        className="flex items-center gap-2 text-[#303a7f] hover:bg-[#6bbdb7] hover:text-white transition-all py-2.5 px-6 bg-white rounded-xl shadow-sm group font-black text-[9px] uppercase tracking-widest border-2 border-[#6bbdb7]/30 hover:border-[#6bbdb7] active:scale-95"
+                    >
+                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                        Volver
+                    </button>
+                </div>
+
+                {/* Empty State / Construction Body */}
+                <div className="bg-white rounded-[3rem] p-24 text-center border-2 border-dashed border-gray-200 shadow-inner">
+                    <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Settings size={40} className="text-gray-200 animate-spin-slow" />
+                    </div>
+                     <h3 className="text-xl font-black text-gray-300 uppercase tracking-widest mb-2">Módulo en Construcción</h3>
+                     <p className="text-gray-400 font-bold text-sm max-w-md mx-auto leading-relaxed">
+                        Estamos preparando la interfaz de carga masiva y gestión de horas para proyectos especiales sincronizados con la nómina bisemanal.
+                     </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 function App() {
     const [activeTab, setActiveTab] = useState(() => {
         return localStorage.getItem('lgm_active_tab') || 'stores';
@@ -3404,6 +3457,7 @@ function App() {
 
     const [isVWHModalOpen, setIsVWHModalOpen] = useState(false);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [isPEModalOpen, setIsPEModalOpen] = useState(false);
     const [sheetFiles, setSheetFiles] = useState([]); // FASE 8: Digitalizador
     const [isProcessingSheets, setIsProcessingSheets] = useState(false); // FASE 8: Digitalizador
     const [isSheetPreviewOpen, setIsSheetPreviewOpen] = useState(false); // MODAL PREVIEW
@@ -5313,6 +5367,15 @@ function App() {
                                                 <span className="text-[9px] font-black uppercase tracking-widest leading-none">Tabla IVR</span>
                                             </button>
                                             <button
+                                                onClick={() => setIsPEModalOpen(true)}
+                                                disabled={semanaTableData.length === 0}
+                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${semanaTableData.length > 0 ? 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
+                                                title="Proyectos Especiales"
+                                            >
+                                                <Star size={16} className="group-hover:rotate-12 transition-transform" />
+                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">P.E</span>
+                                            </button>
+                                            <button
                                                 onClick={() => setIsDetailsModalOpen(true)}
                                                 className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-95 border-2 border-red-100/50 shadow-sm flex items-center gap-2 group"
                                                 title="Ver detalles de inconsistencias"
@@ -5998,6 +6061,15 @@ function App() {
                         </button>
                     </div>
                 </div>
+            )}
+
+            {isPEModalOpen && (
+                <SpecialProjectsView 
+                    storeName={payrollStore}
+                    fechaDesde={fechaDesde}
+                    fechaHasta={fechaHasta}
+                    onClose={() => setIsPEModalOpen(false)}
+                />
             )}
 
             {/* Decorative Brand Gradients */}
