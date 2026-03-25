@@ -1075,7 +1075,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                     </div>
                 </div>
             )}
-        </div >
+        </div>
     );
 };
 
@@ -2781,23 +2781,32 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
             const hoursW1 = empW1?.hours || 0;
             const hoursW2 = empW2?.hours || 0;
             const rate = empW1?.rate || empW2?.rate || 0;
-            // Sumar horas de Proyectos Especiales para este empleado
-            // Sumar horas de Proyectos Especiales desde la nueva estructura multi-proyecto
+            
+            // Sumar horas y montos de Proyectos Especiales para este empleado desde la nueva estructura multi-proyecto
             const empNombre = String(empW1?.nombre || empW2?.nombre).trim().toLowerCase();
-            const pe = (specialProjectsData || []).reduce((acc, project) => {
-                return acc + (project.employees || []).filter(row =>
-                    String(row.employeeName).trim().toLowerCase() === empNombre
-                ).reduce((s, row) => s + (parseFloat(row.hours) || 0), 0);
-            }, 0);
+            let peTotalHours = 0;
+            let peTotalEarnings = 0;
 
-            const rowColor = 'bg-white'; // Hermes prefiere fondo limpio
+            (specialProjectsData || []).forEach(project => {
+                (project.employees || []).forEach(row => {
+                    if (String(row.employeeName).trim().toLowerCase() === empNombre) {
+                        const h = parseFloat(row.hours) || 0;
+                        const r = parseFloat(row.rateLogic) || 0;
+                        peTotalHours += h;
+                        peTotalEarnings += (h * r);
+                    }
+                });
+            });
+
+            const rowColor = 'bg-white';
 
             return {
                 id: id,
                 nombre: empW1?.nombre || empW2?.nombre || 'Desconocido',
                 semana1: empW1 ? hoursW1 : null,
                 semana2: empW2 ? hoursW2 : null,
-                pe: pe,
+                pe: peTotalHours,
+                peEarnings: peTotalEarnings,
                 rate: rate,
                 cargo: empW1?.cargo || empW2?.cargo || '',
                 rowColor: rowColor
@@ -2813,7 +2822,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
 
     // 3. Cálculos de Totales
     const calculateTotalHrs = (emp) => (Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0));
-    const calculatePagoTotal = (emp) => calculateTotalHrs(emp) * Number(emp.rate || 0);
+    const calculatePagoTotal = (emp) => {
+        const baseEarnings = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
+        return baseEarnings + (emp.peEarnings || 0);
+    };
 
     const subtotalNomina = biweeklyEmployees.reduce((acc, emp) => acc + calculatePagoTotal(emp), 0);
     const totalFinal = subtotalNomina;
@@ -3366,10 +3378,12 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
     );
 };
 
-const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, employees, placeholder }) => {
+const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, onRegisterEmployee, employees, stores, placeholder }) => {
     const [searchTerm, setSearchTerm] = useState(value || '');
     const [isOpen, setIsOpen] = useState(false);
     const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+    // Estado del mini-formulario de registro rápido (null = cerrado)
+    const [registerForm, setRegisterForm] = useState(null);
     const wrapperRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -3398,11 +3412,54 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, employees,
         const handleClickOutside = (event) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
                 setIsOpen(false);
+                setRegisterForm(null);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    // Abrir mini-formulario pre-rellenando el nombre buscado
+    const openRegisterForm = () => {
+        setIsOpen(false);
+        setRegisterForm({
+            nombre: searchTerm.trim(),
+            codigo_empleado: `EXT-${Date.now().toString().slice(-5)}`, // código auto-generado
+            tienda: ''
+        });
+    };
+
+    // Guardar el nuevo empleado externo
+    const handleRegisterSave = () => {
+        if (!registerForm.nombre.trim() || !registerForm.codigo_empleado.trim()) return;
+        const newEmp = {
+            nombre: registerForm.nombre.trim(),
+            codigo_empleado: registerForm.codigo_empleado.trim(),
+            cargo: 'Externo',            // cargo fijo para externos
+            tienda: registerForm.tienda.trim() || 'Externo',
+            fecha_ingreso: '',
+            fecha_egreso: '',
+            cuenta_bancaria: '',
+            imagen: '',
+            locationHistory: []
+        };
+        if (onRegisterEmployee) onRegisterEmployee(newEmp);
+        // Auto-seleccionar en la fila del proyecto
+        if (onSelectEmployee) {
+            onSelectEmployee(newEmp);
+        } else {
+            onChange(newEmp.nombre);
+        }
+        setSearchTerm(newEmp.nombre);
+        setRegisterForm(null);
+    };
+
+    const showDropdown = isOpen && searchTerm.trim().length > 0;
+    const showRegisterOption = showDropdown && results.length === 0;
+    const storeNames = (stores || []).map(s => s.nombre);
+
+    const inputCls = "w-full bg-[#f8f8f8] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all";
+    const labelCls = "block text-[9px] font-black text-gray-400 uppercase tracking-[0.18em] mb-1";
 
     return (
         <div className="relative w-full" ref={wrapperRef}>
@@ -3414,13 +3471,16 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, employees,
                     setSearchTerm(e.target.value);
                     computePos();
                     setIsOpen(true);
+                    setRegisterForm(null);
                     if (e.target.value === '') onChange('');
                 }}
                 onFocus={() => { computePos(); setIsOpen(true); }}
                 placeholder={placeholder}
                 className="w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all"
             />
-            {isOpen && results.length > 0 && (
+
+            {/* Dropdown de resultados de búsqueda */}
+            {showDropdown && results.length > 0 && (
                 <div
                     style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
                     className="bg-white border-2 border-gray-100 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
@@ -3444,20 +3504,118 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, employees,
                                 <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100">
                                     {emp.codigo_empleado}
                                 </span>
-                                <span className="text-[9px] font-bold text-teal-600/60 uppercase italic">
-                                    {emp.tienda}
+                                <span className={`text-[9px] font-bold uppercase italic ${String(emp.cargo).toLowerCase() === 'externo' ? 'text-orange-400' : 'text-teal-600/60'}`}>
+                                    {String(emp.cargo).toLowerCase() === 'externo' ? '⚡ Externo' : emp.tienda}
                                 </span>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
+
+            {/* Opción de registro cuando no hay coincidencias */}
+            {showRegisterOption && (
+                <div
+                    style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
+                    className="bg-white border-2 border-gray-100 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                >
+                    <div
+                        onClick={openRegisterForm}
+                        className="p-3 hover:bg-orange-50 cursor-pointer transition-colors flex items-center gap-2 group"
+                    >
+                        <div className="bg-orange-100 text-orange-500 rounded-lg p-1 flex-shrink-0">
+                            <Plus size={12} />
+                        </div>
+                        <div>
+                            <div className="font-black text-orange-500 text-xs">Registrar como nuevo empleado</div>
+                            <div className="text-[9px] text-gray-400 font-bold">"{searchTerm.trim()}" · Cargo: Externo</div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Mini-formulario de registro rápido — centrado en pantalla */}
+            {registerForm && (
+                <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(48,58,127,0.18)', backdropFilter: 'blur(3px)' }}
+                    onMouseDown={(e) => { if (e.target === e.currentTarget) setRegisterForm(null); }}
+                >
+                <div
+                    style={{ width: 360 }}
+                    className="bg-white border-2 border-orange-200 shadow-2xl rounded-2xl p-5 animate-in fade-in zoom-in-95 duration-200"
+                >
+                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
+                        <div className="bg-orange-100 text-orange-500 rounded-lg p-1">
+                            <Plus size={12} />
+                        </div>
+                        <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Registro Rápido · Externo</span>
+                    </div>
+                    <div className="space-y-2.5">
+                        <div>
+                            <label className={labelCls}>Nombre</label>
+                            <input
+                                type="text"
+                                value={registerForm.nombre}
+                                onChange={(e) => setRegisterForm(f => ({ ...f, nombre: e.target.value }))}
+                                className={inputCls}
+                                autoFocus
+                            />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Código de Empleado</label>
+                            <input
+                                type="text"
+                                value={registerForm.codigo_empleado}
+                                onChange={(e) => setRegisterForm(f => ({ ...f, codigo_empleado: e.target.value }))}
+                                className={inputCls}
+                            />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Tienda / Empresa</label>
+                            {storeNames.length > 0 ? (
+                                <select
+                                    value={registerForm.tienda}
+                                    onChange={(e) => setRegisterForm(f => ({ ...f, tienda: e.target.value }))}
+                                    className={inputCls}
+                                >
+                                    <option value="">-- Externo (sin tienda) --</option>
+                                    {storeNames.map(n => <option key={n} value={n}>{n}</option>)}
+                                </select>
+                            ) : (
+                                <input
+                                    type="text"
+                                    value={registerForm.tienda}
+                                    placeholder="Externo"
+                                    onChange={(e) => setRegisterForm(f => ({ ...f, tienda: e.target.value }))}
+                                    className={inputCls}
+                                />
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                        <button
+                            onClick={() => setRegisterForm(null)}
+                            className="flex-1 py-2 text-gray-400 font-black text-[9px] uppercase tracking-widest border-2 border-gray-100 rounded-xl hover:border-gray-200 transition-all"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleRegisterSave}
+                            className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white font-black text-[9px] uppercase tracking-widest rounded-xl transition-all active:scale-95"
+                        >
+                            Registrar y Seleccionar
+                        </button>
+                    </div>
+                </div>
+                </div>
+            )}
         </div>
     );
 };
 
+
 // ─── Componente de Proyecto Individual dentro de P.E ──────────────────────────
-const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRemoveProject, minDate, maxDate }) => {
+const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRemoveProject, onRegisterEmployee, minDate, maxDate }) => {
     // Actualiza un campo del proyecto (invoice, fecha, nombre, descripcion)
     const updateMeta = (field, value) => onUpdateProject(project.id, { [field]: value });
 
@@ -3591,9 +3749,11 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
                                         <SearchableEmployeeInput
                                             value={row.employeeName}
                                             employees={employees}
+                                            stores={stores}
                                             placeholder="Buscar empleado..."
                                             onChange={(name) => updateRow(row.id, { employeeName: name })}
                                             onSelectEmployee={(emp) => handleSelectEmployee(row.id, emp)}
+                                            onRegisterEmployee={onRegisterEmployee}
                                         />
                                     </td>
                                     <td className="p-3">
@@ -3674,7 +3834,7 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
 };
 
 // ─── Vista Principal de Proyectos Especiales ─────────────────────────────────
-const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice }) => {
+const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterEmployee }) => {
 
     // Convertir el rango de fechas MM/DD/YYYY a YYYY-MM-DD para los inputs tipo date
     const toInputDate = (str) => {
@@ -3761,6 +3921,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                                 stores={stores}
                                 onUpdateProject={updateProject}
                                 onRemoveProject={removeProject}
+                                onRegisterEmployee={onRegisterEmployee}
                                 minDate={minDate}
                                 maxDate={maxDate}
                             />
@@ -3854,7 +4015,16 @@ function App() {
     const [isVWHModalOpen, setIsVWHModalOpen] = useState(false);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [isPEModalOpen, setIsPEModalOpen] = useState(false);
-    const [specialProjectsData, setSpecialProjectsData] = useState([]);
+    const [specialProjectsData, setSpecialProjectsData] = useState(() => {
+        const saved = localStorage.getItem('lgm_special_projects_data');
+        return saved ? JSON.parse(saved) : [];
+    });
+
+    // Persistencia de Proyectos Especiales en localStorage
+    useEffect(() => {
+        localStorage.setItem('lgm_special_projects_data', JSON.stringify(specialProjectsData));
+    }, [specialProjectsData]);
+
     // Contador global de invoices para Proyectos Especiales (empieza desde 100)
     const [nextInvoice, setNextInvoice] = useState(() => {
         const saved = localStorage.getItem('lgm_next_invoice');
@@ -6471,6 +6641,15 @@ function App() {
                     setNextInvoice={(val) => {
                         setNextInvoice(val);
                         localStorage.setItem('lgm_next_invoice', String(val));
+                    }}
+                    onRegisterEmployee={(newEmp) => {
+                        // Agregar al estado local de empleados
+                        setEmployees(prev => [newEmp, ...prev]);
+                        // Sincronizar con la hoja "Personal" de Google Sheets
+                        syncToSheets('upsert', {
+                            ...newEmp,
+                            codigo_empleado: `'${newEmp.codigo_empleado}`
+                        }, 'Personal');
                     }}
                 />
             )}
