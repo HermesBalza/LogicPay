@@ -2782,9 +2782,13 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
             const hoursW2 = empW2?.hours || 0;
             const rate = empW1?.rate || empW2?.rate || 0;
             // Sumar horas de Proyectos Especiales para este empleado
-            const pe = specialProjectsData
-                .filter(row => String(row.employeeName).trim().toLowerCase() === String(empW1?.nombre || empW2?.nombre).trim().toLowerCase())
-                .reduce((acc, row) => acc + (parseFloat(row.hours) || 0), 0);
+            // Sumar horas de Proyectos Especiales desde la nueva estructura multi-proyecto
+            const empNombre = String(empW1?.nombre || empW2?.nombre).trim().toLowerCase();
+            const pe = (specialProjectsData || []).reduce((acc, project) => {
+                return acc + (project.employees || []).filter(row =>
+                    String(row.employeeName).trim().toLowerCase() === empNombre
+                ).reduce((s, row) => s + (parseFloat(row.hours) || 0), 0);
+            }, 0);
 
             const rowColor = 'bg-white'; // Hermes prefiere fondo limpio
 
@@ -3365,7 +3369,9 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
 const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, employees, placeholder }) => {
     const [searchTerm, setSearchTerm] = useState(value || '');
     const [isOpen, setIsOpen] = useState(false);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
     const wrapperRef = useRef(null);
+    const inputRef = useRef(null);
 
     // Filtrar empleados por nombre, código o tienda
     const results = employees.filter(emp => {
@@ -3376,11 +3382,17 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, employees,
             String(emp.codigo_empleado).toLowerCase().includes(term) ||
             String(emp.tienda).toLowerCase().includes(term)
         );
-    }).slice(0, 8); // Limitar a 8 resultados para eficiencia
+    }).slice(0, 8);
 
-    useEffect(() => {
-        setSearchTerm(value || '');
-    }, [value]);
+    // Calcular la posición del dropdown relativa al viewport (position: fixed)
+    const computePos = () => {
+        if (inputRef.current) {
+            const rect = inputRef.current.getBoundingClientRect();
+            setDropdownPos({ top: rect.bottom + 6, left: rect.left, width: rect.width });
+        }
+    };
+
+    useEffect(() => { setSearchTerm(value || ''); }, [value]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -3395,19 +3407,24 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, employees,
     return (
         <div className="relative w-full" ref={wrapperRef}>
             <input
+                ref={inputRef}
                 type="text"
                 value={searchTerm}
                 onChange={(e) => {
                     setSearchTerm(e.target.value);
+                    computePos();
                     setIsOpen(true);
                     if (e.target.value === '') onChange('');
                 }}
-                onFocus={() => setIsOpen(true)}
+                onFocus={() => { computePos(); setIsOpen(true); }}
                 placeholder={placeholder}
                 className="w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all"
             />
             {isOpen && results.length > 0 && (
-                <div className="absolute z-[310] top-full left-0 w-full bg-white border-2 border-gray-100 shadow-2xl rounded-2xl mt-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div
+                    style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
+                    className="bg-white border-2 border-gray-100 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                >
                     {results.map((emp, idx) => (
                         <div
                             key={emp.id || idx}
@@ -3439,28 +3456,31 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, employees,
     );
 };
 
-const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData }) => {
-    const addRow = () => {
-        setSpecialProjectsData([...specialProjectsData, {
-            id: Date.now(),
-            employeeName: '',
-            hours: 0,
-            rateKBS: 0,
-            rateLogic: 0
-        }]);
+// ─── Componente de Proyecto Individual dentro de P.E ──────────────────────────
+const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRemoveProject, minDate, maxDate }) => {
+    // Actualiza un campo del proyecto (invoice, fecha, nombre, descripcion)
+    const updateMeta = (field, value) => onUpdateProject(project.id, { [field]: value });
+
+    // Actualiza una fila de empleado dentro del proyecto
+    const updateRow = (rowId, updates) => {
+        onUpdateProject(project.id, {
+            employees: project.employees.map(r => r.id === rowId ? { ...r, ...updates } : r)
+        });
     };
 
-    const removeRow = (id) => {
-        setSpecialProjectsData(specialProjectsData.filter(row => row.id !== id));
+    // Agregar un empleado a este proyecto
+    const addEmp = () => {
+        onUpdateProject(project.id, {
+            employees: [...project.employees, { id: Date.now(), employeeName: '', hours: 0, rateKBS: 0, rateLogic: 0 }]
+        });
     };
 
-    const updateRow = (id, updates) => {
-        setSpecialProjectsData(specialProjectsData.map(row =>
-            row.id === id ? { ...row, ...updates } : row
-        ));
+    // Eliminar un empleado de este proyecto
+    const removeEmp = (rowId) => {
+        onUpdateProject(project.id, { employees: project.employees.filter(r => r.id !== rowId) });
     };
 
-    // Cuando el usuario selecciona un empleado, auto-rellenar los rates según su cargo y tienda
+    // Auto-rellenar Rate KBS y LGM al seleccionar un empleado
     const handleSelectEmployee = (rowId, emp) => {
         const updates = { employeeName: emp.nombre };
         if (stores && emp.cargo && emp.tienda) {
@@ -3476,21 +3496,235 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
         updateRow(rowId, updates);
     };
 
-    const totalHours = specialProjectsData.reduce((acc, row) => acc + (parseFloat(row.hours) || 0), 0);
+    // Cálculos de totales del proyecto
+    const totalHrs = project.employees.reduce((acc, r) => acc + (parseFloat(r.hours) || 0), 0);
+    const totalKBS = project.employees.reduce((acc, r) => acc + ((parseFloat(r.hours) || 0) * (parseFloat(r.rateKBS) || 0)), 0);
+    const totalLGM = project.employees.reduce((acc, r) => acc + ((parseFloat(r.hours) || 0) * (parseFloat(r.rateLogic) || 0)), 0);
 
-    // Filtrar empleados por la tienda actual
-    const storeEmployees = employees.filter(e =>
-        String(e.tienda).trim().toLowerCase() === String(storeName).trim().toLowerCase()
+    const inputCls = "w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all";
+    const labelCls = "block text-[9px] font-black text-gray-400 uppercase tracking-[0.18em] mb-1.5";
+
+    return (
+        <div className="bg-white rounded-[2rem] shadow-xl shadow-blue-900/[0.04] border-2 border-[#6bbdb7] overflow-hidden">
+            {/* Cabecera del proyecto */}
+            <div className="bg-gradient-to-r from-[#303a7f]/5 to-transparent p-5 border-b-2 border-gray-100">
+                <div className="flex items-start justify-between gap-4 mb-4">
+                    {/* Invoice Badge */}
+                    <div className="flex items-center gap-3">
+                        <div className="bg-[#303a7f] text-white px-4 py-2 rounded-xl shadow-lg shadow-blue-900/20">
+                            <span className="text-[9px] font-black uppercase tracking-widest opacity-70 block leading-none mb-0.5">Invoice</span>
+                            <span className="text-lg font-black leading-none">#{project.invoice}</span>
+                        </div>
+                    </div>
+                    {/* Botón eliminar proyecto */}
+                    <button
+                        onClick={() => onRemoveProject(project.id)}
+                        className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all flex-shrink-0 border-2 border-transparent hover:border-red-100"
+                        title="Eliminar este proyecto"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                </div>
+
+                {/* Metadatos del proyecto en grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Fecha */}
+                    <div>
+                        <label className={labelCls}>Fecha del Proyecto</label>
+                        <input
+                            type="date"
+                            value={project.fecha}
+                            min={minDate}
+                            max={maxDate}
+                            onChange={(e) => updateMeta('fecha', e.target.value)}
+                            className={inputCls}
+                        />
+                    </div>
+                    {/* Nombre del proyecto */}
+                    <div>
+                        <label className={labelCls}>Nombre del Proyecto</label>
+                        <input
+                            type="text"
+                            value={project.nombre}
+                            placeholder="Ej: Limpieza de Bodega..."
+                            onChange={(e) => updateMeta('nombre', e.target.value)}
+                            className={inputCls}
+                        />
+                    </div>
+                    {/* Descripción */}
+                    <div>
+                        <label className={labelCls}>Descripción</label>
+                        <input
+                            type="text"
+                            value={project.descripcion}
+                            placeholder="Descripción breve del proyecto..."
+                            onChange={(e) => updateMeta('descripcion', e.target.value)}
+                            className={inputCls}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Tabla de empleados */}
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="bg-gray-50/60">
+                            <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100">Nombre de Empleado</th>
+                            <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100 text-center">Horas</th>
+                            <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100 text-center">Rate KBS</th>
+                            <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100 text-center">Rate LGM</th>
+                            <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                        {project.employees.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="p-8 text-center text-gray-400 font-bold italic text-xs opacity-60">
+                                    Sin empleados. Presiona "+ Agregar Empleado" para comenzar.
+                                </td>
+                            </tr>
+                        ) : (
+                            project.employees.map((row) => (
+                                <tr key={row.id} className="hover:bg-gray-50/40 transition-colors group">
+                                    <td className="p-3">
+                                        <SearchableEmployeeInput
+                                            value={row.employeeName}
+                                            employees={employees}
+                                            placeholder="Buscar empleado..."
+                                            onChange={(name) => updateRow(row.id, { employeeName: name })}
+                                            onSelectEmployee={(emp) => handleSelectEmployee(row.id, emp)}
+                                        />
+                                    </td>
+                                    <td className="p-3">
+                                        <input
+                                            type="number"
+                                            value={row.hours}
+                                            onChange={(e) => updateRow(row.id, { hours: e.target.value })}
+                                            className="w-20 mx-auto block bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
+                                        />
+                                    </td>
+                                    <td className="p-3">
+                                        <div className="flex items-center justify-center gap-1">
+                                            <span className="text-gray-400 text-[10px] font-black">$</span>
+                                            <input
+                                                type="number"
+                                                value={row.rateKBS}
+                                                onChange={(e) => updateRow(row.id, { rateKBS: e.target.value })}
+                                                className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
+                                            />
+                                        </div>
+                                    </td>
+                                    <td className="p-3">
+                                        <div className="flex items-center justify-center gap-1">
+                                            <span className="text-gray-400 text-[10px] font-black">$</span>
+                                            <input
+                                                type="number"
+                                                value={row.rateLogic}
+                                                onChange={(e) => updateRow(row.id, { rateLogic: e.target.value })}
+                                                className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
+                                            />
+                                        </div>
+                                    </td>
+                                    <td className="p-3 text-center">
+                                        <button
+                                            onClick={() => removeEmp(row.id)}
+                                            className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                    {/* ─── Totales del proyecto ─── */}
+                    <tfoot className="border-t-2 border-gray-100 bg-gray-50/60">
+                        <tr className="font-black text-[10px]">
+                            <td className="p-3 text-right text-gray-500 uppercase tracking-wider">Totales</td>
+                            <td className="p-3 text-center text-[#303a7f]">{totalHrs.toFixed(2)} Hrs</td>
+                            <td className="p-3 text-center">
+                                <span className="bg-blue-50 text-[#303a7f] px-3 py-1 rounded-xl border border-blue-100">
+                                    ${totalKBS.toFixed(2)}
+                                </span>
+                            </td>
+                            <td className="p-3 text-center">
+                                <span className="bg-teal-50 text-[#6bbdb7] px-3 py-1 rounded-xl border border-teal-100">
+                                    ${totalLGM.toFixed(2)}
+                                </span>
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            {/* Botón agregar empleado */}
+            <div className="p-4 border-t border-gray-50">
+                <button
+                    onClick={addEmp}
+                    className="flex items-center gap-2 bg-[#6bbdb7] hover:bg-[#59aba5] text-white font-black text-[9px] uppercase tracking-widest transition-all py-2.5 px-4 rounded-xl w-full justify-center shadow-md shadow-teal-900/10 active:scale-95"
+                >
+                    <Plus size={14} />
+                    Agregar Empleado
+                </button>
+            </div>
+        </div>
     );
+};
+
+// ─── Vista Principal de Proyectos Especiales ─────────────────────────────────
+const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice }) => {
+
+    // Convertir el rango de fechas MM/DD/YYYY a YYYY-MM-DD para los inputs tipo date
+    const toInputDate = (str) => {
+        if (!str) return '';
+        const parts = str.split('/');
+        if (parts.length !== 3) return '';
+        return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+    };
+    const minDate = toInputDate(fechaDesde);
+    const maxDate = toInputDate(fechaHasta);
+
+    // Crear un nuevo proyecto vacío con el siguiente número de invoice
+    const addProject = () => {
+        const newProject = {
+            id: Date.now(),
+            invoice: nextInvoice,
+            fecha: minDate, // Fecha inicial = inicio del periodo
+            nombre: '',
+            descripcion: '',
+            employees: []
+        };
+        setSpecialProjectsData([...specialProjectsData, newProject]);
+        setNextInvoice(nextInvoice + 1);
+    };
+
+    // Eliminar un proyecto y renumerar los restantes desde la base original
+    const removeProject = (projectId) => {
+        const remaining = specialProjectsData.filter(p => p.id !== projectId);
+        const base = nextInvoice - specialProjectsData.length; // primer invoice de la sesión
+        const renumbered = remaining.map((p, idx) => ({ ...p, invoice: base + idx }));
+        setSpecialProjectsData(renumbered);
+        const newNext = nextInvoice - 1;
+        setNextInvoice(newNext);
+    };
+
+    // Actualizar campos de un proyecto (metadatos o lista de empleados)
+    const updateProject = (projectId, updates) => {
+        setSpecialProjectsData(specialProjectsData.map(p =>
+            p.id === projectId ? { ...p, ...updates } : p
+        ));
+    };
 
     return (
         <div className="fixed inset-0 z-[200] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500 font-sans">
-            <div className="max-w-7xl mx-auto p-4 lg:p-6 pb-16">
-                {/* Header Section */}
+            <div className="max-w-5xl mx-auto p-4 lg:p-6 pb-16">
+                {/* Header global de la vista */}
                 <div className="flex flex-col md:flex-row items-center justify-between mb-6 bg-white p-5 rounded-[1.8rem] shadow-xl shadow-blue-900/5 border-2 border-brand-primary/5 gap-4">
                     <div className="flex items-center gap-4">
                         <div className="bg-[#303a7f] p-3.5 rounded-2xl shadow-xl shadow-blue-900/10 text-white">
-                            <ClipboardCheck size={24} />
+                            <ClipboardCheck size={22} />
                         </div>
                         <div>
                             <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">Proyectos Especiales</h2>
@@ -3499,7 +3733,6 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                             </p>
                         </div>
                     </div>
-
                     <button
                         onClick={onClose}
                         className="flex items-center gap-2 text-[#303a7f] hover:bg-[#6bbdb7] hover:text-white transition-all py-2.5 px-6 bg-white rounded-xl shadow-sm group font-black text-[9px] uppercase tracking-widest border-2 border-[#6bbdb7]/30 hover:border-[#6bbdb7] active:scale-95"
@@ -3509,99 +3742,41 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                     </button>
                 </div>
 
-                {/* Table Section */}
-                <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/[0.04] border-2 border-[#303a7f]/5 p-8">
-                    <div className="overflow-x-auto rounded-3xl border-2 border-gray-100">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-gray-50/50">
-                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100">Nombre de Empleado</th>
-                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100 text-center">Horas Trabajadas</th>
-                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100 text-center">Rate KBS</th>
-                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100 text-center">Rate LGM</th>
-                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100 text-center">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y-2 divide-gray-50">
-                                {specialProjectsData.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={5} className="p-12 text-center text-gray-400 font-bold italic opacity-60">
-                                            No hay empleados agregados. Utilice el botón inferior para comenzar.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    specialProjectsData.map((row) => (
-                                        <tr key={row.id} className="hover:bg-gray-50/30 transition-colors group">
-                                            <td className="p-4">
-                                                <SearchableEmployeeInput
-                                                    value={row.employeeName}
-                                                    employees={employees}
-                                                    placeholder="Buscar empleado por nombre, código o tienda..."
-                                                    onChange={(name) => updateRow(row.id, { employeeName: name })}
-                                                    onSelectEmployee={(emp) => handleSelectEmployee(row.id, emp)}
-                                                />
-                                            </td>
-                                            <td className="p-4">
-                                                <input
-                                                    type="number"
-                                                    value={row.hours}
-                                                    onChange={(e) => updateRow(row.id, { hours: e.target.value })}
-                                                    className="w-24 mx-auto block bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
-                                                />
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <span className="text-gray-400 text-[10px] font-black">$</span>
-                                                    <input
-                                                        type="number"
-                                                        value={row.rateKBS}
-                                                        onChange={(e) => updateRow(row.id, { rateKBS: e.target.value })}
-                                                        className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
-                                                    />
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <span className="text-gray-400 text-[10px] font-black">$</span>
-                                                    <input
-                                                        type="number"
-                                                        value={row.rateLogic}
-                                                        onChange={(e) => updateRow(row.id, { rateLogic: e.target.value })}
-                                                        className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
-                                                    />
-                                                </div>
-                                            </td>
-                                            <td className="p-4 text-center">
-                                                <button
-                                                    onClick={() => removeRow(row.id)}
-                                                    className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                            <tfoot className="border-t-4 border-gray-100">
-                                <tr className="bg-gray-50/80 font-black">
-                                    <td className="p-4 text-[10px] text-[#303a7f] uppercase tracking-[0.2em] text-right">Total Horas P.E</td>
-                                    <td className="p-4 text-center text-sm text-[#6bbdb7] tracking-wider bg-teal-50/50">{totalHours.toFixed(2)} Hrs</td>
-                                    <td colSpan={3}></td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                {/* Lista de proyectos */}
+                {specialProjectsData.length === 0 ? (
+                    <div className="bg-white rounded-[2rem] border-2 border-dashed border-gray-200 p-16 text-center">
+                        <div className="inline-flex p-5 bg-gray-50 rounded-3xl mb-5">
+                            <ClipboardCheck size={36} className="text-gray-300" />
+                        </div>
+                        <p className="text-gray-400 font-bold text-sm mb-2">No hay proyectos especiales registrados.</p>
+                        <p className="text-gray-300 font-bold text-xs uppercase tracking-widest">Usa el botón inferior para crear el primero.</p>
                     </div>
+                ) : (
+                    <div className="space-y-5">
+                        {specialProjectsData.map((project) => (
+                            <SpecialProjectCard
+                                key={project.id}
+                                project={project}
+                                employees={employees}
+                                stores={stores}
+                                onUpdateProject={updateProject}
+                                onRemoveProject={removeProject}
+                                minDate={minDate}
+                                maxDate={maxDate}
+                            />
+                        ))}
+                    </div>
+                )}
 
-                    <div className="mt-8 flex justify-center">
-                        <button
-                            onClick={addRow}
-                            className="flex items-center gap-3 bg-[#303a7f] text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
-                        >
-                            <Plus size={18} />
-                            Agregar Fila de Empleado
-                        </button>
-                    </div>
+                {/* Botón global para nuevo proyecto */}
+                <div className="mt-6 flex justify-center">
+                    <button
+                        onClick={addProject}
+                        className="flex items-center gap-3 bg-[#303a7f] text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
+                    >
+                        <Plus size={18} />
+                        Nuevo Proyecto Especial — Invoice #{nextInvoice}
+                    </button>
                 </div>
             </div>
         </div>
@@ -3680,6 +3855,11 @@ function App() {
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [isPEModalOpen, setIsPEModalOpen] = useState(false);
     const [specialProjectsData, setSpecialProjectsData] = useState([]);
+    // Contador global de invoices para Proyectos Especiales (empieza desde 100)
+    const [nextInvoice, setNextInvoice] = useState(() => {
+        const saved = localStorage.getItem('lgm_next_invoice');
+        return saved ? parseInt(saved, 10) : 100;
+    });
     const [sheetFiles, setSheetFiles] = useState([]); // FASE 8: Digitalizador
     const [isProcessingSheets, setIsProcessingSheets] = useState(false); // FASE 8: Digitalizador
     const [isSheetPreviewOpen, setIsSheetPreviewOpen] = useState(false); // MODAL PREVIEW
@@ -6287,6 +6467,11 @@ function App() {
                     stores={stores}
                     specialProjectsData={specialProjectsData}
                     setSpecialProjectsData={setSpecialProjectsData}
+                    nextInvoice={nextInvoice}
+                    setNextInvoice={(val) => {
+                        setNextInvoice(val);
+                        localStorage.setItem('lgm_next_invoice', String(val));
+                    }}
                 />
             )}
 
