@@ -2690,7 +2690,7 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     );
 };
 
-const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] }) => {
+const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [], setIsPEModalOpen, specialProjectsData = [] }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -2781,7 +2781,10 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
             const hoursW1 = empW1?.hours || 0;
             const hoursW2 = empW2?.hours || 0;
             const rate = empW1?.rate || empW2?.rate || 0;
-            const pe = 0; // Proyectos Especiales placeholder
+            // Sumar horas de Proyectos Especiales para este empleado
+            const pe = specialProjectsData
+                .filter(row => String(row.employeeName).trim().toLowerCase() === String(empW1?.nombre || empW2?.nombre).trim().toLowerCase())
+                .reduce((acc, row) => acc + (parseFloat(row.hours) || 0), 0);
 
             const rowColor = 'bg-white'; // Hermes prefiere fondo limpio
 
@@ -2910,14 +2913,24 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [] 
                         </div>
                     </div>
 
-                    <button
-                        onClick={onBack}
-                        data-html2canvas-ignore
-                        className="group flex items-center gap-2.5 px-5 py-2.5 bg-white border-2 border-gray-100 text-[#303a7f] rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-blue-900/5 hover:border-[#303a7f] hover:shadow-blue-900/10 transition-all active:scale-95"
-                    >
-                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                        Volver a Nómina
-                    </button>
+                    <div className="flex items-center gap-3" data-html2canvas-ignore>
+                        <button
+                            onClick={() => setIsPEModalOpen(true)}
+                            className="flex items-center gap-2.5 px-5 py-2.5 bg-amber-50 border-2 border-amber-100 text-amber-600 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-amber-900/5 hover:bg-amber-100 hover:border-amber-200 transition-all active:scale-95"
+                            title="Gestionar Proyectos Especiales"
+                        >
+                            <Star size={16} fill="currentColor" />
+                            P.E
+                        </button>
+
+                        <button
+                            onClick={onBack}
+                            className="group flex items-center gap-2.5 px-5 py-2.5 bg-white border-2 border-gray-100 text-[#303a7f] rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-blue-900/5 hover:border-[#303a7f] hover:shadow-blue-900/10 transition-all active:scale-95"
+                        >
+                            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                            Volver a Nómina
+                        </button>
+                    </div>
                 </div>
 
                 {/* Table Header (Mimic the Excel Image) */}
@@ -3257,7 +3270,7 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-5xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
                 {/* Header */}
                 <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
@@ -3340,9 +3353,36 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
     );
 };
 
-const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose }) => {
+const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, specialProjectsData, setSpecialProjectsData }) => {
+    const addRow = () => {
+        setSpecialProjectsData([...specialProjectsData, {
+            id: Date.now(),
+            employeeName: '',
+            hours: 0,
+            rateKBS: 0,
+            rateLogic: 0
+        }]);
+    };
+
+    const removeRow = (id) => {
+        setSpecialProjectsData(specialProjectsData.filter(row => row.id !== id));
+    };
+
+    const updateRow = (id, field, value) => {
+        setSpecialProjectsData(specialProjectsData.map(row => 
+            row.id === id ? { ...row, [field]: value } : row
+        ));
+    };
+
+    const totalHours = specialProjectsData.reduce((acc, row) => acc + (parseFloat(row.hours) || 0), 0);
+
+    // Filtrar empleados por la tienda actual
+    const storeEmployees = employees.filter(e => 
+        String(e.tienda).trim().toLowerCase() === String(storeName).trim().toLowerCase()
+    );
+
     return (
-        <div className="fixed inset-0 z-[120] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500 font-sans">
+        <div className="fixed inset-0 z-[200] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500 font-sans">
             <div className="max-w-7xl mx-auto p-4 lg:p-6 pb-16">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row items-center justify-between mb-6 bg-white p-5 rounded-[1.8rem] shadow-xl shadow-blue-900/5 border-2 border-brand-primary/5 gap-4">
@@ -3372,15 +3412,102 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose }) => 
                     </button>
                 </div>
 
-                {/* Empty State / Construction Body */}
-                <div className="bg-white rounded-[3rem] p-24 text-center border-2 border-dashed border-gray-200 shadow-inner">
-                    <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Settings size={40} className="text-gray-200 animate-spin-slow" />
-                    </div>
-                     <h3 className="text-xl font-black text-gray-300 uppercase tracking-widest mb-2">Módulo en Construcción</h3>
-                     <p className="text-gray-400 font-bold text-sm max-w-md mx-auto leading-relaxed">
-                        Estamos preparando la interfaz de carga masiva y gestión de horas para proyectos especiales sincronizados con la nómina bisemanal.
-                     </p>
+                {/* Table Section */}
+                <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/[0.04] border-2 border-[#303a7f]/5 p-8">
+                     <div className="overflow-x-auto rounded-3xl border-2 border-gray-100">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50/50">
+                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100">Nombre de Empleado</th>
+                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100 text-center">Horas Trabajadas</th>
+                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100 text-center">Rate KBS</th>
+                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100 text-center">Rate Logic</th>
+                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100 text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y-2 divide-gray-50">
+                                {specialProjectsData.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="p-12 text-center text-gray-400 font-bold italic opacity-60">
+                                            No hay empleados agregados. Utilice el botón inferior para comenzar.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    specialProjectsData.map((row) => (
+                                        <tr key={row.id} className="hover:bg-gray-50/30 transition-colors group">
+                                            <td className="p-4">
+                                                <select 
+                                                    value={row.employeeName}
+                                                    onChange={(e) => updateRow(row.id, 'employeeName', e.target.value)}
+                                                    className="w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all"
+                                                >
+                                                    <option value="">Seleccionar Empleado...</option>
+                                                    {storeEmployees.map(e => (
+                                                        <option key={e.id || e.nombre} value={e.nombre}>{e.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            </td>
+                                            <td className="p-4">
+                                                <input 
+                                                    type="number"
+                                                    value={row.hours}
+                                                    onChange={(e) => updateRow(row.id, 'hours', e.target.value)}
+                                                    className="w-24 mx-auto block bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
+                                                />
+                                            </td>
+                                            <td className="p-4">
+                                                 <div className="flex items-center justify-center gap-1">
+                                                    <span className="text-gray-400 text-[10px] font-black">$</span>
+                                                    <input 
+                                                        type="number"
+                                                        value={row.rateKBS}
+                                                        onChange={(e) => updateRow(row.id, 'rateKBS', e.target.value)}
+                                                        className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
+                                                    />
+                                                </div>
+                                            </td>
+                                            <td className="p-4">
+                                                 <div className="flex items-center justify-center gap-1">
+                                                    <span className="text-gray-400 text-[10px] font-black">$</span>
+                                                    <input 
+                                                        type="number"
+                                                        value={row.rateLogic}
+                                                        onChange={(e) => updateRow(row.id, 'rateLogic', e.target.value)}
+                                                        className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
+                                                    />
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <button 
+                                                    onClick={() => removeRow(row.id)}
+                                                    className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                            <tfoot className="border-t-4 border-gray-100">
+                                <tr className="bg-gray-50/80 font-black">
+                                    <td className="p-4 text-[10px] text-[#303a7f] uppercase tracking-[0.2em] text-right">Total Horas P.E</td>
+                                    <td className="p-4 text-center text-sm text-[#6bbdb7] tracking-wider bg-teal-50/50">{totalHours.toFixed(2)} Hrs</td>
+                                    <td colSpan={3}></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                     </div>
+
+                     <div className="mt-8 flex justify-center">
+                        <button 
+                            onClick={addRow}
+                            className="flex items-center gap-3 bg-[#303a7f] text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
+                        >
+                            <Plus size={18} />
+                            Agregar Fila de Empleado
+                        </button>
+                     </div>
                 </div>
             </div>
         </div>
@@ -3458,6 +3585,7 @@ function App() {
     const [isVWHModalOpen, setIsVWHModalOpen] = useState(false);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [isPEModalOpen, setIsPEModalOpen] = useState(false);
+    const [specialProjectsData, setSpecialProjectsData] = useState([]);
     const [sheetFiles, setSheetFiles] = useState([]); // FASE 8: Digitalizador
     const [isProcessingSheets, setIsProcessingSheets] = useState(false); // FASE 8: Digitalizador
     const [isSheetPreviewOpen, setIsSheetPreviewOpen] = useState(false); // MODAL PREVIEW
@@ -5367,15 +5495,6 @@ function App() {
                                                 <span className="text-[9px] font-black uppercase tracking-widest leading-none">Tabla IVR</span>
                                             </button>
                                             <button
-                                                onClick={() => setIsPEModalOpen(true)}
-                                                disabled={semanaTableData.length === 0}
-                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${semanaTableData.length > 0 ? 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
-                                                title="Proyectos Especiales"
-                                            >
-                                                <Star size={16} className="group-hover:rotate-12 transition-transform" />
-                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">P.E</span>
-                                            </button>
-                                            <button
                                                 onClick={() => setIsDetailsModalOpen(true)}
                                                 className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-95 border-2 border-red-100/50 shadow-sm flex items-center gap-2 group"
                                                 title="Ver detalles de inconsistencias"
@@ -5897,6 +6016,8 @@ function App() {
                 <BiweeklyPayrollManagementView
                     period={selectedBiweeklyPeriod}
                     nominaHistoryData={nominaHistoryData}
+                    setIsPEModalOpen={setIsPEModalOpen}
+                    specialProjectsData={specialProjectsData}
                     onBack={() => {
                         setIsBiweeklyManagementOpen(false);
                         setSelectedBiweeklyPeriod(null);
@@ -5926,7 +6047,7 @@ function App() {
 
             {/* FASE 10: MODAL INFORMATIVO DE IMPORTACIÓN MASIVA DE TIENDAS */}
             {isStoreMassImportInfoOpen && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/20 animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/20 animate-in fade-in duration-300">
                     <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-[0_32px_80px_-20px_rgba(48,58,127,0.2)] border-2 border-[#6bbdb7]/10 p-10 animate-in zoom-in-95 duration-500">
                         <div className="w-20 h-20 rounded-3xl bg-[#6bbdb7]/10 text-[#6bbdb7] flex items-center justify-center mb-8 mx-auto shadow-inner">
                             <StoreIcon size={40} />
@@ -5984,7 +6105,7 @@ function App() {
 
             {/* FASE 9: MODAL INFORMATIVO DE IMPORTACIÓN MASIVA */}
             {isMassImportInfoOpen && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/20 animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/20 animate-in fade-in duration-300">
                     <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-[0_32px_80px_-20px_rgba(48,58,127,0.2)] border-2 border-[#6bbdb7]/10 p-10 animate-in zoom-in-95 duration-500">
                         <div className="w-20 h-20 rounded-3xl bg-[#6bbdb7]/10 text-[#6bbdb7] flex items-center justify-center mb-8 mx-auto shadow-inner">
                             <FileSpreadsheet size={40} />
@@ -6042,7 +6163,7 @@ function App() {
 
             {/* FASE 7: MODAL DE ESTATUS PROFESIONAL (Éxito/Error) */}
             {isStatusModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/10 animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/10 animate-in fade-in duration-300">
                     <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-[0_32px_80px_-20px_rgba(48,58,127,0.2)] border-2 border-[#6bbdb7]/10 p-10 text-center animate-in zoom-in-95 duration-500">
                         <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-8 animate-bounce ${statusModalType === 'success' ? 'bg-[#6bbdb7]/10 text-[#6bbdb7]' : 'bg-red-50 text-red-500'}`}>
                             {statusModalType === 'success' ? <CheckCircle size={48} /> : <X size={48} />}
@@ -6069,6 +6190,9 @@ function App() {
                     fechaDesde={fechaDesde}
                     fechaHasta={fechaHasta}
                     onClose={() => setIsPEModalOpen(false)}
+                    employees={employees}
+                    specialProjectsData={specialProjectsData}
+                    setSpecialProjectsData={setSpecialProjectsData}
                 />
             )}
 
