@@ -1636,12 +1636,22 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                                         <StoreIcon size={20} className="text-[#303a7f]" />
                                                     </div>
                                                     <div>
-                                                        <h4 className="text-sm font-black text-[#303a7f] uppercase tracking-tight">{hist.tienda}</h4>
-                                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Estancia en sucursal</p>
+                                                        <h4 className={`text-sm font-black uppercase tracking-tight ${hist.tipo === 'P.E' ? 'text-orange-600' : 'text-[#303a7f]'}`}>
+                                                            {hist.tienda}
+                                                        </h4>
+                                                        <p className={`text-[10px] font-bold uppercase tracking-widest ${hist.tipo === 'P.E' ? 'text-orange-400' : 'text-gray-400'}`}>
+                                                            {hist.tipo === 'P.E' ? 'Proyecto Especial Individual' : 'Estancia en sucursal'}
+                                                        </p>
                                                     </div>
                                                 </div>
 
                                                 <div className="flex items-center gap-6">
+                                                    {hist.tipo === 'P.E' && (
+                                                        <div className="hidden md:flex items-center gap-2 bg-orange-50 px-3 py-1 rounded-full border border-orange-100">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                                                            <span className="text-[8px] font-black text-orange-500 uppercase tracking-widest">Asignación Especial</span>
+                                                        </div>
+                                                    )}
                                                     <div className="text-right">
                                                         <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mb-1">Desde</p>
                                                         <p className="text-xs font-black text-[#333333] tabular-nums">{hist.inicio}</p>
@@ -2690,7 +2700,7 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     );
 };
 
-const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, setSpecialProjectsData, onBack }) => {
+const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, setSpecialProjectsData, employees, onBack }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -2773,6 +2783,20 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
             });
         }
 
+        // Agregar también empleados que solo están en Proyectos Especiales REGISTRADOS
+        (specialProjectsData || []).forEach(project => {
+            if (project.status === 'registered') {
+                (project.employees || []).forEach(row => {
+                    if (row.employeeName) {
+                        const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(row.employeeName).trim().toLowerCase());
+                        const code = dbEmp ? dbEmp.codigo_empleado : 'EXT';
+                        const empId = `${String(row.employeeName).trim().toLowerCase()}_${code}`;
+                        allEmpIds.add(empId);
+                    }
+                });
+            }
+        });
+
         // Crear lista consolidada
         const consolidated = Array.from(allEmpIds).map(id => {
             const empW1 = w1Map[id];
@@ -2780,35 +2804,42 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
 
             const hoursW1 = empW1?.hours || 0;
             const hoursW2 = empW2?.hours || 0;
-            const rate = empW1?.rate || empW2?.rate || 0;
+            let rate = empW1?.rate || empW2?.rate || 0;
             
-            // Sumar horas y montos de Proyectos Especiales para este empleado desde la nueva estructura multi-proyecto
-            const empNombre = String(empW1?.nombre || empW2?.nombre).trim().toLowerCase();
+            // Sumar horas y montos de Proyectos Especiales para este empleado (SOLO REGISTRADOS)
+            const empNombre = id.split('_')[0].trim().toLowerCase();
             let peTotalHours = 0;
             let peTotalEarnings = 0;
+            let peFirstRate = 0;
 
             (specialProjectsData || []).forEach(project => {
-                (project.employees || []).forEach(row => {
-                    if (String(row.employeeName).trim().toLowerCase() === empNombre) {
-                        const h = parseFloat(row.hours) || 0;
-                        const r = parseFloat(row.rateLogic) || 0;
-                        peTotalHours += h;
-                        peTotalEarnings += (h * r);
-                    }
-                });
+                if (project.status === 'registered') {
+                    (project.employees || []).forEach(row => {
+                        if (String(row.employeeName).trim().toLowerCase() === empNombre) {
+                            const h = parseFloat(row.hours) || 0;
+                            const r = parseFloat(row.rateLogic) || 0;
+                            peTotalHours += h;
+                            peTotalEarnings += (h * r);
+                            if (peFirstRate === 0) peFirstRate = r;
+                        }
+                    });
+                }
             });
+
+            // Si el empleado no tiene rate de semanas pero tiene de P.E, lo usamos
+            if (rate === 0 && peFirstRate > 0) rate = peFirstRate;
 
             const rowColor = 'bg-white';
 
             return {
                 id: id,
-                nombre: empW1?.nombre || empW2?.nombre || 'Desconocido',
+                nombre: empW1?.nombre || empW2?.nombre || (id.split('_')[0].toUpperCase()),
                 semana1: empW1 ? hoursW1 : null,
                 semana2: empW2 ? hoursW2 : null,
                 pe: peTotalHours,
                 peEarnings: peTotalEarnings,
                 rate: rate,
-                cargo: empW1?.cargo || empW2?.cargo || '',
+                cargo: empW1?.cargo || empW2?.cargo || 'Externo/PE',
                 rowColor: rowColor
             };
         });
@@ -2816,7 +2847,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
         // Ordenar por nombre
         consolidated.sort((a, b) => a.nombre.localeCompare(b.nombre));
         setBiweeklyEmployees(consolidated);
-    }, [period, nominaHistoryData]);
+    }, [period, nominaHistoryData, specialProjectsData]);
 
     if (!period) return null;
 
@@ -3615,7 +3646,8 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, onRegister
 
 
 // ─── Componente de Proyecto Individual dentro de P.E ──────────────────────────
-const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRemoveProject, onRegisterEmployee, minDate, maxDate }) => {
+const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRemoveProject, onRegisterEmployee, onRegisterProject, minDate, maxDate }) => {
+    const isRegistered = project.status === 'registered';
     // Actualiza un campo del proyecto (invoice, fecha, nombre, descripcion)
     const updateMeta = (field, value) => onUpdateProject(project.id, { [field]: value });
 
@@ -3635,6 +3667,7 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
 
     // Eliminar un empleado de este proyecto
     const removeEmp = (rowId) => {
+        if (isRegistered) return;
         onUpdateProject(project.id, { employees: project.employees.filter(r => r.id !== rowId) });
     };
 
@@ -3669,10 +3702,16 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
                 <div className="flex items-start justify-between gap-4 mb-4">
                     {/* Invoice Badge */}
                     <div className="flex items-center gap-3">
-                        <div className="bg-[#303a7f] text-white px-4 py-2 rounded-xl shadow-lg shadow-blue-900/20">
+                        <div className={`${isRegistered ? 'bg-[#6bbdb7]' : 'bg-[#303a7f]'} text-white px-4 py-2 rounded-xl shadow-lg transition-colors`}>
                             <span className="text-[9px] font-black uppercase tracking-widest opacity-70 block leading-none mb-0.5">Invoice</span>
                             <span className="text-lg font-black leading-none">#{project.invoice}</span>
                         </div>
+                        {isRegistered && (
+                            <div className="bg-teal-50 text-[#6bbdb7] px-3 py-1.5 rounded-lg border border-teal-100 flex items-center gap-1.5 animate-in fade-in zoom-in-95">
+                                <CheckCircle size={10} />
+                                <span className="text-[9px] font-black uppercase tracking-widest">Registrado</span>
+                            </div>
+                        )}
                     </div>
                     {/* Botón eliminar proyecto */}
                     <button
@@ -3695,7 +3734,8 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
                             min={minDate}
                             max={maxDate}
                             onChange={(e) => updateMeta('fecha', e.target.value)}
-                            className={inputCls}
+                            readOnly={isRegistered}
+                            className={`${inputCls} ${isRegistered ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
                     </div>
                     {/* Nombre del proyecto */}
@@ -3706,7 +3746,8 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
                             value={project.nombre}
                             placeholder="Ej: Limpieza de Bodega..."
                             onChange={(e) => updateMeta('nombre', e.target.value)}
-                            className={inputCls}
+                            readOnly={isRegistered}
+                            className={`${inputCls} ${isRegistered ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
                     </div>
                     {/* Descripción */}
@@ -3717,7 +3758,8 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
                             value={project.descripcion}
                             placeholder="Descripción breve del proyecto..."
                             onChange={(e) => updateMeta('descripcion', e.target.value)}
-                            className={inputCls}
+                            readOnly={isRegistered}
+                            className={`${inputCls} ${isRegistered ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
                     </div>
                 </div>
@@ -3819,14 +3861,28 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
                 </table>
             </div>
 
-            {/* Botón agregar empleado */}
-            <div className="p-4 border-t border-gray-50">
+            {/* Botón agregar empleado / Registrar */}
+            <div className="p-4 border-t border-gray-50 flex gap-3">
+                {!isRegistered && (
+                    <button
+                        onClick={addEmp}
+                        className="flex items-center gap-2 bg-[#f8f8f8] hover:bg-gray-100 text-[#303a7f] font-black text-[9px] uppercase tracking-widest transition-all py-3 px-4 rounded-xl border-2 border-dashed border-gray-200 w-1/3 justify-center active:scale-95"
+                    >
+                        <Plus size={14} />
+                        Agregar Empleado
+                    </button>
+                )}
                 <button
-                    onClick={addEmp}
-                    className="flex items-center gap-2 bg-[#6bbdb7] hover:bg-[#59aba5] text-white font-black text-[9px] uppercase tracking-widest transition-all py-2.5 px-4 rounded-xl w-full justify-center shadow-md shadow-teal-900/10 active:scale-95"
+                    onClick={() => onRegisterProject(project)}
+                    disabled={isRegistered || project.employees.length === 0}
+                    className={`flex items-center gap-2 font-black text-[9px] uppercase tracking-widest transition-all py-3 px-4 rounded-xl flex-1 justify-center shadow-lg active:scale-95 ${
+                        isRegistered 
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                        : 'bg-[#6bbdb7] hover:bg-[#59aba5] text-white shadow-teal-900/10'
+                    }`}
                 >
-                    <Plus size={14} />
-                    Agregar Empleado
+                    <ClipboardCheck size={16} />
+                    {isRegistered ? 'Proyecto Registrado' : 'Registrar Proyecto en Consolidado e Historial'}
                 </button>
             </div>
         </div>
@@ -3834,7 +3890,7 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
 };
 
 // ─── Vista Principal de Proyectos Especiales ─────────────────────────────────
-const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterEmployee }) => {
+const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterEmployee, onUpdateLocationHistory }) => {
 
     // Convertir el rango de fechas MM/DD/YYYY a YYYY-MM-DD para los inputs tipo date
     const toInputDate = (str) => {
@@ -3875,6 +3931,34 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
         setSpecialProjectsData(specialProjectsData.map(p =>
             p.id === projectId ? { ...p, ...updates } : p
         ));
+    };
+
+    // Registro formal del proyecto
+    const handleRegisterProject = (project) => {
+        if (!project.fecha || !project.nombre) {
+            alert("El proyecto debe tener fecha y nombre para ser registrado.");
+            return;
+        }
+
+        // 1. Actualizar historial de cada empleado
+        project.employees.forEach(empRow => {
+            if (empRow.employeeName && onUpdateLocationHistory) {
+                // Formatear fecha de proyecto (YYYY-MM-DD -> MM/DD/YYYY)
+                const dateParts = project.fecha.split('-');
+                const formattedDate = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`;
+                
+                const newSegment = {
+                    tienda: project.nombre,
+                    inicio: formattedDate,
+                    fin: formattedDate,
+                    tipo: 'P.E' // Identificador para color naranja
+                };
+                onUpdateLocationHistory(empRow.employeeName, newSegment);
+            }
+        });
+
+        // 2. Marcar proyecto como registrado
+        updateProject(project.id, { status: 'registered' });
     };
 
     return (
@@ -3922,6 +4006,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                                 onUpdateProject={updateProject}
                                 onRemoveProject={removeProject}
                                 onRegisterEmployee={onRegisterEmployee}
+                                onRegisterProject={handleRegisterProject}
                                 minDate={minDate}
                                 maxDate={maxDate}
                             />
@@ -6461,6 +6546,7 @@ function App() {
                     setFechaHasta={setFechaHasta}
                     specialProjectsData={specialProjectsData}
                     setSpecialProjectsData={setSpecialProjectsData}
+                    employees={employees}
                     onBack={() => {
                         setIsBiweeklyManagementOpen(false);
                         setSelectedBiweeklyPeriod(null);
@@ -6650,6 +6736,39 @@ function App() {
                             ...newEmp,
                             codigo_empleado: `'${newEmp.codigo_empleado}`
                         }, 'Personal');
+                    }}
+                    onUpdateLocationHistory={(employeeName, newSegment) => {
+                        setEmployees(prev => {
+                            const idx = prev.findIndex(e => String(e.nombre).trim().toLowerCase() === String(employeeName).trim().toLowerCase());
+                            if (idx === -1) return prev;
+                            
+                            const emp = prev[idx];
+                            // Asegurar que el historial sea un array
+                            const currentHistory = Array.isArray(emp.locationHistory) ? emp.locationHistory : [];
+                            
+                            // Evitar duplicados exactos en el mismo día/proyecto
+                            const isDuplicate = currentHistory.some(h => 
+                                h.tienda === newSegment.tienda && h.inicio === newSegment.inicio
+                            );
+                            if (isDuplicate) return prev;
+
+                            const updatedEmp = {
+                                ...emp,
+                                locationHistory: [...currentHistory, newSegment]
+                            };
+                            
+                            const newEmployees = [...prev];
+                            newEmployees[idx] = updatedEmp;
+
+                            // Sincronizar con Google Sheets (enviando el historial como JSON string)
+                            syncToSheets('upsert', {
+                                ...updatedEmp,
+                                codigo_empleado: `'${updatedEmp.codigo_empleado}`,
+                                locationHistory: JSON.stringify(updatedEmp.locationHistory)
+                            }, 'Personal');
+
+                            return newEmployees;
+                        });
                     }}
                 />
             )}
