@@ -2690,7 +2690,7 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     );
 };
 
-const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [], setIsPEModalOpen, specialProjectsData = [] }) => {
+const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, setSpecialProjectsData, onBack }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -2753,8 +2753,8 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [],
             w1Data.semanaTableData.forEach(emp => {
                 const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
                 allEmpIds.add(empId);
-                w1Map[empId] = { 
-                    ...emp, 
+                w1Map[empId] = {
+                    ...emp,
                     hours: parseHours(emp.total?.final),
                     rate: Number(w1Data.earningsTableData?.find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)?.rate || 0)
                 };
@@ -2765,8 +2765,8 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [],
             w2Data.semanaTableData.forEach(emp => {
                 const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
                 allEmpIds.add(empId);
-                w2Map[empId] = { 
-                    ...emp, 
+                w2Map[empId] = {
+                    ...emp,
                     hours: parseHours(emp.total?.final),
                     rate: Number(w2Data.earningsTableData?.find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)?.rate || 0)
                 };
@@ -2777,7 +2777,7 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [],
         const consolidated = Array.from(allEmpIds).map(id => {
             const empW1 = w1Map[id];
             const empW2 = w2Map[id];
-            
+
             const hoursW1 = empW1?.hours || 0;
             const hoursW2 = empW2?.hours || 0;
             const rate = empW1?.rate || empW2?.rate || 0;
@@ -2810,7 +2810,7 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [],
     // 3. Cálculos de Totales
     const calculateTotalHrs = (emp) => (Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0));
     const calculatePagoTotal = (emp) => calculateTotalHrs(emp) * Number(emp.rate || 0);
-    
+
     const subtotalNomina = biweeklyEmployees.reduce((acc, emp) => acc + calculatePagoTotal(emp), 0);
     const totalFinal = subtotalNomina;
 
@@ -2839,7 +2839,7 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [],
                         const tableContainer = clonedRoot.querySelector('.overflow-x-auto');
                         if (tableContainer) {
                             tableContainer.style.overflow = 'visible';
-                            tableContainer.style.width = '100.2%'; 
+                            tableContainer.style.width = '100.2%';
                             tableContainer.style.maxWidth = 'none';
                         }
 
@@ -2858,7 +2858,7 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [],
                                 for (let i = currentRows; i < 20; i++) {
                                     const emptyRow = document.createElement('tr');
                                     // Mantener el estilo elegante y la altura uniforme
-                                    emptyRow.className = 'border-b border-gray-50 h-[48px]'; 
+                                    emptyRow.className = 'border-b border-gray-50 h-[48px]';
                                     emptyRow.innerHTML = `
                                         <td class="p-4 border-r-2 border-gray-100">&nbsp;</td>
                                         <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
@@ -2915,7 +2915,16 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [],
 
                     <div className="flex items-center gap-3" data-html2canvas-ignore>
                         <button
-                            onClick={() => setIsPEModalOpen(true)}
+                            onClick={() => {
+                                // Configurar el contexto para el modal de P.E
+                                if (period) {
+                                    setPayrollStore(period.store || '');
+                                    const dates = period.range?.split(' - ') || ['', ''];
+                                    setFechaDesde(dates[0]);
+                                    setFechaHasta(dates[1]);
+                                }
+                                setIsPEModalOpen(true);
+                            }}
                             className="flex items-center gap-2.5 px-5 py-2.5 bg-amber-50 border-2 border-amber-100 text-amber-600 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-amber-900/5 hover:bg-amber-100 hover:border-amber-200 transition-all active:scale-95"
                             title="Gestionar Proyectos Especiales"
                         >
@@ -2953,7 +2962,7 @@ const BiweeklyPayrollManagementView = ({ period, onBack, nominaHistoryData = [],
                                 {biweeklyEmployees.map((emp, idx) => {
                                     const totalHours = calculateTotalHrs(emp);
                                     const pagoTotal = calculatePagoTotal(emp);
-                                    
+
                                     return (
                                         <tr key={idx} className={`group transition-colors ${emp.rowColor} hover:brightness-95`}>
                                             <td className="p-4 border-r-2 border-gray-100 font-black text-[#303a7f] text-xs uppercase tracking-tight">{emp.nombre}</td>
@@ -3175,81 +3184,81 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
             <div className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
                 <div className="max-w-[1600px] mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                                {filteredPeriods.map((p) => {
-                                    const bothProcessed = isWeekProcessed(p.w1.start) && isWeekProcessed(p.w2.start);
-                                    const periodKey = `${selectedStore}-${p.w1.start}-${p.w2.end}`;
-                                    const isProcessed = processedBiweeks.includes(periodKey);
-                                    return (
-                                        <div
-                                            key={p.periodNum}
-                                            className={`group relative bg-white rounded-[2rem] border-2 p-5 shadow-sm hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 flex flex-col ${isProcessed ? 'border-[#6bbdb7]' : 'border-gray-100 hover:border-[#6bbdb7]'}`}
-                                        >
-                                            {/* Periodo Header */}
-                                            <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-50">
-                                                <div className="flex items-center gap-2.5">
-                                                    <div className="w-8 h-8 rounded-lg bg-[#303a7f]/5 flex items-center justify-center text-[#303a7f]">
-                                                        <Calendar size={15} />
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest block leading-none mb-1">Rango de fechas</span>
-                                                        <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-tighter">
-                                                            {p.w1.start.split('/')[0]}/{p.w1.start.split('/')[1]} - {p.w2.end.split('/')[0]}/{p.w2.end.split('/')[1]}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                        {filteredPeriods.map((p) => {
+                            const bothProcessed = isWeekProcessed(p.w1.start) && isWeekProcessed(p.w2.start);
+                            const periodKey = `${selectedStore}-${p.w1.start}-${p.w2.end}`;
+                            const isProcessed = processedBiweeks.includes(periodKey);
+                            return (
+                                <div
+                                    key={p.periodNum}
+                                    className={`group relative bg-white rounded-[2rem] border-2 p-5 shadow-sm hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 flex flex-col ${isProcessed ? 'border-[#6bbdb7]' : 'border-gray-100 hover:border-[#6bbdb7]'}`}
+                                >
+                                    {/* Periodo Header */}
+                                    <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-50">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="w-8 h-8 rounded-lg bg-[#303a7f]/5 flex items-center justify-center text-[#303a7f]">
+                                                <Calendar size={15} />
                                             </div>
-
-                                            {/* Contenedor de Semanas (Lado a Lado) */}
-                                            <div className="grid grid-cols-2 gap-3">
-                                                {[p.w1, p.w2].map((w, idx) => {
-                                                    const processed = isWeekProcessed(w.start);
-                                                    return (
-                                                        <button
-                                                            key={idx}
-                                                            onClick={() => onSelectWeek(w.start, w.end)}
-                                                            className={`group/week transition-all duration-300 p-3.5 rounded-2xl border-2 text-left relative overflow-hidden active:scale-95 ${processed
-                                                                ? 'bg-[#6bbdb7] hover:bg-[#59aba5] border-[#59aba5] shadow-lg shadow-teal-900/20'
-                                                                : 'bg-gray-50/50 hover:bg-[#303a7f] border-transparent hover:border-[#303a7f]'
-                                                                }`}
-                                                        >
-                                                            <div className="relative z-10">
-                                                                <div className="flex items-center justify-between mb-2">
-                                                                    <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${processed ? 'text-white' : 'text-[#303a7f] group-hover/week:text-white'}`}>{w.weekNumInYear}</span>
-                                                                    <ChevronRight size={12} className={`${processed ? 'text-white opacity-100' : 'text-[#303a7f] group-hover/week:text-white opacity-0 group-hover/week:opacity-100'} transition-all`} />
-                                                                </div>
-                                                                <h5 className={`text-[10px] font-black uppercase tracking-tight mb-2 transition-colors ${processed ? 'text-white' : 'text-[#303a7f] group-hover/week:text-white'}`}>Semana {idx + 1}</h5>
-                                                                <div className="space-y-0.5">
-                                                                    <p className={`text-[8px] font-bold uppercase tracking-widest transition-colors ${processed ? 'text-teal-100' : 'text-gray-400 group-hover/week:text-white/60'}`}>{w.start.split('/')[0]}/{w.start.split('/')[1]}</p>
-                                                                    <p className={`text-[8px] font-black uppercase tracking-widest transition-colors ${processed ? 'text-white' : 'text-[#6bbdb7] group-hover/week:text-white'}`}>{w.end.split('/')[0]}/{w.end.split('/')[1]}</p>
-                                                                </div>
-                                                            </div>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-
-                                            <div className="mt-5 pt-4 border-t border-gray-50">
-                                                <button
-                                                    onClick={() => onProcessBiweekly(p)}
-                                                    disabled={!bothProcessed}
-                                                    className={`w-full py-2.5 rounded-xl font-black text-[9px] uppercase tracking-[0.15em] transition-all duration-300 border-2 active:scale-95 flex items-center justify-center gap-2 group ${isProcessed 
-                                                            ? 'bg-[#303a7f] text-white border-[#303a7f] shadow-lg shadow-blue-900/10'
-                                                            : bothProcessed
-                                                                ? 'bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white border-[#303a7f]/5 hover:border-[#303a7f] hover:shadow-lg hover:shadow-blue-900/10'
-                                                                : 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed opacity-60'
-                                                        }`}
-                                                >
-                                                    {isProcessed ? (
-                                                        <CheckCircle size={14} className="text-white" />
-                                                    ) : (
-                                                        <Cpu size={14} className={`${bothProcessed ? 'text-[#6bbdb7] group-hover:text-white' : 'text-gray-300'} transition-colors`} />
-                                                    )}
-                                                    {isProcessed ? 'Nómina Procesada' : 'Procesar Nómina'}
-                                                </button>
+                                            <div>
+                                                <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest block leading-none mb-1">Rango de fechas</span>
+                                                <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-tighter">
+                                                    {p.w1.start.split('/')[0]}/{p.w1.start.split('/')[1]} - {p.w2.end.split('/')[0]}/{p.w2.end.split('/')[1]}
+                                                </span>
                                             </div>
                                         </div>
-                                    );
-                                })}
+                                    </div>
+
+                                    {/* Contenedor de Semanas (Lado a Lado) */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {[p.w1, p.w2].map((w, idx) => {
+                                            const processed = isWeekProcessed(w.start);
+                                            return (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => onSelectWeek(w.start, w.end)}
+                                                    className={`group/week transition-all duration-300 p-3.5 rounded-2xl border-2 text-left relative overflow-hidden active:scale-95 ${processed
+                                                        ? 'bg-[#6bbdb7] hover:bg-[#59aba5] border-[#59aba5] shadow-lg shadow-teal-900/20'
+                                                        : 'bg-gray-50/50 hover:bg-[#303a7f] border-transparent hover:border-[#303a7f]'
+                                                        }`}
+                                                >
+                                                    <div className="relative z-10">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${processed ? 'text-white' : 'text-[#303a7f] group-hover/week:text-white'}`}>{w.weekNumInYear}</span>
+                                                            <ChevronRight size={12} className={`${processed ? 'text-white opacity-100' : 'text-[#303a7f] group-hover/week:text-white opacity-0 group-hover/week:opacity-100'} transition-all`} />
+                                                        </div>
+                                                        <h5 className={`text-[10px] font-black uppercase tracking-tight mb-2 transition-colors ${processed ? 'text-white' : 'text-[#303a7f] group-hover/week:text-white'}`}>Semana {idx + 1}</h5>
+                                                        <div className="space-y-0.5">
+                                                            <p className={`text-[8px] font-bold uppercase tracking-widest transition-colors ${processed ? 'text-teal-100' : 'text-gray-400 group-hover/week:text-white/60'}`}>{w.start.split('/')[0]}/{w.start.split('/')[1]}</p>
+                                                            <p className={`text-[8px] font-black uppercase tracking-widest transition-colors ${processed ? 'text-white' : 'text-[#6bbdb7] group-hover/week:text-white'}`}>{w.end.split('/')[0]}/{w.end.split('/')[1]}</p>
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="mt-5 pt-4 border-t border-gray-50">
+                                        <button
+                                            onClick={() => onProcessBiweekly(p)}
+                                            disabled={!bothProcessed}
+                                            className={`w-full py-2.5 rounded-xl font-black text-[9px] uppercase tracking-[0.15em] transition-all duration-300 border-2 active:scale-95 flex items-center justify-center gap-2 group ${isProcessed
+                                                ? 'bg-[#303a7f] text-white border-[#303a7f] shadow-lg shadow-blue-900/10'
+                                                : bothProcessed
+                                                    ? 'bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white border-[#303a7f]/5 hover:border-[#303a7f] hover:shadow-lg hover:shadow-blue-900/10'
+                                                    : 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed opacity-60'
+                                                }`}
+                                        >
+                                            {isProcessed ? (
+                                                <CheckCircle size={14} className="text-white" />
+                                            ) : (
+                                                <Cpu size={14} className={`${bothProcessed ? 'text-[#6bbdb7] group-hover:text-white' : 'text-gray-300'} transition-colors`} />
+                                            )}
+                                            {isProcessed ? 'Nómina Procesada' : 'Procesar Nómina'}
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
@@ -3353,7 +3362,84 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
     );
 };
 
-const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, specialProjectsData, setSpecialProjectsData }) => {
+const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, employees, placeholder }) => {
+    const [searchTerm, setSearchTerm] = useState(value || '');
+    const [isOpen, setIsOpen] = useState(false);
+    const wrapperRef = useRef(null);
+
+    // Filtrar empleados por nombre, código o tienda
+    const results = employees.filter(emp => {
+        const term = searchTerm.toLowerCase().trim();
+        if (!term) return false;
+        return (
+            String(emp.nombre).toLowerCase().includes(term) ||
+            String(emp.codigo_empleado).toLowerCase().includes(term) ||
+            String(emp.tienda).toLowerCase().includes(term)
+        );
+    }).slice(0, 8); // Limitar a 8 resultados para eficiencia
+
+    useEffect(() => {
+        setSearchTerm(value || '');
+    }, [value]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    return (
+        <div className="relative w-full" ref={wrapperRef}>
+            <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setIsOpen(true);
+                    if (e.target.value === '') onChange('');
+                }}
+                onFocus={() => setIsOpen(true)}
+                placeholder={placeholder}
+                className="w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all"
+            />
+            {isOpen && results.length > 0 && (
+                <div className="absolute z-[310] top-full left-0 w-full bg-white border-2 border-gray-100 shadow-2xl rounded-2xl mt-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    {results.map((emp, idx) => (
+                        <div
+                            key={emp.id || idx}
+                            onClick={() => {
+                                if (onSelectEmployee) {
+                                    onSelectEmployee(emp);
+                                } else {
+                                    onChange(emp.nombre);
+                                }
+                                setSearchTerm(emp.nombre);
+                                setIsOpen(false);
+                            }}
+                            className="p-3 hover:bg-teal-50 cursor-pointer border-b last:border-none border-gray-50 transition-colors group"
+                        >
+                            <div className="font-black text-[#303a7f] text-xs group-hover:text-[#6bbdb7] transition-colors">{emp.nombre}</div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100">
+                                    {emp.codigo_empleado}
+                                </span>
+                                <span className="text-[9px] font-bold text-teal-600/60 uppercase italic">
+                                    {emp.tienda}
+                                </span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData }) => {
     const addRow = () => {
         setSpecialProjectsData([...specialProjectsData, {
             id: Date.now(),
@@ -3368,16 +3454,32 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
         setSpecialProjectsData(specialProjectsData.filter(row => row.id !== id));
     };
 
-    const updateRow = (id, field, value) => {
-        setSpecialProjectsData(specialProjectsData.map(row => 
-            row.id === id ? { ...row, [field]: value } : row
+    const updateRow = (id, updates) => {
+        setSpecialProjectsData(specialProjectsData.map(row =>
+            row.id === id ? { ...row, ...updates } : row
         ));
+    };
+
+    // Cuando el usuario selecciona un empleado, auto-rellenar los rates según su cargo y tienda
+    const handleSelectEmployee = (rowId, emp) => {
+        const updates = { employeeName: emp.nombre };
+        if (stores && emp.cargo && emp.tienda) {
+            const store = stores.find(s =>
+                String(s.nombre).trim().toLowerCase() === String(emp.tienda).trim().toLowerCase()
+            );
+            const cargoKey = String(emp.cargo).trim().toLowerCase();
+            if (store?.tarifas?.[cargoKey]) {
+                updates.rateKBS = store.tarifas[cargoKey].kbs || 0;
+                updates.rateLogic = store.tarifas[cargoKey].lsg || 0;
+            }
+        }
+        updateRow(rowId, updates);
     };
 
     const totalHours = specialProjectsData.reduce((acc, row) => acc + (parseFloat(row.hours) || 0), 0);
 
     // Filtrar empleados por la tienda actual
-    const storeEmployees = employees.filter(e => 
+    const storeEmployees = employees.filter(e =>
         String(e.tienda).trim().toLowerCase() === String(storeName).trim().toLowerCase()
     );
 
@@ -3387,19 +3489,14 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row items-center justify-between mb-6 bg-white p-5 rounded-[1.8rem] shadow-xl shadow-blue-900/5 border-2 border-brand-primary/5 gap-4">
                     <div className="flex items-center gap-4">
-                        <div className="bg-amber-500 p-2.5 rounded-xl shadow-lg shadow-amber-900/10 text-white">
-                            <Star size={18} fill="currentColor" />
+                        <div className="bg-[#303a7f] p-3.5 rounded-2xl shadow-xl shadow-blue-900/10 text-white">
+                            <ClipboardCheck size={24} />
                         </div>
                         <div>
-                            <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">Proyectos Especiales</h2>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-[#6bbdb7] font-black uppercase text-[9px] tracking-widest bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-100">{storeName}</span>
-                                <span className="text-gray-300 hidden md:block text-[9px]">•</span>
-                                <div className="flex items-center gap-1.5 text-gray-400 font-bold text-[8px] uppercase tracking-widest bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
-                                    <Calendar size={10} />
-                                    <span>Semana: {fechaDesde} - {fechaHasta}</span>
-                                </div>
-                            </div>
+                            <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">Proyectos Especiales</h2>
+                            <p className="text-[#6bbdb7] font-black uppercase text-[9px] tracking-[0.2em] opacity-95">
+                                {storeName} <span className="mx-2 text-gray-300">|</span> WEEK: {fechaDesde || '-'} - {fechaHasta || '-'}
+                            </p>
                         </div>
                     </div>
 
@@ -3414,14 +3511,14 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 
                 {/* Table Section */}
                 <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/[0.04] border-2 border-[#303a7f]/5 p-8">
-                     <div className="overflow-x-auto rounded-3xl border-2 border-gray-100">
+                    <div className="overflow-x-auto rounded-3xl border-2 border-gray-100">
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-gray-50/50">
                                     <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100">Nombre de Empleado</th>
                                     <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100 text-center">Horas Trabajadas</th>
                                     <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100 text-center">Rate KBS</th>
-                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100 text-center">Rate Logic</th>
+                                    <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100 text-center">Rate LGM</th>
                                     <th className="p-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-2 border-gray-100 text-center">Acciones</th>
                                 </tr>
                             </thead>
@@ -3436,49 +3533,46 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                                     specialProjectsData.map((row) => (
                                         <tr key={row.id} className="hover:bg-gray-50/30 transition-colors group">
                                             <td className="p-4">
-                                                <select 
+                                                <SearchableEmployeeInput
                                                     value={row.employeeName}
-                                                    onChange={(e) => updateRow(row.id, 'employeeName', e.target.value)}
-                                                    className="w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all"
-                                                >
-                                                    <option value="">Seleccionar Empleado...</option>
-                                                    {storeEmployees.map(e => (
-                                                        <option key={e.id || e.nombre} value={e.nombre}>{e.nombre}</option>
-                                                    ))}
-                                                </select>
+                                                    employees={employees}
+                                                    placeholder="Buscar empleado por nombre, código o tienda..."
+                                                    onChange={(name) => updateRow(row.id, { employeeName: name })}
+                                                    onSelectEmployee={(emp) => handleSelectEmployee(row.id, emp)}
+                                                />
                                             </td>
                                             <td className="p-4">
-                                                <input 
+                                                <input
                                                     type="number"
                                                     value={row.hours}
-                                                    onChange={(e) => updateRow(row.id, 'hours', e.target.value)}
+                                                    onChange={(e) => updateRow(row.id, { hours: e.target.value })}
                                                     className="w-24 mx-auto block bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
                                                 />
                                             </td>
                                             <td className="p-4">
-                                                 <div className="flex items-center justify-center gap-1">
+                                                <div className="flex items-center justify-center gap-1">
                                                     <span className="text-gray-400 text-[10px] font-black">$</span>
-                                                    <input 
+                                                    <input
                                                         type="number"
                                                         value={row.rateKBS}
-                                                        onChange={(e) => updateRow(row.id, 'rateKBS', e.target.value)}
+                                                        onChange={(e) => updateRow(row.id, { rateKBS: e.target.value })}
                                                         className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
                                                     />
                                                 </div>
                                             </td>
                                             <td className="p-4">
-                                                 <div className="flex items-center justify-center gap-1">
+                                                <div className="flex items-center justify-center gap-1">
                                                     <span className="text-gray-400 text-[10px] font-black">$</span>
-                                                    <input 
+                                                    <input
                                                         type="number"
                                                         value={row.rateLogic}
-                                                        onChange={(e) => updateRow(row.id, 'rateLogic', e.target.value)}
+                                                        onChange={(e) => updateRow(row.id, { rateLogic: e.target.value })}
                                                         className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
                                                     />
                                                 </div>
                                             </td>
                                             <td className="p-4 text-center">
-                                                <button 
+                                                <button
                                                     onClick={() => removeRow(row.id)}
                                                     className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                                                 >
@@ -3497,17 +3591,17 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                                 </tr>
                             </tfoot>
                         </table>
-                     </div>
+                    </div>
 
-                     <div className="mt-8 flex justify-center">
-                        <button 
+                    <div className="mt-8 flex justify-center">
+                        <button
                             onClick={addRow}
                             className="flex items-center gap-3 bg-[#303a7f] text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
                         >
                             <Plus size={18} />
                             Agregar Fila de Empleado
                         </button>
-                     </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -4453,11 +4547,6 @@ function App() {
                 6. Extrae las horas trabajadas totales para cada fecha identificada.
                 7. El Código de empleado debe quedar vacío "".
                 8. PRIORIDAD DE COMENTARIOS: Si una imagen viene acompañada de un comentario del usuario, PRIORIZA esa información (ej: fechas específicas, nombres a ignorar, cargos correctos).
-                
-                REGLA DE SALIDA:
-                - Si hay varias planillas con diferentes fechas, agrupa los datos por empleado.
-                - Retorna una lista de "asistencias" por cada empleado, donde cada asistencia tiene la fecha y las horas.
-                - Si un empleado NO ESTÁ EN LA LISTA DE REFERENCIA (y no es KBS), márcalo como "es_nuevo": true.
                 
                 RETORNA UN JSON CON ESTA ESTRUCTURA EXACTA:
                 {
@@ -6017,7 +6106,11 @@ function App() {
                     period={selectedBiweeklyPeriod}
                     nominaHistoryData={nominaHistoryData}
                     setIsPEModalOpen={setIsPEModalOpen}
+                    setPayrollStore={setPayrollStore}
+                    setFechaDesde={setFechaDesde}
+                    setFechaHasta={setFechaHasta}
                     specialProjectsData={specialProjectsData}
+                    setSpecialProjectsData={setSpecialProjectsData}
                     onBack={() => {
                         setIsBiweeklyManagementOpen(false);
                         setSelectedBiweeklyPeriod(null);
@@ -6185,12 +6278,13 @@ function App() {
             )}
 
             {isPEModalOpen && (
-                <SpecialProjectsView 
+                <SpecialProjectsView
                     storeName={payrollStore}
                     fechaDesde={fechaDesde}
                     fechaHasta={fechaHasta}
                     onClose={() => setIsPEModalOpen(false)}
                     employees={employees}
+                    stores={stores}
                     specialProjectsData={specialProjectsData}
                     setSpecialProjectsData={setSpecialProjectsData}
                 />
