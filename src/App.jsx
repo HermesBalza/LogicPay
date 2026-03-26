@@ -2805,7 +2805,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
             const hoursW1 = empW1?.hours || 0;
             const hoursW2 = empW2?.hours || 0;
             let rate = empW1?.rate || empW2?.rate || 0;
-            
+
             // Sumar horas y montos de Proyectos Especiales para este empleado (SOLO REGISTRADOS)
             const empNombre = id.split('_')[0].trim().toLowerCase();
             let peTotalHours = 0;
@@ -2976,7 +2976,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                             title="Gestionar Proyectos Especiales"
                         >
                             <Star size={16} fill="currentColor" />
-                            P.E
+                            Proyectos Especiales
                         </button>
 
                         <button
@@ -3015,7 +3015,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                                             <td className="p-4 border-r-2 border-gray-100 font-black text-[#303a7f] text-xs uppercase tracking-tight">{emp.nombre}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-xs tabular-nums">{emp.semana1 !== null ? Number(emp.semana1).toFixed(2) : '-'}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-xs tabular-nums">{emp.semana2 !== null ? Number(emp.semana2).toFixed(2) : '-'}</td>
-                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-400 text-xs tabular-nums italic">{emp.pe === 0 ? '-' : emp.pe.toFixed(2)}</td>
+                                            <td className={`p-4 border-r-2 border-gray-100 text-center font-bold text-xs tabular-nums ${emp.pe === 0 ? 'text-gray-400 italic' : 'bg-amber-100 text-amber-600'}`}>{emp.pe === 0 ? '-' : emp.pe.toFixed(2)}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-black text-[#303a7f] text-xs tabular-nums">{totalHours.toFixed(2)}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-[#6bbdb7] text-xs tabular-nums">${Number(emp.rate).toFixed(2)}</td>
                                             <td className="p-4 text-right font-black text-[#303a7f] text-xs tabular-nums bg-opacity-30">${pagoTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -3571,73 +3571,73 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, onRegister
                     style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(48,58,127,0.18)', backdropFilter: 'blur(3px)' }}
                     onMouseDown={(e) => { if (e.target === e.currentTarget) setRegisterForm(null); }}
                 >
-                <div
-                    style={{ width: 360 }}
-                    className="bg-white border-2 border-orange-200 shadow-2xl rounded-2xl p-5 animate-in fade-in zoom-in-95 duration-200"
-                >
-                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
-                        <div className="bg-orange-100 text-orange-500 rounded-lg p-1">
-                            <Plus size={12} />
+                    <div
+                        style={{ width: 360 }}
+                        className="bg-white border-2 border-orange-200 shadow-2xl rounded-2xl p-5 animate-in fade-in zoom-in-95 duration-200"
+                    >
+                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
+                            <div className="bg-orange-100 text-orange-500 rounded-lg p-1">
+                                <Plus size={12} />
+                            </div>
+                            <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Registro Rápido · Externo</span>
                         </div>
-                        <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Registro Rápido · Externo</span>
-                    </div>
-                    <div className="space-y-2.5">
-                        <div>
-                            <label className={labelCls}>Nombre</label>
-                            <input
-                                type="text"
-                                value={registerForm.nombre}
-                                onChange={(e) => setRegisterForm(f => ({ ...f, nombre: e.target.value }))}
-                                className={inputCls}
-                                autoFocus
-                            />
-                        </div>
-                        <div>
-                            <label className={labelCls}>Código de Empleado</label>
-                            <input
-                                type="text"
-                                value={registerForm.codigo_empleado}
-                                onChange={(e) => setRegisterForm(f => ({ ...f, codigo_empleado: e.target.value }))}
-                                className={inputCls}
-                            />
-                        </div>
-                        <div>
-                            <label className={labelCls}>Tienda / Empresa</label>
-                            {storeNames.length > 0 ? (
-                                <select
-                                    value={registerForm.tienda}
-                                    onChange={(e) => setRegisterForm(f => ({ ...f, tienda: e.target.value }))}
-                                    className={inputCls}
-                                >
-                                    <option value="">-- Externo (sin tienda) --</option>
-                                    {storeNames.map(n => <option key={n} value={n}>{n}</option>)}
-                                </select>
-                            ) : (
+                        <div className="space-y-2.5">
+                            <div>
+                                <label className={labelCls}>Nombre</label>
                                 <input
                                     type="text"
-                                    value={registerForm.tienda}
-                                    placeholder="Externo"
-                                    onChange={(e) => setRegisterForm(f => ({ ...f, tienda: e.target.value }))}
+                                    value={registerForm.nombre}
+                                    onChange={(e) => setRegisterForm(f => ({ ...f, nombre: e.target.value }))}
+                                    className={inputCls}
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Código de Empleado</label>
+                                <input
+                                    type="text"
+                                    value={registerForm.codigo_empleado}
+                                    onChange={(e) => setRegisterForm(f => ({ ...f, codigo_empleado: e.target.value }))}
                                     className={inputCls}
                                 />
-                            )}
+                            </div>
+                            <div>
+                                <label className={labelCls}>Tienda / Empresa</label>
+                                {storeNames.length > 0 ? (
+                                    <select
+                                        value={registerForm.tienda}
+                                        onChange={(e) => setRegisterForm(f => ({ ...f, tienda: e.target.value }))}
+                                        className={inputCls}
+                                    >
+                                        <option value="">-- Externo (sin tienda) --</option>
+                                        {storeNames.map(n => <option key={n} value={n}>{n}</option>)}
+                                    </select>
+                                ) : (
+                                    <input
+                                        type="text"
+                                        value={registerForm.tienda}
+                                        placeholder="Externo"
+                                        onChange={(e) => setRegisterForm(f => ({ ...f, tienda: e.target.value }))}
+                                        className={inputCls}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                            <button
+                                onClick={() => setRegisterForm(null)}
+                                className="flex-1 py-2 text-gray-400 font-black text-[9px] uppercase tracking-widest border-2 border-gray-100 rounded-xl hover:border-gray-200 transition-all"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleRegisterSave}
+                                className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white font-black text-[9px] uppercase tracking-widest rounded-xl transition-all active:scale-95"
+                            >
+                                Ingresar
+                            </button>
                         </div>
                     </div>
-                    <div className="flex gap-2 mt-3">
-                        <button
-                            onClick={() => setRegisterForm(null)}
-                            className="flex-1 py-2 text-gray-400 font-black text-[9px] uppercase tracking-widest border-2 border-gray-100 rounded-xl hover:border-gray-200 transition-all"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={handleRegisterSave}
-                            className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white font-black text-[9px] uppercase tracking-widest rounded-xl transition-all active:scale-95"
-                        >
-                            Registrar y Seleccionar
-                        </button>
-                    </div>
-                </div>
                 </div>
             )}
         </div>
@@ -3875,14 +3875,13 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
                 <button
                     onClick={() => onRegisterProject(project)}
                     disabled={isRegistered || project.employees.length === 0}
-                    className={`flex items-center gap-2 font-black text-[9px] uppercase tracking-widest transition-all py-3 px-4 rounded-xl flex-1 justify-center shadow-lg active:scale-95 ${
-                        isRegistered 
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    className={`flex items-center gap-2 font-black text-[9px] uppercase tracking-widest transition-all py-3 px-4 rounded-xl flex-1 justify-center shadow-lg active:scale-95 ${isRegistered
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : 'bg-[#6bbdb7] hover:bg-[#59aba5] text-white shadow-teal-900/10'
-                    }`}
+                        }`}
                 >
                     <ClipboardCheck size={16} />
-                    {isRegistered ? 'Proyecto Registrado' : 'Registrar Proyecto en Consolidado e Historial'}
+                    {isRegistered ? 'Proyecto Registrado' : 'Registrar Proyecto Especial'}
                 </button>
             </div>
         </div>
@@ -3946,7 +3945,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                 // Formatear fecha de proyecto (YYYY-MM-DD -> MM/DD/YYYY)
                 const dateParts = project.fecha.split('-');
                 const formattedDate = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`;
-                
+
                 const newSegment = {
                     tienda: project.nombre,
                     inicio: formattedDate,
@@ -3973,7 +3972,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                         <div>
                             <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">Proyectos Especiales</h2>
                             <p className="text-[#6bbdb7] font-black uppercase text-[9px] tracking-[0.2em] opacity-95">
-                                {storeName} <span className="mx-2 text-gray-300">|</span> WEEK: {fechaDesde || '-'} - {fechaHasta || '-'}
+                                {storeName} <span className="mx-2 text-gray-300">|</span> PERÍODO: {fechaDesde || '-'} - {fechaHasta || '-'}
                             </p>
                         </div>
                     </div>
@@ -4021,7 +4020,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                         className="flex items-center gap-3 bg-[#303a7f] text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
                     >
                         <Plus size={18} />
-                        Nuevo Proyecto Especial — Invoice #{nextInvoice}
+                        Nuevo Proyecto Especial
                     </button>
                 </div>
             </div>
@@ -6741,13 +6740,13 @@ function App() {
                         setEmployees(prev => {
                             const idx = prev.findIndex(e => String(e.nombre).trim().toLowerCase() === String(employeeName).trim().toLowerCase());
                             if (idx === -1) return prev;
-                            
+
                             const emp = prev[idx];
                             // Asegurar que el historial sea un array
                             const currentHistory = Array.isArray(emp.locationHistory) ? emp.locationHistory : [];
-                            
+
                             // Evitar duplicados exactos en el mismo día/proyecto
-                            const isDuplicate = currentHistory.some(h => 
+                            const isDuplicate = currentHistory.some(h =>
                                 h.tienda === newSegment.tienda && h.inicio === newSegment.inicio
                             );
                             if (isDuplicate) return prev;
@@ -6756,7 +6755,7 @@ function App() {
                                 ...emp,
                                 locationHistory: [...currentHistory, newSegment]
                             };
-                            
+
                             const newEmployees = [...prev];
                             newEmployees[idx] = updatedEmp;
 
