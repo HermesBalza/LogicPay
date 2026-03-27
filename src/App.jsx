@@ -2656,6 +2656,68 @@ const SheetProgressModal = ({ isOpen }) => {
     );
 };
 
+const ConfirmPayrollProgressModal = ({ isOpen, progress, step, isFinished, onClose }) => {
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 backdrop-blur-2xl bg-[#303a7f]/40 animate-in fade-in duration-500">
+            <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-[0_32px_120px_-20px_rgba(48,58,127,0.4)] border-2 border-white/50 text-center animate-in zoom-in-95 duration-500">
+                <div className="mb-8 relative inline-block">
+                    {isFinished ? (
+                        <div className="w-24 h-24 rounded-full bg-green-50 flex items-center justify-center text-green-500 border-4 border-green-100 animate-in zoom-in duration-500">
+                            <CheckCircle size={48} />
+                        </div>
+                    ) : (
+                        <>
+                            <div className="w-24 h-24 rounded-full border-4 border-gray-100 border-t-[#6bbdb7] animate-spin"></div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-xl font-black text-[#303a7f] leading-none">{progress}%</span>
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase mb-2">
+                    {isFinished ? '¡Nómina Confirmada!' : 'Confirmando Nómina'}
+                </h3>
+                <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-8 px-4">
+                    {step}
+                </p>
+
+                {/* Progress Bar Container */}
+                <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden mb-10 border-2 border-gray-50 shadow-inner">
+                    <div
+                        className={`h-full bg-gradient-to-r ${isFinished ? 'from-green-500 to-[#6bbdb7]' : 'from-[#303a7f] to-[#6bbdb7]'} transition-all duration-700 ease-out`}
+                        style={{ width: `${progress}%` }}
+                    />
+                </div>
+
+                {isFinished ? (
+                    <button
+                        onClick={onClose}
+                        className="w-full py-4 bg-[#303a7f] hover:bg-[#252a5e] text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-blue-900/20 transition-all active:scale-95 animate-in fade-in slide-in-from-bottom-4 duration-500"
+                    >
+                        Ok / Finalizar
+                    </button>
+                ) : (
+                    <p className="text-[8px] text-gray-300 font-black uppercase tracking-[0.3em] animate-pulse">
+                        Sincronizando con la base de datos...
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     useEffect(() => {
         if (isOpen) {
@@ -2700,7 +2762,7 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     );
 };
 
-const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, setSpecialProjectsData, employees, onBack }) => {
+const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, setSpecialProjectsData, employees, onConfirmPayroll, onBack }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -2951,7 +3013,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                             <Cpu size={24} />
                         </div>
                         <div>
-                            <h1 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">Consolidado Bisemanal</h1>
+                            <h1 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">Nómina</h1>
                             <div className="flex items-center gap-2">
                                 <span className="text-[#6bbdb7] text-[9px] font-black uppercase tracking-[0.2em] opacity-80">{period.store}</span>
                                 <div className="w-1 h-1 rounded-full bg-gray-200" />
@@ -3039,21 +3101,36 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                     </div>
 
                     {/* Action Bar */}
-                    <div data-html2canvas-ignore className="mt-12 flex justify-end gap-4 border-t-2 border-gray-50 pt-10">
+                    <div data-html2canvas-ignore className="mt-12 flex justify-between items-center gap-4 border-t-2 border-gray-50 pt-10">
                         <button
-                            onClick={handleExportPDF}
-                            className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/10"
+                            onClick={() => onConfirmPayroll(biweeklyEmployees)}
+                            disabled={isSaving || biweeklyEmployees.length === 0}
+                            className={`px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isSaving ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/20'}`}
                         >
-                            <Download size={16} />
-                            Exportar PDF
+                            {isSaving ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-[#303a7f] rounded-full animate-spin" />
+                            ) : (
+                                <CheckCircle size={16} />
+                            )}
+                            {isSaving ? 'Confirmando...' : 'Confirmar Nómina'}
                         </button>
-                        <button
-                            onClick={() => alert("Función de envío por correo en desarrollo...")}
-                            className="px-8 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/20"
-                        >
-                            <Mail size={16} />
-                            Enviar por Correo
-                        </button>
+
+                        <div className="flex gap-4">
+                            <button
+                                onClick={handleExportPDF}
+                                className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/10"
+                            >
+                                <Download size={16} />
+                                Exportar PDF
+                            </button>
+                            <button
+                                onClick={() => alert("Función de envío por correo en desarrollo...")}
+                                className="px-8 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/20"
+                            >
+                                <Mail size={16} />
+                                Enviar por Correo
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -4119,6 +4196,13 @@ function App() {
     const [isSheetPreviewOpen, setIsSheetPreviewOpen] = useState(false); // MODAL PREVIEW
     const [isMassImportInfoOpen, setIsMassImportInfoOpen] = useState(false);
     const [isStoreMassImportInfoOpen, setIsStoreMassImportInfoOpen] = useState(false);
+    
+    // Estados para el progreso de Confirmar Nómina (JSON)
+    const [isConfirmingPayroll, setIsConfirmingPayroll] = useState(false);
+    const [confirmPayrollProgress, setConfirmPayrollProgress] = useState(0);
+    const [confirmPayrollStep, setConfirmPayrollStep] = useState("");
+    const [isConfirmPayrollFinished, setIsConfirmPayrollFinished] = useState(false);
+
     const massImportFileInputRef = useRef(null);
     const storeMassImportFileInputRef = useRef(null);
 
@@ -4230,6 +4314,146 @@ function App() {
             showError("No se pudo procesar el archivo de personal seleccionado.");
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleConfirmPayroll = async (biweeklyEmployees) => {
+        if (!selectedBiweeklyPeriod) return;
+        
+        // Iniciar Modal de Progreso (Molde Hermes)
+        setIsConfirmingPayroll(true);
+        setConfirmPayrollProgress(10);
+        setConfirmPayrollStep("Preparando consolidación de datos...");
+        setIsConfirmPayrollFinished(false);
+
+        try {
+            // 1. Preparar datos para Nomina_Detalle
+            const nominaDetalleRows = biweeklyEmployees.map(emp => {
+                const totalHrs = Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0);
+                const baseEarnings = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
+                const totalLGM = baseEarnings + (emp.peEarnings || 0);
+                
+                let totalKBS = 0;
+                const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase());
+                if (dbEmp && dbEmp.tienda) {
+                    const store = stores.find(s => String(s.nombre).trim().toLowerCase() === String(dbEmp.tienda).trim().toLowerCase());
+                    const cargoKey = String(dbEmp.cargo).trim().toLowerCase();
+                    if (store?.tarifas?.[cargoKey]) {
+                        const rateKBS = store.tarifas[cargoKey].kbs || 0;
+                        totalKBS = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * rateKBS;
+                        (specialProjectsData || []).forEach(project => {
+                            if (project.status === 'registered') {
+                                (project.employees || []).forEach(row => {
+                                    if (String(row.employeeName).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()) {
+                                        totalKBS += (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0);
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+
+                return {
+                    Periodo: selectedBiweeklyPeriod.range,
+                    Tienda: selectedBiweeklyPeriod.store,
+                    Empleado: emp.nombre,
+                    ID_Empleado: emp.id.split('_')[1] || '',
+                    Cargo: emp.cargo,
+                    Horas_W1: emp.semana1 || 0,
+                    Horas_W2: emp.semana2 || 0,
+                    Horas_PE: emp.pe || 0,
+                    Total_Horas: totalHrs,
+                    Total_LGM: totalLGM,
+                    Total_KBS: totalKBS,
+                    Margen: totalKBS - totalLGM,
+                    Fecha_Confirmacion: new Date().toLocaleString()
+                };
+            });
+
+            setConfirmPayrollProgress(30);
+            setConfirmPayrollStep("Estructurando archivos JSON optimizados...");
+
+            const employeesData = nominaDetalleRows.map(row => ({
+                empleado: row.Empleado,
+                id: row.ID_Empleado,
+                cargo: row.Cargo,
+                w1: row.Horas_W1,
+                w2: row.Horas_W2,
+                pe: row.Horas_PE,
+                total_hrs: row.Total_Horas,
+                total_lgm: row.Total_LGM,
+                total_kbs: row.Total_KBS,
+                margen: row.Margen
+            }));
+
+            const projectsData = [];
+            (specialProjectsData || []).forEach(project => {
+                if (project.status === 'registered') {
+                    (project.employees || []).forEach(row => {
+                        projectsData.push({
+                            invoice: project.invoice,
+                            fecha: project.fecha,
+                            proyecto: project.nombre,
+                            descripcion: project.descripcion,
+                            empleado: row.employeeName,
+                            horas: row.hours,
+                            rate_kbs: row.rateKBS,
+                            rate_logic: row.rateLogic,
+                            total_kbs: (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0),
+                            total_logic: (parseFloat(row.hours) || 0) * (parseFloat(row.rateLogic) || 0),
+                            tienda: selectedBiweeklyPeriod.store
+                        });
+                    });
+                }
+            });
+
+            const currentTimestamp = new Date().toLocaleString();
+            const consolidationId = `${selectedBiweeklyPeriod.store}_${selectedBiweeklyPeriod.range}`.replace(/\s+/g, '_');
+
+            const consolidatedNomina = {
+                ID_Consolidacion: consolidationId,
+                Tienda: selectedBiweeklyPeriod.store,
+                Periodo: selectedBiweeklyPeriod.range,
+                Data_JSON: JSON.stringify(employeesData),
+                Fecha_Confirmacion: currentTimestamp
+            };
+
+            const consolidatedPE = {
+                ID_Consolidacion: consolidationId,
+                Tienda: selectedBiweeklyPeriod.store,
+                Periodo: selectedBiweeklyPeriod.range,
+                Data_JSON: JSON.stringify(projectsData),
+                Fecha_Confirmacion: currentTimestamp
+            };
+
+            // 4. Sincronizar
+            setConfirmPayrollProgress(50);
+            setConfirmPayrollStep("Sincronizando Nómina Detalle...");
+            await syncToSheets('upsert', consolidatedNomina, 'Nomina_Detalle');
+            
+            setConfirmPayrollProgress(80);
+            setConfirmPayrollStep("Sincronizando Proyectos Especiales...");
+            await syncToSheets('upsert', consolidatedPE, 'Proyectos_Especiales');
+
+            // 5. Actualizar estado visual
+            setConfirmPayrollProgress(95);
+            setConfirmPayrollStep("Actualizando estados locales...");
+            const periodKey = `${selectedBiweeklyPeriod.store}-${selectedBiweeklyPeriod.w1.start}-${selectedBiweeklyPeriod.w2.end}`;
+            if (!processedBiweeks.includes(periodKey)) {
+                const updated = [...processedBiweeks, periodKey];
+                setProcessedBiweeks(updated);
+                localStorage.setItem('lgm_processed_biweeks', JSON.stringify(updated));
+            }
+
+            // ÉXITO FINAL
+            setConfirmPayrollProgress(100);
+            setConfirmPayrollStep("¡Nómina Procesada y Respaldada Exitosamente!");
+            setIsConfirmPayrollFinished(true);
+
+        } catch (error) {
+            console.error('[Confirmar Nómina] Error:', error);
+            setIsConfirmingPayroll(false);
+            showError("Hubo un problema al confirmar la nómina. Verifique la conexión.");
         }
     };
 
@@ -6368,12 +6592,6 @@ function App() {
                 isOpen={isHistoryModalOpen}
                 onClose={() => setIsHistoryModalOpen(false)}
                 onProcessBiweekly={(p) => {
-                    const periodKey = `${selectedHistoryStore}-${p.w1.start}-${p.w2.end}`;
-                    if (!processedBiweeks.includes(periodKey)) {
-                        const updated = [...processedBiweeks, periodKey];
-                        setProcessedBiweeks(updated);
-                        localStorage.setItem('lgm_processed_biweeks', JSON.stringify(updated));
-                    }
                     setSelectedBiweeklyPeriod({
                         store: selectedHistoryStore,
                         range: `${p.w1.start} - ${p.w2.end}`,
@@ -6546,6 +6764,7 @@ function App() {
                     specialProjectsData={specialProjectsData}
                     setSpecialProjectsData={setSpecialProjectsData}
                     employees={employees}
+                    onConfirmPayroll={handleConfirmPayroll}
                     onBack={() => {
                         setIsBiweeklyManagementOpen(false);
                         setSelectedBiweeklyPeriod(null);
@@ -6688,6 +6907,15 @@ function App() {
                     </div>
                 </div>
             )}
+
+            {/* PROGRESO DE CONFIRMACIÓN (JSON) */}
+            <ConfirmPayrollProgressModal
+                isOpen={isConfirmingPayroll}
+                progress={confirmPayrollProgress}
+                step={confirmPayrollStep}
+                isFinished={isConfirmPayrollFinished}
+                onClose={() => setIsConfirmingPayroll(false)}
+            />
 
             {/* FASE 7: MODAL DE ESTATUS PROFESIONAL (Éxito/Error) */}
             {isStatusModalOpen && (
