@@ -3139,7 +3139,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
     );
 };
 
-const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [] }) => {
+const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [], onOpenBilling = () => { } }) => {
     const [selectedYear, setSelectedYear] = useState(2026);
     if (!isOpen) return null;
 
@@ -3302,7 +3302,20 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                     </div>
                 </div>
 
-                <div className="flex-1"></div>
+                <div className="flex-1 flex items-end justify-end">
+                    <button
+                        onClick={onOpenBilling}
+                        disabled={!selectedStore}
+                        className={`h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg ${
+                            selectedStore 
+                            ? 'bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]' 
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-50'
+                        }`}
+                    >
+                        <Receipt size={16} />
+                        Facturación Radicada
+                    </button>
+                </div>
             </div>
 
             {/* Content Container */}
@@ -4279,6 +4292,7 @@ function App() {
     const [confirmPayrollProgress, setConfirmPayrollProgress] = useState(0);
     const [confirmPayrollStep, setConfirmPayrollStep] = useState("");
     const [isConfirmPayrollFinished, setIsConfirmPayrollFinished] = useState(false);
+    const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
 
     const massImportFileInputRef = useRef(null);
     const storeMassImportFileInputRef = useRef(null);
@@ -5590,7 +5604,6 @@ function App() {
         { id: 'stores', label: 'Tiendas', icon: StoreIcon },
         { id: 'employees', label: 'Personal', icon: Users },
         { id: 'payroll', label: 'Nómina', icon: CreditCard },
-        { id: 'billing', label: 'Facturación', icon: Receipt },
         { id: 'settings', label: 'Ajustes', icon: Settings },
     ];
 
@@ -5990,9 +6003,6 @@ function App() {
                         </>
                     )}
 
-                    {activeTab === 'billing' && (
-                        <BillingView />
-                    )}
 
                     {activeTab === 'payroll' && payrollView === 'history' && (
                         <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -6047,6 +6057,7 @@ function App() {
                                 onSelectStore={setSelectedHistoryStore}
                                 historyData={nominaHistoryData}
                                 processedBiweeks={processedBiweeks}
+                                onOpenBilling={() => setIsBillingModalOpen(true)}
                             />
                         </div>
                     )}
@@ -6725,7 +6736,40 @@ function App() {
                 onSelectStore={setSelectedHistoryStore}
                 historyData={nominaHistoryData}
                 processedBiweeks={processedBiweeks}
+                onOpenBilling={() => setIsBillingModalOpen(true)}
             />
+
+            {/* FASE 11: MODAL DE FACTURACIÓN RADICADA (Full Screen - Nivel Dios) */}
+            {isBillingModalOpen && (
+                <div className="fixed inset-0 z-[200] bg-white animate-in fade-in duration-500 overflow-hidden flex flex-col">
+                    {/* Header Premium de Facturación */}
+                    <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
+                                <Receipt size={20} />
+                            </div>
+                            <div className="flex flex-col">
+                                <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1 animate-in slide-in-from-left-4 duration-700">Facturación Radicada</h2>
+                                <div className="flex items-center gap-2 animate-in slide-in-from-left-8 duration-1000">
+                                    <div className="h-0.5 w-6 bg-[#6bbdb7] rounded-full" />
+                                    <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-[0.3em] opacity-90">{selectedHistoryStore || 'Global Logic Analysis'}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setIsBillingModalOpen(false)}
+                            className="group p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center"
+                        >
+                            <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
+                        </button>
+                    </div>
+
+                        {/* Contenido del Modal (BillingView) */}
+                        <div className="flex-1 overflow-y-auto p-12 bg-[#fcfdfe] custom-scrollbar">
+                            <BillingView />
+                        </div>
+                    </div>
+            )}
 
             {/* FASE 2.5: VENTANA EMERGENTE DE DETALLES BIOMÉTRICOS */}
             {isDetailsModalOpen && (
