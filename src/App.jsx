@@ -4150,15 +4150,70 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 };
 
 // ─── Vista de Facturación (Aesthetics: Molde Hermes) ──────────────────────────
-const BillingView = () => {
-    // Datos de ejemplo para validar proporciones (Placeholder solicitado por Hermes)
-    const mockData = [
-        { radicacion: '03/15/2026', semana: 'Week 10 (03/02 - 03/08)', horas: 1240.5, facturacion: 28500.00, costos: 18450.00, utilidad: 10050.00, pago: 0.00, wos: 2, pagada: false },
-        { radicacion: '03/08/2026', semana: 'Week 09 (02/23 - 03/01)', horas: 1180.0, facturacion: 27140.00, costos: 17200.00, utilidad: 9940.00, pago: 27140.00, wos: 0, pagada: true },
-        { radicacion: '03/01/2026', semana: 'Week 08 (02/16 - 02/22)', horas: 1310.2, facturacion: 30134.60, costos: 20150.00, utilidad: 9984.60, pago: 30134.60, wos: 0, pagada: true },
-    ];
+const BillingView = ({ storeName, historyData = [], manualData = {}, onUpdateManual = () => { } }) => {
+    // 1. Filtrar registros por tienda y ordenar cronológicamente (Viejas arriba)
+    const activeRecords = historyData
+        .filter(h => String(h.nombre).trim() === String(storeName).trim())
+        .sort((a, b) => {
+            const [mA, dA, yA] = a.fecha_inicio.split('/');
+            const [mB, dB, yB] = b.fecha_inicio.split('/');
+            return new Date(yA, mA - 1, dA) - new Date(yB, mB - 1, dB);
+        });
+
+    // 2. Mapear datos calculados a partir de data_json
+    const tableData = activeRecords.map(h => {
+        let stats = { horas: 0, facturacion: 0, costos: 0 };
+        try {
+            const data = h.data_json ? JSON.parse(h.data_json) : {};
+            
+            // Horas y Facturación desde KBS Table
+            if (data.kbsBillingTableData) {
+                data.kbsBillingTableData.forEach(r => {
+                    const totalVal = parseFloat(rowTotalToNumber(r.total)) || 0;
+                    const rateVal = parseFloat(r.rate) || 1;
+                    stats.horas += totalVal / rateVal;
+                    stats.facturacion += totalVal;
+                });
+            }
+            
+            // Costos desde Earnings Table
+            if (data.earningsTableData) {
+                stats.costos = data.earningsTableData.reduce((acc, r) => acc + (parseFloat(rowTotalToNumber(r.total)) || 0), 0);
+            }
+        } catch (e) { console.error("Error parsing history json", e); }
+
+        const manual = manualData[`${storeName}-${h.fecha_inicio}`] || {};
+        
+        return {
+            id: h.fecha_inicio,
+            radicacion: manual.radicacion || '',
+            semana: `Semana ${h.fecha_inicio.split('/')[0]}/${h.fecha_inicio.split('/')[1]} (${h.fecha_inicio} - ${h.fecha_fin})`,
+            horas: stats.horas,
+            facturacion: stats.facturacion,
+            costos: stats.costos,
+            utilidad: stats.facturacion - stats.costos,
+            pago: parseFloat(manual.pago) || 0,
+            wos: parseInt(manual.wos) || 0,
+            pagada: manual.pagada || false
+        };
+    });
 
     const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+
+    // Función auxiliar para forzar conversión numérica segura (maneja comas/símbolos)
+    function rowTotalToNumber(val) {
+        if (!val) return 0;
+        return String(val).replace(/[^0-9.-]+/g, "");
+    }
+
+    if (!storeName) {
+        return (
+            <div className="flex flex-col items-center justify-center py-40 opacity-30 text-[#303a7f]">
+                <Receipt size={64} className="mb-6 animate-pulse" />
+                <p className="text-xl font-black uppercase tracking-[0.4em]">Selecciona una Tienda para Auditar</p>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full h-full flex flex-col animate-in fade-in duration-700">
@@ -4166,74 +4221,97 @@ const BillingView = () => {
                 {/* Header Acciones de Tabla */}
                 <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
                     <div className="flex items-center gap-4">
-                        <div className="px-4 py-2 bg-white border border-gray-200 rounded-xl shadow-sm">
-                            <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">Registros: {mockData.length}</span>
+                        <div className="px-4 py-2 bg-[#303a7f] text-white rounded-xl shadow-lg shadow-blue-900/10">
+                            <span className="text-[10px] font-black uppercase tracking-widest">{storeName}</span>
                         </div>
                         <div className="h-4 w-[1px] bg-gray-300" />
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Auditoría Financiera Activa</span>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Semanas Procesadas: {tableData.length}</span>
                     </div>
                     <div className="flex gap-3">
-                        <button className="p-2.5 text-[#303a7f] bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all shadow-sm active:scale-95">
-                            <ArrowUpDown size={16} />
-                        </button>
-                        <button className="px-6 py-2.5 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-lg shadow-blue-900/10 active:scale-95">
-                            Exportar Reporte
+                        <button className="px-6 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95">
+                            Exportar Auditoría
                         </button>
                     </div>
                 </div>
 
-                {/* Contenedor Scroll de Tabla */}
-                <div className="flex-1 overflow-x-auto custom-scrollbar">
-                    <table className="w-full border-collapse min-w-[1200px]">
-                        <thead>
-                            <tr className="bg-white sticky top-0 z-10 shadow-sm">
+                {/* Contenedor de Tabla - Ajustado para pantalla completa sin scroll horizontal */}
+                <div className="flex-1 overflow-hidden custom-scrollbar">
+                    <table className="w-full border-collapse table-auto">
+                        <thead className="sticky top-0 z-20">
+                            <tr className="bg-white border-b border-gray-100 shadow-sm">
                                 {[
-                                    'Fecha de Radicación', 'Semana Facturada', 'Horas Facturadas', 
-                                    'Facturación', 'Costos', 'Utilidad', 'Pago', 'WOS', 'Pagada'
+                                    'Fecha Rad.', 'Semana Facturada', 'Horas', 
+                                    'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'WOS', 'Status'
                                 ].map((h, i) => (
-                                    <th key={i} className="px-8 py-5 text-[10px] font-black text-[#303a7f] uppercase tracking-[0.15em] text-left border-b border-gray-100 whitespace-nowrap">
-                                        <div className="flex items-center gap-2">
-                                            {h}
-                                            <div className="w-1 h-1 rounded-full bg-[#6bbdb7]/40" />
-                                        </div>
+                                    <th key={i} className="px-3 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white/50">
+                                        {h}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {mockData.map((row, idx) => (
-                                <tr key={idx} className="group hover:bg-[#f8fbff] transition-colors duration-200">
-                                    <td className="px-8 py-5 text-[11px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">{row.radicacion}</td>
-                                    <td className="px-8 py-5">
-                                        <div className="flex flex-col">
-                                            <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-tight">{row.semana.split(' (')[0]}</span>
-                                            <span className="text-[9px] font-bold text-[#6bbdb7] uppercase tracking-widest opacity-70">({row.semana.split(' (')[1]}</span>
+                            {tableData.length === 0 ? (
+                                <tr>
+                                    <td colSpan={9} className="py-40 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros para esta tienda.</td>
+                                </tr>
+                            ) : tableData.map((row, idx) => (
+                                <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
+                                    {/* Fecha Radicación */}
+                                    <td className="px-3 py-4 text-center">
+                                        <input 
+                                            type="text"
+                                            placeholder="--/--/--"
+                                            value={row.radicacion}
+                                            onChange={(e) => onUpdateManual(row.id, 'radicacion', e.target.value)}
+                                            className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase tracking-tight outline-none focus:text-[#303a7f] text-center transition-all w-20"
+                                        />
+                                    </td>
+                                    {/* Semana */}
+                                    <td className="px-3 py-4">
+                                        <div className="flex flex-col text-center">
+                                            <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-tighter">{row.semana.split(' (')[0]}</span>
+                                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest opacity-60 leading-none">{row.semana.split(' (')[1].replace(')', '')}</span>
                                         </div>
                                     </td>
-                                    <td className="px-8 py-5 text-[11px] font-black text-[#303a7f]">{row.horas.toLocaleString()} <span className="text-[9px] text-gray-300 font-bold ml-1">HRS</span></td>
-                                    <td className="px-8 py-5 text-[11px] font-black text-[#303a7f]">{formatCurrency(row.facturacion)}</td>
-                                    <td className="px-8 py-5 text-[11px] font-bold text-red-400">{formatCurrency(row.costos)}</td>
-                                    <td className="px-8 py-5">
-                                        <div className="px-3 py-1 bg-[#6bbdb7]/10 rounded-lg inline-block">
-                                            <span className="text-[11px] font-black text-[#6bbdb7]">{formatCurrency(row.utilidad)}</span>
+                                    <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{row.horas.toFixed(1)} <span className="text-[8px] text-gray-300 font-bold ml-0.5">H</span></td>
+                                    <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{formatCurrency(row.facturacion)}</td>
+                                    <td className="px-3 py-4 text-center text-[10px] font-bold text-red-400">{formatCurrency(row.costos)}</td>
+                                    <td className="px-3 py-4 text-center">
+                                        <div className={`px-2 py-0.5 rounded-md inline-block ${row.utilidad >= 0 ? 'bg-teal-50' : 'bg-red-50'}`}>
+                                            <span className={`text-[10px] font-black ${row.utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>{formatCurrency(row.utilidad)}</span>
                                         </div>
                                     </td>
-                                    <td className="px-8 py-5 text-[11px] font-black text-[#303a7f]">{formatCurrency(row.pago)}</td>
-                                    <td className="px-8 py-5">
-                                        <span className={`text-[11px] font-black ${row.wos > 0 ? 'text-orange-500' : 'text-gray-300'}`}>{row.wos} <span className="text-[9px] font-bold ml-1 uppercase opacity-60">WKS</span></span>
+                                    {/* Pago */}
+                                    <td className="px-3 py-4 text-center">
+                                        <input 
+                                            type="text"
+                                            placeholder="$0.00"
+                                            value={row.pago || ''}
+                                            onChange={(e) => onUpdateManual(row.id, 'pago', e.target.value)}
+                                            className="bg-transparent border-none text-[10px] font-black text-[#303a7f] outline-none w-20 text-center"
+                                        />
                                     </td>
-                                    <td className="px-8 py-5">
-                                        {row.pagada ? (
-                                            <div className="flex items-center gap-2 text-teal-500">
-                                                <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-                                                <span className="text-[9px] font-black uppercase tracking-[0.2em]">Liquidada</span>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-2 text-rose-500">
-                                                <div className="w-2 h-2 rounded-full bg-rose-500" />
-                                                <span className="text-[9px] font-black uppercase tracking-[0.2em]">Pendiente</span>
-                                            </div>
-                                        )}
+                                    {/* WOS */}
+                                    <td className="px-3 py-4 text-center">
+                                        <input 
+                                            type="number"
+                                            placeholder="0"
+                                            value={row.wos}
+                                            onChange={(e) => onUpdateManual(row.id, 'wos', e.target.value)}
+                                            className={`bg-transparent border-none text-[10px] font-black outline-none w-8 text-center ${row.wos > 0 ? 'text-orange-500' : 'text-gray-300'}`}
+                                        />
+                                    </td>
+                                    {/* Status */}
+                                    <td className="px-3 py-4 text-center">
+                                        <button 
+                                            onClick={() => onUpdateManual(row.id, 'pagada', !row.pagada)}
+                                            className="inline-flex items-center gap-1.5 group/btn"
+                                        >
+                                            <div className={`w-2.5 h-2.5 rounded-full transition-all border-2 ${row.pagada ? 'bg-teal-500 border-teal-500' : 'bg-transparent border-gray-200 group-hover/btn:border-red-400'}`} />
+                                            <span className={`text-[8px] font-black uppercase tracking-tight transition-colors ${row.pagada ? 'text-teal-500' : 'text-gray-300'}`}>
+                                                {row.pagada ? 'Paid' : 'Due'}
+                                            </span>
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -4241,20 +4319,21 @@ const BillingView = () => {
                     </table>
                 </div>
 
-                {/* Footer Estadístico de Tabla */}
-                <div className="p-6 bg-gray-50/30 border-t border-gray-100 flex items-center justify-between">
-                    <div className="flex gap-8">
+                {/* Footer Estadístico - Totales Automáticos */}
+                <div className="px-12 py-8 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
+                    <div className="flex gap-12">
                         <div className="flex flex-col">
-                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Facturado</span>
-                            <span className="text-sm font-black text-[#303a7f]">{formatCurrency(mockData.reduce((acc, r) => acc + r.facturacion, 0))}</span>
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total KBS Facturado</span>
+                            <span className="text-2xl font-black text-[#303a7f]">{formatCurrency(tableData.reduce((acc, r) => acc + r.facturacion, 0))}</span>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Utilidad Acumulada</span>
-                            <span className="text-sm font-black text-[#6bbdb7]">{formatCurrency(mockData.reduce((acc, r) => acc + r.utilidad, 0))}</span>
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Costo Operativo Acumulado</span>
+                            <span className="text-2xl font-black text-red-400">{formatCurrency(tableData.reduce((acc, r) => acc + r.costos, 0))}</span>
                         </div>
-                    </div>
-                    <div className="text-[9px] font-black text-gray-300 uppercase tracking-[0.4em]">
-                        AdWisers Financial Controller v1.0
+                        <div className="flex flex-col border-l-2 border-gray-200 pl-12">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Utilidad Neta LGM</span>
+                            <span className="text-2xl font-black text-[#6bbdb7]">{formatCurrency(tableData.reduce((acc, r) => acc + r.utilidad, 0))}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -4363,6 +4442,15 @@ function App() {
     const [confirmPayrollStep, setConfirmPayrollStep] = useState("");
     const [isConfirmPayrollFinished, setIsConfirmPayrollFinished] = useState(false);
     const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+    const [billingManualRecords, setBillingManualRecords] = useState(() => {
+        const saved = localStorage.getItem('lgm_billing_manual_v1');
+        return saved ? JSON.parse(saved) : {};
+    });
+
+    // Persistencia de Facturación Manual (WOS, Pago, etc)
+    useEffect(() => {
+        localStorage.setItem('lgm_billing_manual_v1', JSON.stringify(billingManualRecords));
+    }, [billingManualRecords]);
 
     const massImportFileInputRef = useRef(null);
     const storeMassImportFileInputRef = useRef(null);
@@ -6128,6 +6216,14 @@ function App() {
                                 historyData={nominaHistoryData}
                                 processedBiweeks={processedBiweeks}
                                 onOpenBilling={() => setIsBillingModalOpen(true)}
+                                manualData={billingManualRecords}
+                                onUpdateManual={(week, field, val) => {
+                                    const key = `${selectedHistoryStore}-${week}`;
+                                    setBillingManualRecords(prev => ({
+                                        ...prev,
+                                        [key]: { ...prev[key], [field]: val }
+                                    }));
+                                }}
                             />
                         </div>
                     )}
@@ -6807,6 +6903,14 @@ function App() {
                 historyData={nominaHistoryData}
                 processedBiweeks={processedBiweeks}
                 onOpenBilling={() => setIsBillingModalOpen(true)}
+                manualData={billingManualRecords}
+                onUpdateManual={(week, field, val) => {
+                    const key = `${selectedHistoryStore}-${week}`;
+                    setBillingManualRecords(prev => ({
+                        ...prev,
+                        [key]: { ...prev[key], [field]: val }
+                    }));
+                }}
             />
 
             {/* FASE 11: MODAL DE FACTURACIÓN RADICADA (Full Screen - Nivel Dios) */}
@@ -6834,9 +6938,20 @@ function App() {
                         </button>
                     </div>
 
-                        {/* Contenido del Modal (BillingView) */}
+                        {/* Contenido del Modal (BillingView) - Nivel Dios */}
                         <div className="flex-1 overflow-y-auto p-12 bg-[#fcfdfe] custom-scrollbar">
-                            <BillingView />
+                            <BillingView 
+                                storeName={selectedHistoryStore}
+                                historyData={nominaHistoryData}
+                                manualData={billingManualRecords}
+                                onUpdateManual={(week, field, val) => {
+                                    const key = `${selectedHistoryStore}-${week}`;
+                                    setBillingManualRecords(prev => ({
+                                        ...prev,
+                                        [key]: { ...prev[key], [field]: val }
+                                    }));
+                                }}
+                            />
                         </div>
                     </div>
             )}
