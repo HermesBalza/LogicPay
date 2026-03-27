@@ -3402,14 +3402,6 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                 </div>
             </div>
 
-            {/* Decorative Brands */}
-            <div className="p-8 bg-white border-t-2 border-gray-100 flex items-center justify-center gap-12 text-[10px] font-black text-gray-300 uppercase tracking-[0.4em]">
-                <span>Logic Group Management</span>
-                <div className="w-2 h-2 rounded-full bg-gray-100" />
-                <span>Fiscal History 2026</span>
-                <div className="w-2 h-2 rounded-full bg-gray-100" />
-                <span>AdWisers Audit Logic</span>
-            </div>
         </div>
     );
 };
