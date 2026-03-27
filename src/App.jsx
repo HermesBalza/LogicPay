@@ -1640,7 +1640,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                                             {hist.tienda}
                                                         </h4>
                                                         <p className={`text-[10px] font-bold uppercase tracking-widest ${hist.tipo === 'P.E' ? 'text-orange-400' : 'text-gray-400'}`}>
-                                                            {hist.tipo === 'P.E' ? 'Proyecto Especial Individual' : 'Estancia en sucursal'}
+                                                            {hist.tipo === 'P.E' ? 'Proyecto Especial' : 'Estancia en sucursal'}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -3722,9 +3722,36 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, onRegister
 };
 
 
+// ─── Componente de Celda Editable con Estado Local (Optimización de Lag) ──────
+const EditableCell = ({ value, onChange, type = "text", className }) => {
+    const [localValue, setLocalValue] = useState(value || '');
+    useEffect(() => { setLocalValue(value || ''); }, [value]);
+
+    return (
+        <input
+            type={type}
+            value={localValue}
+            onChange={(e) => setLocalValue(e.target.value)}
+            onBlur={() => onChange(localValue)}
+            className={className}
+        />
+    );
+};
+
 // ─── Componente de Proyecto Individual dentro de P.E ──────────────────────────
-const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRemoveProject, onRegisterEmployee, onRegisterProject, minDate, maxDate }) => {
+const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdateProject, onRemoveProject, onRegisterEmployee, onRegisterProject, minDate, maxDate }) => {
     const isRegistered = project.status === 'registered';
+
+    // Estados locales para evitar re-renders globales en cada tecla
+    const [localNombre, setLocalNombre] = useState(project.nombre || '');
+    const [localDesc, setLocalDesc] = useState(project.descripcion || '');
+
+    // Sincronizar estados locales si el proyecto cambia externamente (ej: al cargar)
+    useEffect(() => {
+        setLocalNombre(project.nombre || '');
+        setLocalDesc(project.descripcion || '');
+    }, [project.nombre, project.descripcion]);
+
     // Actualiza un campo del proyecto (invoice, fecha, nombre, descripcion)
     const updateMeta = (field, value) => onUpdateProject(project.id, { [field]: value });
 
@@ -3820,9 +3847,10 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
                         <label className={labelCls}>Nombre del Proyecto</label>
                         <input
                             type="text"
-                            value={project.nombre}
+                            value={localNombre}
                             placeholder="Ej: Limpieza de Bodega..."
-                            onChange={(e) => updateMeta('nombre', e.target.value)}
+                            onChange={(e) => setLocalNombre(e.target.value)}
+                            onBlur={() => updateMeta('nombre', localNombre)}
                             readOnly={isRegistered}
                             className={`${inputCls} ${isRegistered ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
@@ -3832,9 +3860,10 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
                         <label className={labelCls}>Descripción</label>
                         <input
                             type="text"
-                            value={project.descripcion}
+                            value={localDesc}
                             placeholder="Descripción breve del proyecto..."
-                            onChange={(e) => updateMeta('descripcion', e.target.value)}
+                            onChange={(e) => setLocalDesc(e.target.value)}
+                            onBlur={() => updateMeta('descripcion', localDesc)}
                             readOnly={isRegistered}
                             className={`${inputCls} ${isRegistered ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
@@ -3876,20 +3905,20 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
                                         />
                                     </td>
                                     <td className="p-3">
-                                        <input
-                                            type="number"
+                                        <EditableCell
                                             value={row.hours}
-                                            onChange={(e) => updateRow(row.id, { hours: e.target.value })}
+                                            type="number"
+                                            onChange={(val) => updateRow(row.id, { hours: val })}
                                             className="w-20 mx-auto block bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
                                         />
                                     </td>
                                     <td className="p-3">
                                         <div className="flex items-center justify-center gap-1">
                                             <span className="text-gray-400 text-[10px] font-black">$</span>
-                                            <input
-                                                type="number"
+                                            <EditableCell
                                                 value={row.rateKBS}
-                                                onChange={(e) => updateRow(row.id, { rateKBS: e.target.value })}
+                                                type="number"
+                                                onChange={(val) => updateRow(row.id, { rateKBS: val })}
                                                 className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
                                             />
                                         </div>
@@ -3897,10 +3926,10 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
                                     <td className="p-3">
                                         <div className="flex items-center justify-center gap-1">
                                             <span className="text-gray-400 text-[10px] font-black">$</span>
-                                            <input
-                                                type="number"
+                                            <EditableCell
                                                 value={row.rateLogic}
-                                                onChange={(e) => updateRow(row.id, { rateLogic: e.target.value })}
+                                                type="number"
+                                                onChange={(val) => updateRow(row.id, { rateLogic: val })}
                                                 className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
                                             />
                                         </div>
@@ -3963,7 +3992,7 @@ const SpecialProjectCard = ({ project, employees, stores, onUpdateProject, onRem
             </div>
         </div>
     );
-};
+});
 
 // ─── Vista Principal de Proyectos Especiales ─────────────────────────────────
 const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterEmployee, onUpdateLocationHistory }) => {
@@ -3979,7 +4008,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
     const maxDate = toInputDate(fechaHasta);
 
     // Crear un nuevo proyecto vacío con el siguiente número de invoice
-    const addProject = () => {
+    const addProject = React.useCallback(() => {
         const newProject = {
             id: Date.now(),
             invoice: nextInvoice,
@@ -3988,29 +4017,29 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
             descripcion: '',
             employees: []
         };
-        setSpecialProjectsData([...specialProjectsData, newProject]);
+        setSpecialProjectsData(prev => [...prev, newProject]);
         setNextInvoice(nextInvoice + 1);
-    };
+    }, [nextInvoice, minDate, setSpecialProjectsData, setNextInvoice]);
 
     // Eliminar un proyecto y renumerar los restantes desde la base original
-    const removeProject = (projectId) => {
-        const remaining = specialProjectsData.filter(p => p.id !== projectId);
-        const base = nextInvoice - specialProjectsData.length; // primer invoice de la sesión
-        const renumbered = remaining.map((p, idx) => ({ ...p, invoice: base + idx }));
-        setSpecialProjectsData(renumbered);
-        const newNext = nextInvoice - 1;
-        setNextInvoice(newNext);
-    };
+    const removeProject = React.useCallback((projectId) => {
+        setSpecialProjectsData(prev => {
+            const remaining = prev.filter(p => p.id !== projectId);
+            const base = nextInvoice - prev.length; // primer invoice de la sesión
+            return remaining.map((p, idx) => ({ ...p, invoice: base + idx }));
+        });
+        setNextInvoice(prev => prev - 1);
+    }, [nextInvoice, setSpecialProjectsData, setNextInvoice]);
 
     // Actualizar campos de un proyecto (metadatos o lista de empleados)
-    const updateProject = (projectId, updates) => {
-        setSpecialProjectsData(specialProjectsData.map(p =>
+    const updateProject = React.useCallback((projectId, updates) => {
+        setSpecialProjectsData(prev => prev.map(p =>
             p.id === projectId ? { ...p, ...updates } : p
         ));
-    };
+    }, [setSpecialProjectsData]);
 
     // Registro formal del proyecto
-    const handleRegisterProject = (project) => {
+    const handleRegisterProject = React.useCallback((project) => {
         if (!project.fecha || !project.nombre) {
             alert("El proyecto debe tener fecha y nombre para ser registrado.");
             return;
@@ -4035,7 +4064,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 
         // 2. Marcar proyecto como registrado
         updateProject(project.id, { status: 'registered' });
-    };
+    }, [onUpdateLocationHistory, updateProject]);
 
     return (
         <div className="fixed inset-0 z-[200] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500 font-sans">
@@ -4181,9 +4210,12 @@ function App() {
         return saved ? JSON.parse(saved) : [];
     });
 
-    // Persistencia de Proyectos Especiales en localStorage
+    // Persistencia de Proyectos Especiales en localStorage (Con Debounce de 1s para rendimiento)
     useEffect(() => {
-        localStorage.setItem('lgm_special_projects_data', JSON.stringify(specialProjectsData));
+        const timer = setTimeout(() => {
+            localStorage.setItem('lgm_special_projects_data', JSON.stringify(specialProjectsData));
+        }, 1000);
+        return () => clearTimeout(timer);
     }, [specialProjectsData]);
 
     // Contador global de invoices para Proyectos Especiales (empieza desde 100)
@@ -4196,7 +4228,7 @@ function App() {
     const [isSheetPreviewOpen, setIsSheetPreviewOpen] = useState(false); // MODAL PREVIEW
     const [isMassImportInfoOpen, setIsMassImportInfoOpen] = useState(false);
     const [isStoreMassImportInfoOpen, setIsStoreMassImportInfoOpen] = useState(false);
-    
+
     // Estados para el progreso de Confirmar Nómina (JSON)
     const [isConfirmingPayroll, setIsConfirmingPayroll] = useState(false);
     const [confirmPayrollProgress, setConfirmPayrollProgress] = useState(0);
@@ -4319,7 +4351,7 @@ function App() {
 
     const handleConfirmPayroll = async (biweeklyEmployees) => {
         if (!selectedBiweeklyPeriod) return;
-        
+
         // Iniciar Modal de Progreso (Molde Hermes)
         setIsConfirmingPayroll(true);
         setConfirmPayrollProgress(10);
@@ -4332,7 +4364,7 @@ function App() {
                 const totalHrs = Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0);
                 const baseEarnings = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
                 const totalLGM = baseEarnings + (emp.peEarnings || 0);
-                
+
                 let totalKBS = 0;
                 const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase());
                 if (dbEmp && dbEmp.tienda) {
@@ -4430,7 +4462,7 @@ function App() {
             setConfirmPayrollProgress(50);
             setConfirmPayrollStep("Sincronizando Nómina Detalle...");
             await syncToSheets('upsert', consolidatedNomina, 'Nomina_Detalle');
-            
+
             setConfirmPayrollProgress(80);
             setConfirmPayrollStep("Sincronizando Proyectos Especiales...");
             await syncToSheets('upsert', consolidatedPE, 'Proyectos_Especiales');
