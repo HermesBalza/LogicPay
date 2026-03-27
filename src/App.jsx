@@ -4217,22 +4217,8 @@ const BillingView = ({ storeName, historyData = [], manualData = {}, onUpdateMan
 
     return (
         <div className="w-full h-full flex flex-col animate-in fade-in duration-700">
-            <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-xl shadow-blue-900/[0.03] overflow-hidden flex flex-col flex-1">
-                {/* Header Acciones de Tabla */}
-                <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
-                    <div className="flex items-center gap-4">
-                        <div className="px-4 py-2 bg-[#303a7f] text-white rounded-xl shadow-lg shadow-blue-900/10">
-                            <span className="text-[10px] font-black uppercase tracking-widest">{storeName}</span>
-                        </div>
-                        <div className="h-4 w-[1px] bg-gray-300" />
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Semanas Procesadas: {tableData.length}</span>
-                    </div>
-                    <div className="flex gap-3">
-                        <button className="px-6 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95">
-                            Exportar Auditoría
-                        </button>
-                    </div>
-                </div>
+            {/* Contenedor de Tabla - Sin tarjeta para maximizar espacio */}
+            <div className="flex-1 overflow-hidden flex flex-col">
 
                 {/* Contenedor de Tabla - Ajustado para pantalla completa sin scroll horizontal */}
                 <div className="flex-1 overflow-hidden custom-scrollbar">
@@ -4266,12 +4252,11 @@ const BillingView = ({ storeName, historyData = [], manualData = {}, onUpdateMan
                                             className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase tracking-tight outline-none focus:text-[#303a7f] text-center transition-all w-20"
                                         />
                                     </td>
-                                    {/* Semana */}
-                                    <td className="px-3 py-4">
-                                        <div className="flex flex-col text-center">
-                                            <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-tighter">{row.semana.split(' (')[0]}</span>
-                                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest opacity-60 leading-none">{row.semana.split(' (')[1].replace(')', '')}</span>
-                                        </div>
+                                    {/* Semana Facturada Simple */}
+                                    <td className="px-3 py-4 text-center">
+                                        <span className="text-[10px] font-bold text-[#303a7f] whitespace-nowrap">
+                                            {row.semana.split(' (')[1].replace(')', '')}
+                                        </span>
                                     </td>
                                     <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{row.horas.toFixed(1)} <span className="text-[8px] text-gray-300 font-bold ml-0.5">H</span></td>
                                     <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{formatCurrency(row.facturacion)}</td>
@@ -4319,20 +4304,20 @@ const BillingView = ({ storeName, historyData = [], manualData = {}, onUpdateMan
                     </table>
                 </div>
 
-                {/* Footer Estadístico - Totales Automáticos */}
-                <div className="px-12 py-8 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
+                {/* Footer Estadístico Integrado */}
+                <div className="px-6 py-6 border-t border-gray-100 flex items-center justify-between">
                     <div className="flex gap-12">
                         <div className="flex flex-col">
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total KBS Facturado</span>
-                            <span className="text-2xl font-black text-[#303a7f]">{formatCurrency(tableData.reduce((acc, r) => acc + r.facturacion, 0))}</span>
+                            <span className="text-xl font-black text-[#303a7f]">{formatCurrency(tableData.reduce((acc, r) => acc + r.facturacion, 0))}</span>
                         </div>
                         <div className="flex flex-col">
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Costo Operativo Acumulado</span>
-                            <span className="text-2xl font-black text-red-400">{formatCurrency(tableData.reduce((acc, r) => acc + r.costos, 0))}</span>
+                            <span className="text-xl font-black text-red-400">{formatCurrency(tableData.reduce((acc, r) => acc + r.costos, 0))}</span>
                         </div>
                         <div className="flex flex-col border-l-2 border-gray-200 pl-12">
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Utilidad Neta LGM</span>
-                            <span className="text-2xl font-black text-[#6bbdb7]">{formatCurrency(tableData.reduce((acc, r) => acc + r.utilidad, 0))}</span>
+                            <span className="text-xl font-black text-[#6bbdb7]">{formatCurrency(tableData.reduce((acc, r) => acc + r.utilidad, 0))}</span>
                         </div>
                     </div>
                 </div>
@@ -6930,30 +6915,35 @@ function App() {
                                 </div>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setIsBillingModalOpen(false)}
-                            className="group p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center"
-                        >
-                            <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
-                        </button>
-                    </div>
-
-                        {/* Contenido del Modal (BillingView) - Nivel Dios */}
-                        <div className="flex-1 overflow-y-auto p-12 bg-[#fcfdfe] custom-scrollbar">
-                            <BillingView 
-                                storeName={selectedHistoryStore}
-                                historyData={nominaHistoryData}
-                                manualData={billingManualRecords}
-                                onUpdateManual={(week, field, val) => {
-                                    const key = `${selectedHistoryStore}-${week}`;
-                                    setBillingManualRecords(prev => ({
-                                        ...prev,
-                                        [key]: { ...prev[key], [field]: val }
-                                    }));
-                                }}
-                            />
+                        <div className="flex items-center gap-4">
+                            <button className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 animate-in fade-in zoom-in duration-700">
+                                Exportar Auditoría
+                            </button>
+                            <button
+                                onClick={() => setIsBillingModalOpen(false)}
+                                className="group p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center"
+                            >
+                                <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
+                            </button>
                         </div>
                     </div>
+
+                    {/* Contenido del Modal (BillingView) - Nivel Dios */}
+                    <div className="flex-1 overflow-y-auto p-12 bg-[#fcfdfe] custom-scrollbar">
+                        <BillingView 
+                            storeName={selectedHistoryStore}
+                            historyData={nominaHistoryData}
+                            manualData={billingManualRecords}
+                            onUpdateManual={(week, field, val) => {
+                                const key = `${selectedHistoryStore}-${week}`;
+                                setBillingManualRecords(prev => ({
+                                    ...prev,
+                                    [key]: { ...prev[key], [field]: val }
+                                }));
+                            }}
+                        />
+                    </div>
+                </div>
             )}
 
             {/* FASE 2.5: VENTANA EMERGENTE DE DETALLES BIOMÉTRICOS */}
