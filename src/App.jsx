@@ -48,7 +48,8 @@ import {
     UserCheck,
     UserMinus,
     Star,
-    Receipt
+    Receipt,
+    ArrowUpDown
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -4150,42 +4151,111 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 
 // ─── Vista de Facturación (Aesthetics: Molde Hermes) ──────────────────────────
 const BillingView = () => {
-    return (
-        <div className="flex flex-col items-center justify-center py-24 text-center animate-in fade-in zoom-in-95 duration-1000">
-            <div className="p-12 bg-white rounded-[3rem] border-2 border-[#303a7f]/5 mb-10 relative shadow-2xl shadow-blue-900/[0.06] overflow-hidden group">
-                {/* Glassmorphism Background Decoration */}
-                <div 
-                    style={{ backgroundColor: 'rgba(48,58,127,0.03)' }}
-                    className="absolute -top-24 -right-24 w-64 h-64 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"
-                />
-                <div 
-                    style={{ backgroundColor: 'rgba(107,189,183,0.05)' }}
-                    className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"
-                />
-                
-                <div className="relative z-10">
-                    <div className="w-24 h-24 bg-gradient-to-br from-[#303a7f] to-[#1e234d] rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-blue-900/20 transform group-hover:rotate-12 transition-transform duration-500">
-                        <Receipt size={40} className="text-white" />
-                    </div>
-                    
-                    <h3 className="text-3xl font-black text-[#303a7f] mb-4 tracking-tighter uppercase leading-none">Módulo de Facturación</h3>
-                    <p className="text-gray-400 max-w-sm mx-auto text-sm font-bold leading-relaxed opacity-60 uppercase tracking-tight">
-                        Software de gestión financiera avanzado para AdWisers LLC. Implementando protocolos de facturación masiva.
-                    </p>
-                </div>
-            </div>
+    // Datos de ejemplo para validar proporciones (Placeholder solicitado por Hermes)
+    const mockData = [
+        { radicacion: '03/15/2026', semana: 'Week 10 (03/02 - 03/08)', horas: 1240.5, facturacion: 28500.00, costos: 18450.00, utilidad: 10050.00, pago: 0.00, wos: 2, pagada: false },
+        { radicacion: '03/08/2026', semana: 'Week 09 (02/23 - 03/01)', horas: 1180.0, facturacion: 27140.00, costos: 17200.00, utilidad: 9940.00, pago: 27140.00, wos: 0, pagada: true },
+        { radicacion: '03/01/2026', semana: 'Week 08 (02/16 - 02/22)', horas: 1310.2, facturacion: 30134.60, costos: 20150.00, utilidad: 9984.60, pago: 30134.60, wos: 0, pagada: true },
+    ];
 
-            <div className="flex gap-4 items-center">
-                <div className="px-6 py-2 bg-[#6bbdb7]/10 rounded-full border border-[#6bbdb7]/20">
-                    <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-[0.2em]">Arquitectura en Desarrollo</span>
+    const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+
+    return (
+        <div className="w-full h-full flex flex-col animate-in fade-in duration-700">
+            <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-xl shadow-blue-900/[0.03] overflow-hidden flex flex-col flex-1">
+                {/* Header Acciones de Tabla */}
+                <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
+                    <div className="flex items-center gap-4">
+                        <div className="px-4 py-2 bg-white border border-gray-200 rounded-xl shadow-sm">
+                            <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">Registros: {mockData.length}</span>
+                        </div>
+                        <div className="h-4 w-[1px] bg-gray-300" />
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Auditoría Financiera Activa</span>
+                    </div>
+                    <div className="flex gap-3">
+                        <button className="p-2.5 text-[#303a7f] bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all shadow-sm active:scale-95">
+                            <ArrowUpDown size={16} />
+                        </button>
+                        <button className="px-6 py-2.5 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-lg shadow-blue-900/10 active:scale-95">
+                            Exportar Reporte
+                        </button>
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                    {[1, 2, 3].map(i => (
-                        <div 
-                            key={i} 
-                            className={`h-1.5 w-1.5 rounded-full ${i === 2 ? 'bg-[#303a7f] animate-pulse' : 'bg-gray-200'}`}
-                        />
-                    ))}
+
+                {/* Contenedor Scroll de Tabla */}
+                <div className="flex-1 overflow-x-auto custom-scrollbar">
+                    <table className="w-full border-collapse min-w-[1200px]">
+                        <thead>
+                            <tr className="bg-white sticky top-0 z-10 shadow-sm">
+                                {[
+                                    'Fecha de Radicación', 'Semana Facturada', 'Horas Facturadas', 
+                                    'Facturación', 'Costos', 'Utilidad', 'Pago', 'WOS', 'Pagada'
+                                ].map((h, i) => (
+                                    <th key={i} className="px-8 py-5 text-[10px] font-black text-[#303a7f] uppercase tracking-[0.15em] text-left border-b border-gray-100 whitespace-nowrap">
+                                        <div className="flex items-center gap-2">
+                                            {h}
+                                            <div className="w-1 h-1 rounded-full bg-[#6bbdb7]/40" />
+                                        </div>
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {mockData.map((row, idx) => (
+                                <tr key={idx} className="group hover:bg-[#f8fbff] transition-colors duration-200">
+                                    <td className="px-8 py-5 text-[11px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">{row.radicacion}</td>
+                                    <td className="px-8 py-5">
+                                        <div className="flex flex-col">
+                                            <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-tight">{row.semana.split(' (')[0]}</span>
+                                            <span className="text-[9px] font-bold text-[#6bbdb7] uppercase tracking-widest opacity-70">({row.semana.split(' (')[1]}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-5 text-[11px] font-black text-[#303a7f]">{row.horas.toLocaleString()} <span className="text-[9px] text-gray-300 font-bold ml-1">HRS</span></td>
+                                    <td className="px-8 py-5 text-[11px] font-black text-[#303a7f]">{formatCurrency(row.facturacion)}</td>
+                                    <td className="px-8 py-5 text-[11px] font-bold text-red-400">{formatCurrency(row.costos)}</td>
+                                    <td className="px-8 py-5">
+                                        <div className="px-3 py-1 bg-[#6bbdb7]/10 rounded-lg inline-block">
+                                            <span className="text-[11px] font-black text-[#6bbdb7]">{formatCurrency(row.utilidad)}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-5 text-[11px] font-black text-[#303a7f]">{formatCurrency(row.pago)}</td>
+                                    <td className="px-8 py-5">
+                                        <span className={`text-[11px] font-black ${row.wos > 0 ? 'text-orange-500' : 'text-gray-300'}`}>{row.wos} <span className="text-[9px] font-bold ml-1 uppercase opacity-60">WKS</span></span>
+                                    </td>
+                                    <td className="px-8 py-5">
+                                        {row.pagada ? (
+                                            <div className="flex items-center gap-2 text-teal-500">
+                                                <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+                                                <span className="text-[9px] font-black uppercase tracking-[0.2em]">Liquidada</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 text-rose-500">
+                                                <div className="w-2 h-2 rounded-full bg-rose-500" />
+                                                <span className="text-[9px] font-black uppercase tracking-[0.2em]">Pendiente</span>
+                                            </div>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Footer Estadístico de Tabla */}
+                <div className="p-6 bg-gray-50/30 border-t border-gray-100 flex items-center justify-between">
+                    <div className="flex gap-8">
+                        <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Facturado</span>
+                            <span className="text-sm font-black text-[#303a7f]">{formatCurrency(mockData.reduce((acc, r) => acc + r.facturacion, 0))}</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Utilidad Acumulada</span>
+                            <span className="text-sm font-black text-[#6bbdb7]">{formatCurrency(mockData.reduce((acc, r) => acc + r.utilidad, 0))}</span>
+                        </div>
+                    </div>
+                    <div className="text-[9px] font-black text-gray-300 uppercase tracking-[0.4em]">
+                        AdWisers Financial Controller v1.0
+                    </div>
                 </div>
             </div>
         </div>
