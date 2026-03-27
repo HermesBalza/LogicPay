@@ -47,7 +47,8 @@ import {
     Check,
     UserCheck,
     UserMinus,
-    Star
+    Star,
+    Receipt
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -4134,6 +4135,50 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
     );
 };
 
+// ─── Vista de Facturación (Aesthetics: Molde Hermes) ──────────────────────────
+const BillingView = () => {
+    return (
+        <div className="flex flex-col items-center justify-center py-24 text-center animate-in fade-in zoom-in-95 duration-1000">
+            <div className="p-12 bg-white rounded-[3rem] border-2 border-[#303a7f]/5 mb-10 relative shadow-2xl shadow-blue-900/[0.06] overflow-hidden group">
+                {/* Glassmorphism Background Decoration */}
+                <div 
+                    style={{ backgroundColor: 'rgba(48,58,127,0.03)' }}
+                    className="absolute -top-24 -right-24 w-64 h-64 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"
+                />
+                <div 
+                    style={{ backgroundColor: 'rgba(107,189,183,0.05)' }}
+                    className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"
+                />
+                
+                <div className="relative z-10">
+                    <div className="w-24 h-24 bg-gradient-to-br from-[#303a7f] to-[#1e234d] rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-blue-900/20 transform group-hover:rotate-12 transition-transform duration-500">
+                        <Receipt size={40} className="text-white" />
+                    </div>
+                    
+                    <h3 className="text-3xl font-black text-[#303a7f] mb-4 tracking-tighter uppercase leading-none">Módulo de Facturación</h3>
+                    <p className="text-gray-400 max-w-sm mx-auto text-sm font-bold leading-relaxed opacity-60 uppercase tracking-tight">
+                        Software de gestión financiera avanzado para AdWisers LLC. Implementando protocolos de facturación masiva.
+                    </p>
+                </div>
+            </div>
+
+            <div className="flex gap-4 items-center">
+                <div className="px-6 py-2 bg-[#6bbdb7]/10 rounded-full border border-[#6bbdb7]/20">
+                    <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-[0.2em]">Arquitectura en Desarrollo</span>
+                </div>
+                <div className="flex gap-2">
+                    {[1, 2, 3].map(i => (
+                        <div 
+                            key={i} 
+                            className={`h-1.5 w-1.5 rounded-full ${i === 2 ? 'bg-[#303a7f] animate-pulse' : 'bg-gray-200'}`}
+                        />
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 function App() {
     const [activeTab, setActiveTab] = useState(() => {
         return localStorage.getItem('lgm_active_tab') || 'stores';
@@ -5545,6 +5590,7 @@ function App() {
         { id: 'stores', label: 'Tiendas', icon: StoreIcon },
         { id: 'employees', label: 'Personal', icon: Users },
         { id: 'payroll', label: 'Nómina', icon: CreditCard },
+        { id: 'billing', label: 'Facturación', icon: Receipt },
         { id: 'settings', label: 'Ajustes', icon: Settings },
     ];
 
@@ -5664,7 +5710,7 @@ function App() {
                             {navItems.find(i => i.id === activeTab)?.icon && React.createElement(navItems.find(i => i.id === activeTab).icon, { size: 14 })}
                         </div>
                         <h2 className="text-xs font-black text-[#303a7f] tracking-tighter uppercase leading-none m-0">
-                            {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : activeTab === 'settings' ? 'Configuración' : 'Dashboard'}
+                            {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : activeTab === 'billing' ? 'Gestión de Facturación' : activeTab === 'settings' ? 'Configuración' : 'Dashboard'}
                         </h2>
                     </div>
 
@@ -5942,6 +5988,10 @@ function App() {
                                 </div>
                             )}
                         </>
+                    )}
+
+                    {activeTab === 'billing' && (
+                        <BillingView />
                     )}
 
                     {activeTab === 'payroll' && payrollView === 'history' && (
