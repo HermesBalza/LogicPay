@@ -90,6 +90,11 @@ const parseCSVRow = (row) => {
     return result;
 };
 
+const normalizeInvoice = (value) => {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 100 ? parsed : 100;
+};
+
 // --- Date Utility Functions ---
 const formatDateForInput = (dateStr) => {
     if (!dateStr) return '';
@@ -2130,7 +2135,7 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
     );
 };
 
-const BiometricTableIVRModal = ({ isOpen, onClose, data, fechaDesde, getFormattedDateForDay }) => {
+const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDesde, getFormattedDateForDay }) => {
     if (!isOpen) return null;
 
     return (
@@ -2152,13 +2157,23 @@ const BiometricTableIVRModal = ({ isOpen, onClose, data, fechaDesde, getFormatte
                             <p className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-[0.2em] opacity-80">Resultado de procesamiento inteligente de ponches</p>
                         </div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-[#6bbdb7]/20 text-[#6bbdb7] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-50 transition-all active:scale-95 shadow-sm"
-                    >
-                        <ArrowLeft size={16} />
-                        Volver
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={onOpenDetails}
+                            className="p-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 shadow-sm flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all active:scale-95"
+                            title="Ver detalles de inconsistencias"
+                        >
+                            <Info size={16} />
+                            Detalles
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-[#6bbdb7]/20 text-[#6bbdb7] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-50 transition-all active:scale-95 shadow-sm"
+                        >
+                            <ArrowLeft size={16} />
+                            Volver
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -3028,24 +3043,6 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
 
                     <div className="flex items-center gap-3" data-html2canvas-ignore>
                         <button
-                            onClick={() => {
-                                // Configurar el contexto para el modal de P.E
-                                if (period) {
-                                    setPayrollStore(period.store || '');
-                                    const dates = period.range?.split(' - ') || ['', ''];
-                                    setFechaDesde(dates[0]);
-                                    setFechaHasta(dates[1]);
-                                }
-                                setIsPEModalOpen(true);
-                            }}
-                            className="flex items-center gap-2.5 px-5 py-2.5 bg-amber-50 border-2 border-amber-100 text-amber-600 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-amber-900/5 hover:bg-amber-100 hover:border-amber-200 transition-all active:scale-95"
-                            title="Gestionar Proyectos Especiales"
-                        >
-                            <Star size={16} fill="currentColor" />
-                            Proyectos Especiales
-                        </button>
-
-                        <button
                             onClick={onBack}
                             className="group flex items-center gap-2.5 px-5 py-2.5 bg-white border-2 border-gray-100 text-[#303a7f] rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-blue-900/5 hover:border-[#303a7f] hover:shadow-blue-900/10 transition-all active:scale-95"
                         >
@@ -3326,8 +3323,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                         {filteredPeriods.map((p) => {
                             const bothProcessed = isWeekProcessed(p.w1.start) && isWeekProcessed(p.w2.start);
-                            const periodKey = `${selectedStore}-${p.w1.start}-${p.w2.end}`;
-                            const isProcessed = processedBiweeks.includes(periodKey);
+                            const isProcessed = bothProcessed;
                             return (
                                 <div
                                     key={p.periodNum}
@@ -4003,7 +3999,7 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
 });
 
 // ─── Vista Principal de Proyectos Especiales ─────────────────────────────────
-const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterEmployee, onUpdateLocationHistory }) => {
+const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterProject, onRegisterEmployee, onUpdateLocationHistory }) => {
 
     // Convertir el rango de fechas MM/DD/YYYY a YYYY-MM-DD para los inputs tipo date
     const toInputDate = (str) => {
@@ -4017,27 +4013,27 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 
     // Crear un nuevo proyecto vacío con el siguiente número de invoice
     const addProject = React.useCallback(() => {
+        const invoiceNumber = normalizeInvoice(nextInvoice);
         const newProject = {
             id: Date.now(),
-            invoice: nextInvoice,
+            invoice: invoiceNumber,
             fecha: minDate, // Fecha inicial = inicio del periodo
             nombre: '',
             descripcion: '',
             employees: []
         };
         setSpecialProjectsData(prev => [...prev, newProject]);
-        setNextInvoice(nextInvoice + 1);
+        setNextInvoice(prev => normalizeInvoice(Number(prev) + 1));
     }, [nextInvoice, minDate, setSpecialProjectsData, setNextInvoice]);
 
     // Eliminar un proyecto y renumerar los restantes desde la base original
     const removeProject = React.useCallback((projectId) => {
-        setSpecialProjectsData(prev => {
-            const remaining = prev.filter(p => p.id !== projectId);
-            const base = nextInvoice - prev.length; // primer invoice de la sesión
-            return remaining.map((p, idx) => ({ ...p, invoice: base + idx }));
-        });
-        setNextInvoice(prev => prev - 1);
-    }, [nextInvoice, setSpecialProjectsData, setNextInvoice]);
+        const remaining = specialProjectsData.filter(p => p.id !== projectId);
+        setSpecialProjectsData(remaining);
+
+        const maxInvoice = remaining.reduce((max, project) => Math.max(max, normalizeInvoice(project.invoice)), 99);
+        setNextInvoice(maxInvoice + 1);
+    }, [specialProjectsData, setSpecialProjectsData, setNextInvoice]);
 
     // Actualizar campos de un proyecto (metadatos o lista de empleados)
     const updateProject = React.useCallback((projectId, updates) => {
@@ -4047,7 +4043,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
     }, [setSpecialProjectsData]);
 
     // Registro formal del proyecto
-    const handleRegisterProject = React.useCallback((project) => {
+    const handleRegisterProject = React.useCallback(async (project) => {
         if (!project.fecha || !project.nombre) {
             alert("El proyecto debe tener fecha y nombre para ser registrado.");
             return;
@@ -4070,9 +4066,15 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
             }
         });
 
-        // 2. Marcar proyecto como registrado
+        // 2. Guardar en la hoja Proyectos_Especiales si el handler está definido
+        if (onRegisterProject) {
+            const success = await onRegisterProject(project);
+            if (!success) return;
+        }
+
+        // 3. Marcar proyecto como registrado
         updateProject(project.id, { status: 'registered' });
-    }, [onUpdateLocationHistory, updateProject]);
+    }, [onUpdateLocationHistory, onRegisterProject, updateProject]);
 
     return (
         <div className="fixed inset-0 z-[200] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500 font-sans">
@@ -4501,10 +4503,19 @@ function App() {
     const [isVWHModalOpen, setIsVWHModalOpen] = useState(false);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [isPEModalOpen, setIsPEModalOpen] = useState(false);
+
     const [specialProjectsData, setSpecialProjectsData] = useState(() => {
         const saved = localStorage.getItem('lgm_special_projects_data');
-        return saved ? JSON.parse(saved) : [];
+        const parsed = saved ? JSON.parse(saved) : [];
+        if (!Array.isArray(parsed)) return [];
+        return parsed.map(project => ({
+            ...project,
+            invoice: normalizeInvoice(project.invoice)
+        }));
     });
+
+    // Contador global de invoices para Proyectos Especiales (empieza desde 100)
+    const [nextInvoice, setNextInvoice] = useState(() => normalizeInvoice(localStorage.getItem('lgm_next_invoice')));
 
     // Persistencia de Proyectos Especiales en localStorage (Con Debounce de 1s para rendimiento)
     useEffect(() => {
@@ -4514,11 +4525,6 @@ function App() {
         return () => clearTimeout(timer);
     }, [specialProjectsData]);
 
-    // Contador global de invoices para Proyectos Especiales (empieza desde 100)
-    const [nextInvoice, setNextInvoice] = useState(() => {
-        const saved = localStorage.getItem('lgm_next_invoice');
-        return saved ? parseInt(saved, 10) : 100;
-    });
     const [sheetFiles, setSheetFiles] = useState([]); // FASE 8: Digitalizador
     const [isProcessingSheets, setIsProcessingSheets] = useState(false); // FASE 8: Digitalizador
     const [isSheetPreviewOpen, setIsSheetPreviewOpen] = useState(false); // MODAL PREVIEW
@@ -4643,8 +4649,134 @@ function App() {
         setIsStatusModalOpen(true);
     };
 
+    const showProcessing = (message) => showStatus('PROCESANDO', message, 'processing');
     const showSuccess = (message) => showStatus("¡Operación Exitosa!", message, 'success');
     const showError = (message) => showStatus("Error de Sistema", message, 'error');
+
+    const handleRegisterSpecialProject = async (project) => {
+        if (!project || !project.nombre || !project.fecha) {
+            showError('El proyecto debe tener nombre y fecha antes de registrarlo.');
+            return false;
+        }
+
+        const normalizeForId = (value) => String(value || '')
+            .trim()
+            .replace(/\s+/g, '_')
+            .replace(/[^a-zA-Z0-9_-]/g, '')
+            .replace(/_+/g, '_');
+
+        const period = (fechaDesde && fechaHasta) ? `${fechaDesde} - ${fechaHasta}` : project.fecha;
+        const consolidationId = `${normalizeForId(payrollStore || project.nombre)}_${normalizeForId(period)}_${normalizeForId(project.invoice)}`;
+        const currentTimestamp = new Date().toLocaleString();
+
+        const payload = {
+            ID_Consolidacion: consolidationId,
+            Tienda: payrollStore || project.nombre,
+            Periodo: period,
+            Data_JSON: JSON.stringify({
+                invoice: project.invoice,
+                fecha: project.fecha,
+                proyecto: project.nombre,
+                descripcion: project.descripcion,
+                employees: project.employees || []
+            }),
+            Fecha_Confirmacion: currentTimestamp
+        };
+
+        try {
+            showProcessing('Registrando el Proyecto Especial en la base de datos.');
+            await syncToSheets('upsert', payload, 'Proyectos_Especiales');
+            showSuccess('Proyecto Especial guardado en la base de datos.');
+            return true;
+        } catch (error) {
+            console.error('[SpecialProjects] Error guardando en Google Sheets:', error);
+            showError('No se pudo guardar el Proyecto Especial en Proyectos_Especiales.');
+            return false;
+        }
+    };
+
+    const parseDateFromString = (dateString) => {
+        if (!dateString) return null;
+        const parts = dateString.split('/').map(part => part.trim());
+        if (parts.length !== 3) return null;
+        const [p1, p2, p3] = parts.map(Number);
+        if (!p1 || !p2 || !p3) return null;
+
+        // Asume mm/dd/yyyy, pero si el primer segmento es mayor a 12, interpreta dd/mm/yyyy.
+        const maybeMonth = p1 > 12 ? p2 : p1;
+        const maybeDay = p1 > 12 ? p1 : p2;
+        const date = new Date(p3, maybeMonth - 1, maybeDay);
+        return isNaN(date.getTime()) ? null : date;
+    };
+
+    const parsePeriodRange = (periodStr) => {
+        if (!periodStr) return null;
+        const parts = periodStr.split('-').map(part => part.trim());
+        if (parts.length !== 2) return null;
+        const start = parseDateFromString(parts[0]);
+        const end = parseDateFromString(parts[1]);
+        if (!start || !end) return null;
+        return { start, end };
+    };
+
+    const periodsOverlap = (rangeA, rangeB) => {
+        if (!rangeA || !rangeB) return false;
+        return rangeA.start <= rangeB.end && rangeB.start <= rangeA.end;
+    };
+
+    const buildSpecialProjectsForPeriod = (storeName, period) => {
+        const normalizedStore = String(storeName || '').trim().toLowerCase();
+        const selectedRange = parsePeriodRange(period);
+        if (!normalizedStore || !selectedRange) return [];
+
+        return specialProjectsHistoryData
+            .filter(item =>
+                String(item.tienda || '').trim().toLowerCase() === normalizedStore
+            )
+            .filter(item => {
+                const itemRange = parsePeriodRange(String(item.periodo || ''));
+                if (!itemRange) return false;
+                return periodsOverlap(selectedRange, itemRange);
+            })
+            .flatMap((record, recordIndex) => {
+                try {
+                    const parsed = JSON.parse(record.data_json || '{}');
+                    const items = Array.isArray(parsed) ? parsed : [parsed];
+                    return items.map((item, itemIndex) => ({
+                        id: `${record.id_consolidacion || recordIndex}-${itemIndex}`,
+                        invoice: normalizeInvoice(item.invoice),
+                        fecha: item.fecha || fechaDesde,
+                        nombre: item.proyecto || item.nombre || '',
+                        descripcion: item.descripcion || '',
+                        employees: Array.isArray(item.employees) ? item.employees : [],
+                        status: 'registered'
+                    }));
+                } catch (error) {
+                    return [];
+                }
+            });
+    };
+
+    const loadSpecialProjectsForPeriod = (storeName, period) => {
+        const projects = buildSpecialProjectsForPeriod(storeName, period);
+        if (projects.length > 0) {
+            const highestInvoice = projects.reduce((max, project) => Math.max(max, normalizeInvoice(project.invoice)), normalizeInvoice(nextInvoice));
+            if (highestInvoice >= nextInvoice) {
+                const next = highestInvoice + 1;
+                setNextInvoice(next);
+                localStorage.setItem('lgm_next_invoice', String(next));
+            }
+        }
+        setSpecialProjectsData(projects);
+        return projects;
+    };
+
+    const handleOpenSpecialProjects = () => {
+        const storeName = String(payrollStore || '').trim();
+        const period = fechaDesde && fechaHasta ? `${fechaDesde} - ${fechaHasta}` : '';
+        loadSpecialProjectsForPeriod(storeName, period);
+        setIsPEModalOpen(true);
+    };
 
     const handleVerifyPersonal = async (file) => {
         if (!file) return;
@@ -4980,9 +5112,23 @@ function App() {
     // --- Lógica de Procesamiento de Nómina (Impulsado por Gemini AI) ---
     // --- FASE 1: Procesar Solo Datos del Supervisor ---
     const processPayroll = async () => {
-        console.log('[Payroll] Iniciando proceso...', { supervisorFile, biometricFile, payrollStore });
-        if (!supervisorFile || !payrollStore) {
-            showError(`Faltan requisitos para iniciar el proceso de nómina:\nSupervisor: ${supervisorFile ? "OK" : "FALTA"}\nTienda: ${payrollStore ? "OK" : "FALTA"}`);
+        console.log('[Payroll] Iniciando proceso...', { supervisorFile, biometricFile, payrollStore, fechaDesde, fechaHasta });
+        if (!payrollStore || !fechaDesde || !fechaHasta) {
+            showError(`Faltan requisitos para iniciar el proceso de nómina:\nTienda: ${payrollStore ? "OK" : "FALTA"}\nDesde: ${fechaDesde ? "OK" : "FALTA"}\nHasta: ${fechaHasta ? "OK" : "FALTA"}`);
+            return;
+        }
+        if (!supervisorFile && !biometricFile) {
+            showError('Cargue el reporte del supervisor o el reporte IVR para poder procesar la data.');
+            return;
+        }
+        if (!supervisorFile && biometricFile) {
+            if (!geminiApiKey) {
+                showError('Para procesar el Reporte IVR debe ingresar su clave de Gemini en Ajustes.');
+                return;
+            }
+            setIsProcessingPayroll(true);
+            document.body.style.overflow = 'hidden';
+            await runAICrossoverInternal();
             return;
         }
 
@@ -5802,12 +5948,47 @@ function App() {
         }
     };
 
+    const getMaxInvoiceFromSpecialProjectsHistory = (historyData) => {
+        let maxInvoice = 0;
+        historyData.forEach(record => {
+            if (!record.data_json) return;
+            try {
+                const parsed = JSON.parse(record.data_json);
+                const items = Array.isArray(parsed) ? parsed : [parsed];
+                items.forEach(item => {
+                    const invoiceValue = normalizeInvoice(item.invoice);
+                    if (invoiceValue > maxInvoice) maxInvoice = invoiceValue;
+                });
+            } catch (error) {
+                // Ignorar registros corruptos
+            }
+        });
+        return maxInvoice;
+    };
+
     useEffect(() => {
         fetchStores();
         fetchEmployees();
         fetchNominaHistory();
         fetchSpecialProjectsHistory();
     }, []);
+
+    useEffect(() => {
+        if (!specialProjectsHistoryData || specialProjectsHistoryData.length === 0) return;
+
+        const maxInvoice = getMaxInvoiceFromSpecialProjectsHistory(specialProjectsHistoryData);
+        if (maxInvoice <= 0) return;
+
+        setNextInvoice((current) => {
+            const normalizedCurrent = normalizeInvoice(current);
+            const desiredNext = maxInvoice + 1;
+            const next = Math.max(normalizedCurrent, desiredNext);
+            if (next !== normalizedCurrent) {
+                localStorage.setItem('lgm_next_invoice', String(next));
+            }
+            return next;
+        });
+    }, [specialProjectsHistoryData]);
 
     // ─── API: Sincronizar cambios con Google Sheets ──────────────────────────
     // Usa mode: 'no-cors' con Content-Type: 'text/plain' (CORS-safelisted).
@@ -5973,6 +6154,7 @@ function App() {
             <BiometricTableIVRModal
                 isOpen={isBiometricIVRModalOpen}
                 onClose={() => setIsBiometricIVRModalOpen(false)}
+                onOpenDetails={() => setIsDetailsModalOpen(true)}
                 data={biometricTableData}
                 fechaDesde={fechaDesde}
                 getFormattedDateForDay={getFormattedDateForDay}
@@ -6322,12 +6504,14 @@ function App() {
                                         setProcessedBiweeks(updated);
                                         localStorage.setItem('lgm_processed_biweeks', JSON.stringify(updated));
                                     }
+                                    const range = `${p.w1.start} - ${p.w2.end}`;
                                     setSelectedBiweeklyPeriod({
                                         store: selectedHistoryStore,
-                                        range: `${p.w1.start} - ${p.w2.end}`,
+                                        range: range,
                                         w1: p.w1,
                                         w2: p.w2
                                     });
+                                    loadSpecialProjectsForPeriod(selectedHistoryStore, range);
                                     setIsBiweeklyManagementOpen(true);
                                     setIsHistoryModalOpen(false);
                                 }}
@@ -6354,6 +6538,9 @@ function App() {
                                             setSemanaTableData([]);
                                             setIsHistoricalDataLoaded(false);
                                         }
+
+                                        const periodRange = `${start} - ${end}`;
+                                        loadSpecialProjectsForPeriod(selectedHistoryStore, periodRange);
                                     }
                                     setPayrollView('engine');
                                 }}
@@ -6575,8 +6762,8 @@ function App() {
                                 <div className="mt-10 flex justify-center relative z-10">
                                     <button
                                         onClick={processPayroll}
-                                        disabled={!supervisorFile || !payrollStore || !fechaDesde || !fechaHasta || isProcessingPayroll}
-                                        style={{ backgroundColor: (supervisorFile && payrollStore && fechaDesde && fechaHasta) ? '#303a7f' : '#f3f4f6' }}
+                                        disabled={!payrollStore || !fechaDesde || !fechaHasta || !(supervisorFile || biometricFile) || isProcessingPayroll}
+                                        style={{ backgroundColor: (payrollStore && fechaDesde && fechaHasta && (supervisorFile || biometricFile)) ? '#303a7f' : '#f3f4f6' }}
                                         className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl flex items-center gap-3 ${(supervisorFile && payrollStore && fechaDesde && fechaHasta)
                                             ? 'text-white shadow-blue-900/20 active:scale-95 hover:bg-[#252a5e]'
                                             : 'text-gray-300 cursor-not-allowed shadow-none'
@@ -6621,6 +6808,15 @@ function App() {
 
                                         <div className="flex items-center gap-4">
                                             <button
+                                                onClick={handleOpenSpecialProjects}
+                                                disabled={semanaTableData.length === 0}
+                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${semanaTableData.length > 0 ? 'bg-amber-50 text-[#b76b00] border-amber-100 hover:bg-amber-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
+                                                title="Abrir Proyectos Especiales"
+                                            >
+                                                <Star size={16} fill="currentColor" />
+                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">Proyectos Especiales</span>
+                                            </button>
+                                            <button
                                                 onClick={() => setIsVWHModalOpen(true)}
                                                 disabled={semanaTableData.length === 0}
                                                 className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${semanaTableData.length > 0 ? 'bg-indigo-50 text-[#303a7f] border-indigo-100 hover:bg-indigo-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
@@ -6646,14 +6842,6 @@ function App() {
                                             >
                                                 <Clock8 size={16} className="group-hover:rotate-12 transition-transform" />
                                                 <span className="text-[9px] font-black uppercase tracking-widest leading-none">Tabla IVR</span>
-                                            </button>
-                                            <button
-                                                onClick={() => setIsDetailsModalOpen(true)}
-                                                className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-95 border-2 border-red-100/50 shadow-sm flex items-center gap-2 group"
-                                                title="Ver detalles de inconsistencias"
-                                            >
-                                                <Info size={16} className="group-hover:scale-110 transition-transform" />
-                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">Detalles</span>
                                             </button>
                                             <div className="px-4 py-2 bg-[#f9f9f9] rounded-xl border-2 border-gray-50 flex items-center gap-3">
                                                 <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest leading-none">
@@ -7039,6 +7227,9 @@ function App() {
                             setSemanaTableData([]);
                             setIsHistoricalDataLoaded(false);
                         }
+
+                        const periodRange = `${start} - ${end}`;
+                        loadSpecialProjectsForPeriod(selectedHistoryStore, periodRange);
                     }
                     setActiveTab('payroll');
                     setPayrollView('engine');
@@ -7150,7 +7341,7 @@ function App() {
 
             {/* FASE 2.5: VENTANA EMERGENTE DE DETALLES BIOMÉTRICOS */}
             {isDetailsModalOpen && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
                     <div className="bg-white w-full max-w-5xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
                         {/* Header del Modal */}
                         <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
@@ -7424,10 +7615,10 @@ function App() {
             {isStatusModalOpen && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/10 animate-in fade-in duration-300">
                     <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-[0_32px_80px_-20px_rgba(48,58,127,0.2)] border-2 border-[#6bbdb7]/10 p-10 text-center animate-in zoom-in-95 duration-500">
-                        <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-8 animate-bounce ${statusModalType === 'success' ? 'bg-[#6bbdb7]/10 text-[#6bbdb7]' : 'bg-red-50 text-red-500'}`}>
-                            {statusModalType === 'success' ? <CheckCircle size={48} /> : <X size={48} />}
+                        <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-8 animate-bounce ${statusModalType === 'success' ? 'bg-[#6bbdb7]/10 text-[#6bbdb7]' : statusModalType === 'processing' ? 'bg-[#fffbeb] text-[#c08400]' : 'bg-red-50 text-red-500'}`}>
+                            {statusModalType === 'success' ? <CheckCircle size={48} /> : statusModalType === 'processing' ? <Clock size={48} /> : <X size={48} />}
                         </div>
-                        <h3 className={`text-2xl font-black tracking-tighter uppercase leading-none mb-4 ${statusModalType === 'success' ? 'text-[#303a7f]' : 'text-red-600'}`}>
+                        <h3 className={`text-2xl font-black tracking-tighter uppercase leading-none mb-4 ${statusModalType === 'success' ? 'text-[#303a7f]' : statusModalType === 'processing' ? 'text-[#c08400]' : 'text-red-600'}`}>
                             {statusModalTitle}
                         </h3>
                         <p className="text-gray-500 font-bold text-sm leading-relaxed mb-10">
@@ -7455,9 +7646,11 @@ function App() {
                     setSpecialProjectsData={setSpecialProjectsData}
                     nextInvoice={nextInvoice}
                     setNextInvoice={(val) => {
-                        setNextInvoice(val);
-                        localStorage.setItem('lgm_next_invoice', String(val));
+                        const normalized = normalizeInvoice(val);
+                        setNextInvoice(normalized);
+                        localStorage.setItem('lgm_next_invoice', String(normalized));
                     }}
+                    onRegisterProject={handleRegisterSpecialProject}
                     onRegisterEmployee={(newEmp) => {
                         // Agregar al estado local de empleados
                         setEmployees(prev => [newEmp, ...prev]);
