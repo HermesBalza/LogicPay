@@ -1838,7 +1838,7 @@ const InvalidCodesModal = ({ isOpen, onClose, invalidEmployees }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-brand-primary/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500 p-8">
                 <div className="flex items-center gap-5 mb-8">
                     <div className="p-4 bg-red-100 text-red-600 rounded-2xl">
@@ -1871,7 +1871,7 @@ const InvalidCodesModal = ({ isOpen, onClose, invalidEmployees }) => {
                     onClick={onClose}
                     className="w-full py-4 bg-[#303a7f] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
                 >
-                    Ok
+                    Volver
                 </button>
             </div>
         </div>
@@ -1953,7 +1953,7 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
     };
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-blue-900/10 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-blue-900/10 animate-in fade-in duration-300">
             <div ref={reportRef} className="bg-white w-full max-w-5xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-blue-100/50 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
                 {/* Header */}
                 <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/50 to-transparent">
@@ -1981,7 +1981,7 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
                             className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-blue-100 text-[#303a7f] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
                         >
                             <ArrowLeft size={16} />
-                            Volver a Nómina
+                            Volver
                         </button>
                     </div>
                 </div>
@@ -2048,7 +2048,7 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-blue-900/10 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-blue-900/10 animate-in fade-in duration-300">
             <div className="bg-white w-full h-[90vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-blue-100/50 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
                 {/* Header */}
                 <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/50 to-transparent">
@@ -2071,7 +2071,7 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
                         className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-blue-100 text-[#303a7f] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
                     >
                         <ArrowLeft size={16} />
-                        Volver a Nómina
+                        Volver
                     </button>
                 </div>
 
@@ -2134,7 +2134,7 @@ const BiometricTableIVRModal = ({ isOpen, onClose, data, fechaDesde, getFormatte
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#6bbdb7]/10 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#6bbdb7]/10 animate-in fade-in duration-300">
             <div className="bg-white w-full h-[90vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(107,189,183,0.3)] border-2 border-[#6bbdb7]/20 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
                 {/* Header */}
                 <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-teal-50/50 to-transparent">
@@ -2157,7 +2157,7 @@ const BiometricTableIVRModal = ({ isOpen, onClose, data, fechaDesde, getFormatte
                         className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-[#6bbdb7]/20 text-[#6bbdb7] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-50 transition-all active:scale-95 shadow-sm"
                     >
                         <ArrowLeft size={16} />
-                        Volver a Nómina
+                        Volver
                     </button>
                 </div>
 
@@ -4150,7 +4150,9 @@ const BillingView = ({
     specialHistoryData = [],
     manualPEData = {},
     onUpdateManual = () => { },
-    onUpdateManualPE = () => { }
+    onUpdateManualPE = () => { },
+    onOpenVWH = () => { },
+    onOpenPE = () => { }
 }) => {
     // --- LÓGICA TABLA VWH (Nómina Regular) ---
     // Filtrado y ordenado seguro (Safe-Sort)
@@ -4300,7 +4302,15 @@ const BillingView = ({
                                     <input type="text" placeholder="--/--/--" value={row.radicacion} onChange={(e) => onUpdateManual(row.id, 'radicacion', e.target.value)}
                                         className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-20" />
                                 </td>
-                                <td className="px-3 py-4 text-center text-[10px] font-bold text-[#303a7f]">{row.semana}</td>
+                                <td className="px-3 py-4 text-center">
+                                    <button 
+                                        onClick={() => onOpenVWH(row.id)}
+                                        title="Ver Detalle de Nómina VWH"
+                                        className="text-[10px] font-bold text-[#303a7f] hover:text-[#6bbdb7] hover:underline cursor-pointer transition-all active:scale-95"
+                                    >
+                                        {row.semana}
+                                    </button>
+                                </td>
                                 <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{row.horas.toFixed(1)} <span className="text-[8px] text-gray-300 font-bold ml-0.5">H</span></td>
                                 <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{formatCurrency(row.facturacion)}</td>
                                 <td className="px-3 py-4 text-center text-[10px] font-bold text-red-400">{formatCurrency(row.costos)}</td>
@@ -4368,10 +4378,14 @@ const BillingView = ({
                                         className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-20" />
                                 </td>
                                 <td className="px-3 py-4 text-center">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black text-[#303a7f]">{row.nombre}</span>
+                                    <button 
+                                        onClick={() => onOpenPE(row.id)}
+                                        title="Ver Detalle de Proyecto Especial"
+                                        className="flex flex-col items-center group/pe cursor-pointer active:scale-95 transition-all"
+                                    >
+                                        <span className="text-[10px] font-black text-[#303a7f] group-hover/pe:text-[#6bbdb7] group-hover/pe:underline">{row.nombre}</span>
                                         <span className="text-[8px] font-bold text-gray-400">Inv: {row.invoice}</span>
-                                    </div>
+                                    </button>
                                 </td>
                                 <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{row.horas.toFixed(1)} <span className="text-[8px] text-gray-300 font-bold ml-0.5">H</span></td>
                                 <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{formatCurrency(row.facturacion)}</td>
@@ -7097,6 +7111,37 @@ function App() {
                                     ...prev,
                                     [key]: { ...prev[key], [field]: val }
                                 }));
+                            }}
+                            onOpenVWH={(weekId) => {
+                                const hData = nominaHistoryData.find(h =>
+                                    String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
+                                    h.fecha_inicio === weekId
+                                );
+                                if (hData) {
+                                    try {
+                                        const payload = JSON.parse(hData.data_json);
+                                        setSemanaTableData(payload.semanaTableData || []);
+                                        setBiometricTableData(payload.biometricTableData || []);
+                                        setEarningsTableData(payload.earningsTableData || []);
+                                        setKbsBillingTableData(payload.kbsBillingTableData || []);
+                                        setRawBiometricData(payload.rawBiometricData || []);
+                                        setFechaDesde(hData.fecha_inicio);
+                                        setFechaHasta(hData.fecha_fin);
+                                        setPayrollStore(selectedHistoryStore);
+                                        setIsHistoricalDataLoaded(true);
+                                        setIsVWHModalOpen(true);
+                                    } catch (e) {
+                                        console.error("[BillingView] Error parsing historical record:", e);
+                                        showError("Error al cargar los datos históricos de esta semana.");
+                                    }
+                                } else {
+                                    showError("No se encontró el registro histórico para esta semana.");
+                                }
+                            }}
+                            onOpenPE={(projectId) => {
+                                // Para proyectos especiales, configuramos el store y abrimos el modal
+                                setPayrollStore(selectedHistoryStore);
+                                setIsPEModalOpen(true);
                             }}
                         />
                     </div>
