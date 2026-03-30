@@ -49,7 +49,8 @@ import {
     UserMinus,
     Star,
     Receipt,
-    ArrowUpDown
+    ArrowUpDown,
+    BookOpen
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -3307,11 +3308,10 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                     <button
                         onClick={onOpenBilling}
                         disabled={!selectedStore}
-                        className={`h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg ${
-                            selectedStore 
-                            ? 'bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]' 
+                        className={`h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg ${selectedStore
+                            ? 'bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]'
                             : 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-50'
-                        }`}
+                            }`}
                     >
                         <Receipt size={16} />
                         Facturación Radicada
@@ -4157,7 +4157,7 @@ const BillingView = ({ storeName, historyData = [], manualData = {}, onUpdateMan
         let stats = { horas: 0, facturacion: 0, costos: 0 };
         try {
             const data = h.data_json ? JSON.parse(h.data_json) : {};
-            
+
             // Horas y Facturación desde KBS Table
             if (data.kbsBillingTableData) {
                 data.kbsBillingTableData.forEach(r => {
@@ -4167,7 +4167,7 @@ const BillingView = ({ storeName, historyData = [], manualData = {}, onUpdateMan
                     stats.facturacion += totalVal;
                 });
             }
-            
+
             // Costos desde Earnings Table
             if (data.earningsTableData) {
                 stats.costos = data.earningsTableData.reduce((acc, r) => acc + (parseFloat(rowTotalToNumber(r.total)) || 0), 0);
@@ -4175,7 +4175,7 @@ const BillingView = ({ storeName, historyData = [], manualData = {}, onUpdateMan
         } catch (e) { console.error("Error parsing history json", e); }
 
         const manual = manualData[`${storeName}-${h.fecha_inicio}`] || {};
-        
+
         return {
             id: h.fecha_inicio,
             radicacion: manual.radicacion || '',
@@ -4218,7 +4218,7 @@ const BillingView = ({ storeName, historyData = [], manualData = {}, onUpdateMan
                         <thead className="sticky top-0 z-20">
                             <tr className="bg-white border-b border-gray-100 shadow-sm">
                                 {[
-                                    'Fecha Rad.', 'Semana Facturada', 'Horas', 
+                                    'Fecha Rad.', 'Semana Facturada', 'Horas',
                                     'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'WOS', 'Status'
                                 ].map((h, i) => (
                                     <th key={i} className="px-3 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white/50">
@@ -4236,7 +4236,7 @@ const BillingView = ({ storeName, historyData = [], manualData = {}, onUpdateMan
                                 <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
                                     {/* Fecha Radicación */}
                                     <td className="px-3 py-4 text-center">
-                                        <input 
+                                        <input
                                             type="text"
                                             placeholder="--/--/--"
                                             value={row.radicacion}
@@ -4260,7 +4260,7 @@ const BillingView = ({ storeName, historyData = [], manualData = {}, onUpdateMan
                                     </td>
                                     {/* Pago */}
                                     <td className="px-3 py-4 text-center">
-                                        <input 
+                                        <input
                                             type="text"
                                             placeholder="$0.00"
                                             value={row.pago || ''}
@@ -4270,7 +4270,7 @@ const BillingView = ({ storeName, historyData = [], manualData = {}, onUpdateMan
                                     </td>
                                     {/* WOS */}
                                     <td className="px-3 py-4 text-center">
-                                        <input 
+                                        <input
                                             type="number"
                                             placeholder="0"
                                             value={row.wos}
@@ -4280,7 +4280,7 @@ const BillingView = ({ storeName, historyData = [], manualData = {}, onUpdateMan
                                     </td>
                                     {/* Status */}
                                     <td className="px-3 py-4 text-center">
-                                        <button 
+                                        <button
                                             onClick={() => onUpdateManual(row.id, 'pagada', !row.pagada)}
                                             className="inline-flex items-center gap-1.5 group/btn"
                                         >
@@ -5862,31 +5862,33 @@ function App() {
                         </h2>
                     </div>
 
-                    <div className="hidden md:flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-[#6bbdb7] animate-pulse' : dbStatus === 'conectado' ? 'bg-green-500' : 'bg-red-400'}`} />
-                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                                {isLoading ? 'Cargando...' : dbStatus === 'conectado' ? 'Sincronizado' : 'Desconectado'}
-                            </span>
-                        </div>
-                    </div>
                 </div>
 
-                {/* User Card */}
-                <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-2xl border-2 border-gray-100 group relative ml-auto">
-                    <div className="h-7 w-7 bg-white rounded-lg flex items-center justify-center border-2 border-gray-100 flex-shrink-0">
-                        <Users size={14} className="text-[#303a7f]" />
-                    </div>
-                    <div className="pr-6">
-                        <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-tighter leading-none">{user?.name || 'Invitado'}</p>
-                    </div>
+                {/* Manual de Uso & User Card */}
+                <div className="flex items-center gap-4 ml-auto">
                     <button
-                        onClick={handleLogout}
-                        className="absolute right-2 transition-all duration-200 text-red-300 hover:text-red-600 p-1 hover:bg-red-50 rounded-md"
-                        title="Cerrar Sesión"
+                        className="flex items-center gap-2 px-3 py-2 bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm"
+                        title="Manual de Uso"
                     >
-                        <LogOut size={12} />
+                        <BookOpen size={16} className="group-hover:rotate-12 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">Manual de Uso</span>
                     </button>
+
+                    <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-2xl border-2 border-gray-100 group relative">
+                        <div className="h-7 w-7 bg-white rounded-lg flex items-center justify-center border-2 border-gray-100 flex-shrink-0">
+                            <Users size={14} className="text-[#303a7f]" />
+                        </div>
+                        <div className="pr-6">
+                            <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-tighter leading-none">{user?.name || 'Invitado'}</p>
+                        </div>
+                        <button
+                            onClick={handleLogout}
+                            className="absolute right-2 transition-all duration-200 text-red-300 hover:text-red-600 p-1 hover:bg-red-50 rounded-md"
+                            title="Cerrar Sesión"
+                        >
+                            <LogOut size={12} />
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -5895,6 +5897,13 @@ function App() {
 
                 {/* Navigation Inferior Minimalista (Franja Completa) */}
                 <nav className="fixed bottom-0 inset-x-0 z-50 bg-[#303a7f] border-t border-white/10 p-2 flex items-center justify-center gap-2 shadow-[0_-10px_40px_rgba(48,58,127,0.2)]">
+                    {/* Database status al extremo izquierdo */}
+                    <div className="absolute left-6 hidden xl:flex items-center gap-3 px-4 py-2 bg-white/5 rounded-2xl border border-white/10 transition-all duration-500 hover:bg-white/10">
+                        <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-[#6bbdb7] animate-pulse' : dbStatus === 'conectado' ? 'bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.4)]' : 'bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.4)]'}`} />
+                        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/40">
+                            {isLoading ? 'Sincronizando...' : dbStatus === 'conectado' ? 'Online' : 'Offline'}
+                        </span>
+                    </div>
                     {navItems.map((item) => (
                         <button
                             key={item.id}
@@ -6922,7 +6931,7 @@ function App() {
 
                     {/* Contenido del Modal (BillingView) - Nivel Dios */}
                     <div className="flex-1 overflow-y-auto p-12 bg-[#fcfdfe] custom-scrollbar">
-                        <BillingView 
+                        <BillingView
                             storeName={selectedHistoryStore}
                             historyData={nominaHistoryData}
                             manualData={billingManualRecords}
