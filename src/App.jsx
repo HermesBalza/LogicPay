@@ -4207,6 +4207,23 @@ const BillingView = ({
     });
 
     // --- LÓGICA TABLA PROYECTOS ESPECIALES (P.E) ---
+    const currentYear = new Date().getFullYear();
+    const parseProjectDate = (value) => {
+        if (!value) return null;
+        const raw = String(value).trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+            const d = new Date(raw);
+            return isNaN(d.getTime()) ? null : d;
+        }
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(raw)) {
+            const [m, d, y] = raw.split('/').map(Number);
+            const date = new Date(y, m - 1, d);
+            return isNaN(date.getTime()) ? null : date;
+        }
+        const date = new Date(raw);
+        return isNaN(date.getTime()) ? null : date;
+    };
+
     // 1. Filtrar registros históricos de P.E para la tienda activa con seguridad total
     const activePERecords = (specialHistoryData || []).filter(h => 
         h && String(h.tienda || '').trim().toLowerCase() === String(storeName || '').trim().toLowerCase()
@@ -4217,29 +4234,42 @@ const BillingView = ({
     activePERecords.forEach(h => {
         try {
             if (!h || !h.data_json) return;
-            const projects = JSON.parse(h.data_json);
-            if (!Array.isArray(projects)) return;
+            const projectsRaw = JSON.parse(h.data_json);
+            const projects = Array.isArray(projectsRaw) ? projectsRaw : [projectsRaw];
 
             projects.forEach(p => {
                 if (!p) return;
+                const projectDate = parseProjectDate(p.fecha);
+                if (projectDate && projectDate.getFullYear() !== currentYear) return;
+
                 const key = p.invoice || `${p.proyecto || 'S-P'}-${p.fecha || '00'}`;
                 if (!peTableDataMap[key]) {
                     peTableDataMap[key] = {
                         id: key,
                         invoice: p.invoice || 'N/A',
-                        nombre: p.proyecto || 'Proyecto Especial',
+                        nombre: p.proyecto || p.nombre || 'Proyecto Especial',
                         fecha: p.fecha || '--/--/--',
                         horas: 0,
                         facturacion: 0,
                         costos: 0
                     };
                 }
-                peTableDataMap[key].horas += parseFloat(p.horas) || 0;
-                peTableDataMap[key].facturacion += parseFloat(p.total_kbs) || 0;
-                peTableDataMap[key].costos += parseFloat(p.total_logic) || 0;
+
+                const employees = Array.isArray(p.employees) ? p.employees : [];
+                const hoursFromEmployees = employees.reduce((acc, emp) => acc + (parseFloat(emp.hours) || 0), 0);
+                const facturacionFromEmployees = employees.reduce((acc, emp) => acc + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0)), 0);
+                const costosFromEmployees = employees.reduce((acc, emp) => acc + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateLogic) || 0)), 0);
+
+                const projectHours = parseFloat(p.horas) || hoursFromEmployees || 0;
+                const projectFacturacion = parseFloat(p.total_kbs) || facturacionFromEmployees || 0;
+                const projectCostos = parseFloat(p.total_logic) || costosFromEmployees || 0;
+
+                peTableDataMap[key].horas += projectHours;
+                peTableDataMap[key].facturacion += projectFacturacion;
+                peTableDataMap[key].costos += projectCostos;
             });
-        } catch (e) { 
-            console.error("[LogicPay] Error parsing PE history json", e); 
+        } catch (e) {
+            console.error("[LogicPay] Error parsing PE history json", e);
         }
     });
 
