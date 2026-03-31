@@ -4922,27 +4922,6 @@ function App() {
                 margen: row.Margen
             }));
 
-            const projectsData = [];
-            (specialProjectsData || []).forEach(project => {
-                if (project.status === 'registered') {
-                    (project.employees || []).forEach(row => {
-                        projectsData.push({
-                            invoice: project.invoice,
-                            fecha: project.fecha,
-                            proyecto: project.nombre,
-                            descripcion: project.descripcion,
-                            empleado: row.employeeName,
-                            horas: row.hours,
-                            rate_kbs: row.rateKBS,
-                            rate_logic: row.rateLogic,
-                            total_kbs: (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0),
-                            total_logic: (parseFloat(row.hours) || 0) * (parseFloat(row.rateLogic) || 0),
-                            tienda: selectedBiweeklyPeriod.store
-                        });
-                    });
-                }
-            });
-
             const currentTimestamp = new Date().toLocaleString();
             const consolidationId = `${selectedBiweeklyPeriod.store}_${selectedBiweeklyPeriod.range}`.replace(/\s+/g, '_');
 
@@ -4954,22 +4933,10 @@ function App() {
                 Fecha_Confirmacion: currentTimestamp
             };
 
-            const consolidatedPE = {
-                ID_Consolidacion: consolidationId,
-                Tienda: selectedBiweeklyPeriod.store,
-                Periodo: selectedBiweeklyPeriod.range,
-                Data_JSON: JSON.stringify(projectsData),
-                Fecha_Confirmacion: currentTimestamp
-            };
-
             // 4. Sincronizar
-            setConfirmPayrollProgress(50);
+            setConfirmPayrollProgress(60);
             setConfirmPayrollStep("Sincronizando Nómina Detalle...");
             await syncToSheets('upsert', consolidatedNomina, 'Nomina_Detalle');
-
-            setConfirmPayrollProgress(80);
-            setConfirmPayrollStep("Sincronizando Proyectos Especiales...");
-            await syncToSheets('upsert', consolidatedPE, 'Proyectos_Especiales');
 
             // 5. Actualizar estado visual
             setConfirmPayrollProgress(95);
