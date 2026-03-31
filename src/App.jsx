@@ -4000,7 +4000,7 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
 });
 
 // ─── Vista Principal de Proyectos Especiales ─────────────────────────────────
-const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterProject, onRegisterEmployee, onUpdateLocationHistory }) => {
+const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterProject, onRegisterEmployee, onUpdateLocationHistory, onSyncCorrelativo }) => {
 
     // Convertir el rango de fechas MM/DD/YYYY a YYYY-MM-DD para los inputs tipo date
     const toInputDate = (str) => {
@@ -4012,9 +4012,16 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
     const minDate = toInputDate(fechaDesde);
     const maxDate = toInputDate(fechaHasta);
 
-    // Crear un nuevo proyecto vacío con el siguiente número de invoice
-    const addProject = React.useCallback(() => {
-        const invoiceNumber = normalizeInvoice(nextInvoice);
+    // Crear un nuevo proyecto vacío con el siguiente número de invoice sincronizado
+    const addProject = async () => {
+        let currentNext = nextInvoice;
+        
+        // Verificación forzada: Consultar base de datos antes de generar la tarjeta
+        if (onSyncCorrelativo) {
+            currentNext = await onSyncCorrelativo();
+        }
+
+        const invoiceNumber = normalizeInvoice(currentNext);
         const newProject = {
             id: Date.now(),
             invoice: invoiceNumber,
@@ -4024,8 +4031,10 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
             employees: []
         };
         setSpecialProjectsData(prev => [...prev, newProject]);
-        setNextInvoice(prev => normalizeInvoice(Number(prev) + 1));
-    }, [nextInvoice, minDate, setSpecialProjectsData, setNextInvoice]);
+        
+        // Actualizar el estado global con el siguiente disponible para el caché local
+        setNextInvoice(normalizeInvoice(Number(currentNext) + 1));
+    };
 
     // Eliminar un proyecto y renumerar los restantes desde la base original
     const removeProject = React.useCallback((projectId) => {
@@ -4711,7 +4720,8 @@ function App() {
                 descripcion: project.descripcion,
                 employees: project.employees || []
             }),
-            Fecha_Confirmacion: currentTimestamp
+            Fecha_Confirmacion: currentTimestamp,
+            Correlativo: project.invoice
         };
 
         try {
@@ -5553,6 +5563,7 @@ function App() {
             setIsProcessingIA(false);
             setIsProcessingPayroll(false);
             setPayrollStep('supervisor');
+            setBiometricFile(null); // Limpiar el archivo después de procesar
             // Desbloquear scroll
             document.body.style.overflow = 'auto';
         }
@@ -5964,7 +5975,7 @@ function App() {
             const lines = csvText.trim().split('\n').filter(l => l.trim());
             if (lines.length < 2) {
                 setSpecialProjectsHistoryData([]);
-                return;
+                return [];
             }
             const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, '').toLowerCase());
             const loaded = lines.slice(1).map(line => {
@@ -5974,27 +5985,51 @@ function App() {
                 return flat;
             });
             setSpecialProjectsHistoryData(loaded);
+            return loaded; // Devolver para flujos asíncronos
         } catch (error) {
             console.error('[LogicPay] Error cargando Proyectos_Especiales History:', error);
+            return [];
         }
     };
 
     const getMaxInvoiceFromSpecialProjectsHistory = (historyData) => {
         let maxInvoice = 0;
         historyData.forEach(record => {
-            if (!record.data_json) return;
-            try {
-                const parsed = JSON.parse(record.data_json);
-                const items = Array.isArray(parsed) ? parsed : [parsed];
-                items.forEach(item => {
-                    const invoiceValue = normalizeInvoice(item.invoice);
-                    if (invoiceValue > maxInvoice) maxInvoice = invoiceValue;
-                });
-            } catch (error) {
-                // Ignorar registros corruptos
+            // Intentamos obtener el correlativo de la nueva columna F
+            if (record.correlativo) {
+                const val = normalizeInvoice(record.correlativo);
+                if (val > maxInvoice) maxInvoice = val;
+            }
+
+            // Fallback al parseo de data_json (para compatibilidad con registros antiguos sin la columna F)
+            if (record.data_json) {
+                try {
+                    const parsed = JSON.parse(record.data_json);
+                    const items = Array.isArray(parsed) ? parsed : [parsed];
+                    items.forEach(item => {
+                        const invoiceValue = normalizeInvoice(item.invoice);
+                        if (invoiceValue > maxInvoice) maxInvoice = invoiceValue;
+                    });
+                } catch (error) { }
             }
         });
         return maxInvoice;
+    };
+
+    const handleSyncCorrelativo = async () => {
+        showProcessing("Verificando Correlativo Global...");
+        try {
+            const history = await fetchSpecialProjectsHistory();
+            const maxInvoice = getMaxInvoiceFromSpecialProjectsHistory(history);
+            const next = maxInvoice > 0 ? maxInvoice + 1 : 100;
+            setNextInvoice(next);
+            return next;
+        } catch (error) {
+            console.error("[LogicPay] Error en handleSyncCorrelativo:", error);
+            return nextInvoice;
+        } finally {
+            setIsStatusModalOpen(false);
+        }
     };
 
     useEffect(() => {
@@ -7013,169 +7048,12 @@ function App() {
                                         </div>
                                     )}
                                 </section>
-
-                                {isWeeklyApproved && earningsTableData.length > 0 && (
-                                    <section className="bg-white rounded-[2.5rem] px-5 py-8 shadow-2xl shadow-blue-900/[0.04] border-2 border-[#6bbdb7]/20 min-h-[400px] animate-in fade-in slide-in-from-top-8 duration-700">
-                                        <div className="flex items-center justify-between mb-8">
-                                            <div className="flex items-center gap-4">
-                                                <div className="p-3 bg-[#6bbdb7]/10 rounded-xl text-[#6bbdb7]">
-                                                    <DollarSign size={20} />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Weekly Gross Earnings Report</h3>
-                                                    <p className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-[0.2em] opacity-80 pl-1">Cálculo monetario basado en matriz salarial LSG</p>
-                                                </div>
-                                            </div>
-                                            <div className="px-6 py-3 bg-gray-50 rounded-2xl border-2 border-gray-100">
-                                                <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">
-                                                    Grand Total: <span className="text-lg ml-2 text-[#6bbdb7] tabular-nums">${earningsTableData.reduce((acc, row) => acc + row.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div className="overflow-x-auto rounded-3xl border-[3px] border-gray-200">
-                                            <table className="w-full text-left border-collapse">
-                                                <thead>
-                                                    <tr className="bg-[#f9f9f9]/80">
-                                                        <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
-                                                        {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map((day, dIdx) => (
-                                                            <th key={day} className="p-3 text-[10px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[100px] bg-gray-50/20">
-                                                                {day}
-                                                            </th>
-                                                        ))}
-                                                        <th className="p-3 text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-200 min-w-[110px] bg-[#6bbdb7]/5">
-                                                            Total Est.
-                                                        </th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y-[3px] divide-gray-200">
-                                                    {earningsTableData.map((row, idx) => (
-                                                        <tr key={idx} className="group hover:bg-[#6bbdb7]/[0.02] transition-colors">
-                                                            <td className="p-4 border-r-[2px] border-gray-100">
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
-                                                                    <div className="flex items-center gap-2 mt-1">
-                                                                        <span className="text-[9px] font-black text-[#6bbdb7] tabular-nums tracking-[0.1em]">ID: {row.codigo}</span>
-                                                                        <span className="text-[8px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-400 font-black uppercase">Rate: ${row.rate}/h</span>
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
-                                                                <td key={day} className="p-3 text-center border-l-[3px] border-gray-200 font-bold text-gray-600 text-xs tabular-nums">
-                                                                    {row[day] > 0 ? `$${row[day].toFixed(2)}` : '--'}
-                                                                </td>
-                                                            ))}
-                                                            <td className="p-4 text-right bg-blue-50/20 border-l-[3px] border-gray-200">
-                                                                <span className="text-sm font-black text-[#303a7f] tabular-nums">
-                                                                    ${row.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                                <tfoot>
-                                                    <tr className="bg-[#303a7f]/5 font-black">
-                                                        <td className="p-4 text-[10px] uppercase tracking-widest text-[#303a7f]">Total Por Día</td>
-                                                        {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
-                                                            <td key={day} className="p-3 text-center border-l-[3px] border-gray-200 text-[#303a7f] text-xs tabular-nums">
-                                                                ${earningsTableData.reduce((acc, row) => acc + row[day], 0).toFixed(2)}
-                                                            </td>
-                                                        ))}
-                                                        <td className="p-4 text-right bg-[#303a7f] text-white border-l-[3px] border-gray-200">
-                                                            <span className="text-sm tabular-nums">
-                                                                ${earningsTableData.reduce((acc, row) => acc + row.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                </tfoot>
-                                            </table>
-                                        </div>
-                                    </section>
-                                )}
-
-                                {isWeeklyApproved && kbsBillingTableData.length > 0 && (
-                                    <section className="bg-white rounded-[2.5rem] px-5 py-8 shadow-2xl shadow-blue-900/[0.04] border-2 border-[#303a7f]/10 min-h-[400px] animate-in fade-in slide-in-from-top-8 duration-700 mt-12">
-                                        <div className="flex items-center justify-between mb-8">
-                                            <div className="flex items-center gap-4">
-                                                <div className="p-3 bg-[#303a7f]/10 rounded-xl text-[#303a7f]">
-                                                    <CreditCard size={20} />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Weekly KBS Billing Report</h3>
-                                                    <p className="text-gray-400 font-black uppercase text-[10px] tracking-[0.2em] opacity-80 pl-1">Facturación total proyectada para KBS</p>
-                                                </div>
-                                            </div>
-                                            <div className="px-6 py-3 bg-gray-50 rounded-2xl border-2 border-gray-100">
-                                                <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">
-                                                    Billing Total: <span className="text-lg ml-2 text-[#303a7f] tabular-nums">${kbsBillingTableData.reduce((acc, row) => acc + row.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div className="overflow-x-auto rounded-3xl border-[3px] border-gray-200">
-                                            <table className="w-full text-left border-collapse">
-                                                <thead>
-                                                    <tr className="bg-[#f9f9f9]/80">
-                                                        <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
-                                                        {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map((day) => (
-                                                            <th key={day} className="p-3 text-[10px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[100px] bg-gray-50/20">
-                                                                {day}
-                                                            </th>
-                                                        ))}
-                                                        <th className="p-3 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-200 min-w-[110px] bg-[#303a7f]/5">
-                                                            Billing Est.
-                                                        </th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y-[3px] divide-gray-200">
-                                                    {kbsBillingTableData.map((row, idx) => (
-                                                        <tr key={idx} className="group hover:bg-[#303a7f]/[0.02] transition-colors">
-                                                            <td className="p-4 border-r-[2px] border-gray-100">
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
-                                                                    <div className="flex items-center gap-2 mt-1">
-                                                                        <span className="text-[9px] font-black text-gray-400 tabular-nums tracking-[0.1em]">ID: {row.codigo}</span>
-                                                                        <span className="text-[8px] bg-blue-50 px-1.5 py-0.5 rounded text-[#303a7f] font-black uppercase">KBS Rate: ${row.rate}/h</span>
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
-                                                                <td key={day} className="p-3 text-center border-l-[3px] border-gray-200 font-bold text-gray-600 text-xs tabular-nums">
-                                                                    {row[day] > 0 ? `$${row[day].toFixed(2)}` : '--'}
-                                                                </td>
-                                                            ))}
-                                                            <td className="p-4 text-right bg-[#303a7f]/5 border-l-[3px] border-gray-200">
-                                                                <span className="text-sm font-black text-[#303a7f] tabular-nums">
-                                                                    ${row.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                                <tfoot>
-                                                    <tr className="bg-[#303a7f]/5 font-black">
-                                                        <td className="p-4 text-[10px] uppercase tracking-widest text-[#303a7f]">Total Por Día</td>
-                                                        {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
-                                                            <td key={day} className="p-3 text-center border-l-[3px] border-gray-200 text-[#303a7f] text-xs tabular-nums">
-                                                                ${kbsBillingTableData.reduce((acc, row) => acc + row[day], 0).toFixed(2)}
-                                                            </td>
-                                                        ))}
-                                                        <td className="p-4 text-right bg-[#303a7f] text-white border-l-[3px] border-gray-200">
-                                                            <span className="text-sm tabular-nums">
-                                                                ${kbsBillingTableData.reduce((acc, row) => acc + row.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                </tfoot>
-                                            </table>
-                                        </div>
-                                    </section>
-                                )}
                             </div>
-
-                            {/* FASE 2: TABLA PROVISIONAL BIOMÉTRICO (IA) - ELIMINADA DE AQUÍ, AHORA ES MODAL */}
                         </div>
                     )}
+
+                            {/* FASE 2: TABLA PROVISIONAL BIOMÉTRICO (IA) - ELIMINADA DE AQUÍ, AHORA ES MODAL */}
+
 
                     {/* VISTA DE RESPALDO (Dashboard, Ajustes, Otros) */}
                     {(activeTab === 'dashboard' || activeTab === 'settings' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees')) && (
@@ -7677,6 +7555,7 @@ function App() {
                         setNextInvoice(normalized);
                         localStorage.setItem('lgm_next_invoice', String(normalized));
                     }}
+                    onSyncCorrelativo={handleSyncCorrelativo}
                     onRegisterProject={handleRegisterSpecialProject}
                     onRegisterEmployee={(newEmp) => {
                         // Agregar al estado local de empleados
