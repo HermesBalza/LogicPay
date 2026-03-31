@@ -7649,12 +7649,14 @@ function App() {
                         <p className="text-gray-500 font-bold text-sm leading-relaxed mb-10">
                             {statusModalMessage}
                         </p>
-                        <button
-                            onClick={() => setIsStatusModalOpen(false)}
-                            className={`w-full py-4 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 ${statusModalType === 'success' ? 'bg-[#303a7f] shadow-blue-900/10 hover:bg-[#252a5e]' : 'bg-red-500 shadow-red-900/10 hover:bg-red-600'}`}
-                        >
-                            Ok
-                        </button>
+                        {statusModalType !== 'processing' && (
+                            <button
+                                onClick={() => setIsStatusModalOpen(false)}
+                                className={`w-full py-4 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 ${statusModalType === 'success' ? 'bg-[#303a7f] shadow-blue-900/10 hover:bg-[#252a5e]' : 'bg-red-500 shadow-red-900/10 hover:bg-red-600'}`}
+                            >
+                                Ok
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
