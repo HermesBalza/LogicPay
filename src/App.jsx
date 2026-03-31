@@ -2786,6 +2786,14 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
     const biweeklyReportRef = useRef(null);
+    
+    const handleCommentChange = (index, value) => {
+        setBiweeklyEmployees(prev => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], comments: value };
+            return updated;
+        });
+    };
 
     // 2. Lógica de consolidación (W1 + W2)
     useEffect(() => {
@@ -2921,6 +2929,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                 peEarnings: peTotalEarnings,
                 rate: rate,
                 cargo: empW1?.cargo || empW2?.cargo || 'Externo/PE',
+                comments: '',
                 rowColor: rowColor
             };
         });
@@ -2971,6 +2980,19 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                             tableContainer.style.maxWidth = 'none';
                         }
 
+                        // Sincronizar valores de inputs (comentarios) al clon para html2canvas
+                        const originalInputs = element.querySelectorAll('input');
+                        const clonedInputs = clonedRoot.querySelectorAll('input');
+                        originalInputs.forEach((input, i) => {
+                            if (clonedInputs[i]) {
+                                const parent = clonedInputs[i].parentNode;
+                                const textNode = document.createElement('div');
+                                textNode.className = "text-[9px] font-bold text-gray-400 uppercase tracking-tight";
+                                textNode.innerText = input.value;
+                                parent.replaceChild(textNode, clonedInputs[i]);
+                            }
+                        });
+
                         // Asegurar que la tabla interna respete el ancho fijo de 1300px
                         const table = clonedRoot.querySelector('table');
                         if (table) {
@@ -2989,6 +3011,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                                     emptyRow.className = 'border-b border-gray-50 h-[48px]';
                                     emptyRow.innerHTML = `
                                         <td class="p-4 border-r-2 border-gray-100">&nbsp;</td>
+                                        <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
                                         <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
                                         <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
                                         <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
@@ -3059,13 +3082,14 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-[#303a7f] text-white">
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10 w-[240px]">Name</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[120px]">SEMANA 1</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[120px]">SEMANA 2</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[90px]">P.E</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[100px]">TOTAL</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[90px]">RATE</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-right w-[140px]">PAGO TOTAL</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10 w-[160px]">Name</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[80px]">SEMANA 1</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[80px]">SEMANA 2</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[60px]">P.E</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[70px]">TOTAL</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[75px]">RATE</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[275px]">COMMENTS</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-right w-[100px]">PAGO TOTAL</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y-2 divide-gray-50">
@@ -3081,6 +3105,15 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                                             <td className={`p-4 border-r-2 border-gray-100 text-center font-bold text-xs tabular-nums ${emp.pe === 0 ? 'text-gray-400 italic' : 'bg-amber-100 text-amber-600'}`}>{emp.pe === 0 ? '-' : emp.pe.toFixed(2)}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-black text-[#303a7f] text-xs tabular-nums">{totalHours.toFixed(2)}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-[#6bbdb7] text-xs tabular-nums">${Number(emp.rate).toFixed(2)}</td>
+                                            <td className="p-4 border-r-2 border-gray-100 px-2 py-1">
+                                                <input
+                                                    type="text"
+                                                    value={emp.comments || ''}
+                                                    onChange={(e) => handleCommentChange(idx, e.target.value)}
+                                                    className="w-full bg-transparent border-none text-[11px] font-bold text-gray-500 placeholder-gray-200 focus:ring-0 focus:text-[#303a7f] transition-colors"
+                                                    placeholder="Añadir comentario..."
+                                                />
+                                            </td>
                                             <td className="p-4 text-right font-black text-[#303a7f] text-xs tabular-nums bg-opacity-30">${pagoTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                         </tr>
                                     );
@@ -3092,7 +3125,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                                     <td className="p-5 text-left text-[10px] uppercase tracking-widest bg-[#252a5e]">
                                         Total Personal: {biweeklyEmployees.length}
                                     </td>
-                                    <td colSpan="5" className="p-5 text-right text-[12px] uppercase tracking-[0.4em]">TOTAL DE NÓMINA:</td>
+                                    <td colSpan="6" className="p-5 text-right text-[12px] uppercase tracking-[0.4em]">TOTAL DE NÓMINA:</td>
                                     <td className="p-5 text-right text-lg tabular-nums">
                                         ${totalFinal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </td>
@@ -4902,6 +4935,7 @@ function App() {
                     Total_LGM: totalLGM,
                     Total_KBS: totalKBS,
                     Margen: totalKBS - totalLGM,
+                    Comentarios: emp.comments || '',
                     Fecha_Confirmacion: new Date().toLocaleString()
                 };
             });
@@ -4919,7 +4953,8 @@ function App() {
                 total_hrs: row.Total_Horas,
                 total_lgm: row.Total_LGM,
                 total_kbs: row.Total_KBS,
-                margen: row.Margen
+                margen: row.Margen,
+                comments: row.Comentarios
             }));
 
             const currentTimestamp = new Date().toLocaleString();
