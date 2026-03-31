@@ -4244,6 +4244,7 @@ const BillingView = ({
             costos: stats.costos || 0,
             utilidad: (stats.facturacion || 0) - (stats.costos || 0),
             pago: manual.pago || '',
+            fecha_pago: manual.fecha_pago || '',
             wos: manual.wos || 0,
             pagada: manual.pagada || false
         };
@@ -4323,6 +4324,7 @@ const BillingView = ({
             radicacion: manual.radicacion || '',
             utilidad: (row.facturacion || 0) - (row.costos || 0),
             pago: manual.pago || '',
+            fecha_pago: manual.fecha_pago || '',
             wos: manual.wos || 0,
             pagada: manual.pagada || false
         };
@@ -4363,14 +4365,14 @@ const BillingView = ({
                 <table className="w-full border-collapse table-auto mb-6">
                     <thead className="sticky top-0 z-20">
                         <tr className="bg-white border-b border-gray-100 shadow-sm">
-                            {['Fecha Rad.', 'Semana Facturada', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'WOS', 'Status'].map((h, i) => (
-                                <th key={i} className="px-3 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
+                            {['Fecha Rad.', 'Semana Facturada', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Status'].map((h, i) => (
+                                <th key={i} className="px-2 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {tableData.length === 0 ? (
-                            <tr><td colSpan={9} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros VWH.</td></tr>
+                            <tr><td colSpan={10} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros VWH.</td></tr>
                         ) : tableData.map((row) => (
                             <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
                                 <td className="px-3 py-4 text-center">
@@ -4394,11 +4396,15 @@ const BillingView = ({
                                         <span className={`text-[10px] font-black ${row.utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>{formatCurrency(row.utilidad)}</span>
                                     </div>
                                 </td>
-                                <td className="px-3 py-4 text-center">
+                                <td className="px-2 py-4 text-center">
                                     <input type="text" placeholder="$0.00" value={row.pago} onChange={(e) => onUpdateManual(row.id, 'pago', e.target.value)}
                                         className="bg-transparent border-none text-[10px] font-black text-[#303a7f] outline-none w-20 text-center" />
                                 </td>
-                                <td className="px-3 py-4 text-center">
+                                <td className="px-2 py-4 text-center">
+                                    <input type="text" placeholder="--/--/--" value={row.fecha_pago} onChange={(e) => onUpdateManual(row.id, 'fecha_pago', e.target.value)}
+                                        className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-20" />
+                                </td>
+                                <td className="px-2 py-4 text-center">
                                     <input type="number" value={row.wos} onChange={(e) => onUpdateManual(row.id, 'wos', e.target.value)}
                                         className={`bg-transparent border-none text-[10px] font-black outline-none w-8 text-center ${row.wos > 0 ? 'text-orange-500' : 'text-gray-300'}`} />
                                 </td>
@@ -4438,25 +4444,25 @@ const BillingView = ({
                 <table className="w-full border-collapse table-auto mb-6">
                     <thead className="sticky top-0 z-20">
                         <tr className="bg-white border-b border-gray-100 shadow-sm">
-                            {['Fecha Rad.', 'Nombre del Proyecto', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'WOS', 'Status'].map((h, i) => (
-                                <th key={i} className="px-3 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
+                            {['Fecha Rad.', 'Nombre del Proyecto', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Status'].map((h, i) => (
+                                <th key={i} className="px-2 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {peTableData.length === 0 ? (
-                            <tr><td colSpan={9} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros de Proyectos Especiales.</td></tr>
+                            <tr><td colSpan={10} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros de Proyectos Especiales.</td></tr>
                         ) : peTableData.map((row) => (
                             <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
                                 <td className="px-3 py-4 text-center">
                                     <input type="text" placeholder="--/--/--" value={row.radicacion} onChange={(e) => onUpdateManualPE(row.id, 'radicacion', e.target.value)}
                                         className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-20" />
                                 </td>
-                                <td className="px-3 py-4 text-center">
+                                <td className="px-2 py-4 text-center">
                                     <button 
                                         onClick={() => onOpenPE(row.id)}
                                         title="Ver Detalle de Proyecto Especial"
-                                        className="flex flex-col items-center group/pe cursor-pointer active:scale-95 transition-all"
+                                        className="inline-flex flex-col items-center group/pe cursor-pointer active:scale-95 transition-all w-full"
                                     >
                                         <span className="text-[10px] font-black text-[#303a7f] group-hover/pe:text-[#6bbdb7] group-hover/pe:underline">{row.nombre}</span>
                                         <span className="text-[8px] font-bold text-gray-400">Inv: {row.invoice}</span>
@@ -4470,11 +4476,15 @@ const BillingView = ({
                                         <span className={`text-[10px] font-black ${row.utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>{formatCurrency(row.utilidad)}</span>
                                     </div>
                                 </td>
-                                <td className="px-3 py-4 text-center">
+                                <td className="px-2 py-4 text-center">
                                     <input type="text" placeholder="$0.00" value={row.pago} onChange={(e) => onUpdateManualPE(row.id, 'pago', e.target.value)}
                                         className="bg-transparent border-none text-[10px] font-black text-[#303a7f] outline-none w-20 text-center" />
                                 </td>
-                                <td className="px-3 py-4 text-center">
+                                <td className="px-2 py-4 text-center">
+                                    <input type="text" placeholder="--/--/--" value={row.fecha_pago} onChange={(e) => onUpdateManualPE(row.id, 'fecha_pago', e.target.value)}
+                                        className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-20" />
+                                </td>
+                                <td className="px-2 py-4 text-center">
                                     <input type="number" value={row.wos} onChange={(e) => onUpdateManualPE(row.id, 'wos', e.target.value)}
                                         className={`bg-transparent border-none text-[10px] font-black outline-none w-8 text-center ${row.wos > 0 ? 'text-orange-500' : 'text-gray-300'}`} />
                                 </td>
