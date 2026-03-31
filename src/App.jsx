@@ -3323,7 +3323,8 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                         {filteredPeriods.map((p) => {
                             const bothProcessed = isWeekProcessed(p.w1.start) && isWeekProcessed(p.w2.start);
-                            const isProcessed = bothProcessed;
+                            const periodKey = `${selectedStore}-${p.w1.start}-${p.w2.end}`;
+                            const isProcessed = processedBiweeks.includes(periodKey);
                             return (
                                 <div
                                     key={p.periodNum}
@@ -6528,12 +6529,6 @@ function App() {
                                 inline={true}
                                 onClose={() => { }}
                                 onProcessBiweekly={(p) => {
-                                    const periodKey = `${selectedHistoryStore}-${p.w1.start}-${p.w2.end}`;
-                                    if (!processedBiweeks.includes(periodKey)) {
-                                        const updated = [...processedBiweeks, periodKey];
-                                        setProcessedBiweeks(updated);
-                                        localStorage.setItem('lgm_processed_biweeks', JSON.stringify(updated));
-                                    }
                                     const range = `${p.w1.start} - ${p.w2.end}`;
                                     setSelectedBiweeklyPeriod({
                                         store: selectedHistoryStore,
