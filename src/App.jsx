@@ -4187,17 +4187,43 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
     );
 };
 
-// ─── Vista de Facturación (Aesthetics: Molde Hermes) ──────────────────────────
+
+// Utilidades de Fecha y Formato para Facturación
+const toISODate = (mmddyyyy) => {
+    if (!mmddyyyy || !mmddyyyy.includes('/')) return '';
+    const parts = mmddyyyy.split('/');
+    if (parts.length < 3) return '';
+    const [m, d, y] = parts;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+};
+
+const fromISODate = (yyyymmdd) => {
+    if (!yyyymmdd || !yyyymmdd.includes('-')) return '';
+    const [y, m, d] = yyyymmdd.split('-');
+    return `${m}/${d}/${y}`;
+};
+
+const formatCurrencyInput = (value) => {
+    if (value === null || value === undefined) return '';
+    // Solo permitimos números y punto
+    let clean = String(value).replace(/[^0-9.]/g, '');
+    let parts = clean.split('.');
+    
+    // Formatear parte entera con comas
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    
+    // Reubicar el punto si existe
+    return parts.length > 1 ? parts[0] + '.' + parts[1].slice(0, 2) : parts[0];
+};
+
 const BillingView = ({
     storeName,
     historyData = [],
-    manualData = {},
     specialHistoryData = [],
-    manualPEData = {},
-    onUpdateManual = () => { },
-    onUpdateManualPE = () => { },
     onOpenVWH = () => { },
-    onOpenPE = () => { }
+    onOpenPE = () => { },
+    onUpdateManual = () => { },
+    onUpdateManualPE = () => { }
 }) => {
     // --- LÓGICA TABLA VWH (Nómina Regular) ---
     // Filtrado y ordenado seguro (Safe-Sort)
@@ -4234,19 +4260,22 @@ const BillingView = ({
             }
         } catch (e) { console.error("[LogicPay] Error parsing history json", e); }
 
-        const manual = (manualData || {})[`${storeName}-${h.fecha_inicio}`] || {};
+        const pagoRaw = String(h['pago'] || '').replace(/[^0-9.]/g, '');
+        const pagoNum = parseFloat(pagoRaw) || 0;
+        const facturacionNum = stats.facturacion || 0;
+
         return {
             id: h.fecha_inicio,
-            radicacion: manual.radicacion || '',
+            radicacion: h['fecha rad.'] || '',
             semana: h.fecha_inicio && h.fecha_fin ? `${h.fecha_inicio} - ${h.fecha_fin}` : 'Período Desconocido',
             horas: stats.horas || 0,
             facturacion: stats.facturacion || 0,
             costos: stats.costos || 0,
             utilidad: (stats.facturacion || 0) - (stats.costos || 0),
-            pago: manual.pago || '',
-            fecha_pago: manual.fecha_pago || '',
-            wos: manual.wos || 0,
-            pagada: manual.pagada || false
+            pago: h['pago'] || '',
+            fecha_pago: h['fecha de pago'] || '',
+            wos: h['wos'] || 0,
+            pagada: pagoNum >= facturacionNum && facturacionNum > 0
         };
     });
 
@@ -4268,12 +4297,10 @@ const BillingView = ({
         return isNaN(date.getTime()) ? null : date;
     };
 
-    // 1. Filtrar registros históricos de P.E para la tienda activa con seguridad total
     const activePERecords = (specialHistoryData || []).filter(h => 
         h && String(h.tienda || '').trim().toLowerCase() === String(storeName || '').trim().toLowerCase()
     );
 
-    // 2. Agrupar y consolidar por Invoice/Proyecto
     const peTableDataMap = {};
     activePERecords.forEach(h => {
         try {
@@ -4295,7 +4322,12 @@ const BillingView = ({
                         fecha: p.fecha || '--/--/--',
                         horas: 0,
                         facturacion: 0,
-                        costos: 0
+                        costos: 0,
+                        radicacion: h['fecha rad.'] || '',
+                        pago: h['pago'] || '',
+                        fecha_pago: h['fecha de pago'] || '',
+                        wos: h['wos'] || 0,
+                        pagada: h['pagada'] === true || h['pagada'] === 'true'
                     };
                 }
 
@@ -4304,31 +4336,19 @@ const BillingView = ({
                 const facturacionFromEmployees = employees.reduce((acc, emp) => acc + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0)), 0);
                 const costosFromEmployees = employees.reduce((acc, emp) => acc + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateLogic) || 0)), 0);
 
-                const projectHours = parseFloat(p.horas) || hoursFromEmployees || 0;
-                const projectFacturacion = parseFloat(p.total_kbs) || facturacionFromEmployees || 0;
-                const projectCostos = parseFloat(p.total_logic) || costosFromEmployees || 0;
-
-                peTableDataMap[key].horas += projectHours;
-                peTableDataMap[key].facturacion += projectFacturacion;
-                peTableDataMap[key].costos += projectCostos;
+                peTableDataMap[key].horas += parseFloat(p.horas) || hoursFromEmployees || 0;
+                peTableDataMap[key].facturacion += parseFloat(p.total_kbs) || facturacionFromEmployees || 0;
+                peTableDataMap[key].costos += parseFloat(p.total_logic) || costosFromEmployees || 0;
             });
         } catch (e) {
             console.error("[LogicPay] Error parsing PE history json", e);
         }
     });
 
-    const peTableData = Object.values(peTableDataMap).map(row => {
-        const manual = (manualPEData || {})[`${storeName}-${row.id}`] || {};
-        return {
-            ...row,
-            radicacion: manual.radicacion || '',
-            utilidad: (row.facturacion || 0) - (row.costos || 0),
-            pago: manual.pago || '',
-            fecha_pago: manual.fecha_pago || '',
-            wos: manual.wos || 0,
-            pagada: manual.pagada || false
-        };
-    });
+    const peTableData = Object.values(peTableDataMap).map(row => ({
+        ...row,
+        utilidad: (row.facturacion || 0) - (row.costos || 0)
+    }));
 
     const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
     function rowTotalToNumber(val) {
@@ -4376,8 +4396,14 @@ const BillingView = ({
                         ) : tableData.map((row) => (
                             <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
                                 <td className="px-3 py-4 text-center">
-                                    <input type="text" placeholder="--/--/--" value={row.radicacion} onChange={(e) => onUpdateManual(row.id, 'radicacion', e.target.value)}
-                                        className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-20" />
+                                    <div className="relative inline-block w-20">
+                                        <input type="text" readOnly placeholder="--/--/--" value={row.radicacion} 
+                                            className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
+                                        <input type="date" value={toISODate(row.radicacion)} 
+                                            onChange={(e) => onUpdateManual(row.id, 'fecha rad.', fromISODate(e.target.value))}
+                                            onClick={(e) => e.target.showPicker?.()}
+                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                                    </div>
                                 </td>
                                 <td className="px-3 py-4 text-center">
                                     <button 
@@ -4397,22 +4423,28 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <input type="text" placeholder="$0.00" value={row.pago} onChange={(e) => onUpdateManual(row.id, 'pago', e.target.value)}
+                                    <input type="text" placeholder="$0.00" value={formatCurrencyInput(row.pago)} onChange={(e) => onUpdateManual(row.id, 'pago', e.target.value)}
                                         className="bg-transparent border-none text-[10px] font-black text-[#303a7f] outline-none w-20 text-center" />
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <input type="text" placeholder="--/--/--" value={row.fecha_pago} onChange={(e) => onUpdateManual(row.id, 'fecha_pago', e.target.value)}
-                                        className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-20" />
+                                    <div className="relative inline-block w-20">
+                                        <input type="text" readOnly placeholder="--/--/--" value={row.fecha_pago}
+                                            className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
+                                        <input type="date" value={toISODate(row.fecha_pago)} 
+                                            onChange={(e) => onUpdateManual(row.id, 'fecha de pago', fromISODate(e.target.value))}
+                                            onClick={(e) => e.target.showPicker?.()}
+                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                                    </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
                                     <input type="number" value={row.wos} onChange={(e) => onUpdateManual(row.id, 'wos', e.target.value)}
                                         className={`bg-transparent border-none text-[10px] font-black outline-none w-8 text-center ${row.wos > 0 ? 'text-orange-500' : 'text-gray-300'}`} />
                                 </td>
                                 <td className="px-3 py-4 text-center">
-                                    <button onClick={() => onUpdateManual(row.id, 'pagada', !row.pagada)} className="inline-flex items-center gap-1.5 group/btn">
-                                        <div className={`w-2.5 h-2.5 rounded-full border-2 ${row.pagada ? 'bg-teal-500 border-teal-500' : 'bg-transparent border-gray-200 group-hover/btn:border-red-400'}`} />
+                                    <div className="inline-flex items-center gap-1.5 cursor-default">
+                                        <div className={`w-2.5 h-2.5 rounded-full border-2 ${row.pagada ? 'bg-teal-500 border-teal-500' : 'bg-transparent border-gray-200'}`} />
                                         <span className={`text-[8px] font-black uppercase tracking-tight ${row.pagada ? 'text-teal-500' : 'text-gray-300'}`}>{row.pagada ? 'Paid' : 'Due'}</span>
-                                    </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -4455,8 +4487,14 @@ const BillingView = ({
                         ) : peTableData.map((row) => (
                             <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
                                 <td className="px-3 py-4 text-center">
-                                    <input type="text" placeholder="--/--/--" value={row.radicacion} onChange={(e) => onUpdateManualPE(row.id, 'radicacion', e.target.value)}
-                                        className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-20" />
+                                    <div className="relative inline-block w-20">
+                                        <input type="text" readOnly placeholder="--/--/--" value={row.radicacion}
+                                            className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
+                                        <input type="date" value={toISODate(row.radicacion)} 
+                                            onChange={(e) => onUpdateManualPE(row.id, 'fecha rad.', fromISODate(e.target.value))}
+                                            onClick={(e) => e.target.showPicker?.()}
+                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                                    </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
                                     <button 
@@ -4477,12 +4515,18 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <input type="text" placeholder="$0.00" value={row.pago} onChange={(e) => onUpdateManualPE(row.id, 'pago', e.target.value)}
+                                    <input type="text" placeholder="$0.00" value={formatCurrencyInput(row.pago)} onChange={(e) => onUpdateManualPE(row.id, 'pago', e.target.value)}
                                         className="bg-transparent border-none text-[10px] font-black text-[#303a7f] outline-none w-20 text-center" />
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <input type="text" placeholder="--/--/--" value={row.fecha_pago} onChange={(e) => onUpdateManualPE(row.id, 'fecha_pago', e.target.value)}
-                                        className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-20" />
+                                    <div className="relative inline-block w-20">
+                                        <input type="text" readOnly placeholder="--/--/--" value={row.fecha_pago}
+                                            className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
+                                        <input type="date" value={toISODate(row.fecha_pago)} 
+                                            onChange={(e) => onUpdateManualPE(row.id, 'fecha de pago', fromISODate(e.target.value))}
+                                            onClick={(e) => e.target.showPicker?.()}
+                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                                    </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
                                     <input type="number" value={row.wos} onChange={(e) => onUpdateManualPE(row.id, 'wos', e.target.value)}
@@ -4623,37 +4667,11 @@ function App() {
     // Controles de Visibilidad del Modal de Facturación
     const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
 
-    // Estados optimizados con carga segura (Safe-Load)
-    const [billingManualRecords, setBillingManualRecords] = useState(() => {
-        try {
-            const saved = localStorage.getItem('lgm_billing_manual_v1');
-            return saved ? JSON.parse(saved) : {};
-        } catch (e) {
-            console.error("[LogicPay] Error parsing billingManualRecords:", e);
-            return {};
-        }
-    });
 
-    const [billingPEManualRecords, setBillingPEManualRecords] = useState(() => {
-        try {
-            const saved = localStorage.getItem('lgm_billing_pe_manual_v1');
-            return saved ? JSON.parse(saved) : {};
-        } catch (e) {
-            console.error("[LogicPay] Error parsing billingPEManualRecords:", e);
-            return {};
-        }
-    });
-
+    // Eliminación de dependencia de Local Storage para Facturación
+    const [billingManualRecords, setBillingManualRecords] = useState({});
+    const [billingPEManualRecords, setBillingPEManualRecords] = useState({});
     const [specialProjectsHistoryData, setSpecialProjectsHistoryData] = useState([]); // FASE 10: Historial P.E
-
-    // Persistencia de Facturación Manual (Sincronización Silenciosa)
-    useEffect(() => {
-        localStorage.setItem('lgm_billing_manual_v1', JSON.stringify(billingManualRecords));
-    }, [billingManualRecords]);
-
-    useEffect(() => {
-        localStorage.setItem('lgm_billing_pe_manual_v1', JSON.stringify(billingPEManualRecords));
-    }, [billingPEManualRecords]);
 
     const massImportFileInputRef = useRef(null);
     const storeMassImportFileInputRef = useRef(null);
@@ -7201,22 +7219,139 @@ function App() {
                         <BillingView
                             storeName={selectedHistoryStore}
                             historyData={nominaHistoryData}
-                            manualData={billingManualRecords}
                             specialHistoryData={specialProjectsHistoryData}
-                            manualPEData={billingPEManualRecords}
-                            onUpdateManual={(week, field, val) => {
-                                const key = `${selectedHistoryStore}-${week}`;
-                                setBillingManualRecords(prev => ({
-                                    ...prev,
-                                    [key]: { ...prev[key], [field]: val }
+                            onUpdateManual={async (week, field, val) => {
+                                // 1. Actualización Local Inmediata (Optimista y sin Local Storage)
+                                setNominaHistoryData(prev => prev.map(h => {
+                                    if (String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && h.fecha_inicio === week) {
+                                        const fieldMap = {
+                                            radicacion: 'fecha rad.',
+                                            pago: 'pago',
+                                            fecha_pago: 'fecha de pago',
+                                            wos: 'wos',
+                                            pagada: 'status'
+                                        };
+                                        const finalVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : val;
+                                        const updated = { ...h, [fieldMap[field]]: finalVal };
+                                        
+                                        // Auto-Status Logic for VWH
+                                        if (field === 'pago') {
+                                            const facturacionNum = parseFloat(String(h.facturacion || 0)) || 0;
+                                            const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
+                                            updated['status'] = pagoNum >= facturacionNum && facturacionNum > 0 ? 'Paid' : 'Due';
+                                        }
+                                        
+                                        return updated;
+                                    }
+                                    return h;
                                 }));
+
+                                // 2. Persistencia en Base de Datos (Nomina_Historico)
+                                try {
+                                    const existing = nominaHistoryData.find(h => 
+                                        String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && 
+                                        h.fecha_inicio === week
+                                    ) || {};
+
+                                    const fieldMap = {
+                                        radicacion: 'Fecha Rad.',
+                                        pago: 'Pago',
+                                        fecha_pago: 'Fecha de Pago',
+                                        wos: 'WOS',
+                                        pagada: 'Status'
+                                    };
+
+                                    const mappedField = fieldMap[field];
+                                    if (!mappedField) return;
+
+                                    // Calcular Status automático para el payload
+                                    let autoStatus = existing['status'] || 'Due';
+                                    if (field === 'pago') {
+                                        // Necesitamos calcular la facturacion total del registro existente
+                                        let stats = { facturacion: 0 };
+                                        try {
+                                            if (existing.data_json) {
+                                                const data = JSON.parse(existing.data_json);
+                                                if (data.kbsBillingTableData) {
+                                                    stats.facturacion = data.kbsBillingTableData.reduce((acc, r) => acc + (parseFloat(String(r.total).replace(/[^0-9.-]+/g, "")) || 0), 0);
+                                                }
+                                            }
+                                        } catch(e) {}
+                                        const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
+                                        autoStatus = pagoNum >= stats.facturacion && stats.facturacion > 0 ? 'Paid' : 'Due';
+                                    }
+
+                                    const payload = {
+                                        nombre: selectedHistoryStore,
+                                        codigo: `'WK-${week}`,
+                                        fecha_inicio: existing.fecha_inicio || week,
+                                        fecha_fin: existing.fecha_fin || '',
+                                        data_json: existing.data_json || '{}',
+                                        "Fecha Rad.": field === 'radicacion' ? val : (existing['fecha rad.'] || ''),
+                                        "Pago": field === 'pago' ? val : (existing['pago'] || ''),
+                                        "Fecha de Pago": field === 'fecha_pago' ? val : (existing['fecha de pago'] || ''),
+                                        "WOS": field === 'wos' ? val : (existing['wos'] || 0),
+                                        "Status": field === 'pago' ? autoStatus : (field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['status'] || 'Due'))
+                                    };
+
+                                    await fetch(API_URL, {
+                                        method: 'POST',
+                                        body: JSON.stringify({ action: 'upsert', sheetName: 'Nomina_Historico', data: payload })
+                                    });
+                                } catch (e) {
+                                    console.error("[LogicPay] Error persistiendo dato manual VWH:", e);
+                                }
                             }}
-                            onUpdateManualPE={(invoice, field, val) => {
-                                const key = `${selectedHistoryStore}-${invoice}`;
-                                setBillingPEManualRecords(prev => ({
-                                    ...prev,
-                                    [key]: { ...prev[key], [field]: val }
+                            onUpdateManualPE={async (id, field, val) => {
+                                // 1. Actualización Local Inmediata
+                                setSpecialProjectsHistoryData(prev => prev.map(h => {
+                                    const hId = h.correlativo || h.codigo;
+                                    if (String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && hId === id) {
+                                        const fieldMap = {
+                                            radicacion: 'fecha rad.',
+                                            pago: 'pago',
+                                            fecha_pago: 'fecha de pago',
+                                            wos: 'wos',
+                                            pagada: 'status'
+                                        };
+                                        const finalVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : val;
+                                        return { ...h, [fieldMap[field]]: finalVal };
+                                    }
+                                    return h;
                                 }));
+
+                                // 2. Persistencia en Sheets
+                                try {
+                                    const existing = specialProjectsHistoryData.find(h => (h.correlativo || h.codigo) === id) || {};
+                                    const fieldMap = {
+                                        radicacion: 'Fecha Rad.',
+                                        pago: 'Pago',
+                                        fecha_pago: 'Fecha de Pago',
+                                        wos: 'WOS',
+                                        pagada: 'Status'
+                                    };
+
+                                    const mappedField = fieldMap[field];
+                                    if (!mappedField) return;
+
+                                    const payload = {
+                                        ...existing,
+                                        correlativo: existing.correlativo ? `'${existing.correlativo}` : '',
+                                        codigo: existing.codigo ? `'${existing.codigo}` : '',
+                                        "Fecha Rad.": field === 'radicacion' ? val : (existing['fecha rad.'] || ''),
+                                        "Pago": field === 'pago' ? val : (existing['pago'] || ''),
+                                        "Fecha de Pago": field === 'fecha_pago' ? val : (existing['fecha de pago'] || ''),
+                                        "WOS": field === 'wos' ? val : (existing['wos'] || 0),
+                                        "Status": field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['status'] || 'Due')
+                                    };
+
+                                    await fetch(API_URL, {
+                                        method: 'POST',
+                                        body: JSON.stringify({ action: 'upsert', sheetName: 'Proyectos_Especiales', data: payload })
+                                    });
+                                } catch (e) {
+                                    console.error("[LogicPay] Error persistiendo dato manual PE:", e);
+                                }
                             }}
                             onOpenVWH={(weekId) => {
                                 const hData = nominaHistoryData.find(h =>
