@@ -2987,7 +2987,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                             if (clonedInputs[i]) {
                                 const parent = clonedInputs[i].parentNode;
                                 const textNode = document.createElement('div');
-                                textNode.className = "text-[9px] font-bold text-gray-400 uppercase tracking-tight";
+                                textNode.className = `text-[9px] font-bold uppercase tracking-tight ${input.value ? 'text-amber-600' : 'text-gray-400'}`;
                                 textNode.innerText = input.value;
                                 parent.replaceChild(textNode, clonedInputs[i]);
                             }
@@ -3105,12 +3105,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                                             <td className={`p-4 border-r-2 border-gray-100 text-center font-bold text-xs tabular-nums ${emp.pe === 0 ? 'text-gray-400 italic' : 'bg-amber-100 text-amber-600'}`}>{emp.pe === 0 ? '-' : emp.pe.toFixed(2)}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-black text-[#303a7f] text-xs tabular-nums">{totalHours.toFixed(2)}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-[#6bbdb7] text-xs tabular-nums">${Number(emp.rate).toFixed(2)}</td>
-                                            <td className="p-4 border-r-2 border-gray-100 px-2 py-1">
+                                            <td className={`p-4 border-r-2 border-gray-100 px-2 py-1 transition-colors ${emp.comments ? 'bg-amber-100' : 'bg-transparent'}`}>
                                                 <input
                                                     type="text"
                                                     value={emp.comments || ''}
                                                     onChange={(e) => handleCommentChange(idx, e.target.value)}
-                                                    className="w-full bg-transparent border-none text-[11px] font-bold text-gray-500 placeholder-gray-200 focus:ring-0 focus:text-[#303a7f] transition-colors"
+                                                    className={`w-full bg-transparent border-none text-[11px] font-bold outline-none ring-0 focus:ring-0 transition-colors ${emp.comments ? 'text-amber-600' : 'text-gray-500 placeholder-gray-200'}`}
                                                     placeholder="Añadir comentario..."
                                                 />
                                             </td>
