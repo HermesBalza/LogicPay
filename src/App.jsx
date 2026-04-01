@@ -3016,8 +3016,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                                         <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
                                         <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
                                         <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
-                                        <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
-                                        <td class="p-4 text-right font-black text-gray-200 text-xs">-</td>
+                                        <td class="p-4 border-r-2 border-gray-100 text-right font-black text-gray-200 text-xs">-</td>
+                                        <td class="p-4 text-center font-bold text-gray-200 text-xs">-</td>
                                     `;
                                     tableBody.appendChild(emptyRow);
                                 }
@@ -3088,8 +3088,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[60px]">P.E</th>
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[70px]">TOTAL</th>
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[75px]">RATE</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[275px]">COMMENTS</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-right w-[100px]">PAGO TOTAL</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-right border-r border-white/10 w-[120px]">PAGO TOTAL</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center w-[275px]">COMMENTS</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y-2 divide-gray-50">
@@ -3105,7 +3105,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                                             <td className={`p-4 border-r-2 border-gray-100 text-center font-bold text-xs tabular-nums ${emp.pe === 0 ? 'text-gray-400 italic' : 'bg-amber-100 text-amber-600'}`}>{emp.pe === 0 ? '-' : emp.pe.toFixed(2)}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-black text-[#303a7f] text-xs tabular-nums">{totalHours.toFixed(2)}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-[#6bbdb7] text-xs tabular-nums">${Number(emp.rate).toFixed(2)}</td>
-                                            <td className={`p-4 border-r-2 border-gray-100 px-2 py-1 transition-colors ${emp.comments ? 'bg-amber-100' : 'bg-transparent'}`}>
+                                            <td className="p-4 border-r-2 border-gray-100 text-right font-black text-[#303a7f] text-xs tabular-nums bg-opacity-30">${pagoTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className={`p-4 px-2 py-1 transition-colors ${emp.comments ? 'bg-amber-100' : 'bg-transparent'}`}>
                                                 <input
                                                     type="text"
                                                     value={emp.comments || ''}
@@ -3114,7 +3115,6 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                                                     placeholder="Añadir comentario..."
                                                 />
                                             </td>
-                                            <td className="p-4 text-right font-black text-[#303a7f] text-xs tabular-nums bg-opacity-30">${pagoTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                         </tr>
                                     );
                                 })}
@@ -3125,10 +3125,11 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                                     <td className="p-5 text-left text-[10px] uppercase tracking-widest bg-[#252a5e]">
                                         Total Personal: {biweeklyEmployees.length}
                                     </td>
-                                    <td colSpan="6" className="p-5 text-right text-[12px] uppercase tracking-[0.4em]">TOTAL DE NÓMINA:</td>
-                                    <td className="p-5 text-right text-lg tabular-nums">
+                                    <td colSpan="5" className="p-5 text-right text-[12px] uppercase tracking-[0.4em]">TOTAL DE NÓMINA:</td>
+                                    <td className="p-5 text-right text-lg tabular-nums border-r border-white/10">
                                         ${totalFinal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </td>
+                                    <td className="p-5 bg-white/5"></td>
                                 </tr>
                             </tfoot>
                         </table>
