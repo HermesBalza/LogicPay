@@ -3870,15 +3870,26 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                     {/* Fecha */}
                     <div>
                         <label className={labelCls}>Fecha del Proyecto</label>
-                        <input
-                            type="date"
-                            value={project.fecha}
-                            min={minDate}
-                            max={maxDate}
-                            onChange={(e) => updateMeta('fecha', e.target.value)}
-                            readOnly={isRegistered}
-                            className={`${inputCls} ${isRegistered ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        />
+                        <div className="relative">
+                            <input
+                                type="text"
+                                readOnly
+                                value={formatDate(project.fecha) || '--/--/--'}
+                                className={`${inputCls} ${isRegistered ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-[#6bbdb7]'}`}
+                                onClick={(e) => !isRegistered && e.currentTarget.nextSibling?.showPicker?.()}
+                            />
+                            {!isRegistered && (
+                                <input
+                                    type="date"
+                                    value={toISODate(project.fecha)}
+                                    min={minDate}
+                                    max={maxDate}
+                                    onChange={(e) => updateMeta('fecha', fromISODate(e.target.value))}
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                    onClick={(e) => e.target.showPicker?.()}
+                                />
+                            )}
+                        </div>
                     </div>
                     {/* Nombre del proyecto */}
                     <div>
@@ -4257,7 +4268,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
                             <div className="space-y-4 text-right">
                                 <div>
                                     <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-1">Invoice Date</span>
-                                    <p className="text-sm font-bold text-[#303a7f]">{project.fecha}</p>
+                                    <p className="text-sm font-bold text-[#303a7f]">{formatDate(project.fecha)}</p>
                                 </div>
                                 <div>
                                     <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-1">Bill To:</span>
@@ -4341,19 +4352,47 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
 
 
 // Utilidades de Fecha y Formato para Facturación
-const toISODate = (mmddyyyy) => {
-    if (!mmddyyyy || !mmddyyyy.includes('/')) return '';
-    const parts = mmddyyyy.split('/');
+const toISODate = (dateStr) => {
+    if (!dateStr) return '';
+    
+    // Si ya viene en ISO
+    if (dateStr.includes('-') && !dateStr.includes('/')) return dateStr;
+
+    const parts = dateStr.split('/').map(p => p.trim());
     if (parts.length < 3) return '';
-    const [m, d, y] = parts;
+    
+    // Detección inteligente: si el primer segmento es > 12, es DD/MM/YYYY
+    let m = parts[0], d = parts[1], y = parts[2];
+    if (parseInt(m) > 12) { [m, d] = [d, m]; }
+    
     return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 };
 
 const fromISODate = (yyyymmdd) => {
     if (!yyyymmdd || !yyyymmdd.includes('-')) return '';
     const [y, m, d] = yyyymmdd.split('-');
-    return `${m}/${d}/${y}`;
+    return `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${y}`;
 };
+
+const formatDate = (dateStr) => {
+    if (!dateStr || dateStr === '--/--/--') return '';
+    
+    // Si viene en ISO (ej: del picker)
+    if (dateStr.includes('-') && !dateStr.includes('/')) {
+        return fromISODate(dateStr);
+    }
+
+    // Si viene en formato con barras, aseguramos mm/dd/yyyy
+    const parts = dateStr.split('/').map(p => p.trim());
+    if (parts.length === 3) {
+        let m = parts[0], d = parts[1], y = parts[2];
+        if (parseInt(m) > 12) { [m, d] = [d, m]; }
+        return `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${y}`;
+    }
+    
+    return dateStr;
+};
+
 
 const formatCurrencyInput = (value) => {
     if (value === null || value === undefined) return '';
