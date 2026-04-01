@@ -4456,16 +4456,16 @@ const BillingView = ({
         const facturacionNum = stats.facturacion || 0;
 
         return {
-            id: h.fecha_inicio,
-            radicacion: h['fecha rad.'] || '',
+            id: h.codigo,
+            radicacion: h['Fecha Rad.'] || h['fecha rad.'] || '',
             semana: h.fecha_inicio && h.fecha_fin ? `${h.fecha_inicio} - ${h.fecha_fin}` : 'Período Desconocido',
             horas: stats.horas || 0,
             facturacion: stats.facturacion || 0,
             costos: stats.costos || 0,
             utilidad: (stats.facturacion || 0) - (stats.costos || 0),
-            pago: h['pago'] || '',
-            fecha_pago: h['fecha de pago'] || '',
-            wos: h['wos'] || 0,
+            pago: h['pago'] || h['Pago'] || '',
+            fecha_pago: h['fecha de pago'] || h['Fecha de Pago'] || '',
+            wos: h['wos'] || h['WOS'] || 0,
             pagada: pagoNum >= facturacionNum && facturacionNum > 0
         };
     });
@@ -4514,11 +4514,11 @@ const BillingView = ({
                         horas: 0,
                         facturacion: 0,
                         costos: 0,
-                        radicacion: h['fecha rad.'] || '',
-                        pago: h['pago'] || '',
-                        fecha_pago: h['fecha de pago'] || '',
-                        wos: h['wos'] || 0,
-                        pagada: h['pagada'] === true || h['pagada'] === 'true'
+                        radicacion: h['Fecha Rad.'] || h['fecha rad.'] || '',
+                        pago: h['Pago'] || h['pago'] || '',
+                        fecha_pago: h['Fecha de Pago'] || h['fecha de pago'] || '',
+                        wos: h['WOS'] || h['wos'] || 0,
+                        pagada: h['pagada'] === true || h['pagada'] === 'true' || h['Status'] === 'Paid'
                     };
                 }
 
@@ -4536,10 +4536,21 @@ const BillingView = ({
         }
     });
 
-    const peTableData = Object.values(peTableDataMap).map(row => ({
-        ...row,
-        utilidad: (row.facturacion || 0) - (row.costos || 0)
-    }));
+    const peTableData = Object.values(peTableDataMap).map(row => {
+        const pagoNum = parseFloat(String(row.pago || 0).replace(/[^0-9.]/g, '')) || 0;
+        const facturacionNum = row.facturacion || 0;
+        return {
+            ...row,
+            utilidad: (row.facturacion || 0) - (row.costos || 0),
+            pagada: pagoNum >= facturacionNum && facturacionNum > 0
+        };
+    }).sort((a, b) => {
+        try {
+            const dateA = toISODate(a.fecha);
+            const dateB = toISODate(b.fecha);
+            return dateA.localeCompare(dateB);
+        } catch (e) { return 0; }
+    });
 
     const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
     function rowTotalToNumber(val) {
@@ -4724,10 +4735,10 @@ const BillingView = ({
                                         className={`bg-transparent border-none text-[10px] font-black outline-none w-8 text-center ${row.wos > 0 ? 'text-orange-500' : 'text-gray-300'}`} />
                                 </td>
                                 <td className="px-3 py-4 text-center">
-                                    <button onClick={() => onUpdateManualPE(row.id, 'pagada', !row.pagada)} className="inline-flex items-center gap-1.5 group/btn">
-                                        <div className={`w-2.5 h-2.5 rounded-full border-2 ${row.pagada ? 'bg-teal-500 border-teal-500' : 'bg-transparent border-gray-200 group-hover/btn:border-red-400'}`} />
+                                    <div className="inline-flex items-center gap-1.5 cursor-default">
+                                        <div className={`w-2.5 h-2.5 rounded-full border-2 ${row.pagada ? 'bg-teal-500 border-teal-500' : 'bg-transparent border-gray-200'}`} />
                                         <span className={`text-[8px] font-black uppercase tracking-tight ${row.pagada ? 'text-teal-500' : 'text-gray-300'}`}>{row.pagada ? 'Paid' : 'Due'}</span>
-                                    </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -7445,77 +7456,77 @@ function App() {
                             historyData={nominaHistoryData}
                             specialHistoryData={specialProjectsHistoryData}
                             onUpdateManual={async (week, field, val) => {
-                                // 1. Actualización Local Inmediata (Optimista y sin Local Storage)
+                                // 1. Actualización Local Inmediata
                                 setNominaHistoryData(prev => prev.map(h => {
-                                    if (String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && h.fecha_inicio === week) {
+                                    if (String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && String(h.codigo) === String(week)) {
                                         const fieldMap = {
-                                            radicacion: 'fecha rad.',
-                                            pago: 'pago',
-                                            fecha_pago: 'fecha de pago',
-                                            wos: 'wos',
-                                            pagada: 'status'
+                                            'fecha rad.': ['fecha rad.', 'Fecha Rad.'],
+                                            'pago': ['pago', 'Pago'],
+                                            'fecha de pago': ['fecha de pago', 'Fecha de Pago'],
+                                            'wos': ['wos', 'WOS'],
+                                            'pagada': ['status', 'Status']
                                         };
                                         const finalVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : val;
-                                        const updated = { ...h, [fieldMap[field]]: finalVal };
+                                        const updated = { ...h };
+                                        (fieldMap[field] || []).forEach(key => { updated[key] = finalVal; });
                                         
-                                        // Auto-Status Logic for VWH
                                         if (field === 'pago') {
                                             const facturacionNum = parseFloat(String(h.facturacion || 0)) || 0;
                                             const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
-                                            updated['status'] = pagoNum >= facturacionNum && facturacionNum > 0 ? 'Paid' : 'Due';
+                                            const statusVal = pagoNum >= facturacionNum && facturacionNum > 0 ? 'Paid' : 'Due';
+                                            updated['status'] = statusVal;
+                                            updated['Status'] = statusVal;
                                         }
-                                        
                                         return updated;
                                     }
                                     return h;
                                 }));
 
-                                // 2. Persistencia en Base de Datos (Nomina_Historico)
+                                // 2. Persistencia en Base de Datos
                                 try {
                                     const existing = nominaHistoryData.find(h => 
                                         String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && 
-                                        h.fecha_inicio === week
+                                        String(h.codigo) === String(week)
                                     ) || {};
 
-                                    const fieldMap = {
-                                        radicacion: 'Fecha Rad.',
-                                        pago: 'Pago',
-                                        fecha_pago: 'Fecha de Pago',
-                                        wos: 'WOS',
-                                        pagada: 'Status'
+                                    const fieldMapPayload = {
+                                        'fecha rad.': 'Fecha Rad.',
+                                        'pago': 'Pago',
+                                        'fecha de pago': 'Fecha de Pago',
+                                        'wos': 'WOS',
+                                        'pagada': 'Status'
                                     };
 
-                                    const mappedField = fieldMap[field];
-                                    if (!mappedField) return;
-
                                     // Calcular Status automático para el payload
-                                    let autoStatus = existing['status'] || 'Due';
+                                    let autoStatus = existing['Status'] || existing['status'] || 'Due';
                                     if (field === 'pago') {
-                                        // Necesitamos calcular la facturacion total del registro existente
                                         let stats = { facturacion: 0 };
                                         try {
                                             if (existing.data_json) {
                                                 const data = JSON.parse(existing.data_json);
                                                 if (data.kbsBillingTableData) {
-                                                    stats.facturacion = data.kbsBillingTableData.reduce((acc, r) => acc + (parseFloat(String(r.total).replace(/[^0-9.-]+/g, "")) || 0), 0);
+                                                    stats.facturacion = data.kbsBillingTableData.reduce((acc, r) => {
+                                                        const totalStr = String(r.total || '0').replace(/[^0-9.-]+/g, "");
+                                                        return acc + (parseFloat(totalStr) || 0);
+                                                    }, 0);
                                                 }
                                             }
                                         } catch(e) {}
                                         const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
-                                        autoStatus = pagoNum >= stats.facturacion && stats.facturacion > 0 ? 'Paid' : 'Due';
+                                        autoStatus = (pagoNum >= stats.facturacion && stats.facturacion > 0) ? 'Paid' : 'Due';
                                     }
 
                                     const payload = {
                                         nombre: selectedHistoryStore,
-                                        codigo: `'WK-${week}`,
-                                        fecha_inicio: existing.fecha_inicio || week,
+                                        codigo: existing.codigo ? (String(existing.codigo).startsWith("'") ? existing.codigo : `'${existing.codigo}`) : `'${week}`,
+                                        fecha_inicio: existing.fecha_inicio || '',
                                         fecha_fin: existing.fecha_fin || '',
                                         data_json: existing.data_json || '{}',
-                                        "Fecha Rad.": field === 'radicacion' ? val : (existing['fecha rad.'] || ''),
-                                        "Pago": field === 'pago' ? val : (existing['pago'] || ''),
-                                        "Fecha de Pago": field === 'fecha_pago' ? val : (existing['fecha de pago'] || ''),
-                                        "WOS": field === 'wos' ? val : (existing['wos'] || 0),
-                                        "Status": field === 'pago' ? autoStatus : (field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['status'] || 'Due'))
+                                        "Fecha Rad.": field === 'fecha rad.' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
+                                        "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
+                                        "Fecha de Pago": field === 'fecha de pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
+                                        "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
+                                        "Status": field === 'pago' ? autoStatus : (field === 'pagada' ? (val ? 'Paid' : 'Due') : autoStatus)
                                     };
 
                                     await fetch(API_URL, {
@@ -7527,60 +7538,91 @@ function App() {
                                 }
                             }}
                             onUpdateManualPE={async (id, field, val) => {
-                                // 1. Actualización Local Inmediata
+                                // 1. Local State Update
                                 setSpecialProjectsHistoryData(prev => prev.map(h => {
-                                    const hId = h.correlativo || h.codigo;
-                                    if (String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && hId === id) {
+                                    const hId = h.correlativo || h.Correlativo || h.codigo || h.ID_Consolidacion;
+                                    if (String(hId) === String(id)) {
                                         const fieldMap = {
-                                            radicacion: 'fecha rad.',
-                                            pago: 'pago',
-                                            fecha_pago: 'fecha de pago',
-                                            wos: 'wos',
-                                            pagada: 'status'
+                                            'fecha rad.': ['fecha rad.', 'Fecha Rad.'],
+                                            'pago': ['pago', 'Pago'],
+                                            'fecha de pago': ['fecha de pago', 'Fecha de Pago'],
+                                            'wos': ['wos', 'WOS'],
+                                            'pagada': ['status', 'Status']
                                         };
-                                        const finalVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : val;
-                                        return { ...h, [fieldMap[field]]: finalVal };
+                                        const updated = { ...h };
+                                        (fieldMap[field] || []).forEach(key => { updated[key] = val; });
+                                        
+                                        if (field === 'pago') {
+                                            let totalFacturacion = 0;
+                                            try {
+                                                const projects = JSON.parse(h.data_json);
+                                                const pArray = Array.isArray(projects) ? projects : [projects];
+                                                totalFacturacion = pArray.reduce((acc, p) => acc + (parseFloat(p.total_kbs) || 0), 0);
+                                            } catch (e) {}
+                                            const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
+                                            const statusVal = (pagoNum >= totalFacturacion && totalFacturacion > 0) ? 'Paid' : 'Due';
+                                            updated['status'] = statusVal;
+                                            updated['Status'] = statusVal;
+                                        }
+                                        return updated;
                                     }
                                     return h;
                                 }));
 
-                                // 2. Persistencia en Sheets
+                                // 2. Persistence in Sheets
                                 try {
-                                    const existing = specialProjectsHistoryData.find(h => (h.correlativo || h.codigo) === id) || {};
-                                    const fieldMap = {
-                                        radicacion: 'Fecha Rad.',
-                                        pago: 'Pago',
-                                        fecha_pago: 'Fecha de Pago',
-                                        wos: 'WOS',
-                                        pagada: 'Status'
-                                    };
+                                    const existing = specialProjectsHistoryData.find(h => String(h.correlativo || h.codigo || h.ID_Consolidacion) === String(id));
+                                    if (!existing) return;
 
-                                    const mappedField = fieldMap[field];
-                                    if (!mappedField) return;
+                                    // Calcular Status automático para el payload
+                                    let autoStatus = existing['status'] || existing['Status'] || 'Due';
+                                    if (field === 'pago') {
+                                        let totalFacturacion = 0;
+                                        try {
+                                            const projects = JSON.parse(existing.data_json);
+                                            const pArray = Array.isArray(projects) ? projects : [projects];
+                                            totalFacturacion = pArray.reduce((acc, p) => acc + (parseFloat(p.total_kbs) || 0), 0);
+                                        } catch (e) {}
+                                        const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
+                                        autoStatus = (pagoNum >= totalFacturacion && totalFacturacion > 0) ? 'Paid' : 'Due';
+                                    }
 
                                     const payload = {
                                         ...existing,
-                                        correlativo: existing.correlativo ? `'${existing.correlativo}` : '',
-                                        codigo: existing.codigo ? `'${existing.codigo}` : '',
-                                        "Fecha Rad.": field === 'radicacion' ? val : (existing['fecha rad.'] || ''),
-                                        "Pago": field === 'pago' ? val : (existing['pago'] || ''),
-                                        "Fecha de Pago": field === 'fecha_pago' ? val : (existing['fecha de pago'] || ''),
-                                        "WOS": field === 'wos' ? val : (existing['wos'] || 0),
-                                        "Status": field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['status'] || 'Due')
+                                        ID_Consolidacion: existing.ID_Consolidacion,
+                                        "Fecha Rad.": field === 'radicacion' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
+                                        "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
+                                        "Fecha de Pago": field === 'fecha_pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
+                                        "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
+                                        "Status": field === 'pago' ? autoStatus : (field === 'pagada' ? (val ? 'Paid' : 'Due') : autoStatus)
                                     };
 
                                     await fetch(API_URL, {
                                         method: 'POST',
-                                        body: JSON.stringify({ action: 'upsert', sheetName: 'Proyectos_Especiales', data: payload })
+                                        body: JSON.stringify({ action: 'upsert', sheetName: 'Proyectos_Especiales', data: {
+                                            ID_Consolidacion: existing.ID_Consolidacion || '',
+                                            Tienda: existing.Tienda || '',
+                                            Periodo: existing.Periodo || '',
+                                            Data_JSON: existing.Data_JSON || existing.data_json || '{}',
+                                            Fecha_Confirmacion: existing.Fecha_Confirmacion || '',
+                                            Correlativo: existing.Correlativo || '',
+                                            "Fecha Rad.": field === 'fecha rad.' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
+                                            "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
+                                            "Fecha de Pago": field === 'fecha de pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
+                                            "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
+                                            correlativo: existing.correlativo || '',
+                                            codigo: existing.codigo || '',
+                                            Status: field === 'pago' ? autoStatus : (field === 'pagada' ? (val ? 'Paid' : 'Due') : autoStatus)
+                                        }})
                                     });
                                 } catch (e) {
-                                    console.error("[LogicPay] Error persistiendo dato manual PE:", e);
+                                    console.error("[LogicPay] Error persistiendo P.E:", e);
                                 }
                             }}
                             onOpenVWH={(weekId) => {
                                 const hData = nominaHistoryData.find(h =>
                                     String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
-                                    h.fecha_inicio === weekId
+                                    String(h.codigo) === String(weekId)
                                 );
                                 if (hData) {
                                     try {
