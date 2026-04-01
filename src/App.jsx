@@ -4504,10 +4504,12 @@ const BillingView = ({
                 const projectDate = parseProjectDate(p.fecha);
                 if (projectDate && projectDate.getFullYear() !== currentYear) return;
 
+                const correlativoKey = String(h.correlativo || h.Correlativo || '').trim();
                 const key = p.invoice || `${p.proyecto || 'S-P'}-${p.fecha || '00'}`;
                 if (!peTableDataMap[key]) {
                     peTableDataMap[key] = {
                         id: key,
+                        correlativo: correlativoKey,
                         invoice: p.invoice || 'N/A',
                         nombre: p.proyecto || p.nombre || 'Proyecto Especial',
                         fecha: p.fecha || '--/--/--',
@@ -4693,7 +4695,7 @@ const BillingView = ({
                                         <input type="text" readOnly placeholder="--/--/--" value={row.radicacion}
                                             className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
                                         <input type="date" value={toISODate(row.radicacion)} 
-                                            onChange={(e) => onUpdateManualPE(row.id, 'fecha rad.', fromISODate(e.target.value))}
+                                            onChange={(e) => onUpdateManualPE(row.correlativo, 'fecha rad.', fromISODate(e.target.value))}
                                             onClick={(e) => e.target.showPicker?.()}
                                             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
                                     </div>
@@ -4717,7 +4719,7 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <input type="text" placeholder="$0.00" value={formatCurrencyInput(row.pago)} onChange={(e) => onUpdateManualPE(row.id, 'pago', e.target.value)}
+                                    <input type="text" placeholder="$0.00" value={formatCurrencyInput(row.pago)} onChange={(e) => onUpdateManualPE(row.correlativo, 'pago', e.target.value)}
                                         className="bg-transparent border-none text-[10px] font-black text-[#303a7f] outline-none w-20 text-center" />
                                 </td>
                                 <td className="px-2 py-4 text-center">
@@ -4725,13 +4727,13 @@ const BillingView = ({
                                         <input type="text" readOnly placeholder="--/--/--" value={row.fecha_pago}
                                             className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
                                         <input type="date" value={toISODate(row.fecha_pago)} 
-                                            onChange={(e) => onUpdateManualPE(row.id, 'fecha de pago', fromISODate(e.target.value))}
+                                            onChange={(e) => onUpdateManualPE(row.correlativo, 'fecha de pago', fromISODate(e.target.value))}
                                             onClick={(e) => e.target.showPicker?.()}
                                             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <input type="number" value={row.wos} onChange={(e) => onUpdateManualPE(row.id, 'wos', e.target.value)}
+                                    <input type="number" value={row.wos} onChange={(e) => onUpdateManualPE(row.correlativo, 'wos', e.target.value)}
                                         className={`bg-transparent border-none text-[10px] font-black outline-none w-8 text-center ${row.wos > 0 ? 'text-orange-500' : 'text-gray-300'}`} />
                                 </td>
                                 <td className="px-3 py-4 text-center">
@@ -4877,6 +4879,83 @@ function App() {
     const [billingPEManualRecords, setBillingPEManualRecords] = useState({});
     const [specialProjectsHistoryData, setSpecialProjectsHistoryData] = useState([]); // FASE 10: Historial P.E
 
+    // --- OBSERVADOR DE SINCRONIZACIÓN: Proyectos Especiales (Debounced) ---
+    useEffect(() => {
+        if (!pePendingSaveRef.current) return;
+        
+        if (peSaveTimeoutRef.current) clearTimeout(peSaveTimeoutRef.current);
+        
+        peSaveTimeoutRef.current = setTimeout(async () => {
+            const task = pePendingSaveRef.current;
+            if (!task) return;
+
+            try {
+                const { id, field, val } = task;
+                let sourceData = specialProjectsHistoryData;
+                if (!sourceData || sourceData.length === 0) {
+                    sourceData = await fetchSpecialProjectsHistory();
+                }
+
+                let existing = sourceData.find(h => 
+                    String(h.correlativo || h.Correlativo || '').trim() === String(id).trim()
+                );
+
+                if (!existing) {
+                    sourceData = await fetchSpecialProjectsHistory();
+                    existing = sourceData.find(h => 
+                        String(h.correlativo || h.Correlativo || '').trim() === String(id).trim()
+                    );
+                }
+                if (!existing) return;
+
+                // Calcular Status automático para el payload
+                let autoStatus = existing['status'] || existing['Status'] || 'Due';
+                if (field === 'pago') {
+                    let totalFacturacion = 0;
+                    try {
+                        const projects = JSON.parse(existing.data_json);
+                        const pArray = Array.isArray(projects) ? projects : [projects];
+                        totalFacturacion = pArray.reduce((acc, p) => acc + (parseFloat(p.total_kbs) || 0), 0);
+                    } catch (e) {}
+                    const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
+                    autoStatus = (pagoNum >= totalFacturacion && totalFacturacion > 0) ? 'Paid' : 'Due';
+                }
+
+                const correlativoVal = String(existing.correlativo || existing.Correlativo || '').trim();
+                if (!correlativoVal) return;
+
+                // Payload con orden exacto de columnas (A a K)
+                const payload = {
+                    "Tienda": existing.tienda || existing.Tienda || '',
+                    "Periodo": existing.periodo || existing.Periodo || '',
+                    "Data_JSON": existing.data_json || existing.Data_JSON || '{}',
+                    "Fecha_Confirmacion": existing.fecha_confirmacion || existing.Fecha_Confirmacion || '',
+                    "Correlativo": correlativoVal,
+                    "Fecha Rad.": field === 'fecha rad.' ? val : (existing['fecha rad.'] || existing['Fecha Rad.'] || ''),
+                    "Pago": field === 'pago' ? val : (existing['pago'] || existing['Pago'] || ''),
+                    "Fecha de Pago": field === 'fecha de pago' ? val : (existing['fecha de pago'] || existing['Fecha de Pago'] || ''),
+                    "WOS": field === 'wos' ? val : (existing['wos'] || existing['WOS'] || 0),
+                    "Status": field === 'pago' ? autoStatus : (field === 'pagada' ? (val ? 'Paid' : 'Due') : autoStatus)
+                };
+
+                // Uso de la función estandarizada con matchKeys exclusivo en Correlativo
+                await syncToSheets('upsert', payload, 'Proyectos_Especiales', false, ['Correlativo']);
+
+                if (pePendingSaveRef.current?.id === task.id) {
+                    pePendingSaveRef.current = null;
+                }
+                console.log("[LogicPay] Sincronización Exitosa P.E (Mode: Update):", finalId);
+            } catch (e) {
+                console.error("[LogicPay] Error en Sincronización P.E:", e);
+            }
+        }, 1500);
+
+        return () => { if (peSaveTimeoutRef.current) clearTimeout(peSaveTimeoutRef.current); };
+    }, [specialProjectsHistoryData]);
+
+    const pePendingSaveRef = useRef(null);
+    const peSaveTimeoutRef = useRef(null);
+    const vwhSaveTimeoutRef = useRef(null);
     const massImportFileInputRef = useRef(null);
     const storeMassImportFileInputRef = useRef(null);
 
@@ -6234,7 +6313,7 @@ function App() {
 
     const fetchSpecialProjectsHistory = async () => {
         try {
-            const response = await fetch(SPECIAL_PROJECTS_HISTORY_CSV_URL);
+            const response = await fetch(SPECIAL_PROJECTS_HISTORY_CSV_URL, { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const csvText = await response.text();
             const lines = csvText.trim().split('\n').filter(l => l.trim());
@@ -6325,13 +6404,13 @@ function App() {
     // Usa mode: 'no-cors' con Content-Type: 'text/plain' (CORS-safelisted).
     // El Apps Script recibe el JSON en e.postData.contents y lo procesa.
     // Tras un breve delay, recarga los datos para confirmar la escritura.
-    const syncToSheets = (action, data, sheetName = 'Tiendas', skipRefresh = false) => {
+    const syncToSheets = (action, data, sheetName = 'Tiendas', skipRefresh = false, matchKeys = []) => {
         setDbStatus('sincronizando');
         return fetch(API_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action, data, sheetName })
+            body: JSON.stringify({ action, data, sheetName, matchKeys })
         })
             .then(() => {
                 if (!skipRefresh) {
@@ -7482,66 +7561,61 @@ function App() {
                                     return h;
                                 }));
 
-                                // 2. Persistencia en Base de Datos
-                                try {
-                                    const existing = nominaHistoryData.find(h => 
-                                        String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && 
-                                        String(h.codigo) === String(week)
-                                    ) || {};
+                                // 2. Persistencia en Base de Datos (Debounce 1s)
+                                if (vwhSaveTimeoutRef.current) clearTimeout(vwhSaveTimeoutRef.current);
+                                vwhSaveTimeoutRef.current = setTimeout(async () => {
+                                    try {
+                                        const existing = nominaHistoryData.find(h => 
+                                            String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && 
+                                            String(h.codigo) === String(week)
+                                        ) || {};
 
-                                    const fieldMapPayload = {
-                                        'fecha rad.': 'Fecha Rad.',
-                                        'pago': 'Pago',
-                                        'fecha de pago': 'Fecha de Pago',
-                                        'wos': 'WOS',
-                                        'pagada': 'Status'
-                                    };
-
-                                    // Calcular Status automático para el payload
-                                    let autoStatus = existing['Status'] || existing['status'] || 'Due';
-                                    if (field === 'pago') {
-                                        let stats = { facturacion: 0 };
-                                        try {
-                                            if (existing.data_json) {
-                                                const data = JSON.parse(existing.data_json);
-                                                if (data.kbsBillingTableData) {
-                                                    stats.facturacion = data.kbsBillingTableData.reduce((acc, r) => {
-                                                        const totalStr = String(r.total || '0').replace(/[^0-9.-]+/g, "");
-                                                        return acc + (parseFloat(totalStr) || 0);
-                                                    }, 0);
+                                        // Calcular Status automático para el payload
+                                        let autoStatus = existing['Status'] || existing['status'] || 'Due';
+                                        if (field === 'pago') {
+                                            let stats = { facturacion: 0 };
+                                            try {
+                                                if (existing.data_json) {
+                                                    const data = JSON.parse(existing.data_json);
+                                                    if (data.kbsBillingTableData) {
+                                                        stats.facturacion = data.kbsBillingTableData.reduce((acc, r) => {
+                                                            const totalStr = String(r.total || '0').replace(/[^0-9.-]+/g, "");
+                                                            return acc + (parseFloat(totalStr) || 0);
+                                                        }, 0);
+                                                    }
                                                 }
-                                            }
-                                        } catch(e) {}
-                                        const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
-                                        autoStatus = (pagoNum >= stats.facturacion && stats.facturacion > 0) ? 'Paid' : 'Due';
+                                            } catch(e) {}
+                                            const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
+                                            autoStatus = (pagoNum >= stats.facturacion && stats.facturacion > 0) ? 'Paid' : 'Due';
+                                        }
+
+                                        const payload = {
+                                            nombre: selectedHistoryStore,
+                                            codigo: existing.codigo ? (String(existing.codigo).startsWith("'") ? existing.codigo : `'${existing.codigo}`) : `'${week}`,
+                                            fecha_inicio: existing.fecha_inicio || '',
+                                            fecha_fin: existing.fecha_fin || '',
+                                            data_json: existing.data_json || '{}',
+                                            "Fecha Rad.": field === 'fecha rad.' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
+                                            "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
+                                            "Fecha de Pago": field === 'fecha de pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
+                                            "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
+                                            "Status": field === 'pago' ? autoStatus : (field === 'pagada' ? (val ? 'Paid' : 'Due') : autoStatus)
+                                        };
+
+                                        await fetch(API_URL, {
+                                            method: 'POST',
+                                            body: JSON.stringify({ action: 'upsert', sheetName: 'Nomina_Historico', data: payload })
+                                        });
+                                    } catch (e) {
+                                        console.error("[LogicPay] Error persistiendo dato manual VWH:", e);
                                     }
-
-                                    const payload = {
-                                        nombre: selectedHistoryStore,
-                                        codigo: existing.codigo ? (String(existing.codigo).startsWith("'") ? existing.codigo : `'${existing.codigo}`) : `'${week}`,
-                                        fecha_inicio: existing.fecha_inicio || '',
-                                        fecha_fin: existing.fecha_fin || '',
-                                        data_json: existing.data_json || '{}',
-                                        "Fecha Rad.": field === 'fecha rad.' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
-                                        "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
-                                        "Fecha de Pago": field === 'fecha de pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
-                                        "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
-                                        "Status": field === 'pago' ? autoStatus : (field === 'pagada' ? (val ? 'Paid' : 'Due') : autoStatus)
-                                    };
-
-                                    await fetch(API_URL, {
-                                        method: 'POST',
-                                        body: JSON.stringify({ action: 'upsert', sheetName: 'Nomina_Historico', data: payload })
-                                    });
-                                } catch (e) {
-                                    console.error("[LogicPay] Error persistiendo dato manual VWH:", e);
-                                }
+                                }, 1000);
                             }}
-                            onUpdateManualPE={async (id, field, val) => {
-                                // 1. Local State Update
+                            onUpdateManualPE={(id, field, val) => {
+                                // 1. Local State Update (Inmediato para la UI)
                                 setSpecialProjectsHistoryData(prev => prev.map(h => {
-                                    const hId = h.correlativo || h.Correlativo || h.codigo || h.ID_Consolidacion;
-                                    if (String(hId) === String(id)) {
+                                    const hId = String(h.correlativo || h.Correlativo || '').trim();
+                                    if (hId && String(hId) === String(id).trim()) {
                                         const fieldMap = {
                                             'fecha rad.': ['fecha rad.', 'Fecha Rad.'],
                                             'pago': ['pago', 'Pago'],
@@ -7569,55 +7643,8 @@ function App() {
                                     return h;
                                 }));
 
-                                // 2. Persistence in Sheets
-                                try {
-                                    const existing = specialProjectsHistoryData.find(h => String(h.correlativo || h.codigo || h.ID_Consolidacion) === String(id));
-                                    if (!existing) return;
-
-                                    // Calcular Status automático para el payload
-                                    let autoStatus = existing['status'] || existing['Status'] || 'Due';
-                                    if (field === 'pago') {
-                                        let totalFacturacion = 0;
-                                        try {
-                                            const projects = JSON.parse(existing.data_json);
-                                            const pArray = Array.isArray(projects) ? projects : [projects];
-                                            totalFacturacion = pArray.reduce((acc, p) => acc + (parseFloat(p.total_kbs) || 0), 0);
-                                        } catch (e) {}
-                                        const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
-                                        autoStatus = (pagoNum >= totalFacturacion && totalFacturacion > 0) ? 'Paid' : 'Due';
-                                    }
-
-                                    const payload = {
-                                        ...existing,
-                                        ID_Consolidacion: existing.ID_Consolidacion,
-                                        "Fecha Rad.": field === 'radicacion' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
-                                        "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
-                                        "Fecha de Pago": field === 'fecha_pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
-                                        "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
-                                        "Status": field === 'pago' ? autoStatus : (field === 'pagada' ? (val ? 'Paid' : 'Due') : autoStatus)
-                                    };
-
-                                    await fetch(API_URL, {
-                                        method: 'POST',
-                                        body: JSON.stringify({ action: 'upsert', sheetName: 'Proyectos_Especiales', data: {
-                                            ID_Consolidacion: existing.ID_Consolidacion || '',
-                                            Tienda: existing.Tienda || '',
-                                            Periodo: existing.Periodo || '',
-                                            Data_JSON: existing.Data_JSON || existing.data_json || '{}',
-                                            Fecha_Confirmacion: existing.Fecha_Confirmacion || '',
-                                            Correlativo: existing.Correlativo || '',
-                                            "Fecha Rad.": field === 'fecha rad.' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
-                                            "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
-                                            "Fecha de Pago": field === 'fecha de pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
-                                            "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
-                                            correlativo: existing.correlativo || '',
-                                            codigo: existing.codigo || '',
-                                            Status: field === 'pago' ? autoStatus : (field === 'pagada' ? (val ? 'Paid' : 'Due') : autoStatus)
-                                        }})
-                                    });
-                                } catch (e) {
-                                    console.error("[LogicPay] Error persistiendo P.E:", e);
-                                }
+                                // 2. Marcado para Sincronización (Debounced por el observador useEffect)
+                                pePendingSaveRef.current = { id, field, val };
                             }}
                             onOpenVWH={(weekId) => {
                                 const hData = nominaHistoryData.find(h =>
