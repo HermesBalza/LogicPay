@@ -61,7 +61,7 @@ import html2canvas from 'html2canvas';
 const genAIClient = (key) => new GoogleGenerativeAI(key);
 
 // ─── BASE DE DATOS: Google Sheets via Apps Script (escritura) ───────────────
-const API_URL = 'https://script.google.com/macros/s/AKfycby0R4SsS0XZm4pCff6Z4jWzm_86qXjEvoIJPMaCSIwfEDG3zxD8s7YFV9_wy14HgSV8Pg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxpul9_uMVb1RfBj7E5ASUJ470Ps4b5seldhCdC1oOTCNkgcWU0HNIpkP1k5eTXImrEoA/exec';
 
 // ─── BASE DE DATOS: Google Sheets publicado como CSV (lectura) ───────────────
 const SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=0&single=true&output=csv';
@@ -4921,11 +4921,17 @@ function App() {
                     autoStatus = (pagoNum >= totalFacturacion && totalFacturacion > 0) ? 'Paid' : 'Due';
                 }
 
-                const correlativoVal = String(existing.correlativo || existing.Correlativo || '').trim();
+                // Limpiar el Correlativo eliminando apóstrofos y espacios para un match exacto con la hoja
+                const correlativoVal = String(existing.correlativo || existing.Correlativo || '')
+                    .trim()
+                    .replace(/^'+/, '')  // Eliminar apóstrofos iniciales (formato Sheets)
+                    .trim();
                 if (!correlativoVal) return;
 
                 // Payload con orden exacto de columnas (A a K)
+                // IMPORTANTE: ID_Consolidacion debe incluirse para que no sea borrado al actualizar
                 const payload = {
+                    "ID_Consolidacion": existing.id_consolidacion || existing.ID_Consolidacion || '',
                     "Tienda": existing.tienda || existing.Tienda || '',
                     "Periodo": existing.periodo || existing.Periodo || '',
                     "Data_JSON": existing.data_json || existing.Data_JSON || '{}',
@@ -4938,8 +4944,9 @@ function App() {
                     "Status": field === 'pago' ? autoStatus : (field === 'pagada' ? (val ? 'Paid' : 'Due') : autoStatus)
                 };
 
-                // Uso de la función estandarizada con matchKeys exclusivo en Correlativo
-                await syncToSheets('upsert', payload, 'Proyectos_Especiales', false, ['Correlativo']);
+                // Uso de 'update' (en lugar de 'upsert') para garantizar que SOLO se actualice
+                // la fila existente y NUNCA se cree una fila nueva
+                await syncToSheets('update', payload, 'Proyectos_Especiales', false, ['Correlativo']);
 
                 if (pePendingSaveRef.current?.id === task.id) {
                     pePendingSaveRef.current = null;
