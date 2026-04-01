@@ -4187,6 +4187,158 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
     );
 };
 
+// ─── Componente del Modal de Factura (Elegante y Premium) ───────────────────
+const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
+    const reportRef = useRef(null);
+    if (!isOpen || !project) return null;
+
+    const handleDownloadPDF = async () => {
+        const element = reportRef.current;
+        if (!element) return;
+
+        try {
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: "#ffffff",
+                windowWidth: 1000
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 210;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            pdf.save(`Invoice_${project.invoice}_${project.tienda.replace(/\s+/g, '_')}.pdf`);
+        } catch (error) {
+            console.error('Error generating Invoice PDF:', error);
+        }
+    };
+
+    const totalKBS = (project.employees || []).reduce((acc, row) => acc + (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0), 0);
+
+    return (
+        <div className="fixed inset-0 z-[500] bg-[#303a7f]/20 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300 font-sans">
+            <div className="bg-white w-full max-w-4xl h-[90vh] rounded-[3rem] shadow-[0_40px_120px_-20px_rgba(48,58,127,0.4)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+                {/* Custom Modern Header (Requested by Hermes: No buttons, Title + Invoice Right) */}
+                <div className="px-10 py-8 border-b-2 border-gray-50 bg-gradient-to-r from-gray-50/50 to-transparent flex items-center justify-between">
+                    <h2 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase">Proyecto Especial</h2>
+                    <div className="bg-[#303a7f] text-white px-6 py-2.5 rounded-2xl shadow-xl shadow-blue-900/20">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 block leading-none mb-1">INVOICE</span>
+                        <span className="text-xl font-black leading-none">#{project.invoice}</span>
+                    </div>
+                </div>
+
+                {/* PDF Content Area */}
+                <div className="flex-1 overflow-y-auto p-12 bg-white custom-scrollbar">
+                    <div ref={reportRef} className="bg-white p-8">
+                        {/* Invoice Body Content */}
+                        <div className="flex justify-between items-start mb-16">
+                            <img src="/Logo Logic Group Management.png" alt="LGM Logo" className="h-20 object-contain" />
+                            <div className="text-right">
+                                <h3 className="text-sm font-black text-[#6bbdb7] uppercase tracking-[0.3em] mb-1">Invoice:</h3>
+                                <p className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none">#{project.invoice}</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-12 mb-16">
+                            <div className="space-y-4">
+                                <div>
+                                    <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-1">Project Name</span>
+                                    <p className="text-sm font-bold text-[#303a7f] uppercase">{project.proyecto || project.nombre}</p>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-1">Store</span>
+                                    <p className="text-sm font-bold text-[#303a7f] uppercase">{project.tienda}</p>
+                                </div>
+                            </div>
+                            <div className="space-y-4 text-right">
+                                <div>
+                                    <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-1">Invoice Date</span>
+                                    <p className="text-sm font-bold text-[#303a7f]">{project.fecha}</p>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-1">Bill To:</span>
+                                    <p className="text-sm font-bold text-[#303a7f] uppercase">KBS</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Table */}
+                        <div className="mb-12 rounded-[2rem] border-2 border-gray-100 overflow-hidden overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-[#303a7f] text-white">
+                                        <th className="p-5 text-[10px] font-black uppercase tracking-widest">Description</th>
+                                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-center">QT/Hours</th>
+                                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-center">Unit Price</th>
+                                        <th className="p-5 text-[10px] font-black uppercase tracking-widest text-right">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y-2 divide-gray-50">
+                                    {(project.employees || []).map((emp, i) => (
+                                        <tr key={i}>
+                                            <td className="p-5">
+                                                <div className="font-bold text-[#303a7f] text-xs uppercase">{emp.employeeName}</div>
+                                                <div className="text-[9px] text-[#6bbdb7] font-bold uppercase tracking-tight mt-0.5">{project.descripcion || 'Servicio Profesional Special Project'}</div>
+                                            </td>
+                                            <td className="p-5 text-center font-bold text-[#303a7f] text-sm tabular-nums">{parseFloat(emp.hours).toFixed(2)}</td>
+                                            <td className="p-5 text-center font-bold text-[#6bbdb7] text-sm tabular-nums">${parseFloat(emp.rateKBS).toFixed(2)}</td>
+                                            <td className="p-5 text-right font-black text-[#303a7f] text-sm tabular-nums">${(parseFloat(emp.hours) * parseFloat(emp.rateKBS)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                        </tr>
+                                    ))}
+                                    {/* Fill empty rows */}
+                                    {Array.from({ length: Math.max(0, 5 - (project.employees?.length || 0)) }).map((_, i) => (
+                                        <tr key={`empty-${i}`} className="h-[60px]">
+                                            <td className="p-5"></td>
+                                            <td className="p-5"></td>
+                                            <td className="p-5"></td>
+                                            <td className="p-5"></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Total Area */}
+                        <div className="flex justify-end pr-5">
+                            <div className="w-80 space-y-3">
+                                <div className="flex justify-between items-center py-2 border-b-2 border-gray-50">
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Subtotal</span>
+                                    <span className="text-sm font-bold text-[#303a7f]">${totalKBS.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                </div>
+                                <div className="flex justify-between items-center py-4 bg-[#303a7f] text-white px-6 rounded-2xl shadow-xl shadow-blue-900/20">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.3em]">Total Amount</span>
+                                    <span className="text-2xl font-black">${totalKBS.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Controls (Standard Modal UI, Not in PDF) */}
+                <div className="px-10 py-8 border-t-2 border-gray-50 bg-white flex justify-end gap-4">
+                    <button
+                        onClick={onClose}
+                        className="px-10 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent hover:border-red-100"
+                    >
+                        Cerrar
+                    </button>
+                    <button
+                        onClick={handleDownloadPDF}
+                        className="px-12 py-4 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl shadow-teal-900/20 hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3"
+                    >
+                        <Download size={18} />
+                        Descargar PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 // Utilidades de Fecha y Formato para Facturación
 const toISODate = (mmddyyyy) => {
@@ -4666,6 +4818,8 @@ function App() {
     
     // Controles de Visibilidad del Modal de Facturación
     const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+    const [selectedSpecialProjectInvoice, setSelectedSpecialProjectInvoice] = useState(null);
+    const [isSpecialProjectInvoiceOpen, setIsSpecialProjectInvoiceOpen] = useState(false);
 
 
     // Eliminación de dependencia de Local Storage para Facturación
@@ -4878,6 +5032,37 @@ function App() {
         const period = fechaDesde && fechaHasta ? `${fechaDesde} - ${fechaHasta}` : '';
         loadSpecialProjectsForPeriod(storeName, period);
         setIsPEModalOpen(true);
+    };
+
+    const handleOpenSpecialProjectInvoice = (invoiceId) => {
+        // Encontrar el proyecto en el historial de proyectos especiales
+        // El historial contiene registros con Data_JSON que es un array o un objeto de proyectos
+        let foundProject = null;
+        
+        specialProjectsHistoryData.forEach(h => {
+            if (foundProject) return;
+            try {
+                const data = JSON.parse(h.data_json);
+                const projects = Array.isArray(data) ? data : [data];
+                const p = projects.find(item => String(item.invoice) === String(invoiceId));
+                if (p) {
+                    foundProject = {
+                        ...p,
+                        tienda: h.tienda,
+                        periodo: h.periodo
+                    };
+                }
+            } catch (e) {
+                console.error("Error parseando proyecto especial para factura:", e);
+            }
+        });
+
+        if (foundProject) {
+            setSelectedSpecialProjectInvoice(foundProject);
+            setIsSpecialProjectInvoiceOpen(true);
+        } else {
+            showError("No se pudieron encontrar los detalles del proyecto para este Invoice.");
+        }
     };
 
     const handleVerifyPersonal = async (file) => {
@@ -7380,9 +7565,7 @@ function App() {
                                 }
                             }}
                             onOpenPE={(projectId) => {
-                                // Para proyectos especiales, configuramos el store y abrimos el modal
-                                setPayrollStore(selectedHistoryStore);
-                                setIsPEModalOpen(true);
+                                handleOpenSpecialProjectInvoice(projectId);
                             }}
                         />
                     </div>
@@ -7748,6 +7931,13 @@ function App() {
                     }}
                 />
             )}
+
+            {/* FASE 12: MODAL DE FACTURA DE PROYECTO ESPECIAL (PREMIUM) */}
+            <SpecialProjectInvoiceModal
+                isOpen={isSpecialProjectInvoiceOpen}
+                onClose={() => setIsSpecialProjectInvoiceOpen(false)}
+                project={selectedSpecialProjectInvoice}
+            />
 
             {/* Decorative Brand Gradients */}
             <div
