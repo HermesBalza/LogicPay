@@ -1368,6 +1368,38 @@ const StoreAddView = ({ onSave, onBack }) => {
 };
 
 
+const WOSView = ({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-[120] bg-[#f9f9f9] flex flex-col overflow-hidden animate-in fade-in duration-500">
+            <header className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
+                        <LayoutGrid size={20} />
+                    </div>
+                    <div className="flex flex-col">
+                        <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1 animate-in slide-in-from-left-4 duration-700">WOS</h2>
+                        <div className="flex items-center gap-2 animate-in slide-in-from-left-8 duration-1000">
+                            <div className="h-0.5 w-6 bg-[#6bbdb7] rounded-full" />
+                            <span className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-[0.2em]">Work Order Summary</span>
+                        </div>
+                    </div>
+                </div>
+                <button
+                    onClick={onClose}
+                    className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-transparent"
+                >
+                    <X size={20} />
+                </button>
+            </header>
+            <main className="flex-1 flex items-center justify-center">
+                <h1 className="text-4xl font-black text-[#303a7f] uppercase tracking-tighter">WOS</h1>
+            </main>
+        </div>
+    );
+};
+
+
 // --- Full Screen Employee Editor ---
 const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -2786,7 +2818,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
     const biweeklyReportRef = useRef(null);
-    
+
     const handleCommentChange = (index, value) => {
         setBiweeklyEmployees(prev => {
             const updated = [...prev];
@@ -3173,7 +3205,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
     );
 };
 
-const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [], onOpenBilling = () => { } }) => {
+const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [], onOpenBilling = () => { }, onOpenWOS = () => { } }) => {
     const [selectedYear, setSelectedYear] = useState(2026);
     if (!isOpen) return null;
 
@@ -3336,7 +3368,14 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                     </div>
                 </div>
 
-                <div className="flex-1 flex items-end justify-end">
+                <div className="flex-1 flex items-end justify-end gap-3">
+                    <button
+                        onClick={onOpenWOS}
+                        className="h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]"
+                    >
+                        <LayoutGrid size={16} />
+                        WOS
+                    </button>
                     <button
                         onClick={onOpenBilling}
                         disabled={!selectedStore}
@@ -4060,7 +4099,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
     // Crear un nuevo proyecto vacío con el siguiente número de invoice sincronizado
     const addProject = async () => {
         let currentNext = nextInvoice;
-        
+
         // Verificación forzada: Consultar base de datos antes de generar la tarjeta
         if (onSyncCorrelativo) {
             currentNext = await onSyncCorrelativo();
@@ -4076,7 +4115,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
             employees: []
         };
         setSpecialProjectsData(prev => [...prev, newProject]);
-        
+
         // Actualizar el estado global con el siguiente disponible para el caché local
         setNextInvoice(normalizeInvoice(Number(currentNext) + 1));
     };
@@ -4355,17 +4394,17 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
 // Utilidades de Fecha y Formato para Facturación
 const toISODate = (dateStr) => {
     if (!dateStr) return '';
-    
+
     // Si ya viene en ISO
     if (dateStr.includes('-') && !dateStr.includes('/')) return dateStr;
 
     const parts = dateStr.split('/').map(p => p.trim());
     if (parts.length < 3) return '';
-    
+
     // Detección inteligente: si el primer segmento es > 12, es DD/MM/YYYY
     let m = parts[0], d = parts[1], y = parts[2];
     if (parseInt(m) > 12) { [m, d] = [d, m]; }
-    
+
     return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 };
 
@@ -4377,7 +4416,7 @@ const fromISODate = (yyyymmdd) => {
 
 const formatDate = (dateStr) => {
     if (!dateStr || dateStr === '--/--/--') return '';
-    
+
     // Si viene en ISO (ej: del picker)
     if (dateStr.includes('-') && !dateStr.includes('/')) {
         return fromISODate(dateStr);
@@ -4390,7 +4429,7 @@ const formatDate = (dateStr) => {
         if (parseInt(m) > 12) { [m, d] = [d, m]; }
         return `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${y}`;
     }
-    
+
     return dateStr;
 };
 
@@ -4400,10 +4439,10 @@ const formatCurrencyInput = (value) => {
     // Solo permitimos números y punto
     let clean = String(value).replace(/[^0-9.]/g, '');
     let parts = clean.split('.');
-    
+
     // Formatear parte entera con comas
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    
+
     // Reubicar el punto si existe
     return parts.length > 1 ? parts[0] + '.' + parts[1].slice(0, 2) : parts[0];
 };
@@ -4489,7 +4528,7 @@ const BillingView = ({
         return isNaN(date.getTime()) ? null : date;
     };
 
-    const activePERecords = (specialHistoryData || []).filter(h => 
+    const activePERecords = (specialHistoryData || []).filter(h =>
         h && String(h.tienda || '').trim().toLowerCase() === String(storeName || '').trim().toLowerCase()
     );
 
@@ -4602,16 +4641,16 @@ const BillingView = ({
                             <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
                                 <td className="px-3 py-4 text-center">
                                     <div className="relative inline-block w-20">
-                                        <input type="text" readOnly placeholder="--/--/--" value={row.radicacion} 
+                                        <input type="text" readOnly placeholder="--/--/--" value={row.radicacion}
                                             className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
-                                        <input type="date" value={toISODate(row.radicacion)} 
+                                        <input type="date" value={toISODate(row.radicacion)}
                                             onChange={(e) => onUpdateManual(row.id, 'fecha rad.', fromISODate(e.target.value))}
                                             onClick={(e) => e.target.showPicker?.()}
                                             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
                                     </div>
                                 </td>
                                 <td className="px-3 py-4 text-center">
-                                    <button 
+                                    <button
                                         onClick={() => onOpenVWH(row.id)}
                                         title="Ver Detalle de Nómina VWH"
                                         className="text-[10px] font-bold text-[#303a7f] hover:text-[#6bbdb7] hover:underline cursor-pointer transition-all active:scale-95"
@@ -4635,7 +4674,7 @@ const BillingView = ({
                                     <div className="relative inline-block w-20">
                                         <input type="text" readOnly placeholder="--/--/--" value={row.fecha_pago}
                                             className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
-                                        <input type="date" value={toISODate(row.fecha_pago)} 
+                                        <input type="date" value={toISODate(row.fecha_pago)}
                                             onChange={(e) => onUpdateManual(row.id, 'fecha de pago', fromISODate(e.target.value))}
                                             onClick={(e) => e.target.showPicker?.()}
                                             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
@@ -4695,14 +4734,14 @@ const BillingView = ({
                                     <div className="relative inline-block w-20">
                                         <input type="text" readOnly placeholder="--/--/--" value={row.radicacion}
                                             className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
-                                        <input type="date" value={toISODate(row.radicacion)} 
+                                        <input type="date" value={toISODate(row.radicacion)}
                                             onChange={(e) => onUpdateManualPE(row.correlativo, 'fecha rad.', fromISODate(e.target.value))}
                                             onClick={(e) => e.target.showPicker?.()}
                                             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <button 
+                                    <button
                                         onClick={() => onOpenPE(row.id)}
                                         title="Ver Detalle de Proyecto Especial"
                                         className="inline-flex flex-col items-center group/pe cursor-pointer active:scale-95 transition-all w-full"
@@ -4727,7 +4766,7 @@ const BillingView = ({
                                     <div className="relative inline-block w-20">
                                         <input type="text" readOnly placeholder="--/--/--" value={row.fecha_pago}
                                             className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
-                                        <input type="date" value={toISODate(row.fecha_pago)} 
+                                        <input type="date" value={toISODate(row.fecha_pago)}
                                             onChange={(e) => onUpdateManualPE(row.correlativo, 'fecha de pago', fromISODate(e.target.value))}
                                             onClick={(e) => e.target.showPicker?.()}
                                             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
@@ -4868,9 +4907,10 @@ function App() {
     const [confirmPayrollProgress, setConfirmPayrollProgress] = useState(0);
     const [confirmPayrollStep, setConfirmPayrollStep] = useState("");
     const [isConfirmPayrollFinished, setIsConfirmPayrollFinished] = useState(false);
-    
+
     // Controles de Visibilidad del Modal de Facturación
     const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+    const [isWOSOpen, setIsWOSOpen] = useState(false);
     const [selectedSpecialProjectInvoice, setSelectedSpecialProjectInvoice] = useState(null);
     const [isSpecialProjectInvoiceOpen, setIsSpecialProjectInvoiceOpen] = useState(false);
 
@@ -4883,9 +4923,9 @@ function App() {
     // --- OBSERVADOR DE SINCRONIZACIÓN: Proyectos Especiales (Debounced) ---
     useEffect(() => {
         if (!pePendingSaveRef.current) return;
-        
+
         if (peSaveTimeoutRef.current) clearTimeout(peSaveTimeoutRef.current);
-        
+
         peSaveTimeoutRef.current = setTimeout(async () => {
             const task = pePendingSaveRef.current;
             if (!task) return;
@@ -4897,13 +4937,13 @@ function App() {
                     sourceData = await fetchSpecialProjectsHistory();
                 }
 
-                let existing = sourceData.find(h => 
+                let existing = sourceData.find(h =>
                     String(h.correlativo || h.Correlativo || '').trim() === String(id).trim()
                 );
 
                 if (!existing) {
                     sourceData = await fetchSpecialProjectsHistory();
-                    existing = sourceData.find(h => 
+                    existing = sourceData.find(h =>
                         String(h.correlativo || h.Correlativo || '').trim() === String(id).trim()
                     );
                 }
@@ -4917,7 +4957,7 @@ function App() {
                         const projects = JSON.parse(existing.data_json);
                         const pArray = Array.isArray(projects) ? projects : [projects];
                         totalFacturacion = pArray.reduce((acc, p) => acc + (parseFloat(p.total_kbs) || 0), 0);
-                    } catch (e) {}
+                    } catch (e) { }
                     const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
                     autoStatus = (pagoNum >= totalFacturacion && totalFacturacion > 0) ? 'Paid' : 'Due';
                 }
@@ -5175,7 +5215,7 @@ function App() {
         // Encontrar el proyecto en el historial de proyectos especiales
         // El historial contiene registros con Data_JSON que es un array o un objeto de proyectos
         let foundProject = null;
-        
+
         specialProjectsHistoryData.forEach(h => {
             if (foundProject) return;
             try {
@@ -6962,6 +7002,7 @@ function App() {
                                 historyData={nominaHistoryData}
                                 processedBiweeks={processedBiweeks}
                                 onOpenBilling={() => setIsBillingModalOpen(true)}
+                                onOpenWOS={() => setIsWOSOpen(true)}
                                 manualData={billingManualRecords}
                                 onUpdateManual={(week, field, val) => {
                                     const key = `${selectedHistoryStore}-${week}`;
@@ -7404,7 +7445,7 @@ function App() {
                         </div>
                     )}
 
-                            {/* FASE 2: TABLA PROVISIONAL BIOMÉTRICO (IA) - ELIMINADA DE AQUÍ, AHORA ES MODAL */}
+                    {/* FASE 2: TABLA PROVISIONAL BIOMÉTRICO (IA) - ELIMINADA DE AQUÍ, AHORA ES MODAL */}
 
 
                     {/* VISTA DE RESPALDO (Dashboard, Ajustes, Otros) */}
@@ -7496,6 +7537,7 @@ function App() {
                 historyData={nominaHistoryData}
                 processedBiweeks={processedBiweeks}
                 onOpenBilling={() => setIsBillingModalOpen(true)}
+                onOpenWOS={() => setIsWOSOpen(true)}
                 manualData={billingManualRecords}
                 onUpdateManual={(week, field, val) => {
                     const key = `${selectedHistoryStore}-${week}`;
@@ -7556,7 +7598,7 @@ function App() {
                                         const finalVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : val;
                                         const updated = { ...h };
                                         (fieldMap[field] || []).forEach(key => { updated[key] = finalVal; });
-                                        
+
                                         if (field === 'pago') {
                                             const facturacionNum = parseFloat(String(h.facturacion || 0)) || 0;
                                             const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
@@ -7573,8 +7615,8 @@ function App() {
                                 if (vwhSaveTimeoutRef.current) clearTimeout(vwhSaveTimeoutRef.current);
                                 vwhSaveTimeoutRef.current = setTimeout(async () => {
                                     try {
-                                        const existing = nominaHistoryData.find(h => 
-                                            String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && 
+                                        const existing = nominaHistoryData.find(h =>
+                                            String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
                                             String(h.codigo) === String(week)
                                         ) || {};
 
@@ -7592,7 +7634,7 @@ function App() {
                                                         }, 0);
                                                     }
                                                 }
-                                            } catch(e) {}
+                                            } catch (e) { }
                                             const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
                                             autoStatus = (pagoNum >= stats.facturacion && stats.facturacion > 0) ? 'Paid' : 'Due';
                                         }
@@ -7633,14 +7675,14 @@ function App() {
                                         };
                                         const updated = { ...h };
                                         (fieldMap[field] || []).forEach(key => { updated[key] = val; });
-                                        
+
                                         if (field === 'pago') {
                                             let totalFacturacion = 0;
                                             try {
                                                 const projects = JSON.parse(h.data_json);
                                                 const pArray = Array.isArray(projects) ? projects : [projects];
                                                 totalFacturacion = pArray.reduce((acc, p) => acc + (parseFloat(p.total_kbs) || 0), 0);
-                                            } catch (e) {}
+                                            } catch (e) { }
                                             const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
                                             const statusVal = (pagoNum >= totalFacturacion && totalFacturacion > 0) ? 'Paid' : 'Due';
                                             updated['status'] = statusVal;
@@ -8053,6 +8095,12 @@ function App() {
                 isOpen={isSpecialProjectInvoiceOpen}
                 onClose={() => setIsSpecialProjectInvoiceOpen(false)}
                 project={selectedSpecialProjectInvoice}
+            />
+
+            {/* VISTA DE WOS (FULL SCREEN) */}
+            <WOSView
+                isOpen={isWOSOpen}
+                onClose={() => setIsWOSOpen(false)}
             />
 
             {/* Decorative Brand Gradients */}
