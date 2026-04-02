@@ -1368,9 +1368,10 @@ const StoreAddView = ({ onSave, onBack }) => {
 };
 
 
-const WOSView = ({ isOpen, onClose }) => {
+const WOSView = ({ isOpen, onClose, geminiApiKey }) => {
     const fileInputRef = useRef(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [isWOSDetailOpen, setIsWOSDetailOpen] = useState(false);
     const [wosData, setWosData] = useState({
         wosNumber: '',
         subcontractor: '',
@@ -1380,26 +1381,95 @@ const WOSView = ({ isOpen, onClose }) => {
         servicesThrough: '',
         paymentDueDate: ''
     });
+    const [wosServices, setWosServices] = useState([]);
 
-    const handleUploadWOS = (e) => {
+    const convertToBase64 = (file) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = (error) => reject(error);
+        });
+    };
+
+    const handleUploadWOS = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+        if (!geminiApiKey) {
+            alert("Por favor, configure su API Key de Gemini en Ajustes.");
+            return;
+        }
 
         setIsUploading(true);
-        // Simulación de extracción de datos del PDF
-        setTimeout(() => {
-            setWosData({
-                wosNumber: 'VBS277938',
-                subcontractor: '923941 LOGIC GROUP MANAGEMENT, LLC',
-                wosDate: '03/17/2026',
-                signByDate: '03/22/2026',
-                period: '02B',
-                servicesThrough: '02/28/2026',
-                paymentDueDate: '04/15/2026'
+        try {
+            const base64Data = await convertToBase64(file);
+            const genAI = new GoogleGenerativeAI(geminiApiKey);
+            const model = genAI.getGenerativeModel({
+                model: "gemini-3-flash-preview",
+                generationConfig: { responseMimeType: "application/json" }
             });
+
+            const prompt = `
+                Eres un experto en procesamiento de documentos corporativos. Tienes un archivo PDF de un "WORK ORDER SUMMARY" (WOS).
+                
+                TAREA: Extrae la información del documento y devuélvela en formato JSON estricto.
+                
+                REGLAS CRÍTICAS:
+                1. NO incluyas números de página.
+                2. NO incluyas los textos legales finales (Términos y condiciones, seguros, firmas, etc.).
+                3. El JSON debe tener esta estructura exacta:
+                {
+                    "metadata": {
+                        "wosNumber": "string",
+                        "subcontractor": "string",
+                        "wosDate": "string",
+                        "signByDate": "string",
+                        "period": "string",
+                        "servicesThrough": "string",
+                        "paymentDueDate": "string"
+                    },
+                    "services": [
+                        {
+                            "customer": "string",
+                            "locationId": "string",
+                            "salesOrder": "string",
+                            "purchaseOrder": "string",
+                            "reference": "string",
+                            "serviceDates": "string",
+                            "cityState": "string",
+                            "vendorCreditReason": "string",
+                            "serviceDescription": "string",
+                            "amount": "number"
+                        }
+                    ]
+                }
+                
+                4. Columna "Reference #" puede contener saltos de línea, límpialos.
+                5. Los montos deben ser números puros.
+            `;
+
+            const result = await model.generateContent([
+                prompt,
+                {
+                    inlineData: {
+                        data: base64Data,
+                        mimeType: "application/pdf"
+                    }
+                }
+            ]);
+
+            const responseText = result.response.text();
+            const cleanJson = JSON.parse(responseText);
+
+            setWosData(cleanJson.metadata);
+            setWosServices(cleanJson.services);
+        } catch (error) {
+            console.error('[WOS AI Error]:', error);
+            alert("Error al procesar el WOS con IA. Verifique el archivo y su conexión.");
+        } finally {
             setIsUploading(false);
             e.target.value = null;
-        }, 1500);
+        }
     };
 
     if (!isOpen) return null;
@@ -1419,23 +1489,22 @@ const WOSView = ({ isOpen, onClose }) => {
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="flex items-center gap-4">
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        className="hidden" 
-                        accept=".pdf" 
-                        onChange={handleUploadWOS} 
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept=".pdf"
+                        onChange={handleUploadWOS}
                     />
                     <button
                         onClick={() => fileInputRef.current.click()}
                         disabled={isUploading}
-                        className={`h-[48px] px-8 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-3 shadow-xl ${
-                            isUploading 
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                        className={`h-[48px] px-8 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isUploading
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                             : 'bg-[#303a7f] text-white shadow-blue-900/20 hover:bg-[#252a5e]'
-                        }`}
+                            }`}
                     >
                         {isUploading ? (
                             <div className="w-4 h-4 border-2 border-gray-300 border-t-[#303a7f] rounded-full animate-spin" />
@@ -1444,7 +1513,7 @@ const WOSView = ({ isOpen, onClose }) => {
                         )}
                         Cargar WOS
                     </button>
-                    
+
                     <button
                         onClick={onClose}
                         className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-transparent"
@@ -1491,16 +1560,130 @@ const WOSView = ({ isOpen, onClose }) => {
                                 </div>
                             ))}
                         </div>
+
+                        <div className="ml-auto">
+                            <button
+                                onClick={() => setIsWOSDetailOpen(true)}
+                                disabled={wosServices.length === 0}
+                                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg border ${wosServices.length > 0
+                                    ? 'bg-[#6bbdb7] text-white shadow-teal-900/10 border-teal-200/20 hover:bg-[#59aba5]'
+                                    : 'bg-gray-100 text-gray-300 cursor-not-allowed border-transparent'
+                                    }`}
+                            >
+                                Detalles
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <main className="flex-1 bg-[#f9fafc]/50 p-12">
-                {/* Futura Tabla de Facturas */}
-                <div className="max-w-[1800px] mx-auto h-full flex items-center justify-center border-2 border-dashed border-gray-100 rounded-[3rem]">
-                   <p className="text-gray-300 font-bold uppercase tracking-[0.4em] text-xs">Área Reservada para Detalles Técnicos</p>
-                </div>
+            <main className="flex-1 bg-[#f9fafc]/50 p-12 overflow-hidden flex flex-col items-center justify-center">
+                {isUploading ? (
+                    <div className="flex flex-col items-center gap-6 animate-pulse">
+                        <div className="w-20 h-20 bg-white rounded-3xl shadow-xl flex items-center justify-center">
+                            <Cpu size={40} className="text-[#303a7f] animate-spin-slow" />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-[#303a7f] font-black uppercase tracking-widest text-sm mb-2">Procesando WOS</p>
+                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-[0.3em]">Analizando y Clasificando datos</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="max-w-[1800px] w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-[3rem] bg-white/50 backdrop-blur-sm">
+                        <div className="p-8 bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 mb-8">
+                            <FileText size={64} className="text-gray-200" />
+                        </div>
+                        <p className="text-gray-400 font-black uppercase tracking-[0.4em] text-xs max-w-sm text-center leading-loose">
+                            {wosServices.length > 0 ? "Información extraída correctamente. Presione 'Detalles' para ver la tabla." : "Cargue un archivo WOS para iniciar el procesamiento con Inteligencia Artificial"}
+                        </p>
+                    </div>
+                )}
             </main>
+
+            {/* Modal de Detalles a Pantalla Completa */}
+            {isWOSDetailOpen && (
+                <div className="fixed inset-0 z-[150] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
+                    <header className="px-12 py-6 border-b-2 border-gray-50 flex items-center justify-between sticky top-0 bg-white z-20">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10">
+                                <List size={20} />
+                            </div>
+                            <div className="flex flex-col">
+                                <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Detalles de WOS</h2>
+                                <p className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-[0.2em]">WOS Number: {wosData.wosNumber || "---"}</p>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 flex items-center gap-10 ml-12 border-l-2 border-gray-50 pl-12 overflow-x-auto no-scrollbar">
+                            {[
+                                { label: 'Subcontractor', value: wosData.subcontractor },
+                                { label: 'WOS Date', value: wosData.wosDate },
+                                { label: 'Sign By', value: wosData.signByDate },
+                                { label: 'Period', value: wosData.period },
+                                { label: 'Services', value: wosData.servicesThrough },
+                                { label: 'Payment Due', value: wosData.paymentDueDate }
+                            ].map((item, idx) => (
+                                <div key={idx} className="flex flex-col min-w-fit">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{item.label}</span>
+                                    <span className="text-[11px] font-black text-[#303a7f] uppercase whitespace-nowrap">{item.value || "---"}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setIsWOSDetailOpen(false)}
+                            className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent"
+                        >
+                            <ArrowLeft size={24} />
+                        </button>
+                    </header>
+                    <div className="flex-1 overflow-auto p-12 bg-[#f9fafc]">
+                        <div className="w-[1300px] mx-auto bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 overflow-hidden border border-gray-100">
+                            <table className="w-full text-left border-collapse table-fixed">
+                                <thead>
+                                    <tr className="bg-[#303a7f] text-white">
+                                        <th className="w-[160px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Customer / KBS ID</th>
+                                        <th className="w-[110px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Location ID</th>
+                                        <th className="w-[110px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Sales Order</th>
+                                        <th className="w-[110px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Purchase Order</th>
+                                        <th className="w-[130px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Reference #</th>
+                                        <th className="w-[140px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Service Dates</th>
+                                        <th className="w-[130px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">City, State</th>
+                                        <th className="w-[110px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Credit Reason</th>
+                                        <th className="w-[120px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Description</th>
+                                        <th className="w-[180px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap text-right">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {wosServices.map((service, index) => (
+                                        <tr key={index} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors group">
+                                            <td className="px-4 py-4 text-[10px] font-black text-[#303a7f] uppercase break-words">{service.customer}</td>
+                                            <td className="px-4 py-4 text-[10px] font-black text-gray-500 uppercase break-words">{service.locationId}</td>
+                                            <td className="px-4 py-4 text-[10px] font-bold text-gray-400 tabular-nums break-words">{service.salesOrder}</td>
+                                            <td className="px-4 py-4 text-[10px] font-bold text-gray-400 tabular-nums break-words">{service.purchaseOrder}</td>
+                                            <td className="px-4 py-4 text-[9px] font-medium text-gray-400 truncate" title={service.reference}>{service.reference}</td>
+                                            <td className="px-4 py-4 text-[9px] font-black text-[#6bbdb7] uppercase">{service.serviceDates}</td>
+                                            <td className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase break-words">{service.cityState}</td>
+                                            <td className="px-4 py-4 text-[9px] font-medium text-red-400 uppercase italic truncate" title={service.vendorCreditReason}>{service.vendorCreditReason || "---"}</td>
+                                            <td className="px-4 py-4 text-[10px] font-black text-[#303a7f] uppercase break-words" title={service.serviceDescription}>{service.serviceDescription}</td>
+                                            <td className="px-4 py-4 text-[11px] font-black text-[#303a7f] text-right tabular-nums">
+                                                ${parseFloat(service.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot>
+                                    <tr className="bg-gray-50/80">
+                                        <td colSpan="9" className="px-4 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Total del Documento</td>
+                                        <td className="px-4 py-5 text-lg font-black text-[#303a7f] text-right tabular-nums">
+                                            ${wosServices.reduce((acc, s) => acc + (parseFloat(s.amount) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -8207,6 +8390,7 @@ function App() {
             <WOSView
                 isOpen={isWOSOpen}
                 onClose={() => setIsWOSOpen(false)}
+                geminiApiKey={geminiApiKey}
             />
 
             {/* Decorative Brand Gradients */}
