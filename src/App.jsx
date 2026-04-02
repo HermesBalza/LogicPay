@@ -4780,9 +4780,8 @@ const BillingView = ({
             }
         } catch (e) { console.error("[LogicPay] Error parsing history json", e); }
 
-        const pagoRaw = String(h['pago'] || '').replace(/[^0-9.]/g, '');
-        const pagoNum = parseFloat(pagoRaw) || 0;
-        const facturacionNum = stats.facturacion || 0;
+        const statusVal = h['Status'] || h['status'] || '';
+        const isPaid = statusVal === 'Paid';
 
         return {
             id: h.codigo,
@@ -4795,7 +4794,7 @@ const BillingView = ({
             pago: h['pago'] || h['Pago'] || '',
             fecha_pago: h['fecha de pago'] || h['Fecha de Pago'] || '',
             wos: h['wos'] || h['WOS'] || 0,
-            pagada: pagoNum >= facturacionNum && facturacionNum > 0
+            pagada: isPaid
         };
     });
 
@@ -4868,12 +4867,9 @@ const BillingView = ({
     });
 
     const peTableData = Object.values(peTableDataMap).map(row => {
-        const pagoNum = parseFloat(String(row.pago || 0).replace(/[^0-9.]/g, '')) || 0;
-        const facturacionNum = row.facturacion || 0;
         return {
             ...row,
-            utilidad: (row.facturacion || 0) - (row.costos || 0),
-            pagada: pagoNum >= facturacionNum && facturacionNum > 0
+            utilidad: (row.facturacion || 0) - (row.costos || 0)
         };
     }).sort((a, b) => {
         try {
@@ -4974,10 +4970,12 @@ const BillingView = ({
                                         className={`bg-transparent border-none text-[10px] font-black outline-none w-8 text-center ${row.wos > 0 ? 'text-orange-500' : 'text-gray-300'}`} />
                                 </td>
                                 <td className="px-3 py-4 text-center">
-                                    <div className="inline-flex items-center gap-1.5 cursor-default">
-                                        <div className={`w-2.5 h-2.5 rounded-full border-2 ${row.pagada ? 'bg-teal-500 border-teal-500' : 'bg-transparent border-gray-200'}`} />
-                                        <span className={`text-[8px] font-black uppercase tracking-tight ${row.pagada ? 'text-teal-500' : 'text-gray-300'}`}>{row.pagada ? 'Paid' : 'Due'}</span>
-                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={row.pagada}
+                                        onChange={(e) => onUpdateManual(row.id, 'pagada', e.target.checked)}
+                                        className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all"
+                                    />
                                 </td>
                             </tr>
                         ))}
@@ -5066,10 +5064,12 @@ const BillingView = ({
                                         className={`bg-transparent border-none text-[10px] font-black outline-none w-8 text-center ${row.wos > 0 ? 'text-orange-500' : 'text-gray-300'}`} />
                                 </td>
                                 <td className="px-3 py-4 text-center">
-                                    <div className="inline-flex items-center gap-1.5 cursor-default">
-                                        <div className={`w-2.5 h-2.5 rounded-full border-2 ${row.pagada ? 'bg-teal-500 border-teal-500' : 'bg-transparent border-gray-200'}`} />
-                                        <span className={`text-[8px] font-black uppercase tracking-tight ${row.pagada ? 'text-teal-500' : 'text-gray-300'}`}>{row.pagada ? 'Paid' : 'Due'}</span>
-                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={row.pagada}
+                                        onChange={(e) => onUpdateManualPE(row.correlativo, 'pagada', e.target.checked)}
+                                        className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all"
+                                    />
                                 </td>
                             </tr>
                         ))}
@@ -5238,18 +5238,8 @@ function App() {
                 }
                 if (!existing) return;
 
-                // Calcular Status automático para el payload
-                let autoStatus = existing['status'] || existing['Status'] || 'Due';
-                if (field === 'pago') {
-                    let totalFacturacion = 0;
-                    try {
-                        const projects = JSON.parse(existing.data_json);
-                        const pArray = Array.isArray(projects) ? projects : [projects];
-                        totalFacturacion = pArray.reduce((acc, p) => acc + (parseFloat(p.total_kbs) || 0), 0);
-                    } catch (e) { }
-                    const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
-                    autoStatus = (pagoNum >= totalFacturacion && totalFacturacion > 0) ? 'Paid' : 'Due';
-                }
+                // El estatus se mantiene manual o se recupera del estado existente
+                let statusVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['Status'] || existing['status'] || 'Due');
 
                 // Limpiar el Correlativo eliminando apóstrofos y espacios para un match exacto con la hoja
                 const correlativoVal = String(existing.correlativo || existing.Correlativo || '')
@@ -5271,7 +5261,7 @@ function App() {
                     "Pago": field === 'pago' ? val : (existing['pago'] || existing['Pago'] || ''),
                     "Fecha de Pago": field === 'fecha de pago' ? val : (existing['fecha de pago'] || existing['Fecha de Pago'] || ''),
                     "WOS": field === 'wos' ? val : (existing['wos'] || existing['WOS'] || 0),
-                    "Status": field === 'pago' ? autoStatus : (field === 'pagada' ? (val ? 'Paid' : 'Due') : autoStatus)
+                    "Status": statusVal
                 };
 
                 // Uso de 'update' (en lugar de 'upsert') para garantizar que SOLO se actualice
@@ -5281,7 +5271,7 @@ function App() {
                 if (pePendingSaveRef.current?.id === task.id) {
                     pePendingSaveRef.current = null;
                 }
-                console.log("[LogicPay] Sincronización Exitosa P.E (Mode: Update):", finalId);
+                console.log("[LogicPay] Sincronización Exitosa P.E (Mode: Update):", correlativoVal);
             } catch (e) {
                 console.error("[LogicPay] Error en Sincronización P.E:", e);
             }
@@ -7887,14 +7877,6 @@ function App() {
                                         const finalVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : val;
                                         const updated = { ...h };
                                         (fieldMap[field] || []).forEach(key => { updated[key] = finalVal; });
-
-                                        if (field === 'pago') {
-                                            const facturacionNum = parseFloat(String(h.facturacion || 0)) || 0;
-                                            const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
-                                            const statusVal = pagoNum >= facturacionNum && facturacionNum > 0 ? 'Paid' : 'Due';
-                                            updated['status'] = statusVal;
-                                            updated['Status'] = statusVal;
-                                        }
                                         return updated;
                                     }
                                     return h;
@@ -7909,25 +7891,6 @@ function App() {
                                             String(h.codigo) === String(week)
                                         ) || {};
 
-                                        // Calcular Status automático para el payload
-                                        let autoStatus = existing['Status'] || existing['status'] || 'Due';
-                                        if (field === 'pago') {
-                                            let stats = { facturacion: 0 };
-                                            try {
-                                                if (existing.data_json) {
-                                                    const data = JSON.parse(existing.data_json);
-                                                    if (data.kbsBillingTableData) {
-                                                        stats.facturacion = data.kbsBillingTableData.reduce((acc, r) => {
-                                                            const totalStr = String(r.total || '0').replace(/[^0-9.-]+/g, "");
-                                                            return acc + (parseFloat(totalStr) || 0);
-                                                        }, 0);
-                                                    }
-                                                }
-                                            } catch (e) { }
-                                            const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
-                                            autoStatus = (pagoNum >= stats.facturacion && stats.facturacion > 0) ? 'Paid' : 'Due';
-                                        }
-
                                         const payload = {
                                             nombre: selectedHistoryStore,
                                             codigo: existing.codigo ? (String(existing.codigo).startsWith("'") ? existing.codigo : `'${existing.codigo}`) : `'${week}`,
@@ -7938,7 +7901,7 @@ function App() {
                                             "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
                                             "Fecha de Pago": field === 'fecha de pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
                                             "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
-                                            "Status": field === 'pago' ? autoStatus : (field === 'pagada' ? (val ? 'Paid' : 'Due') : autoStatus)
+                                            "Status": field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['Status'] || existing['status'] || 'Due')
                                         };
 
                                         await fetch(API_URL, {
@@ -7962,21 +7925,9 @@ function App() {
                                             'wos': ['wos', 'WOS'],
                                             'pagada': ['status', 'Status']
                                         };
+                                        const finalVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : val;
                                         const updated = { ...h };
-                                        (fieldMap[field] || []).forEach(key => { updated[key] = val; });
-
-                                        if (field === 'pago') {
-                                            let totalFacturacion = 0;
-                                            try {
-                                                const projects = JSON.parse(h.data_json);
-                                                const pArray = Array.isArray(projects) ? projects : [projects];
-                                                totalFacturacion = pArray.reduce((acc, p) => acc + (parseFloat(p.total_kbs) || 0), 0);
-                                            } catch (e) { }
-                                            const pagoNum = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
-                                            const statusVal = (pagoNum >= totalFacturacion && totalFacturacion > 0) ? 'Paid' : 'Due';
-                                            updated['status'] = statusVal;
-                                            updated['Status'] = statusVal;
-                                        }
+                                        (fieldMap[field] || []).forEach(key => { updated[key] = finalVal; });
                                         return updated;
                                     }
                                     return h;
