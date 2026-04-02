@@ -1369,9 +1369,43 @@ const StoreAddView = ({ onSave, onBack }) => {
 
 
 const WOSView = ({ isOpen, onClose }) => {
+    const fileInputRef = useRef(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [wosData, setWosData] = useState({
+        wosNumber: '',
+        subcontractor: '',
+        wosDate: '',
+        signByDate: '',
+        period: '',
+        servicesThrough: '',
+        paymentDueDate: ''
+    });
+
+    const handleUploadWOS = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        // Simulación de extracción de datos del PDF
+        setTimeout(() => {
+            setWosData({
+                wosNumber: 'VBS277938',
+                subcontractor: '923941 LOGIC GROUP MANAGEMENT, LLC',
+                wosDate: '03/17/2026',
+                signByDate: '03/22/2026',
+                period: '02B',
+                servicesThrough: '02/28/2026',
+                paymentDueDate: '04/15/2026'
+            });
+            setIsUploading(false);
+            e.target.value = null;
+        }, 1500);
+    };
+
     if (!isOpen) return null;
+
     return (
-        <div className="fixed inset-0 z-[120] bg-[#f9f9f9] flex flex-col overflow-hidden animate-in fade-in duration-500">
+        <div className="fixed inset-0 z-[120] bg-[#fdfdfe] flex flex-col overflow-hidden animate-in fade-in duration-500">
             <header className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
                 <div className="flex items-center gap-4">
                     <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
@@ -1385,15 +1419,87 @@ const WOSView = ({ isOpen, onClose }) => {
                         </div>
                     </div>
                 </div>
-                <button
-                    onClick={onClose}
-                    className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-transparent"
-                >
-                    <X size={20} />
-                </button>
+                
+                <div className="flex items-center gap-4">
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        accept=".pdf" 
+                        onChange={handleUploadWOS} 
+                    />
+                    <button
+                        onClick={() => fileInputRef.current.click()}
+                        disabled={isUploading}
+                        className={`h-[48px] px-8 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-3 shadow-xl ${
+                            isUploading 
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                            : 'bg-[#303a7f] text-white shadow-blue-900/20 hover:bg-[#252a5e]'
+                        }`}
+                    >
+                        {isUploading ? (
+                            <div className="w-4 h-4 border-2 border-gray-300 border-t-[#303a7f] rounded-full animate-spin" />
+                        ) : (
+                            <Upload size={16} />
+                        )}
+                        Cargar WOS
+                    </button>
+                    
+                    <button
+                        onClick={onClose}
+                        className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-transparent"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
             </header>
-            <main className="flex-1 flex items-center justify-center">
-                <h1 className="text-4xl font-black text-[#303a7f] uppercase tracking-tighter">WOS</h1>
+
+            {/* Compact Metadata Bar (Cintillo de Información) */}
+            <div className="bg-white border-b-2 border-brand-primary/5 px-12 py-5 shadow-sm relative z-20">
+                <div className="max-w-[1800px] mx-auto flex flex-wrap items-center gap-x-12 gap-y-4">
+                    {/* WOS Number Section */}
+                    <div className="flex items-center gap-4 pr-10 border-r-2 border-gray-50">
+                        <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-[0.2em] leading-none mb-1">WOS Number</span>
+                            <span className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none">{wosData.wosNumber || "VBS-------"}</span>
+                        </div>
+                    </div>
+
+                    {/* Compact Fields Section */}
+                    <div className="flex flex-1 flex-wrap items-center gap-x-10 gap-y-4">
+                        <div className="flex flex-col min-w-[200px]">
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Subcontractor</span>
+                            <span className="text-[11px] font-black text-[#303a7f] uppercase truncate max-w-[300px]">{wosData.subcontractor || "No asignado"}</span>
+                        </div>
+
+                        <div className="h-8 w-px bg-gray-100 hidden md:block" />
+
+                        <div className="flex items-center gap-8">
+                            {[
+                                { label: 'WOS Date', value: wosData.wosDate, icon: Calendar },
+                                { label: 'Sign By', value: wosData.signByDate, icon: CheckCircle },
+                                { label: 'Period', value: wosData.period, icon: LayoutGrid },
+                                { label: 'Services', value: wosData.servicesThrough, icon: Clock },
+                                { label: 'Payment Due', value: wosData.paymentDueDate, icon: DollarSign }
+                            ].map((item, idx) => (
+                                <div key={idx} className="flex flex-col">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <item.icon size={12} className="text-gray-300" />
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">{item.label}</span>
+                                    </div>
+                                    <span className="text-[11px] font-black text-[#303a7f] uppercase tabular-nums">{item.value || "---"}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <main className="flex-1 bg-[#f9fafc]/50 p-12">
+                {/* Futura Tabla de Facturas */}
+                <div className="max-w-[1800px] mx-auto h-full flex items-center justify-center border-2 border-dashed border-gray-100 rounded-[3rem]">
+                   <p className="text-gray-300 font-bold uppercase tracking-[0.4em] text-xs">Área Reservada para Detalles Técnicos</p>
+                </div>
             </main>
         </div>
     );
