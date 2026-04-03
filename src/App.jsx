@@ -12,6 +12,7 @@ import {
     FileText,
     CheckCircle,
     Clock,
+    Eye,
     Settings,
     Menu,
     X,
@@ -1383,6 +1384,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
     });
     const [wosServices, setWosServices] = useState([]);
     const [acceptedKeys, setAcceptedKeys] = useState(new Set());
+    const [selectedWosGroup, setSelectedWosGroup] = useState(null);
 
     const convertToBase64 = (file) => {
         return new Promise((resolve, reject) => {
@@ -1518,9 +1520,17 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
             const lid = String(svc.locationId || '').trim();
             const sd  = String(svc.serviceDates || '').trim();
             const key = `${lid}|${sd}`;
-            if (!groups[key]) groups[key] = { locationId: lid, customer: svc.customer || '', serviceDates: sd, descriptions: [], kbsAnnounced: 0 };
+            if (!groups[key]) groups[key] = { 
+                locationId: lid, 
+                customer: svc.customer || '', 
+                serviceDates: sd, 
+                descriptions: [], 
+                kbsAnnounced: 0,
+                rawServices: [] 
+            };
             groups[key].kbsAnnounced += parseFloat(svc.amount) || 0;
             if (svc.serviceDescription) groups[key].descriptions.push(svc.serviceDescription);
+            groups[key].rawServices.push(svc);
         });
 
         return Object.values(groups).map(group => {
@@ -1572,7 +1582,8 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                 kbsAnnounced: group.kbsAnnounced,
                 diff: group.kbsAnnounced - totalLGMBilled,
                 matchedNominaRecord,
-                matchedPERecord
+                matchedPERecord,
+                rawServices: group.rawServices
             };
         }).sort((a, b) => a.storeName.localeCompare(b.storeName));
     }, [wosServices, nominaHistoryData, specialProjectsHistoryData, stores]);
@@ -1816,25 +1827,35 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                                         )}
                                                     </div>
                                                 </td>
-                                                {/* Botón Aceptar */}
+                                                {/* Botón Aceptar + Ojo */}
                                                 <td className="px-4 py-4 text-center">
-                                                    {isAccepted ? (
-                                                        <div className="inline-flex items-center gap-1.5 bg-green-50 text-green-600 px-4 py-2 rounded-xl border border-green-100">
-                                                            <CheckCircle size={12} />
-                                                            <span className="text-[9px] font-black uppercase tracking-widest">Aceptado</span>
-                                                        </div>
-                                                    ) : (
+                                                    <div className="flex items-center justify-center gap-2">
                                                         <button
-                                                            onClick={() => {
-                                                                setAcceptedKeys(prev => new Set([...prev, row.key]));
-                                                                if (onAcceptPayment) onAcceptPayment(row);
-                                                            }}
-                                                            className="inline-flex items-center gap-1.5 bg-[#6bbdb7] hover:bg-[#59aba5] text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md shadow-teal-900/10"
+                                                            onClick={() => setSelectedWosGroup(row)}
+                                                            className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-[#303a7f]/10 hover:text-[#303a7f] transition-all active:scale-90 border border-gray-100"
+                                                            title="Ver desglose del WOS"
                                                         >
-                                                            <Check size={12} />
-                                                            Aceptar
+                                                            <Eye size={16} />
                                                         </button>
-                                                    )}
+                                                        
+                                                        {isAccepted ? (
+                                                            <div className="inline-flex items-center gap-1.5 bg-green-50 text-green-600 px-4 py-2 rounded-xl border border-green-100 min-w-[100px] justify-center">
+                                                                <CheckCircle size={12} />
+                                                                <span className="text-[9px] font-black uppercase tracking-widest">Aceptado</span>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setAcceptedKeys(prev => new Set([...prev, row.key]));
+                                                                    if (onAcceptPayment) onAcceptPayment(row);
+                                                                }}
+                                                                className="inline-flex items-center gap-1.5 bg-[#6bbdb7] hover:bg-[#59aba5] text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md shadow-teal-900/10 min-w-[100px] justify-center"
+                                                            >
+                                                                <Check size={12} />
+                                                                Aceptar
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );
@@ -1940,6 +1961,79 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                     </tr>
                                 </tfoot>
                             </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* VENTANA EMERGENTE: DESGLOSE DE DATOS WOS (CROSS-MATCH) */}
+            {selectedWosGroup && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/10 animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
+                        {/* Header del Desglose */}
+                        <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                                    <Eye size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Evidencia Documental WOS</h3>
+                                    <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">{selectedWosGroup.storeName} · {selectedWosGroup.serviceDates}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setSelectedWosGroup(null)}
+                                className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {/* Contenido: Tabla de servicios crudos procesados por Gemini */}
+                        <div className="flex-1 overflow-y-auto p-8 bg-[#fcfdfe] custom-scrollbar max-h-[60vh]">
+                            <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm overflow-hidden">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-50 text-gray-400">
+                                            <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest">Descripción del Servicio</th>
+                                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-widest text-center">Sales Order</th>
+                                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-widest text-center">Reference #</th>
+                                            <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-right">Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {(selectedWosGroup.rawServices || []).map((s, idx) => (
+                                            <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                                                <td className="px-6 py-5 text-[10px] font-black text-[#303a7f] uppercase">{s.serviceDescription}</td>
+                                                <td className="px-4 py-5 text-[10px] font-bold text-gray-500 text-center tabular-nums">{s.salesOrder || '---'}</td>
+                                                <td className="px-4 py-5 text-[9px] font-medium text-gray-400 text-center truncate max-w-[120px]">{s.reference || '---'}</td>
+                                                <td className="px-6 py-5 text-[11px] font-black text-[#6bbdb7] text-right tabular-nums">
+                                                    ${parseFloat(s.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot className="bg-[#303a7f]/5">
+                                        <tr>
+                                            <td colSpan={3} className="px-6 py-4 text-right text-[10px] font-black text-[#303a7f] uppercase tracking-widest">Total Anunciado KBS</td>
+                                            <td className="px-6 py-4 text-lg font-black text-[#303a7f] text-right tabular-nums">
+                                                ${parseFloat(selectedWosGroup.kbsAnnounced || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            
+                            <div className="mt-8 p-6 bg-blue-50/30 rounded-[1.5rem] border border-blue-100/50">
+                                <p className="text-[10px] font-bold text-[#303a7f]/60 uppercase tracking-widest leading-relaxed text-center">
+                                    Estos datos fueron extraídos automáticamente del PDF mediante inteligencia artificial AdWisers. Representan el desglose exacto contenido en el documento oficial de KBS.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 border-t font-black text-[10px] text-gray-400 text-center uppercase tracking-[0.2em] bg-white">
+                            LogicPay Auditor Audit Evidence
                         </div>
                     </div>
                 </div>
