@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
@@ -13,6 +13,7 @@ import {
     CheckCircle,
     Clock,
     Eye,
+    Bug,
     Settings,
     Menu,
     X,
@@ -1385,6 +1386,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
     const [wosServices, setWosServices] = useState([]);
     const [acceptedKeys, setAcceptedKeys] = useState(new Set());
     const [selectedWosGroup, setSelectedWosGroup] = useState(null);
+    const [isWOSBugOpen, setIsWOSBugOpen] = useState(false);
 
     const convertToBase64 = (file) => {
         return new Promise((resolve, reject) => {
@@ -1535,11 +1537,19 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
 
         return Object.values(groups).map(group => {
             const cleanCode = group.locationId.replace(/^'+/, '').trim();
-            const store = stores.find(s => String(s.codigo || '').replace(/^'+/, '').trim() === cleanCode);
+            let store = stores.find(s => String(s.codigo || '').replace(/^'+/, '').trim() === cleanCode);
+            
+            // Fuzzy match por nombre si falla el código (ej. Sysco Arizona:164003)
+            if (!store && group.customer) {
+                const customerLower = group.customer.toLowerCase();
+                store = stores.find(s => {
+                    const sNameLower = (s.nombre || '').toLowerCase();
+                    return sNameLower && (customerLower.includes(sNameLower) || sNameLower.includes(customerLower));
+                });
+            }
+
             const storeName = store ? store.nombre : '';
             const wosRange = parseDateRange(group.serviceDates);
-            const descJoined = group.descriptions.join(' ').toLowerCase();
-            const likelyPE = descJoined.includes('extra') || descJoined.includes('special') || descJoined.includes('project');
 
             let lgmNominaBilled = 0, matchedNominaRecord = null;
             if (storeName && wosRange) {
@@ -1565,10 +1575,10 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
 
             const hasNomina = Boolean(matchedNominaRecord);
             const hasPE    = Boolean(matchedPERecord);
-            let type = 'VWH';
-            if (hasPE && !hasNomina) type = 'P.E.';
-            else if (hasPE && hasNomina) type = 'VWH + P.E.';
-            else if (likelyPE && !hasNomina) type = 'P.E.';
+            let type = 'Sin Registro';
+            if (hasNomina && !hasPE) type = 'VWH';
+            else if (hasPE && !hasNomina) type = 'P.E.';
+            else if (hasNomina && hasPE) type = 'VWH + P.E.';
 
             const totalLGMBilled = lgmNominaBilled + lgmPEBilled;
             return {
@@ -1587,6 +1597,35 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
             };
         }).sort((a, b) => a.storeName.localeCompare(b.storeName));
     }, [wosServices, nominaHistoryData, specialProjectsHistoryData, stores]);
+
+    const wosDiscrepancies = useMemo(() => {
+        if (!wosServices.length) return { lgmOrphans: [], wosOrphans: [] };
+
+        // 1. Huérfanos WOS (Sin Registro)
+        const wosOrphans = crossMatchResults.filter(r => r.type === 'Sin Registro');
+
+        // 2. Huérfanos LGM (Due no en WOS)
+        const matchedNominaSet = new Set(crossMatchResults.map(r => r.matchedNominaRecord).filter(Boolean));
+        const matchedPESet = new Set(crossMatchResults.map(r => r.matchedPERecord).filter(Boolean));
+
+        const lgmNominaOrphans = nominaHistoryData.filter(h => {
+            const status = String(h['Status'] || h['status'] || 'Due').trim().toLowerCase();
+            return status === 'due' && !matchedNominaSet.has(h);
+        });
+
+        const lgmPEOrphans = specialProjectsHistoryData.filter(h => {
+            const status = String(h['Status'] || h['status'] || 'Due').trim().toLowerCase();
+            return status === 'due' && !matchedPESet.has(h);
+        });
+
+        return {
+            lgmOrphans: [
+                ...lgmNominaOrphans.map(o => ({ ...o, source: 'VWH' })),
+                ...lgmPEOrphans.map(o => ({ ...o, source: 'P.E.' }))
+            ],
+            wosOrphans
+        };
+    }, [crossMatchResults, wosServices, nominaHistoryData, specialProjectsHistoryData]);
 
     if (!isOpen) return null;
 
@@ -1677,7 +1716,15 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                             ))}
                         </div>
 
-                        <div className="ml-auto">
+                        <div className="ml-auto flex items-center gap-3">
+                            <button
+                                onClick={() => setIsWOSBugOpen(true)}
+                                className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-orange-50 hover:text-orange-500 transition-all active:scale-90 border-2 border-transparent"
+                                title="Reportar Error / Depuración"
+                            >
+                                <Bug size={18} />
+                            </button>
+
                             <button
                                 onClick={() => setIsWOSDetailOpen(true)}
                                 disabled={wosServices.length === 0}
@@ -1727,7 +1774,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                 <div>
                                     <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none">Cruce de Facturación</h3>
                                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.18em] mt-0.5">
-                                        {crossMatchResults.length} factura{crossMatchResults.length !== 1 ? 's' : ''} · WOS {wosData.wosNumber || '---'}
+                                        {crossMatchResults.filter(r => r.type !== 'Sin Registro').length} factura{crossMatchResults.filter(r => r.type !== 'Sin Registro').length !== 1 ? 's' : ''} · WOS {wosData.wosNumber || '---'}
                                     </p>
                                 </div>
                             </div>
@@ -1757,14 +1804,14 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
-                                    {crossMatchResults.length === 0 ? (
+                                    {crossMatchResults.filter(r => r.type !== 'Sin Registro').length === 0 ? (
                                         <tr>
                                             <td colSpan={7} className="py-16 text-center">
                                                 <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">No se encontraron facturas radicadas que coincidan con este WOS.</p>
                                                 <p className="text-gray-300 font-bold text-[9px] uppercase tracking-widest mt-2">Verifique que los datos de Facturación Radicada estén cargados en el sistema.</p>
                                             </td>
                                         </tr>
-                                    ) : crossMatchResults.map(row => {
+                                    ) : crossMatchResults.filter(r => r.type !== 'Sin Registro').map(row => {
                                         const isAccepted = acceptedKeys.has(row.key);
                                         const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
                                         const hasMatch = row.lgmBilled > 0;
@@ -2035,6 +2082,133 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                         <div className="p-6 border-t font-black text-[10px] text-gray-400 text-center uppercase tracking-[0.2em] bg-white">
                             LogicPay Auditor Audit Evidence
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal de Discrepancias (Bicho 🐞) */}
+            {isWOSBugOpen && (
+                <div className="fixed inset-0 z-[200] bg-white flex flex-col animate-in slide-in-from-bottom duration-700">
+                    {/* Cabecera del Reporte de Errores */}
+                    <div className="px-12 py-6 border-b-4 border-orange-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
+                        <div className="flex items-center gap-6">
+                            <div className="p-4 bg-orange-500 text-white rounded-2xl shadow-xl shadow-orange-200 animate-pulse">
+                                <Bug size={28} />
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-black text-[#303a7f] tracking-tight uppercase leading-tight">Auditoría de Discrepancias</h2>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Detección Automática de Descalces LGM vs KBS</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setIsWOSBugOpen(false)}
+                            className="p-4 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                        >
+                            <X size={32} />
+                        </button>
+                    </div>
+
+                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row divide-x-2 divide-gray-100">
+                        {/* Columna Izquierda: Pendientes LGM no en WOS */}
+                        <div className="flex-1 flex flex-col bg-[#fdfdfe]">
+                            <div className="p-8 border-b border-gray-100 bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-xs font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
+                                        <History size={16} /> Pendientes LGM no en WOS
+                                    </h3>
+                                    <span className="px-3 py-1 bg-orange-100 text-orange-600 text-[10px] font-black rounded-full uppercase tracking-tighter">
+                                        {wosDiscrepancies.lgmOrphans.length} Registros
+                                    </span>
+                                </div>
+                                <p className="text-[10px] font-medium text-gray-400 leading-relaxed italic">
+                                    Facturaciones radicadas en LogicPay con status "Due" que KBS omitió anunciar en este reporte.
+                                </p>
+                            </div>
+                            
+                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-4">
+                                {wosDiscrepancies.lgmOrphans.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-64 text-gray-300">
+                                        <CheckCircle size={48} strokeWidth={1} className="mb-4 text-teal-200" />
+                                        <p className="text-[10px] font-black uppercase tracking-widest">Sin Pendientes Huérfanos</p>
+                                    </div>
+                                ) : (
+                                    wosDiscrepancies.lgmOrphans.map((item, idx) => (
+                                        <div key={idx} className="bg-white border-2 border-gray-100 rounded-2xl p-5 hover:border-orange-200 transition-all shadow-sm group">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[11px] font-black text-[#303a7f] uppercase leading-tight group-hover:text-orange-600 transition-colors">{item.nombre || item.tienda || "---"}</span>
+                                                    <span className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-widest">{item.source} · {item.periodo || `${item.fecha_inicio} - ${item.fecha_fin}`}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-xs font-black text-[#303a7f] tabular-nums block">${(parseFloat(item.nomina_kbs || 0) || parseFloat(item.monto || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                    <span className="text-[9px] font-bold text-orange-500 uppercase tracking-tighter">Status: {item.Status || item.status}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 pt-4 border-t border-gray-50">
+                                                <AlertTriangle size={10} className="text-orange-400" />
+                                                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Facturado pero no anunciado por KBS</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Columna Derecha: Anuncios KBS no en LGM */}
+                        <div className="flex-1 flex flex-col bg-[#f8fafb]">
+                            <div className="p-8 border-b border-gray-100 bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                                        <FileText size={16} /> Anuncios KBS no en LGM
+                                    </h3>
+                                    <span className="px-3 py-1 bg-blue-100 text-blue-600 text-[10px] font-black rounded-full uppercase tracking-tighter">
+                                        {wosDiscrepancies.wosOrphans.length} Registros
+                                    </span>
+                                </div>
+                                <p className="text-[10px] font-medium text-gray-400 leading-relaxed italic">
+                                    Anuncios presentes en el PDF del WOS que no coinciden con ninguna factura "Due" en nuestra base de datos.
+                                </p>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-4">
+                                {wosDiscrepancies.wosOrphans.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-64 text-gray-300">
+                                        <CheckCircle size={48} strokeWidth={1} className="mb-4 text-blue-200" />
+                                        <p className="text-[10px] font-black uppercase tracking-widest">Todo bajo control</p>
+                                    </div>
+                                ) : (
+                                    wosDiscrepancies.wosOrphans.map((item, idx) => (
+                                        <div key={idx} className="bg-white border-2 border-gray-100 rounded-2xl p-5 hover:border-blue-200 transition-all shadow-sm group">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[11px] font-black text-[#303a7f] uppercase leading-tight group-hover:text-blue-600 transition-colors">{item.storeCode} - {item.storeName}</span>
+                                                    <span className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-widest">{item.serviceDates}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-xs font-black text-[#303a7f] tabular-nums block">${parseFloat(item.kbsAnnounced || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                    <span className="text-[9px] font-extrabold text-blue-500 uppercase tracking-tighter">KBS Anuncia Pago</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col gap-2 pt-4 border-t border-gray-50">
+                                                <div className="flex items-center gap-2">
+                                                    <AlertTriangle size={10} className="text-blue-400" />
+                                                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">No existe factura "Due" coincidente</span>
+                                                </div>
+                                                <div className="text-[8px] text-gray-300 italic truncate italic">
+                                                    {item.descriptions.join(' | ')}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer del Reporte */}
+                    <div className="px-12 py-6 border-t font-black text-[10px] text-gray-400 bg-white flex justify-between uppercase tracking-widest">
+                        <span>LogicPay Forensic Audit Tool V2.1</span>
+                        <span className="text-orange-500 animate-pulse">● Auditoría Crítica Activa</span>
+                        <span>{new Date().toLocaleString()}</span>
                     </div>
                 </div>
             )}
