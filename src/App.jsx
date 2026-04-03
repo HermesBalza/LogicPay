@@ -1368,7 +1368,7 @@ const StoreAddView = ({ onSave, onBack }) => {
 };
 
 
-const WOSView = ({ isOpen, onClose, geminiApiKey }) => {
+const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], onAcceptPayment }) => {
     const fileInputRef = useRef(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isWOSDetailOpen, setIsWOSDetailOpen] = useState(false);
@@ -1382,6 +1382,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey }) => {
         paymentDueDate: ''
     });
     const [wosServices, setWosServices] = useState([]);
+    const [acceptedKeys, setAcceptedKeys] = useState(new Set());
 
     const convertToBase64 = (file) => {
         return new Promise((resolve, reject) => {
@@ -1471,6 +1472,110 @@ const WOSView = ({ isOpen, onClose, geminiApiKey }) => {
             e.target.value = null;
         }
     };
+
+    // ─── Cruce WOS vs Facturación Radicada ──────────────────────────────────
+    const crossMatchResults = React.useMemo(() => {
+        if (!wosServices.length) return [];
+
+        const parseDateRange = (str) => {
+            if (!str) return null;
+            const idx = str.indexOf(' - ');
+            if (idx === -1) return null;
+            return { start: str.substring(0, idx).trim(), end: str.substring(idx + 3).trim() };
+        };
+
+        const normD = (d) => String(d || '').replace(/\s+/g, '').trim();
+        const rangesMatch = (hS, hE, wS, wE) => normD(hS) === normD(wS) && normD(hE) === normD(wE);
+
+        const getKBSFromNomina = (rec) => {
+            try {
+                const data = JSON.parse(rec.data_json || '{}');
+                if (Array.isArray(data.kbsBillingTableData)) {
+                    return data.kbsBillingTableData.reduce((acc, r) =>
+                        acc + (parseFloat(String(r.total || '0').replace(/[^0-9.-]/g, '')) || 0), 0);
+                }
+            } catch (e) {}
+            return 0;
+        };
+
+        const getKBSFromPE = (rec) => {
+            try {
+                const raw = JSON.parse(rec.data_json || '{}');
+                const items = Array.isArray(raw) ? raw : [raw];
+                return items.reduce((acc, item) => {
+                    if (!item) return acc;
+                    const emps = Array.isArray(item.employees) ? item.employees : [];
+                    return acc + emps.reduce((a, emp) =>
+                        a + (parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0), 0);
+                }, 0);
+            } catch (e) {}
+            return 0;
+        };
+
+        // Agrupar líneas del WOS por locationId + serviceDates
+        const groups = {};
+        wosServices.forEach(svc => {
+            const lid = String(svc.locationId || '').trim();
+            const sd  = String(svc.serviceDates || '').trim();
+            const key = `${lid}|${sd}`;
+            if (!groups[key]) groups[key] = { locationId: lid, customer: svc.customer || '', serviceDates: sd, descriptions: [], kbsAnnounced: 0 };
+            groups[key].kbsAnnounced += parseFloat(svc.amount) || 0;
+            if (svc.serviceDescription) groups[key].descriptions.push(svc.serviceDescription);
+        });
+
+        return Object.values(groups).map(group => {
+            const cleanCode = group.locationId.replace(/^'+/, '').trim();
+            const store = stores.find(s => String(s.codigo || '').replace(/^'+/, '').trim() === cleanCode);
+            const storeName = store ? store.nombre : '';
+            const wosRange = parseDateRange(group.serviceDates);
+            const descJoined = group.descriptions.join(' ').toLowerCase();
+            const likelyPE = descJoined.includes('extra') || descJoined.includes('special') || descJoined.includes('project');
+
+            let lgmNominaBilled = 0, matchedNominaRecord = null;
+            if (storeName && wosRange) {
+                const m = nominaHistoryData.find(h => {
+                    if (String(h['Status'] || h['status'] || 'Due').trim() === 'Paid') return false;
+                    if (String(h.nombre || '').trim().toLowerCase() !== storeName.trim().toLowerCase()) return false;
+                    return rangesMatch(h.fecha_inicio, h.fecha_fin, wosRange.start, wosRange.end);
+                });
+                if (m) { matchedNominaRecord = m; lgmNominaBilled = getKBSFromNomina(m); }
+            }
+
+            let lgmPEBilled = 0, matchedPERecord = null;
+            if (storeName && wosRange) {
+                const pe = specialProjectsHistoryData.find(h => {
+                    if (String(h['Status'] || h['status'] || 'Due').trim() === 'Paid') return false;
+                    if (String(h.tienda || '').trim().toLowerCase() !== storeName.trim().toLowerCase()) return false;
+                    const pp = String(h.periodo || '').split(' - ').map(p => p.trim());
+                    if (pp.length < 2) return false;
+                    return rangesMatch(pp[0], pp[1], wosRange.start, wosRange.end);
+                });
+                if (pe) { matchedPERecord = pe; lgmPEBilled = getKBSFromPE(pe); }
+            }
+
+            const hasNomina = Boolean(matchedNominaRecord);
+            const hasPE    = Boolean(matchedPERecord);
+            let type = 'VWH';
+            if (hasPE && !hasNomina) type = 'P.E.';
+            else if (hasPE && hasNomina) type = 'VWH + P.E.';
+            else if (likelyPE && !hasNomina) type = 'P.E.';
+
+            const totalLGMBilled = lgmNominaBilled + lgmPEBilled;
+            return {
+                key: `${cleanCode}|${group.serviceDates}`,
+                storeCode: cleanCode,
+                storeName: storeName || group.customer,
+                serviceDates: group.serviceDates,
+                descriptions: group.descriptions,
+                type,
+                lgmBilled: totalLGMBilled,
+                kbsAnnounced: group.kbsAnnounced,
+                diff: group.kbsAnnounced - totalLGMBilled,
+                matchedNominaRecord,
+                matchedPERecord
+            };
+        }).sort((a, b) => a.storeName.localeCompare(b.storeName));
+    }, [wosServices, nominaHistoryData, specialProjectsHistoryData, stores]);
 
     if (!isOpen) return null;
 
@@ -1577,9 +1682,9 @@ const WOSView = ({ isOpen, onClose, geminiApiKey }) => {
                 </div>
             </div>
 
-            <main className="flex-1 bg-[#f9fafc]/50 p-12 overflow-hidden flex flex-col items-center justify-center">
+            <main className="flex-1 bg-[#f9fafc]/50 overflow-y-auto custom-scrollbar">
                 {isUploading ? (
-                    <div className="flex flex-col items-center gap-6 animate-pulse">
+                    <div className="h-full flex flex-col items-center gap-6 animate-pulse justify-center p-12">
                         <div className="w-20 h-20 bg-white rounded-3xl shadow-xl flex items-center justify-center">
                             <Cpu size={40} className="text-[#303a7f] animate-spin-slow" />
                         </div>
@@ -1588,14 +1693,169 @@ const WOSView = ({ isOpen, onClose, geminiApiKey }) => {
                             <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-[0.3em]">Analizando y Clasificando datos</p>
                         </div>
                     </div>
-                ) : (
-                    <div className="max-w-[1800px] w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-[3rem] bg-white/50 backdrop-blur-sm">
-                        <div className="p-8 bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 mb-8">
-                            <FileText size={64} className="text-gray-200" />
+                ) : wosServices.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center p-12">
+                        <div className="max-w-[1800px] w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-[3rem] bg-white/50 backdrop-blur-sm">
+                            <div className="p-8 bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 mb-8">
+                                <FileText size={64} className="text-gray-200" />
+                            </div>
+                            <p className="text-gray-400 font-black uppercase tracking-[0.4em] text-xs max-w-sm text-center leading-loose">
+                                Cargue un archivo WOS para iniciar el procesamiento con Inteligencia Artificial
+                            </p>
                         </div>
-                        <p className="text-gray-400 font-black uppercase tracking-[0.4em] text-xs max-w-sm text-center leading-loose">
-                            {wosServices.length > 0 ? "Información extraída correctamente. Presione 'Detalles' para ver la tabla." : "Cargue un archivo WOS para iniciar el procesamiento con Inteligencia Artificial"}
-                        </p>
+                    </div>
+                ) : (
+                    /* ─── Tabla de Cruce WOS vs Facturación Radicada ─── */
+                    <div className="p-8">
+                        {/* Encabezado del cruce */}
+                        <div className="flex items-center justify-between mb-6 px-1">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-[#303a7f] text-white rounded-xl shadow-lg shadow-blue-900/10">
+                                    <ArrowLeftRight size={16} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none">Cruce de Facturación</h3>
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.18em] mt-0.5">
+                                        {crossMatchResults.length} factura{crossMatchResults.length !== 1 ? 's' : ''} · WOS {wosData.wosNumber || '---'}
+                                    </p>
+                                </div>
+                            </div>
+                            {/* Leyenda de colores */}
+                            <div className="flex items-center gap-5">
+                                {[{ color: 'bg-green-400', label: 'Exacto' }, { color: 'bg-red-400', label: 'KBS paga menos' }, { color: 'bg-yellow-400', label: 'KBS paga más' }].map(l => (
+                                    <div key={l.label} className="flex items-center gap-2">
+                                        <div className={`w-2.5 h-2.5 rounded-full ${l.color}`} />
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{l.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Tabla de resultados */}
+                        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-blue-900/[0.06] border border-gray-100 overflow-visible relative">
+                            <table className="w-full border-collapse">
+                                <thead className="sticky top-0 z-10">
+                                    <tr className="bg-[#303a7f] text-white">
+                                        <th className="px-5 py-5 text-[9px] font-black uppercase tracking-widest text-left rounded-tl-[2.5rem]">Tienda</th>
+                                        <th className="px-4 py-5 text-[9px] font-black uppercase tracking-widest text-center">Tipo</th>
+                                        <th className="px-4 py-5 text-[9px] font-black uppercase tracking-widest text-center">Período</th>
+                                        <th className="px-4 py-5 text-[9px] font-black uppercase tracking-widest text-right">LGM Facturó</th>
+                                        <th className="px-4 py-4 text-[9px] font-black uppercase tracking-widest text-right">KBS Paga</th>
+                                        <th className="px-4 py-5 text-[9px] font-black uppercase tracking-widest text-center">Diferencia</th>
+                                        <th className="px-4 py-5 text-[9px] font-black uppercase tracking-widest text-center rounded-tr-[2.5rem]">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {crossMatchResults.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={7} className="py-16 text-center">
+                                                <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">No se encontraron facturas radicadas que coincidan con este WOS.</p>
+                                                <p className="text-gray-300 font-bold text-[9px] uppercase tracking-widest mt-2">Verifique que los datos de Facturación Radicada estén cargados en el sistema.</p>
+                                            </td>
+                                        </tr>
+                                    ) : crossMatchResults.map(row => {
+                                        const isAccepted = acceptedKeys.has(row.key);
+                                        const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
+                                        const hasMatch = row.lgmBilled > 0;
+                                        const absDiff = Math.abs(row.diff);
+                                        let statusColor = 'bg-gray-100 text-gray-400 border border-gray-200';
+                                        let statusLabel = 'Sin registro';
+                                        let dotColor = 'bg-gray-300';
+                                        let diffColor = 'text-gray-400';
+                                        if (hasMatch) {
+                                            if (absDiff <= 0.05) {
+                                                statusColor = 'bg-green-50 text-green-600 border border-green-100'; statusLabel = 'Exacto'; dotColor = 'bg-green-400'; diffColor = 'text-green-600';
+                                            } else if (row.diff < 0) {
+                                                statusColor = 'bg-red-50 text-red-500 border border-red-100'; statusLabel = 'Déficit'; dotColor = 'bg-red-400'; diffColor = 'text-red-500';
+                                            } else {
+                                                statusColor = 'bg-yellow-50 text-yellow-600 border border-yellow-100'; statusLabel = 'Superávit'; dotColor = 'bg-yellow-400'; diffColor = 'text-yellow-600';
+                                            }
+                                        }
+                                        return (
+                                            <tr key={row.key} className={`group transition-colors ${isAccepted ? 'bg-green-50/30' : 'hover:bg-gray-50/40'}`}>
+                                                {/* Tienda + Código */}
+                                                <td className="px-5 py-4">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[11px] font-black text-[#303a7f] uppercase">{row.storeName}</span>
+                                                        <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-wider mt-0.5">KBS ID: {row.storeCode}</span>
+                                                    </div>
+                                                </td>
+                                                {/* Tipo */}
+                                                <td className="px-4 py-4 text-center">
+                                                    <span className={`inline-block px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                                                        row.type === 'P.E.' ? 'bg-orange-50 text-orange-500 border border-orange-100' :
+                                                        row.type === 'VWH + P.E.' ? 'bg-purple-50 text-purple-500 border border-purple-100' :
+                                                        'bg-blue-50 text-[#303a7f] border border-blue-100'
+                                                    }`}>{row.type}</span>
+                                                </td>
+                                                {/* Período */}
+                                                <td className="px-4 py-4 text-center">
+                                                    <span className="text-[10px] font-bold text-gray-500 tabular-nums">{row.serviceDates}</span>
+                                                </td>
+                                                {/* LGM Facturó */}
+                                                <td className="px-4 py-4 text-right">
+                                                    {hasMatch
+                                                        ? <span className="text-[11px] font-black text-[#303a7f] tabular-nums">{fmt(row.lgmBilled)}</span>
+                                                        : <span className="text-[10px] font-bold text-gray-300 italic">Sin registro</span>}
+                                                </td>
+                                                {/* KBS Paga */}
+                                                <td className="px-4 py-4 text-right">
+                                                    <span className="text-[11px] font-black text-[#6bbdb7] tabular-nums">{fmt(row.kbsAnnounced)}</span>
+                                                </td>
+                                                {/* Diferencia / Estado */}
+                                                <td className="px-4 py-4 text-center">
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${statusColor}`}>
+                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
+                                                            {statusLabel}
+                                                        </span>
+                                                        {hasMatch && absDiff > 0.05 && (
+                                                            <span className={`text-[9px] font-black tabular-nums ${diffColor}`}>
+                                                                {row.diff > 0 ? '+' : ''}{fmt(row.diff)}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                {/* Botón Aceptar */}
+                                                <td className="px-4 py-4 text-center">
+                                                    {isAccepted ? (
+                                                        <div className="inline-flex items-center gap-1.5 bg-green-50 text-green-600 px-4 py-2 rounded-xl border border-green-100">
+                                                            <CheckCircle size={12} />
+                                                            <span className="text-[9px] font-black uppercase tracking-widest">Aceptado</span>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => {
+                                                                setAcceptedKeys(prev => new Set([...prev, row.key]));
+                                                                if (onAcceptPayment) onAcceptPayment(row);
+                                                            }}
+                                                            className="inline-flex items-center gap-1.5 bg-[#6bbdb7] hover:bg-[#59aba5] text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md shadow-teal-900/10"
+                                                        >
+                                                            <Check size={12} />
+                                                            Aceptar
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                                {crossMatchResults.length > 0 && (
+                                    <tfoot className="border-t-2 border-gray-100 bg-gray-50/60">
+                                        <tr>
+                                            <td colSpan={3} className="px-5 py-4 text-right text-[9px] font-black text-gray-400 uppercase tracking-widest">Totales del WOS</td>
+                                            <td className="px-4 py-4 text-right text-[11px] font-black text-[#303a7f] tabular-nums">
+                                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(crossMatchResults.reduce((acc, r) => acc + r.lgmBilled, 0))}
+                                            </td>
+                                            <td className="px-4 py-4 text-right text-[11px] font-black text-[#6bbdb7] tabular-nums">
+                                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(crossMatchResults.reduce((acc, r) => acc + r.kbsAnnounced, 0))}
+                                            </td>
+                                            <td colSpan={2} />
+                                        </tr>
+                                    </tfoot>
+                                )}
+                            </table>
+                        </div>
                     </div>
                 )}
             </main>
@@ -8342,6 +8602,9 @@ function App() {
                 isOpen={isWOSOpen}
                 onClose={() => setIsWOSOpen(false)}
                 geminiApiKey={geminiApiKey}
+                nominaHistoryData={nominaHistoryData}
+                specialProjectsHistoryData={specialProjectsHistoryData}
+                stores={stores}
             />
 
             {/* Decorative Brand Gradients */}
