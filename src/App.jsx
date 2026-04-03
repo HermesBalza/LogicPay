@@ -52,7 +52,8 @@ import {
     Star,
     Receipt,
     ArrowUpDown,
-    BookOpen
+    BookOpen,
+    Zap
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -1373,7 +1374,34 @@ const StoreAddView = ({ onSave, onBack }) => {
 const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], onAcceptPayment }) => {
     const fileInputRef = useRef(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [isCrossing, setIsCrossing] = useState(false);
     const [isWOSDetailOpen, setIsWOSDetailOpen] = useState(false);
+
+    // Funciones auxiliares para cálculo de montos KBS
+    const getKBSFromNomina = (rec) => {
+        try {
+            const data = JSON.parse(rec.data_json || '{}');
+            if (Array.isArray(data.kbsBillingTableData)) {
+                return data.kbsBillingTableData.reduce((acc, r) =>
+                    acc + (parseFloat(String(r.total || '0').replace(/[^0-9.-]/g, '')) || 0), 0);
+            }
+        } catch (e) {}
+        return 0;
+    };
+
+    const getKBSFromPE = (rec) => {
+        try {
+            const raw = JSON.parse(rec.data_json || '{}');
+            const items = Array.isArray(raw) ? raw : [raw];
+            return items.reduce((acc, item) => {
+                if (!item) return acc;
+                const emps = Array.isArray(item.employees) ? item.employees : [];
+                return acc + emps.reduce((a, emp) =>
+                    a + (parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0), 0);
+            }, 0);
+        } catch (e) {}
+        return 0;
+    };
     const [wosData, setWosData] = useState({
         wosNumber: '',
         subcontractor: '',
@@ -1421,7 +1449,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                 
                 REGLAS CRÍTICAS:
                 1. NO incluyas números de página.
-                2. NO incluyas los textos legales finales (Términos y condiciones, seguros, firmas, etc.).
+                2. NO incluyas los textos legales finales.
                 3. El JSON debe tener esta estructura exacta:
                 {
                     "metadata": {
@@ -1448,19 +1476,11 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                         }
                     ]
                 }
-                
-                4. Columna "Reference #" puede contener saltos de línea, límpialos.
-                5. Los montos deben ser números puros.
             `;
 
             const result = await model.generateContent([
                 prompt,
-                {
-                    inlineData: {
-                        data: base64Data,
-                        mimeType: "application/pdf"
-                    }
-                }
+                { inlineData: { data: base64Data, mimeType: "application/pdf" } }
             ]);
 
             const responseText = result.response.text();
@@ -1468,12 +1488,67 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
 
             setWosData(cleanJson.metadata);
             setWosServices(cleanJson.services);
+            setAcceptedKeys(new Set()); // Reset de aceptados al cargar nuevo WOS
         } catch (error) {
-            console.error('[WOS AI Error]:', error);
-            alert("Error al procesar el WOS con IA. Verifique el archivo y su conexión.");
+            console.error('[WOS Extraction Error]:', error);
+            alert("Error al extraer datos del WOS. Verifique el archivo.");
         } finally {
             setIsUploading(false);
             e.target.value = null;
+        }
+    };
+
+    const handleAICrossMatch = async () => {
+        if (!wosServices.length || !geminiApiKey) return;
+
+        setIsCrossing(true);
+        try {
+            // Filtrar solo facturas "Due" para el contexto de la IA
+            const dueNomina = nominaHistoryData.filter(h => !h.Status || h.Status === 'Due');
+            const duePE = specialProjectsHistoryData.filter(h => !h.Status || h.Status === 'Due');
+
+            const genAI = new GoogleGenerativeAI(geminiApiKey);
+            const model = genAI.getGenerativeModel({
+                model: "gemini-3-flash-preview",
+                generationConfig: { responseMimeType: "application/json" }
+            });
+
+            const prompt = `
+                Eres un auditor financiero experto. Tu tarea es cruzar los servicios de un WOS (Work Order Summary) 
+                con el historial de facturación "Due" de LogicPay.
+
+                DATOS DE ENTRADA:
+                1. WOS Services: ${JSON.stringify(wosServices)}
+                2. LGM Nomina (Due): ${JSON.stringify(dueNomina.map((h, i) => ({ id: 'N-'+i, store: h.nombre, start: h.fecha_inicio, end: h.fecha_fin })))}
+                3. LGM Projects (Due): ${JSON.stringify(duePE.map((h, i) => ({ id: 'S-'+i, store: h.tienda, period: h.periodo })))}
+
+                INSTRUCCIONES DE CRUCE:
+                - Busca coincidencias basadas en el nombre de la tienda (customer vs store) y las fechas del servicio.
+                - Ten en cuenta que los nombres pueden variar ligeramente (ej. "Sysco" vs "Sysco Arizona").
+                - Si varios servicios del WOS pertenecen a la misma factura de LGM, asígnale el mismo ID de LGM.
+                - Devuelve el array original de servicios del WOS añadiendo la propiedad "matchedLgmId".
+                - matchedLgmId debe ser el ID proporcionado (ej. "N-0", "S-2") o null si no hay match.
+
+                FORMATO DE SALIDA (JSON Puro):
+                {
+                    "matchedServices": [
+                        { ...campos_originales_del_wos, "matchedLgmId": "ID_O_NULL" }
+                    ]
+                }
+            `;
+
+            const result = await model.generateContent(prompt);
+            const responseText = result.response.text();
+            const resultData = JSON.parse(responseText);
+
+            if (resultData.matchedServices) {
+                setWosServices(resultData.matchedServices);
+            }
+        } catch (error) {
+            console.error('[WOS Cross-Match Error]:', error);
+            alert("Error durante el cruce inteligente con IA.");
+        } finally {
+            setIsCrossing(false);
         }
     };
 
@@ -1481,122 +1556,69 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
     const crossMatchResults = React.useMemo(() => {
         if (!wosServices.length) return [];
 
-        const parseDateRange = (str) => {
-            if (!str) return null;
-            const idx = str.indexOf(' - ');
-            if (idx === -1) return null;
-            return { start: str.substring(0, idx).trim(), end: str.substring(idx + 3).trim() };
-        };
-
-        const normD = (d) => String(d || '').replace(/\s+/g, '').trim();
-        const rangesMatch = (hS, hE, wS, wE) => normD(hS) === normD(wS) && normD(hE) === normD(wE);
-
-        const getKBSFromNomina = (rec) => {
-            try {
-                const data = JSON.parse(rec.data_json || '{}');
-                if (Array.isArray(data.kbsBillingTableData)) {
-                    return data.kbsBillingTableData.reduce((acc, r) =>
-                        acc + (parseFloat(String(r.total || '0').replace(/[^0-9.-]/g, '')) || 0), 0);
-                }
-            } catch (e) {}
-            return 0;
-        };
-
-        const getKBSFromPE = (rec) => {
-            try {
-                const raw = JSON.parse(rec.data_json || '{}');
-                const items = Array.isArray(raw) ? raw : [raw];
-                return items.reduce((acc, item) => {
-                    if (!item) return acc;
-                    const emps = Array.isArray(item.employees) ? item.employees : [];
-                    return acc + emps.reduce((a, emp) =>
-                        a + (parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0), 0);
-                }, 0);
-            } catch (e) {}
-            return 0;
-        };
-
-        // Agrupar líneas del WOS por locationId + serviceDates
         const groups = {};
-        wosServices.forEach(svc => {
-            const lid = String(svc.locationId || '').trim();
-            const sd  = String(svc.serviceDates || '').trim();
-            const key = `${lid}|${sd}`;
-            if (!groups[key]) groups[key] = { 
-                locationId: lid, 
-                customer: svc.customer || '', 
-                serviceDates: sd, 
-                descriptions: [], 
-                kbsAnnounced: 0,
-                rawServices: [] 
-            };
-            groups[key].kbsAnnounced += parseFloat(svc.amount) || 0;
-            if (svc.serviceDescription) groups[key].descriptions.push(svc.serviceDescription);
-            groups[key].rawServices.push(svc);
+        wosServices.forEach((svc, idx) => {
+            const matchId = svc.matchedLgmId || `orphan-${idx}`;
+            if (!groups[matchId]) {
+                groups[matchId] = {
+                    matchedLgmId: svc.matchedLgmId,
+                    wosRows: [],
+                    totalPaidByKBS: 0
+                };
+            }
+            groups[matchId].wosRows.push(svc);
+            groups[matchId].totalPaidByKBS += (parseFloat(svc.amount) || 0);
         });
 
         return Object.values(groups).map(group => {
-            const cleanCode = group.locationId.replace(/^'+/, '').trim();
-            let store = stores.find(s => String(s.codigo || '').replace(/^'+/, '').trim() === cleanCode);
-            
-            // Fuzzy match por nombre si falla el código (ej. Sysco Arizona:164003)
-            if (!store && group.customer) {
-                const customerLower = group.customer.toLowerCase();
-                store = stores.find(s => {
-                    const sNameLower = (s.nombre || '').toLowerCase();
-                    return sNameLower && (customerLower.includes(sNameLower) || sNameLower.includes(customerLower));
-                });
-            }
-
-            const storeName = store ? store.nombre : '';
-            const wosRange = parseDateRange(group.serviceDates);
-
-            let lgmNominaBilled = 0, matchedNominaRecord = null;
-            if (storeName && wosRange) {
-                const m = nominaHistoryData.find(h => {
-                    if (String(h['Status'] || h['status'] || 'Due').trim() === 'Paid') return false;
-                    if (String(h.nombre || '').trim().toLowerCase() !== storeName.trim().toLowerCase()) return false;
-                    return rangesMatch(h.fecha_inicio, h.fecha_fin, wosRange.start, wosRange.end);
-                });
-                if (m) { matchedNominaRecord = m; lgmNominaBilled = getKBSFromNomina(m); }
-            }
-
-            let lgmPEBilled = 0, matchedPERecord = null;
-            if (storeName && wosRange) {
-                const pe = specialProjectsHistoryData.find(h => {
-                    if (String(h['Status'] || h['status'] || 'Due').trim() === 'Paid') return false;
-                    if (String(h.tienda || '').trim().toLowerCase() !== storeName.trim().toLowerCase()) return false;
-                    const pp = String(h.periodo || '').split(' - ').map(p => p.trim());
-                    if (pp.length < 2) return false;
-                    return rangesMatch(pp[0], pp[1], wosRange.start, wosRange.end);
-                });
-                if (pe) { matchedPERecord = pe; lgmPEBilled = getKBSFromPE(pe); }
-            }
-
-            const hasNomina = Boolean(matchedNominaRecord);
-            const hasPE    = Boolean(matchedPERecord);
+            let matchedNominaRecord = null;
+            let matchedPERecord = null;
             let type = 'Sin Registro';
-            if (hasNomina && !hasPE) type = 'VWH';
-            else if (hasPE && !hasNomina) type = 'P.E.';
-            else if (hasNomina && hasPE) type = 'VWH + P.E.';
+            let lgmBilled = 0;
+            let storeCode = group.wosRows[0].locationId || '';
+            let storeName = group.wosRows[0].customer || '---';
+            let period = group.wosRows[0].serviceDates || '---';
 
-            const totalLGMBilled = lgmNominaBilled + lgmPEBilled;
+            if (group.matchedLgmId) {
+                const [pfx, idxStr] = group.matchedLgmId.split('-');
+                const idx = parseInt(idxStr);
+                
+                if (pfx === 'N') {
+                    matchedNominaRecord = nominaHistoryData[idx];
+                    type = 'VWH';
+                    if (matchedNominaRecord) {
+                        lgmBilled = getKBSFromNomina(matchedNominaRecord);
+                        storeName = matchedNominaRecord.nombre;
+                        period = `${matchedNominaRecord.fecha_inicio} - ${matchedNominaRecord.fecha_fin}`;
+                    }
+                } else if (pfx === 'S') {
+                    matchedPERecord = specialProjectsHistoryData[idx];
+                    type = 'P.E.';
+                    if (matchedPERecord) {
+                        lgmBilled = getKBSFromPE(matchedPERecord);
+                        storeName = matchedPERecord.tienda;
+                        period = matchedPERecord.periodo;
+                    }
+                }
+            }
+
+            const diff = group.totalPaidByKBS - lgmBilled;
             return {
-                key: `${cleanCode}|${group.serviceDates}`,
-                storeCode: cleanCode,
-                storeName: storeName || group.customer,
-                serviceDates: group.serviceDates,
-                descriptions: group.descriptions,
+                key: group.matchedLgmId || `orphan-${Math.random()}`,
+                storeCode,
+                storeName,
+                serviceDates: period,
+                descriptions: group.wosRows.map(r => r.serviceDescription),
                 type,
-                lgmBilled: totalLGMBilled,
-                kbsAnnounced: group.kbsAnnounced,
-                diff: group.kbsAnnounced - totalLGMBilled,
+                lgmBilled,
+                kbsAnnounced: group.totalPaidByKBS,
+                diff,
                 matchedNominaRecord,
                 matchedPERecord,
-                rawServices: group.rawServices
+                rawServices: group.wosRows
             };
-        }).sort((a, b) => a.storeName.localeCompare(b.storeName));
-    }, [wosServices, nominaHistoryData, specialProjectsHistoryData, stores]);
+        });
+    }, [wosServices, nominaHistoryData, specialProjectsHistoryData]);
 
     const wosDiscrepancies = useMemo(() => {
         if (!wosServices.length) return { lgmOrphans: [], wosOrphans: [] };
@@ -1735,20 +1757,41 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                             >
                                 Detalles
                             </button>
+
+                            {/* NUEVO BOTÓN: Hacer Cruce */}
+                            <button
+                                onClick={handleAICrossMatch}
+                                disabled={wosServices.length === 0 || isCrossing}
+                                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg border flex items-center gap-2 ${wosServices.length > 0 && !isCrossing
+                                    ? 'bg-orange-500 text-white shadow-orange-900/20 border-orange-400/20 hover:bg-orange-600 animate-pulse-subtle'
+                                    : 'bg-gray-100 text-gray-300 cursor-not-allowed border-transparent'
+                                    }`}
+                            >
+                                {isCrossing ? (
+                                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <Zap size={14} />
+                                )}
+                                Hacer Cruce
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
 
             <main className="flex-1 bg-[#f9fafc]/50 overflow-y-auto custom-scrollbar">
-                {isUploading ? (
+                {isUploading || isCrossing ? (
                     <div className="h-full flex flex-col items-center gap-6 animate-pulse justify-center p-12">
                         <div className="w-20 h-20 bg-white rounded-3xl shadow-xl flex items-center justify-center">
                             <Cpu size={40} className="text-[#303a7f] animate-spin-slow" />
                         </div>
                         <div className="text-center">
-                            <p className="text-[#303a7f] font-black uppercase tracking-widest text-sm mb-2">Procesando WOS</p>
-                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-[0.3em]">Analizando y Clasificando datos</p>
+                            <p className="text-[#303a7f] font-black uppercase tracking-widest text-sm mb-2">
+                                {isUploading ? 'Procesando WOS' : 'Realizando Cruce Inteligente'}
+                            </p>
+                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-[0.3em]">
+                                {isUploading ? 'Analizando documento de KBS' : 'Comparando con Historial LGM'}
+                            </p>
                         </div>
                     </div>
                 ) : wosServices.length === 0 ? (
