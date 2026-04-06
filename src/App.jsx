@@ -76,6 +76,7 @@ const NOMINA_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_NOMINA_HISTORICO_URL;
 const NOMINA_DETAIL_CSV_URL = import.meta.env.VITE_SHEET_NOMINA_DETALLE_URL;
 const SPECIAL_PROJECTS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_PROYECTOS_ESPECIALES_URL;
 const WOS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_WOS_URL;
+const VARIABLES_CSV_URL = import.meta.env.VITE_SHEET_VARIABLES_URL;
 
 // Parsea una fila CSV respetando campos entre comillas
 const parseCSVRow = (row) => {
@@ -5814,22 +5815,9 @@ const BillingView = ({
 };
 
 // --- CONFIGURACIÓN VIEW (MAESTRO) ---
-const SettingsView = ({ geminiApiKey, setGeminiApiKey }) => {
-    const [localKey, setLocalKey] = useState(geminiApiKey);
+const SettingsView = () => {
     const [showKey, setShowKey] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [saveStatus, setSaveStatus] = useState(null); // 'success' | null
-
-    const handleSave = () => {
-        setIsSaving(true);
-        setTimeout(() => {
-            setGeminiApiKey(localKey);
-            localStorage.setItem('lgm_gemini_key', localKey);
-            setIsSaving(false);
-            setSaveStatus('success');
-            setTimeout(() => setSaveStatus(null), 3000);
-        }, 800);
-    };
+    const geminiKey = import.meta.env.VITE_GEMINI_API_KEY || 'No configurada';
 
     return (
         <div className="w-full h-full flex flex-col animate-in fade-in duration-700 bg-[#fcfdfe]">
@@ -5865,14 +5853,13 @@ const SettingsView = ({ geminiApiKey, setGeminiApiKey }) => {
 
                         <div className="space-y-6 relative z-10">
                             <div>
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Gemini API Key (Google Cloud)</label>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Gemini API Key (Configurada en .env)</label>
                                 <div className="relative group">
                                     <input 
                                         type={showKey ? "text" : "password"}
-                                        value={localKey}
-                                        onChange={(e) => setLocalKey(e.target.value)}
-                                        placeholder="Ingrese su API Key aquí..."
-                                        className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] focus:bg-white transition-all shadow-inner tabular-nums"
+                                        value={geminiKey}
+                                        readOnly
+                                        className="w-full bg-gray-50/50 border-2 border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold text-[#303a7f]/50 outline-none cursor-not-allowed tabular-nums"
                                     />
                                     <button 
                                         onClick={() => setShowKey(!showKey)}
@@ -5883,25 +5870,12 @@ const SettingsView = ({ geminiApiKey, setGeminiApiKey }) => {
                                 </div>
                             </div>
 
-                            <button 
-                                onClick={handleSave}
-                                disabled={isSaving}
-                                className={`w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg ${saveStatus === 'success' ? 'bg-teal-500 text-white shadow-teal-900/20' : 'bg-[#303a7f] text-white shadow-blue-900/20 hover:bg-[#252a5e]'}`}
-                            >
-                                {isSaving ? (
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : saveStatus === 'success' ? (
-                                    <>
-                                        <CheckCircle size={16} />
-                                        Configuración Guardada
-                                    </>
-                                ) : (
-                                    <>
-                                        <Save size={16} />
-                                        Guardar Cambios
-                                    </>
-                                )}
-                            </button>
+                            <div className="pt-2">
+                                <div className="flex items-center gap-3 p-4 bg-teal-50/50 rounded-2xl border-2 border-[#6bbdb7]/20 border-dashed">
+                                    <Lock size={16} className="text-[#6bbdb7]" />
+                                    <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-tighter leading-none m-0">Inmutable (Seguridad de Entorno)</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -5913,20 +5887,28 @@ const SettingsView = ({ geminiApiKey, setGeminiApiKey }) => {
                             <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-white mb-8">
                                 <ShieldCheck size={28} />
                             </div>
-                            <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-4">Seguridad de Datos</h3>
+                            <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-4">Arquitectura Stateless</h3>
                             <p className="text-blue-100/60 text-sm font-bold leading-relaxed">
-                                Su API Key se almacena localmente en este navegador. Nunca se envía a nuestros servidores centrales, garantizando que solo usted tenga control sobre el consumo de su cuota de IA.
+                                Este sistema NO utiliza almacenamiento local persistente (localStorage). Toda la información de sesión y variables operativas se sincronizan en una arquitectura central basada en la nube, garantizando que todos los usuarios autorizados trabajen sobre la misma fuente de verdad en tiempo real.
                             </p>
                         </div>
 
-                        <div className="mt-12 bg-white/5 rounded-2xl p-6 border border-white/10">
-                            <div className="flex items-center gap-3 mb-2">
-                                <Activity size={14} className="text-teal-400" />
-                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Estatus de Conexión</span>
+                        <div className="mt-12 bg-white/5 rounded-2xl p-6 border border-white/10 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <Activity size={14} className="text-teal-400" />
+                                    <span className="text-[10px] font-black text-white uppercase tracking-widest">IA Engine Status</span>
+                                </div>
+                                <div className="w-1.5 h-1.5 bg-teal-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(45,212,191,0.8)]" />
                             </div>
-                            <p className="text-xs font-bold text-blue-100/40">
-                                Motor de IA: <span className="text-[#6bbdb7] uppercase tracking-tighter">gemini-3-flash-preview ACTIVE</span>
+                            <p className="text-xs font-bold text-blue-100/40 m-0">
+                                Model: <span className="text-[#6bbdb7] uppercase tracking-tighter">gemini-3-flash-preview</span>
                             </p>
+                            <div className="h-px bg-white/5" />
+                            <div className="flex items-center gap-3">
+                                <History size={14} className="text-[#6bbdb7]" />
+                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Cloud Sync Mode: ON</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -5936,10 +5918,17 @@ const SettingsView = ({ geminiApiKey, setGeminiApiKey }) => {
 };
 
 
+const USER_REGISTRY = [
+    { name: "David Torres", role: "Asistente" },
+    { name: "Nirvana Márquez", role: "Asistente" },
+    { name: "Luis Rojas", role: "CEO" },
+    { name: "Reynaldo González", role: "CEO" },
+    { name: "Hermes Balza", role: "Desarrollador" },
+];
+
 function App() {
-    const [activeTab, setActiveTab] = useState(() => {
-        return localStorage.getItem('lgm_active_tab') || 'stores';
-    });
+    const [variablesLoaded, setVariablesLoaded] = useState(false);
+    const [activeTab, setActiveTab] = useState('stores');
     const [isSidebarOpen, setSidebarOpen] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [editingStore, setEditingStore] = useState(null);
@@ -5949,10 +5938,7 @@ function App() {
     const [isLoading, setIsLoading] = useState(false);
     const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado' | 'desconectado' | 'sincronizando'
 
-    const [user, setUser] = useState(() => {
-        const saved = localStorage.getItem('lgm_user');
-        return saved ? JSON.parse(saved) : null;
-    });
+    const [user, setUser] = useState(null);
 
     // Estados para archivos de Nómina
     const [supervisorFile, setSupervisorFile] = useState(null);
@@ -5967,7 +5953,7 @@ function App() {
     const [payrollResults, setPayrollResults] = useState([]);
     const [isProcessingPayroll, setIsProcessingPayroll] = useState(false);
     const [isProcessingIA, setIsProcessingIA] = useState(false);
-    const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('lgm_gemini_key') || import.meta.env.VITE_GEMINI_API_KEY || '');
+    const [geminiApiKey, setGeminiApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || '');
     const [verificationResults, setVerificationResults] = useState([]); // FASE 4: Resultados de verificación
     const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false); // FASE 4: Control del modal
     const [isSyncingBatch, setIsSyncingBatch] = useState(false); // FASE 4.8: Estado de sincronización masiva
@@ -5991,10 +5977,7 @@ function App() {
     const [nominaHistoryData, setNominaHistoryData] = useState([]); // FASE 9: Historial Persistente
     const [selectedHistoryStore, setSelectedHistoryStore] = useState('');
     const [isHistoricalDataLoaded, setIsHistoricalDataLoaded] = useState(false); // Flag para la UI
-    const [processedBiweeks, setProcessedBiweeks] = useState(() => {
-        const saved = localStorage.getItem('lgm_processed_biweeks');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [processedBiweeks, setProcessedBiweeks] = useState([]);
 
     const [invalidCodes, setInvalidCodes] = useState([]);
     const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
@@ -6008,26 +5991,51 @@ function App() {
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [isPEModalOpen, setIsPEModalOpen] = useState(false);
 
-    const [specialProjectsData, setSpecialProjectsData] = useState(() => {
-        const saved = localStorage.getItem('lgm_special_projects_data');
-        const parsed = saved ? JSON.parse(saved) : [];
-        if (!Array.isArray(parsed)) return [];
-        return parsed.map(project => ({
-            ...project,
-            invoice: normalizeInvoice(project.invoice)
-        }));
-    });
+    const [specialProjectsData, setSpecialProjectsData] = useState([]);
 
     // Contador global de invoices para Proyectos Especiales (empieza desde 100)
-    const [nextInvoice, setNextInvoice] = useState(() => normalizeInvoice(localStorage.getItem('lgm_next_invoice')));
-
-    // Persistencia de Proyectos Especiales en localStorage (Con Debounce de 1s para rendimiento)
+    const [nextInvoice, setNextInvoice] = useState(100);
+    // --- SINCRONIZACIÓN AUTOMÁTICA DE VARIABLES OPERATIVAS ---
     useEffect(() => {
-        const timer = setTimeout(() => {
-            localStorage.setItem('lgm_special_projects_data', JSON.stringify(specialProjectsData));
-        }, 1000);
-        return () => clearTimeout(timer);
-    }, [specialProjectsData]);
+        if (variablesLoaded) syncVariableToSheets('processed_biweeks', processedBiweeks);
+    }, [processedBiweeks, variablesLoaded]);
+
+    useEffect(() => {
+        if (variablesLoaded) {
+            const timer = setTimeout(() => {
+                syncVariableToSheets('special_projects_data', specialProjectsData);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [specialProjectsData, variablesLoaded]);
+
+    useEffect(() => {
+        if (variablesLoaded) syncVariableToSheets('next_invoice', nextInvoice);
+    }, [nextInvoice, variablesLoaded]);
+
+    const handleLogin = (userNameOrData) => {
+        let userData;
+        if (typeof userNameOrData === 'string') {
+            const found = USER_REGISTRY.find(u => u.name === userNameOrData);
+            userData = { name: userNameOrData, role: found?.role || 'Invitado' };
+        } else {
+            userData = userNameOrData;
+        }
+        setUser(userData);
+        syncVariableToSheets('user', userData);
+    };
+
+    const SplashLoader = () => (
+        <div className="fixed inset-0 z-[1000] bg-[#303a7f] flex flex-col items-center justify-center animate-in fade-in duration-500">
+            <div className="relative mb-12">
+                <div className="w-32 h-32 border-4 border-white/10 border-t-[#6bbdb7] rounded-full animate-spin" />
+                <img src="/Logo Logic Group Management.png" alt="LGM" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-auto brightness-0 invert opacity-50" />
+            </div>
+            <h2 className="text-white text-xl font-black uppercase tracking-[0.5em] mb-4 animate-pulse">Sincronizando Motor</h2>
+            <p className="text-blue-100/40 text-[10px] font-black uppercase tracking-widest italic">Cargando Variables desde la Nube (Google Sheets) ...</p>
+        </div>
+    );
+
 
     const [sheetFiles, setSheetFiles] = useState([]); // FASE 8: Digitalizador
     const [isProcessingSheets, setIsProcessingSheets] = useState(false); // FASE 8: Digitalizador
@@ -6321,7 +6329,7 @@ function App() {
             if (highestInvoice >= nextInvoice) {
                 const next = highestInvoice + 1;
                 setNextInvoice(next);
-                localStorage.setItem('lgm_next_invoice', String(next));
+                syncVariableToSheets('next_invoice', String(next));
             }
         }
         setSpecialProjectsData(projects);
@@ -7183,28 +7191,15 @@ function App() {
     // --- FASE 8: Digitalizador de Planillas (IA vision) ---
 
 
-    const USER_REGISTRY = [
-        { name: "David Torres", role: "Asistente" },
-        { name: "Nirvana Márquez", role: "Asistente" },
-        { name: "Luis Rojas", role: "CEO" },
-        { name: "Reynaldo González", role: "CEO" },
-        { name: "Hermes Balza", role: "Desarrollador" },
-    ];
 
-    const handleLogin = (userName) => {
-        const found = USER_REGISTRY.find(u => u.name === userName);
-        const userData = { name: userName, role: found?.role || 'Invitado' };
-        setUser(userData);
-        localStorage.setItem('lgm_user', JSON.stringify(userData));
-    };
 
     useEffect(() => {
-        localStorage.setItem('lgm_active_tab', activeTab);
-    }, [activeTab]);
+        if (variablesLoaded) syncVariableToSheets('active_tab', activeTab);
+    }, [activeTab, variablesLoaded]);
 
     const handleLogout = () => {
         setUser(null);
-        localStorage.removeItem('lgm_user');
+        syncVariableToSheets('user', null);
     };
 
     const [stores, setStores] = useState([]);
@@ -7538,6 +7533,45 @@ function App() {
         }
     };
 
+    const fetchVariables = async () => {
+        try {
+            const response = await fetch(VARIABLES_CSV_URL, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const csvText = await response.text();
+            const lines = csvText.trim().split('\n').filter(l => l.trim());
+            if (lines.length < 2) {
+                setVariablesLoaded(true);
+                return;
+            }
+            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, '').toLowerCase());
+            const data = lines.slice(1).map(line => {
+                const values = parseCSVRow(line);
+                const flat = {};
+                headers.forEach((h, i) => { if (h) flat[h] = (values[i] || '').trim(); });
+                return flat;
+            });
+
+            // Mapeo selectivo de variables
+            data.forEach(item => {
+                const key = String(item.key || item.clave).toLowerCase();
+                const val = item.value || item.valor;
+                
+                if (key === 'active_tab') setActiveTab(val);
+                if (key === 'user' && val) try { setUser(JSON.parse(val)); } catch(e){}
+                if (key === 'processed_biweeks' && val) try { setProcessedBiweeks(JSON.parse(val)); } catch(e){}
+                if (key === 'special_projects_data' && val) try { 
+                    const parsed = JSON.parse(val);
+                    setSpecialProjectsData(Array.isArray(parsed) ? parsed : []); 
+                } catch(e){}
+                if (key === 'next_invoice') setNextInvoice(normalizeInvoice(val));
+            });
+            setVariablesLoaded(true);
+        } catch (error) {
+            console.error('[LogicPay] Error cargando Variables:', error);
+            setVariablesLoaded(true);
+        }
+    };
+
     const getMaxInvoiceFromSpecialProjectsHistory = (historyData) => {
         let maxInvoice = 0;
         historyData.forEach(record => {
@@ -7584,10 +7618,11 @@ function App() {
         fetchNominaHistory();
         fetchSpecialProjectsHistory();
         fetchWosHistory();
+        fetchVariables();
     }, []);
 
     useEffect(() => {
-        if (!specialProjectsHistoryData || specialProjectsHistoryData.length === 0) return;
+        if (!variablesLoaded || !specialProjectsHistoryData || specialProjectsHistoryData.length === 0) return;
 
         const maxInvoice = getMaxInvoiceFromSpecialProjectsHistory(specialProjectsHistoryData);
         if (maxInvoice <= 0) return;
@@ -7597,11 +7632,11 @@ function App() {
             const desiredNext = maxInvoice + 1;
             const next = Math.max(normalizedCurrent, desiredNext);
             if (next !== normalizedCurrent) {
-                localStorage.setItem('lgm_next_invoice', String(next));
+                syncVariableToSheets('next_invoice', String(next));
             }
             return next;
         });
-    }, [specialProjectsHistoryData]);
+    }, [specialProjectsHistoryData, variablesLoaded]);
 
     // ─── API: Sincronizar cambios con Google Sheets ──────────────────────────
     // Usa mode: 'no-cors' con Content-Type: 'text/plain' (CORS-safelisted).
@@ -7627,6 +7662,19 @@ function App() {
                 console.error(`[LogicPay] Error en POST a ${sheetName}:`, error);
                 throw error;
             });
+    };
+
+    const syncVariableToSheets = (key, value) => {
+        const payload = {
+            key: key,
+            value: typeof value === 'object' ? JSON.stringify(value) : String(value)
+        };
+        return fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'upsert', data: payload, sheetName: 'Variables', matchKeys: ['key'] })
+        }).catch(err => console.error(`[LogicPay] Error localizando Variable ${key}:`, err));
     };
 
     const filteredStores = stores.filter(s =>
@@ -7697,12 +7745,14 @@ function App() {
         { id: 'settings', label: 'Ajustes', icon: Settings },
     ];
 
+    if (!variablesLoaded) return <SplashLoader />;
+    if (!user) return <LoginView onLogin={handleLogin} />;
+
     return (
         <div
             style={{ backgroundColor: '#f9f9f9' }}
             className="flex h-screen w-full text-[#333333] overflow-hidden font-sans selection:bg-[#6bbdb7]/20"
         >
-            {!user && <LoginView onLogin={handleLogin} />}
 
             {editingStore && (
                 <StoreEditView
@@ -8605,10 +8655,7 @@ function App() {
 
                     {/* CONFIGURACIÓN Y AJUSTES */}
                     {activeTab === 'settings' && (
-                        <SettingsView 
-                            geminiApiKey={geminiApiKey}
-                            setGeminiApiKey={setGeminiApiKey}
-                        />
+                        <SettingsView />
                     )}
 
                     {/* VISTA DE RESPALDO (Dashboard, Otros) */}
@@ -9165,7 +9212,7 @@ function App() {
                     setNextInvoice={(val) => {
                         const normalized = normalizeInvoice(val);
                         setNextInvoice(normalized);
-                        localStorage.setItem('lgm_next_invoice', String(normalized));
+                        syncVariableToSheets('next_invoice', String(normalized));
                     }}
                     onSyncCorrelativo={handleSyncCorrelativo}
                     onRegisterProject={handleRegisterSpecialProject}

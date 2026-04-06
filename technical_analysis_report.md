@@ -65,7 +65,7 @@ El sistema utiliza una **Llave Compuesta** para garantizar la integridad de los 
 ---
 
 ## 6. Observaciones Técnicas y Recomendaciones
-1.  **Divergencia de Versión AI**: El código usa `gemini-3-flash-preview` pero el Director solicita `2.5-flash`. Se recomienda estandarizar.
+1.  **Divergencia de Versión AI**: El código usa `gemini-3-flash-preview`. Se recomienda estandarizar.
 2.  **Complejidad del Monolito**: `App.jsx` ha superado el límite de mantenibilidad ideal. Se sugiere una refactorización modular a futuro (si el Director lo autoriza).
 3.  **Manejo de CORS**: Implementado exitosamente mediante `mode: 'no-cors'` y `Content-Type: 'text/plain'` para hablar con Google Apps Script.
 
