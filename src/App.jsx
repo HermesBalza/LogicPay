@@ -53,7 +53,10 @@ import {
     Receipt,
     ArrowUpDown,
     BookOpen,
-    Zap
+    Zap,
+    Sparkles,
+    EyeOff,
+    Activity
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -67,10 +70,12 @@ const genAIClient = (key) => new GoogleGenerativeAI(key);
 const API_URL = 'https://script.google.com/macros/s/AKfycbxpul9_uMVb1RfBj7E5ASUJ470Ps4b5seldhCdC1oOTCNkgcWU0HNIpkP1k5eTXImrEoA/exec';
 
 // ─── BASE DE DATOS: Google Sheets publicado como CSV (lectura) ───────────────
-const SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=0&single=true&output=csv';
-const EMPLOYEES_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=866070317&single=true&output=csv';
-const NOMINA_HISTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=1638753782&single=true&output=csv';
-const SPECIAL_PROJECTS_HISTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=1493142803&single=true&output=csv';
+const SHEETS_CSV_URL = import.meta.env.VITE_SHEET_TIENDAS_URL;
+const EMPLOYEES_CSV_URL = import.meta.env.VITE_SHEET_PERSONAL_URL;
+const NOMINA_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_NOMINA_HISTORICO_URL;
+const NOMINA_DETAIL_CSV_URL = import.meta.env.VITE_SHEET_NOMINA_DETALLE_URL;
+const SPECIAL_PROJECTS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_PROYECTOS_ESPECIALES_URL;
+const WOS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_WOS_URL;
 
 // Parsea una fila CSV respetando campos entre comillas
 const parseCSVRow = (row) => {
@@ -1371,7 +1376,7 @@ const StoreAddView = ({ onSave, onBack }) => {
 };
 
 
-const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], onAcceptPayment }) => {
+const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], wosHistoryData = [], syncToSheets, onRefreshHistory }) => {
     const fileInputRef = useRef(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isCrossing, setIsCrossing] = useState(false);
@@ -1415,6 +1420,42 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
     const [acceptedKeys, setAcceptedKeys] = useState(new Set());
     const [selectedWosGroup, setSelectedWosGroup] = useState(null);
     const [isWOSBugOpen, setIsWOSBugOpen] = useState(false);
+    const [isWOSHistoryOpen, setIsWOSHistoryOpen] = useState(false);
+
+    // --- Lógica de Auto-Guardado en Base de Datos ---
+    const handleAutoSaveWOS = async (currentMetadata, currentServices) => {
+        try {
+            const payload = {
+                "WOS_Number": currentMetadata.wosNumber || 'S/N',
+                "Subcontractor": currentMetadata.subcontractor || 'Unknown',
+                "Date": currentMetadata.wosDate || '',
+                "Data_JSON": JSON.stringify({
+                    metadata: currentMetadata,
+                    services: currentServices,
+                    auditDate: new Date().toLocaleString()
+                })
+            };
+
+            // Sincronizar con la hoja 'WOS' usando WOS_Number como clave
+            await syncToSheets('upsert', payload, 'WOS', false, ['WOS_Number']);
+            
+            // Guardar en historial WOS_Historial
+            const historyPayload = {
+                "id": `${payload.WOS_Number}_${Date.now()}`,
+                "wos_number": payload.WOS_Number,
+                "timestamp": new Date().toISOString(),
+                "data_json": payload.Data_JSON
+            };
+            await syncToSheets('upsert', historyPayload, 'WOS_Historial', true, ['id']);
+            
+            // Refrescar historial global
+            if (onRefreshHistory) onRefreshHistory();
+            
+            console.log("[WOS] Auto-guardado exitoso:", payload.WOS_Number);
+        } catch (error) {
+            console.error("[WOS] Error en auto-guardado:", error);
+        }
+    };
 
     const convertToBase64 = (file) => {
         return new Promise((resolve, reject) => {
@@ -1514,23 +1555,24 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
             });
 
             const prompt = `
-                Eres un auditor financiero experto. Tu tarea es cruzar los servicios de un WOS (Work Order Summary) 
-                con el historial de facturación "Due" de LogicPay.
+                Eres un auditor financiero corporativo experto y humano. Tu tarea excluyente es realizar el cruce entre los servicios facturados en un WOS (Work Order Summary) de KBS 
+                y el historial de facturación "Due" de LogicPay. Quiero que uses tu razonamiento analítico y tu capacidad de interpretación profunda.
 
                 DATOS DE ENTRADA:
-                1. WOS Services: ${JSON.stringify(wosServices)}
-                2. LGM Nomina (Due): ${JSON.stringify(dueNomina.map((h, i) => ({ id: 'N-'+i, store: h.nombre, start: h.fecha_inicio, end: h.fecha_fin })))}
-                3. LGM Projects (Due): ${JSON.stringify(duePE.map((h, i) => ({ id: 'S-'+i, store: h.tienda, period: h.periodo })))}
+                1. WOS Services (Lo que KBS pagó o reportó): ${JSON.stringify(wosServices)}
+                2. LGM Nomina (Due) (Lo que LGM reportó que se debe cobrar): ${JSON.stringify(dueNomina.map((h, i) => ({ id: 'N-'+i, store: h.nombre, start: h.fecha_inicio, end: h.fecha_fin, expected_kbs_payment: getKBSFromNomina(h) })))}
+                3. LGM Projects (Due) (Proyectos Especiales): ${JSON.stringify(duePE.map((h, i) => ({ id: 'S-'+i, store: h.tienda, period: h.periodo, expected_kbs_payment: getKBSFromPE(h) })))}
 
-                INSTRUCCIONES DE CRUCE:
-                - Busca coincidencias basadas en el nombre de la tienda (customer vs store) y las fechas del servicio.
-                - Ten en cuenta que los nombres pueden variar ligeramente (ej. "Sysco" vs "Sysco Arizona").
-                - Si varios servicios del WOS pertenecen a la misma factura de LGM, asígnale el mismo ID de LGM.
-                - Devuelve el array original de servicios del WOS añadiendo la propiedad "matchedLgmId".
-                - matchedLgmId debe ser el ID proporcionado (ej. "N-0", "S-2") o null si no hay match.
+                INSTRUCCIONES DE CRUCE (Razonamiento Humano):
+                - Compórtate como un humano: analiza las ambigüedades, asocia nombres similares (ej. "Sysco" con "Sysco Arizona", o truncados).
+                - Evalúa los MONTOS Y FECHAS: Un auditor humano cruzaría las facturas guiándose fuertemente por la similitud entre el 'amount' del WOS y el 'expected_kbs_payment'. Utiliza el monto para desempatar tiendas o asociar de forma contundente.
+                - Si varios servicios del WOS suman el monto exacto o muy cercano a la factura de LGM, corresponden al mismo ID de LGM. Agrúpalos lógicamente en tu mente.
+                - Devuelve el array original de servicios del WOS añadiendo exactamente la propiedad "matchedLgmId".
+                - matchedLgmId debe ser el ID evaluado (ej. "N-0", "S-2") o null si tras tu interpretación concluyes que está huérfano.
 
-                FORMATO DE SALIDA (JSON Puro):
+                FORMATO DE SALIDA (JSON Puro, sin markdown):
                 {
+                    "auditoria_mental_paso_a_paso": "Describe brevemente tu razonamiento humano para llegar a estas conclusiones",
                     "matchedServices": [
                         { ...campos_originales_del_wos, "matchedLgmId": "ID_O_NULL" }
                     ]
@@ -1539,10 +1581,15 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
 
             const result = await model.generateContent(prompt);
             const responseText = result.response.text();
-            const resultData = JSON.parse(responseText);
+            
+            // Clean up any potential markdown before parsing
+            const cleanResponseText = responseText.replace(/^```json/g, '').replace(/```$/g, '').trim();
+            const resultData = JSON.parse(cleanResponseText);
 
             if (resultData.matchedServices) {
                 setWosServices(resultData.matchedServices);
+                // AUTO-SAVE: Guardar automáticamente tras el cruce exitoso
+                await handleAutoSaveWOS(wosData, resultData.matchedServices);
             }
         } catch (error) {
             console.error('[WOS Cross-Match Error]:', error);
@@ -1676,6 +1723,14 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                         onChange={handleUploadWOS}
                     />
                     <button
+                        onClick={() => setIsWOSHistoryOpen(true)}
+                        className="h-[48px] px-8 bg-white border-2 border-[#303a7f]/20 text-[#303a7f] rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-gray-50 active:scale-95 flex items-center gap-3 shadow-xl"
+                    >
+                        <History size={16} />
+                        Historial
+                    </button>
+
+                    <button
                         onClick={() => fileInputRef.current.click()}
                         disabled={isUploading}
                         className={`h-[48px] px-8 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isUploading
@@ -1741,7 +1796,12 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                         <div className="ml-auto flex items-center gap-3">
                             <button
                                 onClick={() => setIsWOSBugOpen(true)}
-                                className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-orange-50 hover:text-orange-500 transition-all active:scale-90 border-2 border-transparent"
+                                disabled={!wosServices.some(s => 'matchedLgmId' in s)}
+                                className={`p-2.5 rounded-xl transition-all active:scale-90 border-2 border-transparent ${
+                                    wosServices.some(s => 'matchedLgmId' in s)
+                                        ? 'bg-gray-50 text-gray-400 hover:bg-orange-50 hover:text-orange-500'
+                                        : 'bg-gray-100 text-gray-300 cursor-not-allowed opacity-50'
+                                }`}
                                 title="Reportar Error / Depuración"
                             >
                                 <Bug size={18} />
@@ -2252,6 +2312,96 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                         <span>LogicPay Forensic Audit Tool V2.1</span>
                         <span className="text-orange-500 animate-pulse">● Auditoría Crítica Activa</span>
                         <span>{new Date().toLocaleString()}</span>
+                    </div>
+                </div>
+            )}
+
+            {/* VENTANA EMERGENTE: HISTORIAL DE WOS */}
+            {isWOSHistoryOpen && (
+                <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-4xl h-[75vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+                        {/* Header del Modal */}
+                        <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/10">
+                                    <History size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Historial de WOS</h3>
+                                    <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Registro de auditorías almacenadas en Base de Datos (Google Sheets)</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setIsWOSHistoryOpen(false)}
+                                className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {/* Contenido con registros reales */}
+                        <div className="flex-1 overflow-y-auto p-8 bg-[#fcfdfe] custom-scrollbar">
+                            {wosHistoryData.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
+                                    <div className="w-24 h-24 bg-gray-50 rounded-[2rem] flex items-center justify-center mb-6 text-gray-200 border-2 border-dashed border-gray-100">
+                                        <Search size={40} />
+                                    </div>
+                                    <h4 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter mb-2">Sin registros detectados</h4>
+                                    <p className="text-gray-400 font-bold text-sm max-w-md uppercase tracking-tight">Cargue y procese un WOS para iniciar el historial automático.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {[...wosHistoryData].reverse().map((record, idx) => {
+                                        let details = { metadata: {} };
+                                        try { details = JSON.parse(record.data_json || '{}'); } catch (e) { }
+
+                                        return (
+                                            <div key={idx} className="bg-white border-2 border-gray-50 rounded-[2rem] p-6 hover:border-[#6bbdb7]/30 transition-all shadow-sm group hover:shadow-xl hover:shadow-blue-900/5">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-1">Cód: {record.wos_number || 'S/N'}</span>
+                                                        <h4 className="text-base font-black text-[#303a7f] uppercase tracking-tight leading-tight">{record.subcontractor || 'Unknown Sub'}</h4>
+                                                    </div>
+                                                    <div className="p-2 bg-gray-50 rounded-xl text-gray-300 group-hover:bg-[#303a7f] group-hover:text-white transition-all">
+                                                        <FileText size={16} />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2 mb-6">
+                                                    <div className="flex justify-between text-[10px]">
+                                                        <span className="font-bold text-gray-400 uppercase tracking-tighter">Fecha WOS:</span>
+                                                        <span className="font-black text-[#303a7f]">{record.date || '--/--/--'}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[10px]">
+                                                        <span className="font-bold text-gray-400 uppercase tracking-tighter">Periodo:</span>
+                                                        <span className="font-black text-[#303a7f]">{details.metadata?.period || 'N/A'}</span>
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => {
+                                                        if (details.metadata && details.services) {
+                                                            setWosData(details.metadata);
+                                                            setWosServices(details.services);
+                                                            setAcceptedKeys(new Set());
+                                                            setIsWOSHistoryOpen(false);
+                                                        }
+                                                    }}
+                                                    className="w-full py-3 bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 border border-transparent"
+                                                >
+                                                    Cargar Registro
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer del Modal */}
+                        <div className="p-6 border-t font-black text-[10px] text-gray-400 text-center uppercase tracking-[0.2em] bg-white">
+                            LogicPay Automated WOS Ledger V1.2
+                        </div>
                     </div>
                 </div>
             )}
@@ -5661,6 +5811,127 @@ const BillingView = ({
     );
 };
 
+// --- CONFIGURACIÓN VIEW (MAESTRO) ---
+const SettingsView = ({ geminiApiKey, setGeminiApiKey }) => {
+    const [localKey, setLocalKey] = useState(geminiApiKey);
+    const [showKey, setShowKey] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveStatus, setSaveStatus] = useState(null); // 'success' | null
+
+    const handleSave = () => {
+        setIsSaving(true);
+        setTimeout(() => {
+            setGeminiApiKey(localKey);
+            localStorage.setItem('lgm_gemini_key', localKey);
+            setIsSaving(false);
+            setSaveStatus('success');
+            setTimeout(() => setSaveStatus(null), 3000);
+        }, 800);
+    };
+
+    return (
+        <div className="w-full h-full flex flex-col animate-in fade-in duration-700 bg-[#fcfdfe]">
+            <div className="p-12 max-w-4xl mx-auto w-full">
+                {/* Header Premium de Ajustes */}
+                <div className="flex items-center gap-6 mb-16">
+                    <div className="p-5 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-3xl shadow-xl shadow-blue-900/10 transform -rotate-3">
+                        <Settings size={32} />
+                    </div>
+                    <div>
+                        <h2 className="text-4xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-2">Configuración Central</h2>
+                        <p className="text-[#6bbdb7] text-xs font-black uppercase tracking-[0.3em] opacity-80 italic">LogicPay Management System v2.5</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    {/* Tarjeta de Inteligencia Artificial */}
+                    <div className="bg-white rounded-[2.5rem] border-2 border-gray-100 p-10 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-500 group relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <Cpu size={120} className="text-[#303a7f]" />
+                        </div>
+                        
+                        <div className="flex items-center gap-4 mb-8">
+                            <div className="w-12 h-12 rounded-2xl bg-teal-50 flex items-center justify-center text-[#6bbdb7]">
+                                <Sparkles size={24} />
+                            </div>
+                            <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tight">Inteligencia Artificial</h3>
+                        </div>
+
+                        <p className="text-gray-400 text-sm font-bold leading-relaxed mb-10">
+                            Configure la llave de acceso para los motores de <span className="text-[#303a7f]">Google Gemini</span>. Esta llave permite el procesamiento de auditorías WOS y análisis de nómina con IA.
+                        </p>
+
+                        <div className="space-y-6 relative z-10">
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Gemini API Key (Google Cloud)</label>
+                                <div className="relative group">
+                                    <input 
+                                        type={showKey ? "text" : "password"}
+                                        value={localKey}
+                                        onChange={(e) => setLocalKey(e.target.value)}
+                                        placeholder="Ingrese su API Key aquí..."
+                                        className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] focus:bg-white transition-all shadow-inner tabular-nums"
+                                    />
+                                    <button 
+                                        onClick={() => setShowKey(!showKey)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-teal-600 transition-colors"
+                                    >
+                                        {showKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button 
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className={`w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg ${saveStatus === 'success' ? 'bg-teal-500 text-white shadow-teal-900/20' : 'bg-[#303a7f] text-white shadow-blue-900/20 hover:bg-[#252a5e]'}`}
+                            >
+                                {isSaving ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : saveStatus === 'success' ? (
+                                    <>
+                                        <CheckCircle size={16} />
+                                        Configuración Guardada
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save size={16} />
+                                        Guardar Cambios
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Tarjeta Informativa de Seguridad */}
+                    <div className="bg-[#303a7f] rounded-[2.5rem] p-10 shadow-2xl shadow-blue-900/20 flex flex-col justify-between relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
+                        
+                        <div>
+                            <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-white mb-8">
+                                <ShieldCheck size={28} />
+                            </div>
+                            <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-4">Seguridad de Datos</h3>
+                            <p className="text-blue-100/60 text-sm font-bold leading-relaxed">
+                                Su API Key se almacena localmente en este navegador. Nunca se envía a nuestros servidores centrales, garantizando que solo usted tenga control sobre el consumo de su cuota de IA.
+                            </p>
+                        </div>
+
+                        <div className="mt-12 bg-white/5 rounded-2xl p-6 border border-white/10">
+                            <div className="flex items-center gap-3 mb-2">
+                                <Activity size={14} className="text-teal-400" />
+                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Estatus de Conexión</span>
+                            </div>
+                            <p className="text-xs font-bold text-blue-100/40">
+                                Motor de IA: <span className="text-[#6bbdb7] uppercase tracking-tighter">gemini-3-flash-preview ACTIVE</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 
 function App() {
@@ -5779,6 +6050,7 @@ function App() {
     const [billingManualRecords, setBillingManualRecords] = useState({});
     const [billingPEManualRecords, setBillingPEManualRecords] = useState({});
     const [specialProjectsHistoryData, setSpecialProjectsHistoryData] = useState([]); // FASE 10: Historial P.E
+    const [wosHistoryData, setWosHistoryData] = useState([]); // FASE 12: Historial WOS
 
     // --- OBSERVADOR DE SINCRONIZACIÓN: Proyectos Especiales (Debounced) ---
     useEffect(() => {
@@ -7234,6 +7506,19 @@ function App() {
         }
     };
 
+    const fetchWosHistory = async () => {
+        try {
+            const response = await fetch(`${API_URL}?sheetName=WOS_Historial`, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            setWosHistoryData(data);
+            return data;
+        } catch (error) {
+            console.error('[LogicPay] Error cargando WOS History:', error);
+            return [];
+        }
+    };
+
     const getMaxInvoiceFromSpecialProjectsHistory = (historyData) => {
         let maxInvoice = 0;
         historyData.forEach(record => {
@@ -7279,6 +7564,7 @@ function App() {
         fetchEmployees();
         fetchNominaHistory();
         fetchSpecialProjectsHistory();
+        fetchWosHistory();
     }, []);
 
     useEffect(() => {
@@ -8298,8 +8584,16 @@ function App() {
                     {/* FASE 2: TABLA PROVISIONAL BIOMÉTRICO (IA) - ELIMINADA DE AQUÍ, AHORA ES MODAL */}
 
 
-                    {/* VISTA DE RESPALDO (Dashboard, Ajustes, Otros) */}
-                    {(activeTab === 'dashboard' || activeTab === 'settings' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees')) && (
+                    {/* CONFIGURACIÓN Y AJUSTES */}
+                    {activeTab === 'settings' && (
+                        <SettingsView 
+                            geminiApiKey={geminiApiKey}
+                            setGeminiApiKey={setGeminiApiKey}
+                        />
+                    )}
+
+                    {/* VISTA DE RESPALDO (Dashboard, Otros) */}
+                    {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'settings')) && (
                         <div className="flex flex-col items-center justify-center py-32 text-center animate-in fade-in zoom-in-95 duration-1000">
                             <div className="p-12 bg-white rounded-[2rem] border-2 border-brand-primary/10 mb-10 relative shadow-2xl shadow-blue-900/[0.06]">
                                 <div
@@ -8916,6 +9210,9 @@ function App() {
                 nominaHistoryData={nominaHistoryData}
                 specialProjectsHistoryData={specialProjectsHistoryData}
                 stores={stores}
+                wosHistoryData={wosHistoryData}
+                syncToSheets={syncToSheets}
+                onRefreshHistory={fetchWosHistory}
             />
 
             {/* Decorative Brand Gradients */}
