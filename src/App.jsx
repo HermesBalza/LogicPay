@@ -5572,7 +5572,7 @@ const BillingView = ({
                         pago: h['Pago'] || h['pago'] || '',
                         fecha_pago: h['Fecha de Pago'] || h['fecha de pago'] || '',
                         wos: h['WOS'] || h['wos'] || 0,
-                        pagada: h['pagada'] === true || h['pagada'] === 'true' || h['Status'] === 'Paid'
+                        pagada: h['pagada'] === true || h['pagada'] === 'true' || (h['Status'] || h['status']) === 'Paid'
                     };
                 }
 
@@ -6133,9 +6133,59 @@ function App() {
         return () => { if (peSaveTimeoutRef.current) clearTimeout(peSaveTimeoutRef.current); };
     }, [specialProjectsHistoryData]);
 
+    // --- OBSERVADOR DE SINCRONIZACIÓN: Nómina Regular (VWH) (Debounced) ---
+    useEffect(() => {
+        if (!billingPendingSaveRef.current) return;
+        if (billingSaveTimeoutRef.current) clearTimeout(billingSaveTimeoutRef.current);
+
+        billingSaveTimeoutRef.current = setTimeout(async () => {
+            const task = billingPendingSaveRef.current;
+            if (!task) return;
+
+            try {
+                const { id: week, field, val } = task;
+                const existing = nominaHistoryData.find(h =>
+                    String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
+                    String(h.codigo) === String(week)
+                ) || {};
+
+                const payload = {
+                    nombre: selectedHistoryStore,
+                    codigo: existing.codigo ? (String(existing.codigo).startsWith("'") ? existing.codigo : `'${existing.codigo}`) : `'${week}`,
+                    fecha_inicio: existing.fecha_inicio || '',
+                    fecha_fin: existing.fecha_fin || '',
+                    data_json: existing.data_json || '{}',
+                    "Fecha Rad.": field === 'fecha rad.' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
+                    "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
+                    "Fecha de Pago": field === 'fecha de pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
+                    "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
+                    "Status": field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['Status'] || existing['status'] || 'Due')
+                };
+
+                await fetch(API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action: 'upsert', sheetName: 'Nomina_Historico', data: payload })
+                });
+                
+                if (billingPendingSaveRef.current?.id === task.id) {
+                    billingPendingSaveRef.current = null;
+                }
+                console.log("[LogicPay] Sincronización Exitosa VWH (Upsert):", week);
+            } catch (e) {
+                console.error("[LogicPay] Error en Sincronización VWH:", e);
+            }
+        }, 1500);
+
+        return () => { if (billingSaveTimeoutRef.current) clearTimeout(billingSaveTimeoutRef.current); };
+    }, [nominaHistoryData, selectedHistoryStore]);
+
     const pePendingSaveRef = useRef(null);
+    const billingPendingSaveRef = useRef(null);
     const peSaveTimeoutRef = useRef(null);
     const vwhSaveTimeoutRef = useRef(null);
+    const billingSaveTimeoutRef = useRef(null);
     const massImportFileInputRef = useRef(null);
     const storeMassImportFileInputRef = useRef(null);
 
@@ -8813,36 +8863,8 @@ function App() {
                                     return h;
                                 }));
 
-                                // 2. Persistencia en Base de Datos (Debounce 1s)
-                                if (vwhSaveTimeoutRef.current) clearTimeout(vwhSaveTimeoutRef.current);
-                                vwhSaveTimeoutRef.current = setTimeout(async () => {
-                                    try {
-                                        const existing = nominaHistoryData.find(h =>
-                                            String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
-                                            String(h.codigo) === String(week)
-                                        ) || {};
-
-                                        const payload = {
-                                            nombre: selectedHistoryStore,
-                                            codigo: existing.codigo ? (String(existing.codigo).startsWith("'") ? existing.codigo : `'${existing.codigo}`) : `'${week}`,
-                                            fecha_inicio: existing.fecha_inicio || '',
-                                            fecha_fin: existing.fecha_fin || '',
-                                            data_json: existing.data_json || '{}',
-                                            "Fecha Rad.": field === 'fecha rad.' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
-                                            "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
-                                            "Fecha de Pago": field === 'fecha de pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
-                                            "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
-                                            "Status": field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['Status'] || existing['status'] || 'Due')
-                                        };
-
-                                        await fetch(API_URL, {
-                                            method: 'POST',
-                                            body: JSON.stringify({ action: 'upsert', sheetName: 'Nomina_Historico', data: payload })
-                                        });
-                                    } catch (e) {
-                                        console.error("[LogicPay] Error persistiendo dato manual VWH:", e);
-                                    }
-                                }, 1000);
+                                // 2. Persistencia en Base de Datos vía Referencia (Observer)
+                                billingPendingSaveRef.current = { id: week, field, val };
                             }}
                             onUpdateManualPE={(id, field, val) => {
                                 // 1. Local State Update (Inmediato para la UI)
