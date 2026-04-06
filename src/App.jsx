@@ -1439,15 +1439,6 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
             // Sincronizar con la hoja 'WOS' usando WOS_Number como clave
             await syncToSheets('upsert', payload, 'WOS', false, ['WOS_Number']);
             
-            // Guardar en historial WOS_Historial
-            const historyPayload = {
-                "id": `${payload.WOS_Number}_${Date.now()}`,
-                "wos_number": payload.WOS_Number,
-                "timestamp": new Date().toISOString(),
-                "data_json": payload.Data_JSON
-            };
-            await syncToSheets('upsert', historyPayload, 'WOS_Historial', true, ['id']);
-            
             // Refrescar historial global
             if (onRefreshHistory) onRefreshHistory();
             
@@ -2319,7 +2310,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
             {/* VENTANA EMERGENTE: HISTORIAL DE WOS */}
             {isWOSHistoryOpen && (
                 <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
-                    <div className="bg-white w-full max-w-4xl h-[75vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+                    <div className="bg-white w-full max-w-[1200px] h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
                         {/* Header del Modal */}
                         <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
                             <div className="flex items-center gap-5">
@@ -2327,7 +2318,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                     <History size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Historial de WOS</h3>
+                                    <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Historial de WOS</h3>
                                     <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Registro de auditorías almacenadas en Base de Datos (Google Sheets)</p>
                                 </div>
                             </div>
@@ -2350,44 +2341,55 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                     <p className="text-gray-400 font-bold text-sm max-w-md uppercase tracking-tight">Cargue y procese un WOS para iniciar el historial automático.</p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="flex flex-col gap-4">
                                     {[...wosHistoryData].reverse().map((record, idx) => {
                                         let details = { metadata: {} };
-                                        try { details = JSON.parse(record.data_json || '{}'); } catch (e) { }
+                                        const rawJSON = record.Data_JSON || record.data_json || record.datajson || '{}';
+                                        if (typeof rawJSON === 'object' && rawJSON !== null) {
+                                            details = rawJSON;
+                                        } else if (typeof rawJSON === 'string') {
+                                            try { details = JSON.parse(rawJSON); } catch (e) { console.error("Error al parsear WOS JSON:", e); }
+                                        }
+                                        
+                                        const wosNum = record.WOS_Number || record.wos_number || record.wosnumber || 'S/N';
+                                        const subName = record.Subcontractor || record.subcontractor || 'Unknown Sub';
+                                        const dateVal = record.Date || record.date || '--/--/--';
 
                                         return (
-                                            <div key={idx} className="bg-white border-2 border-gray-50 rounded-[2rem] p-6 hover:border-[#6bbdb7]/30 transition-all shadow-sm group hover:shadow-xl hover:shadow-blue-900/5">
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div>
-                                                        <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-1">Cód: {record.wos_number || 'S/N'}</span>
-                                                        <h4 className="text-base font-black text-[#303a7f] uppercase tracking-tight leading-tight">{record.subcontractor || 'Unknown Sub'}</h4>
+                                            <div key={idx} className="bg-white border-2 border-gray-50 rounded-2xl p-5 hover:border-[#6bbdb7]/30 transition-all shadow-sm group hover:shadow-xl hover:shadow-blue-900/5 flex items-center gap-6 justify-between">
+                                                <div className="flex-1 flex flex-col md:flex-row md:items-center gap-6">
+                                                    <div className="w-32 flex flex-col">
+                                                        <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-0.5">Cód WOS</span>
+                                                        <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider">{wosNum}</span>
                                                     </div>
-                                                    <div className="p-2 bg-gray-50 rounded-xl text-gray-300 group-hover:bg-[#303a7f] group-hover:text-white transition-all">
-                                                        <FileText size={16} />
+                                                    
+                                                    <div className="flex-1 min-w-0">
+                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Subcontractor</span>
+                                                        <h4 className="text-sm font-black text-[#303a7f] uppercase tracking-tight leading-tight truncate">{subName}</h4>
                                                     </div>
-                                                </div>
 
-                                                <div className="space-y-2 mb-6">
-                                                    <div className="flex justify-between text-[10px]">
-                                                        <span className="font-bold text-gray-400 uppercase tracking-tighter">Fecha WOS:</span>
-                                                        <span className="font-black text-[#303a7f]">{record.date || '--/--/--'}</span>
+                                                    <div className="w-32 flex flex-col">
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-0.5">Fecha WOS</span>
+                                                        <span className="text-[11px] font-black text-[#303a7f]">{dateVal}</span>
                                                     </div>
-                                                    <div className="flex justify-between text-[10px]">
-                                                        <span className="font-bold text-gray-400 uppercase tracking-tighter">Periodo:</span>
-                                                        <span className="font-black text-[#303a7f]">{details.metadata?.period || 'N/A'}</span>
+                                                    
+                                                    <div className="w-40 flex flex-col">
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-0.5">Periodo</span>
+                                                        <span className="text-[11px] font-black text-[#303a7f] truncate">{details.metadata?.paymentDueDate || details.metadata?.period || 'N/A'}</span>
                                                     </div>
                                                 </div>
 
                                                 <button
                                                     onClick={() => {
-                                                        if (details.metadata && details.services) {
-                                                            setWosData(details.metadata);
-                                                            setWosServices(details.services);
-                                                            setAcceptedKeys(new Set());
-                                                            setIsWOSHistoryOpen(false);
-                                                        }
+                                                        const mData = details.metadata || details || {};
+                                                        const sData = details.services || details.crossMatchResults || [];
+                                                        
+                                                        setWosData(mData);
+                                                        setWosServices(sData);
+                                                        setAcceptedKeys(new Set());
+                                                        setIsWOSHistoryOpen(false);
                                                     }}
-                                                    className="w-full py-3 bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 border border-transparent"
+                                                    className="w-32 py-2.5 bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 border border-transparent shadow-sm whitespace-nowrap"
                                                 >
                                                     Cargar Registro
                                                 </button>
@@ -7508,11 +7510,28 @@ function App() {
 
     const fetchWosHistory = async () => {
         try {
-            const response = await fetch(`${API_URL}?sheetName=WOS_Historial`, { cache: 'no-store' });
+            const response = await fetch(WOS_HISTORY_CSV_URL, { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const data = await response.json();
-            setWosHistoryData(data);
-            return data;
+            
+            const csvText = await response.text();
+            const lines = csvText.trim().split('\n').filter(l => l.trim());
+            if (lines.length < 2) {
+                setWosHistoryData([]);
+                return [];
+            }
+            
+            // Usamos limpieza extrema para emular el formato esperado
+            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, '').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase());
+            
+            const loaded = lines.slice(1).map(line => {
+                const values = parseCSVRow(line);
+                const flat = {};
+                headers.forEach((h, i) => { if (h) flat[h] = (values[i] || '').trim(); });
+                return flat;
+            });
+
+            setWosHistoryData(loaded);
+            return loaded;
         } catch (error) {
             console.error('[LogicPay] Error cargando WOS History:', error);
             return [];
