@@ -2700,8 +2700,6 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                                 <div className="flex items-center gap-6">
                                                     {hist.tipo === 'P.E' && (
                                                         <div className="hidden md:flex items-center gap-2 bg-orange-50 px-3 py-1 rounded-full border border-orange-100">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
-                                                            <span className="text-[8px] font-black text-orange-500 uppercase tracking-widest">Asignación Especial</span>
                                                         </div>
                                                     )}
                                                     <div className="text-right">
@@ -7446,6 +7444,123 @@ function App() {
         }
     };
 
+    const handleExportBillingExcel = () => {
+        if (!selectedHistoryStore) {
+            showError("Seleccione una tienda primero.");
+            return;
+        }
+
+        // --- Helpers del contexto de Billing para extracción limpia ---
+        function rowTotalToNumber(val) {
+            if (!val) return 0;
+            return String(val).replace(/[^0-9.-]+/g, "");
+        }
+        function parseProjectDate(value) {
+            if (!value) return null;
+            const raw = String(value).trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return new Date(raw);
+            if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(raw)) {
+                const [m, d, y] = raw.split('/').map(Number);
+                return new Date(y, m - 1, d);
+            }
+            return new Date(raw);
+        }
+
+        // --- Datos para Hoja 1: Facturación VWH ---
+        const vwhRecords = (nominaHistoryData || [])
+            .filter(h => h && h.nombre && String(h.nombre).trim() === String(selectedHistoryStore).trim());
+
+        const vwhDataForExcel = vwhRecords.map(h => {
+            let stats = { horas: 0, facturacion: 0, costos: 0 };
+            try {
+                if (h && h.data_json) {
+                    const data = JSON.parse(h.data_json);
+                    if (data.kbsBillingTableData) {
+                        data.kbsBillingTableData.forEach(r => {
+                            const totalVal = parseFloat(rowTotalToNumber(r.total)) || 0;
+                            const rateVal = parseFloat(r.rate) || 1;
+                            stats.horas += totalVal / rateVal;
+                            stats.facturacion += totalVal;
+                        });
+                    }
+                    if (data.earningsTableData) {
+                        stats.costos = data.earningsTableData.reduce((acc, r) => acc + (parseFloat(rowTotalToNumber(r.total)) || 0), 0);
+                    }
+                }
+            } catch (e) { }
+
+            const statusVal = h['Status'] || h['status'] || '';
+            const periodStr = (h.fecha_inicio && h.fecha_fin) ? `${h.fecha_inicio} - ${h.fecha_fin}` : 'N/A';
+
+            return {
+                "Fecha Rad.": h['Fecha Rad.'] || h['fecha rad.'] || '',
+                "Semana Facturada": periodStr,
+                "Horas": stats.horas || 0,
+                "Facturación (KBS)": stats.facturacion || 0,
+                "Costos (LGM)": stats.costos || 0,
+                "Utilidad": (stats.facturacion || 0) - (stats.costos || 0),
+                "Pago": h['pago'] || h['Pago'] || '',
+                "Fecha de Pago": h['fecha de pago'] || h['Fecha de Pago'] || '',
+                "WOS": h['wos'] || h['WOS'] || 0,
+                "Status": statusVal === 'Paid' ? 'Paid' : 'Due'
+            };
+        });
+
+        // --- Datos para Hoja 2: Proyectos Especiales ---
+        const activePERecords = (specialProjectsHistoryData || []).filter(h =>
+            h && String(h.tienda || '').trim().toLowerCase() === String(selectedHistoryStore || '').trim().toLowerCase()
+        );
+
+        const currentYear = new Date().getFullYear();
+        const peProcessedRows = [];
+        activePERecords.forEach(h => {
+            try {
+                if (!h || !h.data_json) return;
+                const projectsRaw = JSON.parse(h.data_json);
+                const projects = Array.isArray(projectsRaw) ? projectsRaw : [projectsRaw];
+
+                projects.forEach(p => {
+                    if (!p) return;
+                    const pDate = parseProjectDate(p.fecha);
+                    if (pDate && pDate.getFullYear() !== currentYear) return;
+
+                    const employees = Array.isArray(p.employees) ? p.employees : [];
+                    const hEmp = employees.reduce((acc, emp) => acc + (parseFloat(emp.hours) || 0), 0);
+                    const fEmp = employees.reduce((acc, emp) => acc + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0)), 0);
+                    const cEmp = employees.reduce((acc, emp) => acc + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateLogic) || 0)), 0);
+
+                    const horas = parseFloat(p.horas) || hEmp || 0;
+                    const facturacion = parseFloat(p.total_kbs) || fEmp || 0;
+                    const costos = parseFloat(p.total_logic) || cEmp || 0;
+
+                    peProcessedRows.push({
+                        "Fecha Rad.": h['Fecha Rad.'] || h['fecha rad.'] || '',
+                        "Nombre del Proyecto": p.proyecto || p.nombre || 'Proyecto Especial',
+                        "Horas": horas,
+                        "Facturación (KBS)": facturacion,
+                        "Costos (LGM)": costos,
+                        "Utilidad": facturacion - costos,
+                        "Pago": h['Pago'] || h['pago'] || '',
+                        "Fecha de Pago": h['Fecha de Pago'] || h['fecha de pago'] || '',
+                        "WOS": h['WOS'] || h['wos'] || 0,
+                        "Status": h['pagada'] === true || h['pagada'] === 'true' || (h['Status'] || h['status']) === 'Paid' ? 'Paid' : 'Due'
+                    });
+                });
+            } catch (e) { }
+        });
+
+        // --- Generación del Excel ---
+        const wb = XLSX.utils.book_new();
+        const ws1 = XLSX.utils.json_to_sheet(vwhDataForExcel);
+        const ws2 = XLSX.utils.json_to_sheet(peProcessedRows);
+
+        XLSX.utils.book_append_sheet(wb, ws1, "Facturación VWH");
+        XLSX.utils.book_append_sheet(wb, ws2, "Proyectos Especiales");
+
+        const fileName = `Facturacion_Radicada_${selectedHistoryStore.replace(/\s+/g, '_')}_${new Date().getTime()}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+    };
+
     // ─── API: Cargar todas las tiendas desde CSV público de Google Sheets ────
     // Lee directamente la hoja publicada como CSV (sin CORS, sin Apps Script).
     // Usa mapeo explícito de columnas para reconstruir la estructura de cada tienda.
@@ -8830,8 +8945,11 @@ function App() {
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
-                            <button className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 animate-in fade-in zoom-in duration-700">
-                                Exportar Auditoría
+                            <button 
+                                onClick={handleExportBillingExcel}
+                                className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 animate-in fade-in zoom-in duration-700"
+                            >
+                                Exportar Facturación Radicada
                             </button>
                             <button
                                 onClick={() => setIsBillingModalOpen(false)}
