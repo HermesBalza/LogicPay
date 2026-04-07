@@ -6562,6 +6562,27 @@ function App() {
 
     // Contador global de invoices para Proyectos Especiales (empieza desde 100)
     const [nextInvoice, setNextInvoice] = useState(100);
+
+    const [activeUsers, setActiveUsers] = useState([]);
+    const [isPresenceOpen, setIsPresenceOpen] = useState(false);
+
+    // --- LÓGICA DE PRESENCIA (Heartbeat) ---
+    useEffect(() => {
+        if (!user) return;
+
+        const presenceKey = `presence_${user.name.replace(/\s+/g, '_')}`;
+        
+        // Pulso inicial
+        syncVariableToSheets(presenceKey, new Date().toISOString());
+
+        const interval = setInterval(() => {
+            syncVariableToSheets(presenceKey, new Date().toISOString());
+            fetchVariables(); // Refrescar para ver a otros
+        }, 60000); // Cada 1 minuto
+
+        return () => clearInterval(interval);
+    }, [user]);
+
     // --- SINCRONIZACIÓN AUTOMÁTICA DE VARIABLES OPERATIVAS ---
     useEffect(() => {
         if (variablesLoaded) syncVariableToSheets('processed_biweeks', processedBiweeks);
@@ -8291,6 +8312,9 @@ function App() {
             });
 
             // Mapeo selectivo de variables
+            const currentActiveUsers = [];
+            const now = new Date();
+
             data.forEach(item => {
                 const key = String(item.key || item.clave).toLowerCase();
                 const val = item.value || item.valor;
@@ -8303,7 +8327,18 @@ function App() {
                     setSpecialProjectsData(Array.isArray(parsed) ? parsed : []);
                 } catch (e) { }
                 if (key === 'next_invoice') setNextInvoice(normalizeInvoice(val));
+
+                // Procesar Presencia
+                if (key.startsWith('presence_')) {
+                    const name = key.replace('presence_', '').replace(/_/g, ' ');
+                    const lastSeen = new Date(val);
+                    // Si fue visto en los últimos 5 minutos, está activo
+                    if (now - lastSeen < 5 * 60 * 1000) {
+                        currentActiveUsers.push({ name, lastSeen });
+                    }
+                }
             });
+            setActiveUsers(currentActiveUsers);
             setVariablesLoaded(true);
         } catch (error) {
             console.error('[LogicPay] Error cargando Variables:', error);
@@ -8633,6 +8668,56 @@ function App() {
                         <BookOpen size={16} className="group-hover:rotate-12 transition-transform" />
                         <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">Manual de Uso</span>
                     </button>
+
+                    {/* Usuarios Online Button & Dropdown */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setIsPresenceOpen(!isPresenceOpen)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all active:scale-95 group shadow-sm ${isPresenceOpen ? 'bg-[#303a7f] text-white border-transparent' : 'bg-[#6bbdb7]/5 text-[#6bbdb7] border-transparent hover:bg-[#6bbdb7]/10'}`}
+                            title="Usuarios en Línea"
+                        >
+                            <div className="relative">
+                                <Users size={16} className={`${isPresenceOpen ? '' : 'group-hover:scale-110'} transition-transform`} />
+                                <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${activeUsers.length > 0 ? 'bg-green-400 animate-pulse' : 'bg-gray-300'}`} />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">
+                                {activeUsers.length} Online
+                            </span>
+                        </button>
+
+                        {isPresenceOpen && (
+                            <div className="absolute right-0 mt-3 w-64 bg-white rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(48,58,127,0.3)] border border-gray-100 p-4 animate-in fade-in zoom-in-95 slide-in-from-top-4 duration-300 z-[100]">
+                                <div className="flex items-center justify-between mb-4 px-2">
+                                    <h4 className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">Activos Ahora</h4>
+                                    <div className="px-2 py-0.5 bg-green-50 rounded-full border border-green-100">
+                                        <span className="text-[8px] font-black text-green-500 uppercase tracking-tight">En Tiempo Real</span>
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    {activeUsers.length === 0 ? (
+                                        <div className="py-4 text-center">
+                                            <p className="text-[10px] font-bold text-gray-300 uppercase italic">No hay otros usuarios</p>
+                                        </div>
+                                    ) : (
+                                        activeUsers.map((u, idx) => (
+                                            <div key={idx} className="flex items-center justify-between p-2.5 hover:bg-gray-50 rounded-xl transition-all group/user">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-[#303a7f]/5 flex items-center justify-center text-[#303a7f] font-black text-[10px] border border-[#303a7f]/10">
+                                                        {u.name.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-[#303a7f] uppercase leading-none mb-1">{u.name}</p>
+                                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Última actividad hace poco</p>
+                                                    </div>
+                                                </div>
+                                                <div className="w-1.5 h-1.5 bg-green-400 rounded-full shadow-[0_0_8px_#4ade80]" />
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-2xl border-2 border-gray-100 group relative">
                         <div className="h-7 w-7 bg-white rounded-lg flex items-center justify-center border-2 border-gray-100 flex-shrink-0">
