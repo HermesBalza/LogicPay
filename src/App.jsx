@@ -5593,11 +5593,9 @@ const BillingView = ({
             utilidad: (row.facturacion || 0) - (row.costos || 0)
         };
     }).sort((a, b) => {
-        try {
-            const dateA = toISODate(a.fecha);
-            const dateB = toISODate(b.fecha);
-            return dateA.localeCompare(dateB);
-        } catch (e) { return 0; }
+        const invA = parseInt(rowTotalToNumber(a.invoice)) || 0;
+        const invB = parseInt(rowTotalToNumber(b.invoice)) || 0;
+        return invA - invB;
     });
 
     const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -7535,7 +7533,7 @@ function App() {
 
                     peProcessedRows.push({
                         "Fecha Rad.": h['Fecha Rad.'] || h['fecha rad.'] || '',
-                        "Nombre del Proyecto": p.proyecto || p.nombre || 'Proyecto Especial',
+                        "Nombre del Proyecto": `${p.proyecto || p.nombre || 'Proyecto Especial'}\nInv: ${p.invoice || 'N/A'}`,
                         "Horas": horas,
                         "Facturación (KBS)": facturacion,
                         "Costos (LGM)": costos,
@@ -7543,11 +7541,17 @@ function App() {
                         "Pago": h['Pago'] || h['pago'] || '',
                         "Fecha de Pago": h['Fecha de Pago'] || h['fecha de pago'] || '',
                         "WOS": h['WOS'] || h['wos'] || 0,
-                        "Status": h['pagada'] === true || h['pagada'] === 'true' || (h['Status'] || h['status']) === 'Paid' ? 'Paid' : 'Due'
+                        "Status": h['pagada'] === true || h['pagada'] === 'true' || (h['Status'] || h['status']) === 'Paid' ? 'Paid' : 'Due',
+                        "_invoiceNum": parseInt(rowTotalToNumber(p.invoice)) || 0 // Temp for sorting
                     });
                 });
             } catch (e) { }
         });
+
+        // Ordenar Proyectos Especiales por Invoice de forma ascendente
+        peProcessedRows.sort((a, b) => a._invoiceNum - b._invoiceNum);
+        // Limpiar el campo temporal
+        peProcessedRows.forEach(r => delete r._invoiceNum);
 
         // --- Generación del Excel ---
         const wb = XLSX.utils.book_new();
