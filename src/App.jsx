@@ -104,6 +104,14 @@ const normalizeInvoice = (value) => {
     return Number.isInteger(parsed) && parsed >= 100 ? parsed : 100;
 };
 
+const normalizeName = (name) => {
+    if (!name) return '';
+    return name.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Quitar acentos
+        .trim()
+        .replace(/\s+/g, ' '); // Unificar espacios
+};
+
 // --- Date Utility Functions ---
 const formatDateForInput = (dateStr) => {
     if (!dateStr) return '';
@@ -259,6 +267,19 @@ const csvRowToEmployee = (flat) => {
         tienda: findValue(['tienda']) || '',
         cuenta_bancaria: findValue(['cuenta_bancaria', 'cuenta_banca']) || '',
         imagen: findValue(['imagen']) || '',
+        // --- Campos 1099 ---
+        payer_type: findValue(['payer_type', 'Payer Type']) || 'Individual',
+        tin_type: findValue(['tin_type', 'Payer TIN Type']) || 'SSN',
+        tin: (findValue(['tin', 'Payer TIN']) || '').toString().replace(/^'/, ''),
+        first_name: findValue(['first_name', 'P First Name']) || '',
+        last_name: findValue(['last_name', 'P Business Name or Last Name']) || '',
+        address_1: findValue(['address_1', 'P Address 1']) || '',
+        city: findValue(['city', 'P City']) || '',
+        state: findValue(['state', 'P State']) || '',
+        zip: (findValue(['zip', 'P ZIP or Foreign Postal Code']) || '').toString().replace(/^'/, ''),
+        country: findValue(['country', 'P Country']) || 'EE. UU.',
+        email_tax: findValue(['email_tax', 'P Email Address (optional)']) || '',
+        site_code: (findValue(['site_code', 'Site Code']) || '').toString().replace(/^'/, ''),
         locationHistory: (() => {
             try {
                 const val = findValue(['locationHistory', 'location_history', 'historial_ubicaciones']);
@@ -2417,6 +2438,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [confirmName, setConfirmName] = useState('');
     const [editedEmployee, setEditedEmployee] = useState({ ...employee });
+    const [showTin, setShowTin] = useState(false);
 
     const updateField = (field, value) => {
         if (!isEditing) return;
@@ -2633,7 +2655,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                         )}
                                     </div>
                                     <div className="group">
-                                        <label className="text-[8px] text-red-100 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Fecha de Egreso</label>
+                                        <label className="text-[8px] text-red-500 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Fecha de Egreso</label>
                                         {isEditing ? (
                                             <input
                                                 type="date"
@@ -2658,6 +2680,180 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                             readOnly={!isEditing}
                                             placeholder="Detalles de pago..."
                                             className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs resize-none`}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    {/* Información Fiscal y 1099 */}
+                    <div className="lg:col-span-12">
+                        <section className={`bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
+                            <div className="flex items-center justify-between mb-8">
+                                <h3 className="text-[#333333] font-black flex items-center gap-3 text-base uppercase tracking-widest">
+                                    <div className="bg-[#6bbdb7] p-2 rounded-lg shadow-lg shadow-teal-900/10">
+                                        <Receipt size={18} className="text-white" />
+                                    </div>
+                                    Información Fiscal y 1099
+                                </h3>
+                                {isEditing && (
+                                    <span className="text-[10px] font-black text-teal-600 bg-teal-50 px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Modo Edición Fiscal Activo</span>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                {/* Payer Info */}
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">Payer Type</label>
+                                        <select
+                                            disabled={!isEditing}
+                                            value={editedEmployee.payer_type || 'Individual'}
+                                            onChange={(e) => updateField('payer_type', e.target.value)}
+                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                        >
+                                            <option value="Individual">Individual</option>
+                                            <option value="Business">Business</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">TIN Type</label>
+                                        <select
+                                            disabled={!isEditing}
+                                            value={editedEmployee.tin_type || 'SSN'}
+                                            onChange={(e) => updateField('tin_type', e.target.value)}
+                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                        >
+                                            <option value="SSN">SSN</option>
+                                            <option value="EIN">EIN</option>
+                                            <option value="ITIN">ITIN</option>
+                                        </select>
+                                    </div>
+                                    <div className="relative">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">Payer TIN</label>
+                                        <input
+                                            type={showTin || isEditing ? "text" : "password"}
+                                            readOnly={!isEditing}
+                                            value={editedEmployee.tin || ''}
+                                            onChange={(e) => updateField('tin', e.target.value)}
+                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                            placeholder="000-00-0000"
+                                        />
+                                        {!isEditing && (
+                                            <button
+                                                onClick={() => setShowTin(!showTin)}
+                                                className="absolute right-3 bottom-3 text-gray-300 hover:text-[#6bbdb7] transition-colors"
+                                            >
+                                                {showTin ? <EyeOff size={14} /> : <Eye size={14} />}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Names & Site */}
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P First Name</label>
+                                        <input
+                                            type="text"
+                                            readOnly={!isEditing}
+                                            value={editedEmployee.first_name || ''}
+                                            onChange={(e) => updateField('first_name', e.target.value)}
+                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                            placeholder="First Name"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Last Name / Business Name</label>
+                                        <input
+                                            type="text"
+                                            readOnly={!isEditing}
+                                            value={editedEmployee.last_name || ''}
+                                            onChange={(e) => updateField('last_name', e.target.value)}
+                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                            placeholder="Last Name"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">Site Code</label>
+                                        <input
+                                            type="text"
+                                            readOnly={!isEditing}
+                                            value={editedEmployee.site_code || ''}
+                                            onChange={(e) => updateField('site_code', e.target.value)}
+                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                            placeholder="123456"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Address */}
+                                <div className="space-y-4 md:col-span-2 lg:col-span-2 grid grid-cols-2 gap-4">
+                                    <div className="col-span-2">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Address 1</label>
+                                        <input
+                                            type="text"
+                                            readOnly={!isEditing}
+                                            value={editedEmployee.address_1 || ''}
+                                            onChange={(e) => updateField('address_1', e.target.value)}
+                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                            placeholder="Street Address"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P City</label>
+                                        <input
+                                            type="text"
+                                            readOnly={!isEditing}
+                                            value={editedEmployee.city || ''}
+                                            onChange={(e) => updateField('city', e.target.value)}
+                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                            placeholder="City"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P State</label>
+                                        <input
+                                            type="text"
+                                            readOnly={!isEditing}
+                                            value={editedEmployee.state || ''}
+                                            onChange={(e) => updateField('state', e.target.value)}
+                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                            placeholder="State"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P ZIP Code</label>
+                                        <input
+                                            type="text"
+                                            readOnly={!isEditing}
+                                            value={editedEmployee.zip || ''}
+                                            onChange={(e) => updateField('zip', e.target.value)}
+                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                            placeholder="ZIP"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Country</label>
+                                        <input
+                                            type="text"
+                                            readOnly={!isEditing}
+                                            value={editedEmployee.country || 'EE. UU.'}
+                                            onChange={(e) => updateField('country', e.target.value)}
+                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                            placeholder="Country"
+                                        />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Email Tax (optional)</label>
+                                        <input
+                                            type="email"
+                                            readOnly={!isEditing}
+                                            value={editedEmployee.email_tax || ''}
+                                            onChange={(e) => updateField('email_tax', e.target.value)}
+                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                            placeholder="email@example.com"
                                         />
                                     </div>
                                 </div>
@@ -2771,7 +2967,20 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
         cargo: 'Janitorial',
         tienda: '',
         cuenta_bancaria: '',
-        imagen: ''
+        imagen: '',
+        // --- Campos 1099 ---
+        payer_type: 'Individual',
+        tin_type: 'SSN',
+        tin: '',
+        first_name: '',
+        last_name: '',
+        address_1: '',
+        city: '',
+        state: '',
+        zip: '',
+        country: 'EE. UU.',
+        email_tax: '',
+        site_code: ''
     });
 
     const updateField = (field, value) => {
@@ -2870,6 +3079,82 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
                                 <div className="group">
                                     <label className="text-[9px] text-[#303a7f] uppercase font-black tracking-widest block mb-1">Detalles de Pago</label>
                                     <textarea value={newEmployee.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm resize-none" rows="3" placeholder="Zelle, No. Cuenta, Banco..."></textarea>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    {/* Información Fiscal y 1099 */}
+                    <div className="lg:col-span-12">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl border-2 border-brand-primary/20">
+                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
+                                <div className="bg-[#6bbdb7] p-2 rounded-lg shadow-lg shadow-teal-900/10">
+                                    <Receipt size={18} className="text-white" />
+                                </div>
+                                Información Fiscal y 1099
+                            </h3>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">Payer Type</label>
+                                        <select value={newEmployee.payer_type} onChange={(e) => updateField('payer_type', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all">
+                                            <option value="Individual">Individual</option>
+                                            <option value="Business">Business</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">TIN Type</label>
+                                        <select value={newEmployee.tin_type} onChange={(e) => updateField('tin_type', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all">
+                                            <option value="SSN">SSN</option>
+                                            <option value="EIN">EIN</option>
+                                            <option value="ITIN">ITIN</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">Payer TIN</label>
+                                        <input type="text" value={newEmployee.tin} onChange={(e) => updateField('tin', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="000-00-0000" />
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P First Name</label>
+                                        <input type="text" value={newEmployee.first_name} onChange={(e) => updateField('first_name', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="First Name" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Last Name / Business Name</label>
+                                        <input type="text" value={newEmployee.last_name} onChange={(e) => updateField('last_name', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="Last Name" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">Site Code</label>
+                                        <input type="text" value={newEmployee.site_code} onChange={(e) => updateField('site_code', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="123456" />
+                                    </div>
+                                </div>
+                                <div className="space-y-4 md:col-span-2 lg:col-span-2 grid grid-cols-2 gap-4">
+                                    <div className="col-span-2">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Address 1</label>
+                                        <input type="text" value={newEmployee.address_1} onChange={(e) => updateField('address_1', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="Street Address" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P City</label>
+                                        <input type="text" value={newEmployee.city} onChange={(e) => updateField('city', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="City" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P State</label>
+                                        <input type="text" value={newEmployee.state} onChange={(e) => updateField('state', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="State" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P ZIP Code</label>
+                                        <input type="text" value={newEmployee.zip} onChange={(e) => updateField('zip', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="ZIP" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Country</label>
+                                        <input type="text" value={newEmployee.country} onChange={(e) => updateField('country', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="Country" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Email Tax (optional)</label>
+                                        <input type="email" value={newEmployee.email_tax} onChange={(e) => updateField('email_tax', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="email@example.com" />
+                                    </div>
                                 </div>
                             </div>
                         </section>
@@ -3175,6 +3460,284 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
         </div>
     );
 };
+
+const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryData }) => {
+    const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // --- LÓGICA DE AGREGACIÓN FISCAL ---
+    const reportData = useMemo(() => {
+        const data = {};
+        const periodsFound = new Set();
+
+        // 0. Crear mapas de búsqueda maestros desde la lista de personal (employees)
+        const nameToIdMap = {};
+        const idToInfoMap = {};
+
+        employees.forEach(emp => {
+            if (!emp) return;
+            const normalized = normalizeName(emp.nombre);
+            const id = String(emp.codigo_empleado || '').trim();
+            if (id) {
+                idToInfoMap[id] = { nombre: emp.nombre, cargo: emp.cargo || 'Personal' };
+                if (normalized) nameToIdMap[normalized] = id;
+            }
+        });
+
+        // Helper para resolver ID a partir de Nombre o ID parcial
+        const resolveEmployeeId = (originalName, originalId) => {
+            const cleanId = String(originalId || '').trim();
+            const normName = normalizeName(originalName);
+
+            // Preferencia 1: ID directo si existe en el mapa maestro
+            if (cleanId && idToInfoMap[cleanId]) return cleanId;
+
+            // Preferencia 2: Búsqueda por nombre normalizado en el mapa maestro
+            if (normName && nameToIdMap[normName]) return nameToIdMap[normName];
+
+            // Preferencia 3: Si no hay ID pero hay nombre, devolver ID parcial o el nombre mismo si no hay nada más
+            return cleanId || originalName || 'S/ID';
+        };
+
+        // 1. Procesar Nómina Regular (Historico)
+        nominaHistoryData.forEach(history => {
+            try {
+                const yearMatch = history.fecha_inicio?.match(/\/(\d{4})$/);
+                if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
+
+                const periodKey = `${history.fecha_inicio} - ${history.fecha_fin}`;
+                periodsFound.add(periodKey);
+
+                const payload = JSON.parse(history.data_json);
+                const earnings = payload.earningsTableData || [];
+
+                earnings.forEach(empPay => {
+                    const empId = resolveEmployeeId(empPay.nombre, empPay.codigo);
+                    const info = idToInfoMap[empId] || { nombre: empPay.nombre, cargo: empPay.cargo };
+
+                    if (!data[empId]) {
+                        data[empId] = {
+                            id: empId,
+                            nombre: info.nombre,
+                            cargo: info.cargo,
+                            totalBox1: 0,
+                            periods: {}
+                        };
+                    }
+                    const amount = parseFloat(empPay.total) || 0;
+                    data[empId].periods[periodKey] = (data[empId].periods[periodKey] || 0) + amount;
+                    data[empId].totalBox1 += amount;
+                });
+            } catch (e) {
+                console.error("Error processing history for 1099:", e);
+            }
+        });
+
+        // 2. Procesar Proyectos Especiales (P.E)
+        specialProjectsHistoryData.forEach(history => {
+            try {
+                const yearMatch = history.periodo?.match(/\/(\d{4})$/);
+                if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
+
+                const periodKey = history.periodo;
+                periodsFound.add(periodKey);
+
+                const payload = JSON.parse(history.data_json);
+                const projects = Array.isArray(payload) ? payload : [payload];
+
+                projects.forEach(project => {
+                    const emps = project.employees || [];
+                    emps.forEach(empRow => {
+                        const originalName = empRow.employeeName;
+                        const originalId = empRow.employeeId; // Algunos P.E pueden traer el ID ahora
+
+                        const empId = resolveEmployeeId(originalName, originalId);
+                        const info = idToInfoMap[empId] || { nombre: originalName, cargo: 'Especial' };
+
+                        if (!data[empId]) {
+                            data[empId] = {
+                                id: empId,
+                                nombre: info.nombre,
+                                cargo: info.cargo,
+                                totalBox1: 0,
+                                periods: {}
+                            };
+                        }
+                        const amount = (parseFloat(empRow.hours) || 0) * (parseFloat(empRow.rateLogic) || 0);
+                        data[empId].periods[periodKey] = (data[empId].periods[periodKey] || 0) + amount;
+                        data[empId].totalBox1 += amount;
+                    });
+                });
+            } catch (e) {
+                console.error("Error processing special projects for 1099:", e);
+            }
+        });
+
+        const sortedPeriods = Array.from(periodsFound).sort((a, b) => {
+            const dateA = new Date(a.split(' - ')[0]);
+            const dateB = new Date(b.split(' - ')[0]);
+            return dateA - dateB;
+        });
+
+        return {
+            rows: Object.values(data),
+            periods: sortedPeriods
+        };
+    }, [fiscalYear, nominaHistoryData, specialProjectsHistoryData, employees]);
+
+    const filteredRows = useMemo(() => {
+        return reportData.rows
+            .filter(row =>
+                row.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                row.id.toString().includes(searchTerm)
+            )
+            .sort((a, b) => {
+                const lastNameA = a.nombre.trim().split(' ').pop().toLowerCase();
+                const lastNameB = b.nombre.trim().split(' ').pop().toLowerCase();
+                return lastNameA.localeCompare(lastNameB);
+            });
+    }, [reportData.rows, searchTerm]);
+
+    const handleExportExcel = () => {
+        const exportData = filteredRows.map(row => {
+            const dbEmp = employees.find(e => e.codigo_empleado === row.id) || {};
+
+            const baseRow = {
+                'Payer Type': dbEmp.payer_type || 'Individual',
+                'Payer TIN Type': dbEmp.tin_type || 'SSN',
+                'Payer TIN': dbEmp.tin ? `'${dbEmp.tin}` : '',
+                'Bank Account': dbEmp.cuenta_bancaria ? `'${dbEmp.cuenta_bancaria}` : '',
+                'P Business Name or Last Name': dbEmp.last_name || row.nombre.split(' ').pop(),
+                'P First Name': dbEmp.first_name || row.nombre.split(' ')[0],
+                'P Address 1': dbEmp.address_1 || '',
+                'P City': dbEmp.city || '',
+                'P State': dbEmp.state || '',
+                'P ZIP or Foreign Postal Code': dbEmp.zip ? `'${dbEmp.zip}` : '',
+                'P Country': dbEmp.country || 'EE. UU.',
+                'P Email Address (optional)': dbEmp.email_tax || '',
+                'Tienda': dbEmp.tienda || '',
+                'Site Code': dbEmp.site_code ? `'${dbEmp.site_code}` : '',
+                'Activo': dbEmp.fecha_egreso ? 'Inactivo' : 'Activo',
+                'Box 1 Nonemployee Compensation': row.totalBox1,
+            };
+
+            // Añadir columnas de periodos
+            reportData.periods.forEach(p => {
+                baseRow[p] = row.periods[p] || 0;
+            });
+
+            return baseRow;
+        });
+
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Reporte 1099");
+        XLSX.writeFile(wb, `Reporte_1099_${fiscalYear}_LogicPay.xlsx`);
+    };
+
+    return (
+        <div className="space-y-8 animate-in fade-in duration-500">
+            {/* Header / Filtros - Estilo Personal */}
+            <div className="flex flex-col md:flex-row gap-4 mb-10 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="relative flex-1 group h-11">
+                    <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={20} />
+                    <input
+                        type="text"
+                        placeholder="Filtrar por nombre o apellido..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
+                    />
+                </div>
+
+                <div className="h-11 bg-white border-2 border-brand-primary/10 rounded-2xl p-1 flex items-center shadow-sm">
+                    <select
+                        value={fiscalYear}
+                        onChange={(e) => setFiscalYear(parseInt(e.target.value))}
+                        className="h-full bg-white border-none rounded-xl px-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest outline-none cursor-pointer hover:bg-gray-50 transition-colors"
+                    >
+                        <option value={2026}>Fiscal 2026</option>
+                        <option value={2025}>Fiscal 2025</option>
+                        <option value={2024}>Fiscal 2024</option>
+                    </select>
+                </div>
+
+                <div className="flex gap-2 h-11">
+                    <button
+                        onClick={handleExportExcel}
+                        style={{ backgroundColor: '#6bbdb7' }}
+                        className="h-full text-white font-black px-8 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-teal-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#59aba5] whitespace-nowrap"
+                    >
+                        <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                        <Download size={16} className="group-hover:scale-110 transition-transform duration-500" />
+                        <span className="tracking-widest uppercase text-[10px]">Exportar Excel</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Tabla de Reporte */}
+            <div className="bg-white rounded-[3rem] shadow-2xl shadow-blue-900/5 border-2 border-brand-primary/5 overflow-hidden">
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-gray-50/80">
+                                <th className="p-6 text-[10px] font-black text-[#303a7f] uppercase tracking-widest sticky left-0 bg-gray-50/80 z-10 border-b-2 border-gray-100">Personal / ID</th>
+                                <th className="p-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center border-b-2 border-gray-100">TIN (Tax ID)</th>
+                                <th className="p-6 text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest text-right border-b-2 border-gray-100 bg-[#6bbdb7]/5">Total Box 1</th>
+                                {reportData.periods.map(p => (
+                                    <th key={p} className="p-6 text-[9px] font-bold text-gray-400 uppercase tracking-tighter text-center border-b-2 border-gray-100 border-l-2 border-gray-50">
+                                        {p.split(' - ')[0].slice(0, 5)} - {p.split(' - ')[1].slice(0, 5)}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y-2 divide-gray-50">
+                            {filteredRows.length === 0 ? (
+                                <tr>
+                                    <td colSpan={reportData.periods.length + 3} className="p-20 text-center text-gray-300 font-bold italic">
+                                        No se encontraron registros para el año {fiscalYear}.
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredRows.map((row) => {
+                                    const dbEmp = employees.find(e => e.codigo_empleado === row.id) || {};
+                                    return (
+                                        <tr key={row.id} className="hover:bg-blue-50/20 transition-colors group">
+                                            <td className="p-6 sticky left-0 bg-white group-hover:bg-blue-50/20 z-10 border-r-2 border-gray-50 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.05)]">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-black text-[#303a7f] uppercase tracking-tight">{row.nombre}</span>
+                                                    <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-0.5">ID: {row.id}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-6 text-center">
+                                                <span className="text-xs font-bold text-gray-500 tabular-nums">
+                                                    {dbEmp.tin ? `***-**-${dbEmp.tin.slice(-4)}` : '--'}
+                                                </span>
+                                            </td>
+                                            <td className="p-6 text-right bg-[#6bbdb7]/5">
+                                                <span className="text-sm font-black text-[#303a7f] tabular-nums">
+                                                    ${row.totalBox1.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                </span>
+                                            </td>
+                                            {reportData.periods.map(p => (
+                                                <td key={p} className="p-6 text-center border-l-2 border-gray-50">
+                                                    <span className={`text-xs font-bold tabular-nums ${row.periods[p] ? 'text-gray-600' : 'text-gray-200'}`}>
+                                                        {row.periods[p] ? `$${row.periods[p].toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '$0.00'}
+                                                    </span>
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDesde, getFormattedDateForDay }) => {
     if (!isOpen) return null;
@@ -5152,22 +5715,25 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
             return;
         }
 
-        // 1. Actualizar historial de cada empleado
-        project.employees.forEach(empRow => {
-            if (empRow.employeeName && onUpdateLocationHistory) {
-                // Formatear fecha de proyecto (YYYY-MM-DD -> MM/DD/YYYY)
-                const dateParts = project.fecha.split('-');
-                const formattedDate = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`;
+                // 1. Actualizar historial de cada empleado
+                project.employees.forEach(empRow => {
+                    if (empRow.employeeName && onUpdateLocationHistory) {
+                        // Formatear fecha de proyecto de forma robusta
+                        let formattedDate = project.fecha;
+                        if (project.fecha && project.fecha.includes('-')) {
+                            const dateParts = project.fecha.split('-');
+                            formattedDate = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`;
+                        }
 
-                const newSegment = {
-                    tienda: project.nombre,
-                    inicio: formattedDate,
-                    fin: formattedDate,
-                    tipo: 'P.E' // Identificador para color naranja
-                };
-                onUpdateLocationHistory(empRow.employeeName, newSegment);
-            }
-        });
+                        const newSegment = {
+                            tienda: project.nombre || 'Proyecto Especial',
+                            inicio: formattedDate,
+                            fin: formattedDate,
+                            tipo: 'P.E' // Identificador para color naranja
+                        };
+                        onUpdateLocationHistory(empRow.employeeName, newSegment);
+                    }
+                });
 
         // 2. Guardar en la hoja Proyectos_Especiales si el handler está definido
         if (onRegisterProject) {
@@ -7884,8 +8450,15 @@ function App() {
     const handleSaveEmployee = (updatedEmployee) => {
         setEmployees(prev => prev.map(e => e.codigo_empleado === updatedEmployee.codigo_empleado ? updatedEmployee : e));
         setEditingEmployee(updatedEmployee);
-        // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda
-        syncToSheets('upsert', { ...updatedEmployee, codigo_empleado: `'${updatedEmployee.codigo_empleado}` }, 'Personal');
+        // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda y evitar formateo numérico
+        syncToSheets('upsert', {
+            ...updatedEmployee,
+            codigo_empleado: `'${updatedEmployee.codigo_empleado}`,
+            tin: updatedEmployee.tin ? `'${updatedEmployee.tin.toString().replace(/^'/, '')}` : '',
+            zip: updatedEmployee.zip ? `'${updatedEmployee.zip.toString().replace(/^'/, '')}` : '',
+            site_code: updatedEmployee.site_code ? `'${updatedEmployee.site_code.toString().replace(/^'/, '')}` : '',
+            cuenta_bancaria: updatedEmployee.cuenta_bancaria ? `'${updatedEmployee.cuenta_bancaria.toString().replace(/^'/, '')}` : ''
+        }, 'Personal');
     };
 
     const handleDeleteEmployee = (empCodigo) => {
@@ -7904,8 +8477,15 @@ function App() {
     const handleCreateEmployee = (newEmp) => {
         setEmployees(prev => [newEmp, ...prev]);
         setIsAddingEmployee(false);
-        // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda
-        syncToSheets('upsert', { ...newEmp, codigo_empleado: `'${newEmp.codigo_empleado}` }, 'Personal');
+        // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda y evitar formateo numérico
+        syncToSheets('upsert', {
+            ...newEmp,
+            codigo_empleado: `'${newEmp.codigo_empleado}`,
+            tin: newEmp.tin ? `'${newEmp.tin.toString().replace(/^'/, '')}` : '',
+            zip: newEmp.zip ? `'${newEmp.zip.toString().replace(/^'/, '')}` : '',
+            site_code: newEmp.site_code ? `'${newEmp.site_code.toString().replace(/^'/, '')}` : '',
+            cuenta_bancaria: newEmp.cuenta_bancaria ? `'${newEmp.cuenta_bancaria.toString().replace(/^'/, '')}` : ''
+        }, 'Personal');
     };
 
     const storeNames = stores.map(s => s.nombre);
@@ -7915,6 +8495,7 @@ function App() {
         { id: 'stores', label: 'Tiendas', icon: StoreIcon },
         { id: 'employees', label: 'Personal', icon: Users },
         { id: 'payroll', label: 'Nómina', icon: CreditCard },
+        { id: 'tax_center', label: '1099-NEC', icon: ShieldCheck },
         { id: 'settings', label: 'Ajustes', icon: Settings },
     ];
 
@@ -8037,7 +8618,7 @@ function App() {
                             {navItems.find(i => i.id === activeTab)?.icon && React.createElement(navItems.find(i => i.id === activeTab).icon, { size: 14 })}
                         </div>
                         <h2 className="text-xs font-black text-[#303a7f] tracking-tighter uppercase leading-none m-0">
-                            {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : activeTab === 'billing' ? 'Gestión de Facturación' : activeTab === 'settings' ? 'Configuración' : 'Dashboard'}
+                            {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : activeTab === 'tax_center' ? 'Centro 1099-NEC' : activeTab === 'billing' ? 'Gestión de Facturación' : activeTab === 'settings' ? 'Configuración' : 'Dashboard'}
                         </h2>
                     </div>
 
@@ -8827,12 +9408,20 @@ function App() {
 
 
                     {/* CONFIGURACIÓN Y AJUSTES */}
+                    {activeTab === 'tax_center' && (
+                        <TaxCenterView
+                            employees={employees}
+                            nominaHistoryData={nominaHistoryData}
+                            specialProjectsHistoryData={specialProjectsHistoryData}
+                        />
+                    )}
+
                     {activeTab === 'settings' && (
                         <SettingsView />
                     )}
 
                     {/* VISTA DE RESPALDO (Dashboard, Otros) */}
-                    {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'settings')) && (
+                    {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'settings')) && (
                         <div className="flex flex-col items-center justify-center py-32 text-center animate-in fade-in zoom-in-95 duration-1000">
                             <div className="p-12 bg-white rounded-[2rem] border-2 border-brand-primary/10 mb-10 relative shadow-2xl shadow-blue-900/[0.06]">
                                 <div
@@ -8949,7 +9538,7 @@ function App() {
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
-                            <button 
+                            <button
                                 onClick={handleExportBillingExcel}
                                 className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 animate-in fade-in zoom-in duration-700"
                             >
@@ -9378,7 +9967,8 @@ function App() {
                     }}
                     onUpdateLocationHistory={(employeeName, newSegment) => {
                         setEmployees(prev => {
-                            const idx = prev.findIndex(e => String(e.nombre).trim().toLowerCase() === String(employeeName).trim().toLowerCase());
+                            const normalizedSearch = normalizeName(employeeName);
+                            const idx = prev.findIndex(e => normalizeName(e.nombre) === normalizedSearch);
                             if (idx === -1) return prev;
 
                             const emp = prev[idx];
