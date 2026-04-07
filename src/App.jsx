@@ -1391,7 +1391,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                 return data.kbsBillingTableData.reduce((acc, r) =>
                     acc + (parseFloat(String(r.total || '0').replace(/[^0-9.-]/g, '')) || 0), 0);
             }
-        } catch (e) {}
+        } catch (e) { }
         return 0;
     };
 
@@ -1405,7 +1405,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                 return acc + emps.reduce((a, emp) =>
                     a + (parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0), 0);
             }, 0);
-        } catch (e) {}
+        } catch (e) { }
         return 0;
     };
     const [wosData, setWosData] = useState({
@@ -1439,10 +1439,10 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
 
             // Sincronizar con la hoja 'WOS' usando WOS_Number como clave
             await syncToSheets('upsert', payload, 'WOS', false, ['WOS_Number']);
-            
+
             // Refrescar historial global
             if (onRefreshHistory) onRefreshHistory();
-            
+
             console.log("[WOS] Auto-guardado exitoso:", payload.WOS_Number);
         } catch (error) {
             console.error("[WOS] Error en auto-guardado:", error);
@@ -1552,8 +1552,8 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
 
                 DATOS DE ENTRADA:
                 1. WOS Services (Lo que KBS pagó o reportó): ${JSON.stringify(wosServices)}
-                2. LGM Nomina (Due) (Lo que LGM reportó que se debe cobrar): ${JSON.stringify(dueNomina.map((h, i) => ({ id: 'N-'+i, store: h.nombre, start: h.fecha_inicio, end: h.fecha_fin, expected_kbs_payment: getKBSFromNomina(h) })))}
-                3. LGM Projects (Due) (Proyectos Especiales): ${JSON.stringify(duePE.map((h, i) => ({ id: 'S-'+i, store: h.tienda, period: h.periodo, expected_kbs_payment: getKBSFromPE(h) })))}
+                2. LGM Nomina (Due) (Lo que LGM reportó que se debe cobrar): ${JSON.stringify(dueNomina.map((h, i) => ({ id: 'N-' + i, store: h.nombre, start: h.fecha_inicio, end: h.fecha_fin, expected_kbs_payment: getKBSFromNomina(h) })))}
+                3. LGM Projects (Due) (Proyectos Especiales): ${JSON.stringify(duePE.map((h, i) => ({ id: 'S-' + i, store: h.tienda, period: h.periodo, expected_kbs_payment: getKBSFromPE(h) })))}
 
                 INSTRUCCIONES DE CRUCE (Razonamiento Humano):
                 - Compórtate como un humano: analiza las ambigüedades, asocia nombres similares (ej. "Sysco" con "Sysco Arizona", o truncados).
@@ -1573,7 +1573,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
 
             const result = await model.generateContent(prompt);
             const responseText = result.response.text();
-            
+
             // Clean up any potential markdown before parsing
             const cleanResponseText = responseText.replace(/^```json/g, '').replace(/```$/g, '').trim();
             const resultData = JSON.parse(cleanResponseText);
@@ -1621,7 +1621,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
             if (group.matchedLgmId) {
                 const [pfx, idxStr] = group.matchedLgmId.split('-');
                 const idx = parseInt(idxStr);
-                
+
                 if (pfx === 'N') {
                     matchedNominaRecord = nominaHistoryData[idx];
                     type = 'VWH';
@@ -1789,11 +1789,10 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                             <button
                                 onClick={() => setIsWOSBugOpen(true)}
                                 disabled={!wosServices.some(s => 'matchedLgmId' in s)}
-                                className={`p-2.5 rounded-xl transition-all active:scale-90 border-2 border-transparent ${
-                                    wosServices.some(s => 'matchedLgmId' in s)
-                                        ? 'bg-gray-50 text-gray-400 hover:bg-orange-50 hover:text-orange-500'
-                                        : 'bg-gray-100 text-gray-300 cursor-not-allowed opacity-50'
-                                }`}
+                                className={`p-2.5 rounded-xl transition-all active:scale-90 border-2 border-transparent ${wosServices.some(s => 'matchedLgmId' in s)
+                                    ? 'bg-gray-50 text-gray-400 hover:bg-orange-50 hover:text-orange-500'
+                                    : 'bg-gray-100 text-gray-300 cursor-not-allowed opacity-50'
+                                    }`}
                                 title="Reportar Error / Depuración"
                             >
                                 <Bug size={18} />
@@ -1935,11 +1934,10 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                                 </td>
                                                 {/* Tipo */}
                                                 <td className="px-4 py-4 text-center">
-                                                    <span className={`inline-block px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
-                                                        row.type === 'P.E.' ? 'bg-orange-50 text-orange-500 border border-orange-100' :
+                                                    <span className={`inline-block px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${row.type === 'P.E.' ? 'bg-orange-50 text-orange-500 border border-orange-100' :
                                                         row.type === 'VWH + P.E.' ? 'bg-purple-50 text-purple-500 border border-purple-100' :
-                                                        'bg-blue-50 text-[#303a7f] border border-blue-100'
-                                                    }`}>{row.type}</span>
+                                                            'bg-blue-50 text-[#303a7f] border border-blue-100'
+                                                        }`}>{row.type}</span>
                                                 </td>
                                                 {/* Período */}
                                                 <td className="px-4 py-4 text-center">
@@ -1979,7 +1977,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                                         >
                                                             <Eye size={16} />
                                                         </button>
-                                                        
+
                                                         {isAccepted ? (
                                                             <div className="inline-flex items-center gap-1.5 bg-green-50 text-green-600 px-4 py-2 rounded-xl border border-green-100 min-w-[100px] justify-center">
                                                                 <CheckCircle size={12} />
@@ -2165,7 +2163,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                     </tfoot>
                                 </table>
                             </div>
-                            
+
                             <div className="mt-8 p-6 bg-blue-50/30 rounded-[1.5rem] border border-blue-100/50">
                                 <p className="text-[10px] font-bold text-[#303a7f]/60 uppercase tracking-widest leading-relaxed text-center">
                                     Estos datos fueron extraídos automáticamente del PDF mediante inteligencia artificial AdWisers. Representan el desglose exacto contenido en el documento oficial de KBS.
@@ -2218,7 +2216,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                     Facturaciones radicadas en LogicPay con status "Due" que KBS omitió anunciar en este reporte.
                                 </p>
                             </div>
-                            
+
                             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-4">
                                 {wosDiscrepancies.lgmOrphans.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center h-64 text-gray-300">
@@ -2351,7 +2349,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                         } else if (typeof rawJSON === 'string') {
                                             try { details = JSON.parse(rawJSON); } catch (e) { console.error("Error al parsear WOS JSON:", e); }
                                         }
-                                        
+
                                         const wosNum = record.WOS_Number || record.wos_number || record.wosnumber || 'S/N';
                                         const subName = record.Subcontractor || record.subcontractor || 'Unknown Sub';
                                         const dateVal = record.Date || record.date || '--/--/--';
@@ -2363,7 +2361,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                                         <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-0.5">Cód WOS</span>
                                                         <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider">{wosNum}</span>
                                                     </div>
-                                                    
+
                                                     <div className="flex-1 min-w-0">
                                                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Subcontractor</span>
                                                         <h4 className="text-sm font-black text-[#303a7f] uppercase tracking-tight leading-tight truncate">{subName}</h4>
@@ -2373,7 +2371,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                                         <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-0.5">Fecha WOS</span>
                                                         <span className="text-[11px] font-black text-[#303a7f]">{dateVal}</span>
                                                     </div>
-                                                    
+
                                                     <div className="w-40 flex flex-col">
                                                         <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-0.5">Periodo</span>
                                                         <span className="text-[11px] font-black text-[#303a7f] truncate">{details.metadata?.paymentDueDate || details.metadata?.period || 'N/A'}</span>
@@ -2384,7 +2382,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                                     onClick={() => {
                                                         const mData = details.metadata || details || {};
                                                         const sData = details.services || details.crossMatchResults || [];
-                                                        
+
                                                         setWosData(mData);
                                                         setWosServices(sData);
                                                         setAcceptedKeys(new Set());
@@ -5464,6 +5462,7 @@ const BillingView = ({
     storeName,
     historyData = [],
     specialHistoryData = [],
+    isSyncing = false,
     onOpenVWH = () => { },
     onOpenPE = () => { },
     onUpdateManual = () => { },
@@ -5632,6 +5631,12 @@ const BillingView = ({
                             <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none">Facturación VWH</h3>
                             <p className="text-gray-400 text-[8px] font-black tracking-[0.4em] uppercase opacity-70 mt-1">Nómina Regular</p>
                         </div>
+                        {isSyncing && (
+                            <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-[#303a7f]/5 rounded-lg animate-pulse border border-[#303a7f]/10">
+                                <div className="w-1.5 h-1.5 bg-[#6bbdb7] rounded-full shadow-[0_0_8px_#6bbdb7]"></div>
+                                <span className="text-[9px] font-black text-[#303a7f] uppercase tracking-widest">Sincronizando...</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -5839,7 +5844,7 @@ const SettingsView = () => {
                         <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
                             <Cpu size={120} className="text-[#303a7f]" />
                         </div>
-                        
+
                         <div className="flex items-center gap-4 mb-8">
                             <div className="w-12 h-12 rounded-2xl bg-teal-50 flex items-center justify-center text-[#6bbdb7]">
                                 <Sparkles size={24} />
@@ -5855,13 +5860,13 @@ const SettingsView = () => {
                             <div>
                                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Gemini API Key (Configurada en .env)</label>
                                 <div className="relative group">
-                                    <input 
+                                    <input
                                         type={showKey ? "text" : "password"}
                                         value={geminiKey}
                                         readOnly
                                         className="w-full bg-gray-50/50 border-2 border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold text-[#303a7f]/50 outline-none cursor-not-allowed tabular-nums"
                                     />
-                                    <button 
+                                    <button
                                         onClick={() => setShowKey(!showKey)}
                                         className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-teal-600 transition-colors"
                                     >
@@ -5882,7 +5887,7 @@ const SettingsView = () => {
                     {/* Tarjeta Informativa de Seguridad */}
                     <div className="bg-[#303a7f] rounded-[2.5rem] p-10 shadow-2xl shadow-blue-900/20 flex flex-col justify-between relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
-                        
+
                         <div>
                             <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-white mb-8">
                                 <ShieldCheck size={28} />
@@ -6031,8 +6036,6 @@ function App() {
                 <div className="w-32 h-32 border-4 border-white/10 border-t-[#6bbdb7] rounded-full animate-spin" />
                 <img src="/Logo Logic Group Management.png" alt="LGM" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-auto brightness-0 invert opacity-50" />
             </div>
-            <h2 className="text-white text-xl font-black uppercase tracking-[0.5em] mb-4 animate-pulse">Sincronizando Motor</h2>
-            <p className="text-blue-100/40 text-[10px] font-black uppercase tracking-widest italic">Cargando Variables desde la Nube (Google Sheets) ...</p>
         </div>
     );
 
@@ -6051,6 +6054,7 @@ function App() {
 
     // Controles de Visibilidad del Modal de Facturación
     const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+    const [isSyncingBilling, setIsSyncingBilling] = useState(false);
     const [isWOSOpen, setIsWOSOpen] = useState(false);
     const [selectedSpecialProjectInvoice, setSelectedSpecialProjectInvoice] = useState(null);
     const [isSpecialProjectInvoiceOpen, setIsSpecialProjectInvoiceOpen] = useState(false);
@@ -6062,127 +6066,127 @@ function App() {
     const [specialProjectsHistoryData, setSpecialProjectsHistoryData] = useState([]); // FASE 10: Historial P.E
     const [wosHistoryData, setWosHistoryData] = useState([]); // FASE 12: Historial WOS
 
-    // --- OBSERVADOR DE SINCRONIZACIÓN: Proyectos Especiales (Debounced) ---
+    // --- OBSERVADOR DE SINCRONIZACIÓN: Proyectos Especiales (Debounced con Cola) ---
     useEffect(() => {
-        if (!pePendingSaveRef.current) return;
+        if (pePendingSaveRef.current.length === 0) return;
 
         if (peSaveTimeoutRef.current) clearTimeout(peSaveTimeoutRef.current);
 
         peSaveTimeoutRef.current = setTimeout(async () => {
-            const task = pePendingSaveRef.current;
-            if (!task) return;
+            const queue = [...pePendingSaveRef.current];
+            if (queue.length === 0) return;
+
+            // Limpiamos lo acumulado para empezar a procesar
+            pePendingSaveRef.current = [];
 
             try {
-                const { id, field, val } = task;
-                let sourceData = specialProjectsHistoryData;
-                if (!sourceData || sourceData.length === 0) {
-                    sourceData = await fetchSpecialProjectsHistory();
-                }
+                for (const task of queue) {
+                    const { id, field, val } = task;
+                    let sourceData = specialProjectsHistoryData;
+                    if (!sourceData || sourceData.length === 0) {
+                        sourceData = await fetchSpecialProjectsHistory();
+                    }
 
-                let existing = sourceData.find(h =>
-                    String(h.correlativo || h.Correlativo || '').trim() === String(id).trim()
-                );
-
-                if (!existing) {
-                    sourceData = await fetchSpecialProjectsHistory();
-                    existing = sourceData.find(h =>
+                    let existing = sourceData.find(h =>
                         String(h.correlativo || h.Correlativo || '').trim() === String(id).trim()
                     );
+
+                    if (!existing) {
+                        sourceData = await fetchSpecialProjectsHistory();
+                        existing = sourceData.find(h =>
+                            String(h.correlativo || h.Correlativo || '').trim() === String(id).trim()
+                        );
+                    }
+                    if (!existing) continue;
+
+                    let statusVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['Status'] || existing['status'] || 'Due');
+
+                    const correlativoVal = String(existing.correlativo || existing.Correlativo || '')
+                        .trim()
+                        .replace(/^'+/, '')
+                        .trim();
+                    if (!correlativoVal) continue;
+
+                    const payload = {
+                        "ID_Consolidacion": existing.id_consolidacion || existing.ID_Consolidacion || '',
+                        "Tienda": existing.tienda || existing.Tienda || '',
+                        "Periodo": existing.periodo || existing.Periodo || '',
+                        "Data_JSON": existing.data_json || existing.Data_JSON || '{}',
+                        "Fecha_Confirmacion": existing.fecha_confirmacion || existing.Fecha_Confirmacion || '',
+                        "Correlativo": correlativoVal,
+                        "Fecha Rad.": field === 'fecha rad.' ? val : (existing['fecha rad.'] || existing['Fecha Rad.'] || ''),
+                        "Pago": field === 'pago' ? val : (existing['pago'] || existing['Pago'] || ''),
+                        "Fecha de Pago": field === 'fecha de pago' ? val : (existing['fecha de pago'] || existing['Fecha de Pago'] || ''),
+                        "WOS": field === 'wos' ? val : (existing['wos'] || existing['WOS'] || 0),
+                        "Status": statusVal
+                    };
+
+                    await syncToSheets('update', payload, 'Proyectos_Especiales', false, ['Correlativo']);
+                    console.log("[LogicPay] Sincronización Exitosa P.E (Cola):", correlativoVal, field, val);
                 }
-                if (!existing) return;
-
-                // El estatus se mantiene manual o se recupera del estado existente
-                let statusVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['Status'] || existing['status'] || 'Due');
-
-                // Limpiar el Correlativo eliminando apóstrofos y espacios para un match exacto con la hoja
-                const correlativoVal = String(existing.correlativo || existing.Correlativo || '')
-                    .trim()
-                    .replace(/^'+/, '')  // Eliminar apóstrofos iniciales (formato Sheets)
-                    .trim();
-                if (!correlativoVal) return;
-
-                // Payload con orden exacto de columnas (A a K)
-                // IMPORTANTE: ID_Consolidacion debe incluirse para que no sea borrado al actualizar
-                const payload = {
-                    "ID_Consolidacion": existing.id_consolidacion || existing.ID_Consolidacion || '',
-                    "Tienda": existing.tienda || existing.Tienda || '',
-                    "Periodo": existing.periodo || existing.Periodo || '',
-                    "Data_JSON": existing.data_json || existing.Data_JSON || '{}',
-                    "Fecha_Confirmacion": existing.fecha_confirmacion || existing.Fecha_Confirmacion || '',
-                    "Correlativo": correlativoVal,
-                    "Fecha Rad.": field === 'fecha rad.' ? val : (existing['fecha rad.'] || existing['Fecha Rad.'] || ''),
-                    "Pago": field === 'pago' ? val : (existing['pago'] || existing['Pago'] || ''),
-                    "Fecha de Pago": field === 'fecha de pago' ? val : (existing['fecha de pago'] || existing['Fecha de Pago'] || ''),
-                    "WOS": field === 'wos' ? val : (existing['wos'] || existing['WOS'] || 0),
-                    "Status": statusVal
-                };
-
-                // Uso de 'update' (en lugar de 'upsert') para garantizar que SOLO se actualice
-                // la fila existente y NUNCA se cree una fila nueva
-                await syncToSheets('update', payload, 'Proyectos_Especiales', false, ['Correlativo']);
-
-                if (pePendingSaveRef.current?.id === task.id) {
-                    pePendingSaveRef.current = null;
-                }
-                console.log("[LogicPay] Sincronización Exitosa P.E (Mode: Update):", correlativoVal);
             } catch (e) {
-                console.error("[LogicPay] Error en Sincronización P.E:", e);
+                console.error("[LogicPay] Error en Sincronización P.E (Batch):", e);
+            } finally {
+                setIsSyncingBilling(false);
             }
         }, 1500);
 
         return () => { if (peSaveTimeoutRef.current) clearTimeout(peSaveTimeoutRef.current); };
     }, [specialProjectsHistoryData]);
 
-    // --- OBSERVADOR DE SINCRONIZACIÓN: Nómina Regular (VWH) (Debounced) ---
+    // --- OBSERVADOR DE SINCRONIZACIÓN: Nómina Regular (VWH) (Debounced con Cola) ---
     useEffect(() => {
-        if (!billingPendingSaveRef.current) return;
+        if (billingPendingSaveRef.current.length === 0) return;
         if (billingSaveTimeoutRef.current) clearTimeout(billingSaveTimeoutRef.current);
 
         billingSaveTimeoutRef.current = setTimeout(async () => {
-            const task = billingPendingSaveRef.current;
-            if (!task) return;
+            const queue = [...billingPendingSaveRef.current];
+            if (queue.length === 0) return;
+
+            // Limpiamos lo acumulado para empezar a procesar
+            billingPendingSaveRef.current = [];
 
             try {
-                const { id: week, field, val } = task;
-                const existing = nominaHistoryData.find(h =>
-                    String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
-                    String(h.codigo) === String(week)
-                ) || {};
+                for (const task of queue) {
+                    const { id: week, field, val } = task;
+                    const existing = nominaHistoryData.find(h =>
+                        String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
+                        String(h.codigo) === String(week)
+                    ) || {};
 
-                const payload = {
-                    nombre: selectedHistoryStore,
-                    codigo: existing.codigo ? (String(existing.codigo).startsWith("'") ? existing.codigo : `'${existing.codigo}`) : `'${week}`,
-                    fecha_inicio: existing.fecha_inicio || '',
-                    fecha_fin: existing.fecha_fin || '',
-                    data_json: existing.data_json || '{}',
-                    "Fecha Rad.": field === 'fecha rad.' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
-                    "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
-                    "Fecha de Pago": field === 'fecha de pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
-                    "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
-                    "Status": field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['Status'] || existing['status'] || 'Due')
-                };
+                    const payload = {
+                        nombre: selectedHistoryStore,
+                        codigo: existing.codigo ? (String(existing.codigo).startsWith("'") ? existing.codigo : `'${existing.codigo}`) : `'${week}`,
+                        fecha_inicio: existing.fecha_inicio || '',
+                        fecha_fin: existing.fecha_fin || '',
+                        data_json: existing.data_json || '{}',
+                        "Fecha Rad.": field === 'fecha rad.' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
+                        "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
+                        "Fecha de Pago": field === 'fecha de pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
+                        "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
+                        "Status": field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['Status'] || existing['status'] || 'Due')
+                    };
 
-                await fetch(API_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify({ action: 'upsert', sheetName: 'Nomina_Historico', data: payload })
-                });
-                
-                if (billingPendingSaveRef.current?.id === task.id) {
-                    billingPendingSaveRef.current = null;
+                    await fetch(API_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify({ action: 'upsert', sheetName: 'Nomina_Historico', data: payload })
+                    });
+                    console.log("[LogicPay] Sincronización Exitosa VWH (Cola):", week, field, val);
                 }
-                console.log("[LogicPay] Sincronización Exitosa VWH (Upsert):", week);
             } catch (e) {
-                console.error("[LogicPay] Error en Sincronización VWH:", e);
+                console.error("[LogicPay] Error en Sincronización VWH (Batch):", e);
+            } finally {
+                setIsSyncingBilling(false);
             }
         }, 1500);
 
         return () => { if (billingSaveTimeoutRef.current) clearTimeout(billingSaveTimeoutRef.current); };
     }, [nominaHistoryData, selectedHistoryStore]);
 
-    const pePendingSaveRef = useRef(null);
-    const billingPendingSaveRef = useRef(null);
+    const pePendingSaveRef = useRef([]);
+    const billingPendingSaveRef = useRef([]);
     const peSaveTimeoutRef = useRef(null);
     const vwhSaveTimeoutRef = useRef(null);
     const billingSaveTimeoutRef = useRef(null);
@@ -7557,17 +7561,17 @@ function App() {
         try {
             const response = await fetch(WOS_HISTORY_CSV_URL, { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            
+
             const csvText = await response.text();
             const lines = csvText.trim().split('\n').filter(l => l.trim());
             if (lines.length < 2) {
                 setWosHistoryData([]);
                 return [];
             }
-            
+
             // Usamos limpieza extrema para emular el formato esperado
             const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, '').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase());
-            
+
             const loaded = lines.slice(1).map(line => {
                 const values = parseCSVRow(line);
                 const flat = {};
@@ -7605,14 +7609,14 @@ function App() {
             data.forEach(item => {
                 const key = String(item.key || item.clave).toLowerCase();
                 const val = item.value || item.valor;
-                
+
                 if (key === 'active_tab') setActiveTab(val);
-                if (key === 'user' && val) try { setUser(JSON.parse(val)); } catch(e){}
-                if (key === 'processed_biweeks' && val) try { setProcessedBiweeks(JSON.parse(val)); } catch(e){}
-                if (key === 'special_projects_data' && val) try { 
+                if (key === 'user' && val) try { setUser(JSON.parse(val)); } catch (e) { }
+                if (key === 'processed_biweeks' && val) try { setProcessedBiweeks(JSON.parse(val)); } catch (e) { }
+                if (key === 'special_projects_data' && val) try {
                     const parsed = JSON.parse(val);
-                    setSpecialProjectsData(Array.isArray(parsed) ? parsed : []); 
-                } catch(e){}
+                    setSpecialProjectsData(Array.isArray(parsed) ? parsed : []);
+                } catch (e) { }
                 if (key === 'next_invoice') setNextInvoice(normalizeInvoice(val));
             });
             setVariablesLoaded(true);
@@ -8844,6 +8848,7 @@ function App() {
                             storeName={selectedHistoryStore}
                             historyData={nominaHistoryData}
                             specialHistoryData={specialProjectsHistoryData}
+                            isSyncing={isSyncingBilling}
                             onUpdateManual={async (week, field, val) => {
                                 // 1. Actualización Local Inmediata
                                 setNominaHistoryData(prev => prev.map(h => {
@@ -8863,8 +8868,9 @@ function App() {
                                     return h;
                                 }));
 
-                                // 2. Persistencia en Base de Datos vía Referencia (Observer)
-                                billingPendingSaveRef.current = { id: week, field, val };
+                                // 2. Persistencia en Base de Datos vía Referencia (Observer con Cola)
+                                billingPendingSaveRef.current.push({ id: week, field, val });
+                                setIsSyncingBilling(true);
                             }}
                             onUpdateManualPE={(id, field, val) => {
                                 // 1. Local State Update (Inmediato para la UI)
@@ -8886,8 +8892,9 @@ function App() {
                                     return h;
                                 }));
 
-                                // 2. Marcado para Sincronización (Debounced por el observador useEffect)
-                                pePendingSaveRef.current = { id, field, val };
+                                // 2. Marcado para Sincronización (Debounced por el observador useEffect con Cola)
+                                pePendingSaveRef.current.push({ id, field, val });
+                                setIsSyncingBilling(true);
                             }}
                             onOpenVWH={(weekId) => {
                                 const hData = nominaHistoryData.find(h =>
