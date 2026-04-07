@@ -7139,7 +7139,7 @@ function App() {
             if (!processedBiweeks.includes(periodKey)) {
                 const updated = [...processedBiweeks, periodKey];
                 setProcessedBiweeks(updated);
-                localStorage.setItem('lgm_processed_biweeks', JSON.stringify(updated));
+                // Eliminamos persistencia local para confiar 100% en la nube
             }
 
             // ÉXITO FINAL
@@ -7830,9 +7830,10 @@ function App() {
 
 
 
-    useEffect(() => {
-        if (variablesLoaded) syncVariableToSheets('active_tab', activeTab);
-    }, [activeTab, variablesLoaded]);
+    // La navegación de pestañas ahora es local para evitar saltos automáticos no deseados
+    // useEffect(() => {
+    //     if (variablesLoaded) syncVariableToSheets('active_tab', activeTab);
+    // }, [activeTab, variablesLoaded]);
 
     const handleLogout = () => {
         setUser(null);
@@ -8319,7 +8320,6 @@ function App() {
                 const key = String(item.key || item.clave).toLowerCase();
                 const val = item.value || item.valor;
 
-                if (key === 'active_tab') setActiveTab(val);
                 if (key === 'user' && val) try { setUser(JSON.parse(val)); } catch (e) { }
                 if (key === 'processed_biweeks' && val) try { setProcessedBiweeks(JSON.parse(val)); } catch (e) { }
                 if (key === 'special_projects_data' && val) try {
