@@ -1810,13 +1810,13 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                             <button
                                 onClick={() => setIsWOSBugOpen(true)}
                                 disabled={!wosServices.some(s => 'matchedLgmId' in s)}
-                                className={`p-2.5 rounded-xl transition-all active:scale-90 border-2 border-transparent ${wosServices.some(s => 'matchedLgmId' in s)
-                                    ? 'bg-gray-50 text-gray-400 hover:bg-orange-50 hover:text-orange-500'
-                                    : 'bg-gray-100 text-gray-300 cursor-not-allowed opacity-50'
+                                className={`px-6 py-2.5 rounded-xl transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest border ${wosServices.some(s => 'matchedLgmId' in s)
+                                    ? 'bg-gray-50 text-gray-400 hover:bg-orange-50 hover:text-orange-500 border-gray-100 shadow-sm'
+                                    : 'bg-gray-100 text-gray-300 cursor-not-allowed opacity-50 border-transparent'
                                     }`}
-                                title="Reportar Error / Depuración"
+                                title="Visualizar Discrepancias"
                             >
-                                <Bug size={18} />
+                                Discrepancias
                             </button>
 
                             <button
@@ -1844,7 +1844,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                 ) : (
                                     <Zap size={14} />
                                 )}
-                                Hacer Cruce
+                                Auditar WOS
                             </button>
                         </div>
                     </div>
@@ -5715,25 +5715,25 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
             return;
         }
 
-                // 1. Actualizar historial de cada empleado
-                project.employees.forEach(empRow => {
-                    if (empRow.employeeName && onUpdateLocationHistory) {
-                        // Formatear fecha de proyecto de forma robusta
-                        let formattedDate = project.fecha;
-                        if (project.fecha && project.fecha.includes('-')) {
-                            const dateParts = project.fecha.split('-');
-                            formattedDate = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`;
-                        }
+        // 1. Actualizar historial de cada empleado
+        project.employees.forEach(empRow => {
+            if (empRow.employeeName && onUpdateLocationHistory) {
+                // Formatear fecha de proyecto de forma robusta
+                let formattedDate = project.fecha;
+                if (project.fecha && project.fecha.includes('-')) {
+                    const dateParts = project.fecha.split('-');
+                    formattedDate = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`;
+                }
 
-                        const newSegment = {
-                            tienda: project.nombre || 'Proyecto Especial',
-                            inicio: formattedDate,
-                            fin: formattedDate,
-                            tipo: 'P.E' // Identificador para color naranja
-                        };
-                        onUpdateLocationHistory(empRow.employeeName, newSegment);
-                    }
-                });
+                const newSegment = {
+                    tienda: project.nombre || 'Proyecto Especial',
+                    inicio: formattedDate,
+                    fin: formattedDate,
+                    tipo: 'P.E' // Identificador para color naranja
+                };
+                onUpdateLocationHistory(empRow.employeeName, newSegment);
+            }
+        });
 
         // 2. Guardar en la hoja Proyectos_Especiales si el handler está definido
         if (onRegisterProject) {
@@ -6571,7 +6571,7 @@ function App() {
         if (!user) return;
 
         const presenceKey = `presence_${user.name.replace(/\s+/g, '_')}`;
-        
+
         // Pulso inicial
         syncVariableToSheets(presenceKey, new Date().toISOString());
 
