@@ -3845,12 +3845,7 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
         const initial = (results || []).map(res => {
             const baseObj = {
                 ...res,
-                resolvedEmployee: res.type === 'verified' || res.type === 'suggested' ? res.employee : null,
-                isNew: res.type === 'new',
-                tempCodigo: res.excelRow.codigo || '',
-                tempNombre: res.excelRow.nombre || '',
-                tempCargo: res.excelRow.cargo || 'Janitorial',
-                tempTienda: ''
+                resolvedEmployee: res.type === 'verified' || res.type === 'suggested' ? res.employee : null
             };
             return baseObj;
         });
@@ -3877,41 +3872,10 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
         setLocalResults(updated);
     };
 
-    const handleMarkAsNew = (index) => {
-        const updated = [...localResults];
-        updated[index].resolvedEmployee = null;
-        updated[index].isNew = true;
-        setLocalResults(updated);
-    };
 
-    const handleCancelNew = (index) => {
-        const updated = [...localResults];
-        updated[index].isNew = false;
-        setLocalResults(updated);
-    };
-
-    const handleUpdateNewField = (index, field, value) => {
-        const updated = [...localResults];
-        updated[index][field] = value;
-        setLocalResults(updated);
-    };
 
     const handleFinalize = () => {
-        const finalData = localResults.map(res => {
-            if (res.resolvedEmployee && !res.isNew) {
-                return { ...res.resolvedEmployee, _action: 'update' };
-            } else {
-                return {
-                    nombre: res.tempNombre,
-                    codigo_empleado: res.tempCodigo,
-                    cargo: res.tempCargo,
-                    tienda: res.tempTienda,
-                    fecha_ingreso: new Date().toLocaleDateString('en-US'),
-                    _action: 'create'
-                };
-            }
-        });
-        onAddAll(finalData);
+        onAddAll(localResults);
     };
 
     return (
@@ -3961,42 +3925,7 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
 
                                     {/* Middle: Match/Suggested (Verde) */}
                                     <div className="flex-1 min-w-[300px]">
-                                        {res.isNew ? (
-                                            <div className="flex items-center gap-3 bg-blue-50/50 p-2 rounded-xl border border-blue-100 animate-in fade-in zoom-in-95">
-                                                <div className="flex flex-col gap-0.5 flex-1">
-                                                    <label className="text-[7px] font-black text-blue-500 uppercase px-1">ID</label>
-                                                    <input
-                                                        type="text"
-                                                        value={res.tempCodigo}
-                                                        onChange={(e) => handleUpdateNewField(idx, 'tempCodigo', e.target.value)}
-                                                        className="bg-white border border-blue-100 rounded-lg px-2 py-1 text-[11px] font-black text-[#303a7f] tabular-nums"
-                                                    />
-                                                </div>
-                                                <div className="flex flex-col gap-0.5 flex-[2]">
-                                                    <label className="text-[7px] font-black text-blue-500 uppercase px-1">Nombre</label>
-                                                    <input
-                                                        type="text"
-                                                        value={res.tempNombre}
-                                                        onChange={(e) => handleUpdateNewField(idx, 'tempNombre', e.target.value)}
-                                                        className="bg-white border border-blue-100 rounded-lg px-2 py-1 text-[11px] font-black text-[#303a7f] uppercase"
-                                                    />
-                                                </div>
-                                                <div className="flex flex-col gap-0.5 flex-[1.5]">
-                                                    <label className="text-[7px] font-black text-blue-500 uppercase px-1">Tienda</label>
-                                                    <select
-                                                        value={res.tempTienda}
-                                                        onChange={(e) => handleUpdateNewField(idx, 'tempTienda', e.target.value)}
-                                                        className="bg-white border border-blue-100 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-500 uppercase"
-                                                    >
-                                                        <option value="">Selecc...</option>
-                                                        {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
-                                                    </select>
-                                                </div>
-                                                <button onClick={() => handleCancelNew(idx)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors" title="Cancelar">
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
-                                        ) : res.resolvedEmployee ? (
+                                        {res.resolvedEmployee ? (
                                             <div className="flex items-center gap-3 text-green-600 animate-in slide-in-from-left-2 transition-all">
                                                 <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
                                                     <UserCheck size={16} />
@@ -4056,14 +3985,7 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                                             <Search size={12} />
                                             Buscar
                                         </button>
-                                        <button
-                                            onClick={() => handleMarkAsNew(idx)}
-                                            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm flex items-center gap-2 ${res.isNew ? 'bg-[#6bbdb7] text-white shadow-[#6bbdb7]/20' : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-gray-100 hover:text-gray-600'
-                                                }`}
-                                        >
-                                            <UserPlus size={12} />
-                                            Nuevo
-                                        </button>
+
                                     </div>
                                 </div>
                             </div>
@@ -4157,29 +4079,29 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                         <div className="flex gap-4">
                             <div className="flex flex-col">
                                 <span className="text-[8px] font-black text-green-500 uppercase tracking-wider">Listos</span>
-                                <span className="text-xs font-black text-gray-600">{localResults.filter(r => r.resolvedEmployee || r.isNew).length}</span>
+                                <span className="text-xs font-black text-gray-600">{localResults.filter(r => r.resolvedEmployee).length}</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-[8px] font-black text-amber-500 uppercase tracking-wider">Pendientes</span>
-                                <span className="text-xs font-black text-gray-600">{localResults.filter(r => !r.resolvedEmployee && !r.isNew).length}</span>
+                                <span className="text-xs font-black text-gray-600">{localResults.filter(r => !r.resolvedEmployee).length}</span>
                             </div>
                         </div>
                     </div>
 
                     <div className="flex gap-4">
                         <button onClick={onClose} className="px-8 py-4 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95 shadow-sm">
-                            Cancelar y Revisar Excel
+                            Cerrar
                         </button>
                         <button
-                            disabled={localResults.filter(r => !r.resolvedEmployee && !r.isNew).length > 0}
+                            disabled={localResults.filter(r => !r.resolvedEmployee).length > 0}
                             onClick={handleFinalize}
-                            className={`px-12 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-3 ${localResults.filter(r => !r.resolvedEmployee && !r.isNew).length > 0
+                            className={`px-12 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-3 ${localResults.filter(r => !r.resolvedEmployee).length > 0
                                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                 : 'bg-[#303a7f] text-white shadow-blue-900/20 hover:bg-[#252a5e]'
                                 }`}
                         >
                             <Save size={14} />
-                            Sincronizar Todo
+                            Sincronizar Todo y Descargar Corregido
                         </button>
                     </div>
                 </div>
@@ -4770,10 +4692,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             onClick={() => onConfirmPayroll(biweeklyEmployees)}
                             disabled={isSaving || isAlreadyProcessed || biweeklyEmployees.length === 0}
                             className={`px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isSaving
-                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    : isAlreadyProcessed
-                                        ? 'bg-green-600 text-white cursor-not-allowed'
-                                        : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/20'
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : isAlreadyProcessed
+                                    ? 'bg-green-600 text-white cursor-not-allowed'
+                                    : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/20'
                                 }`}
                         >
                             {isSaving ? (
@@ -6598,6 +6520,10 @@ function App() {
     const [activeUsers, setActiveUsers] = useState([]);
     const [isPresenceOpen, setIsPresenceOpen] = useState(false);
 
+    // Referencias para persistir el workbook original del supervisor y permitir descarga corregida
+    const activeWorkbookRef = useRef(null);
+    const activeSheetNameRef = useRef(null);
+
     // --- LÓGICA DE PRESENCIA (Heartbeat) ---
     useEffect(() => {
         if (!user) return;
@@ -6884,7 +6810,7 @@ function App() {
         setIsStatusModalOpen(true);
     };
 
-    const showProcessing = (message) => showStatus('PROCESANDO', message, 'processing');
+    const showProcessing = (message, title = 'PROCESANDO') => showStatus(title, message, 'processing');
     const showSuccess = (message) => showStatus("¡Operación Exitosa!", message, 'success');
     const showError = (message) => showStatus("Error de Sistema", message, 'error');
 
@@ -7051,7 +6977,9 @@ function App() {
         try {
             const data = await file.arrayBuffer();
             const workbook = XLSX.read(data);
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            activeWorkbookRef.current = workbook;
+            activeSheetNameRef.current = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[activeSheetNameRef.current];
             const json = XLSX.utils.sheet_to_json(sheet, { range: 1 });
 
             const verificationRows = getPersonnelVerificationResults(json, employees);
@@ -7292,60 +7220,100 @@ function App() {
         }
     };
 
+    // --- Nueva Lógica: Corrección de Excel asistida por Gemini AI ---
+    const runAIExcelCorrection = async (resolutions) => {
+        if (!geminiApiKey) {
+            throw new Error("Clave de API de Gemini no encontrada. Por favor, configúrela en Ajustes.");
+        }
+
+        const wb = activeWorkbookRef.current;
+        const wsName = activeSheetNameRef.current;
+        if (!wb || !wsName) throw new Error("No hay un reporte activo para corregir.");
+
+        const ws = wb.Sheets[wsName];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+        // Simplificar resoluciones para la IA
+        const mapping = resolutions.map(res => ({
+            originalNameInExcel: res.excelRow.nombre,
+            originalCodeInExcel: res.excelRow.codigo || "",
+            officialName: res.resolvedEmployee ? res.resolvedEmployee.nombre : res.tempNombre,
+            officialCode: res.resolvedEmployee ? res.resolvedEmployee.codigo_empleado : res.tempCodigo
+        }));
+
+        const genAI = new GoogleGenerativeAI(geminiApiKey);
+        const model = genAI.getGenerativeModel({
+            model: "gemini-3-flash-preview",
+            generationConfig: { responseMimeType: "application/json" }
+        });
+
+        const prompt = `
+            Eres un experto en nómina. Tu tarea es corregir un reporte de asistencia (JSON AOA) basándote en resoluciones manuales.
+            
+            REPORTE ORIGINAL:
+            ${JSON.stringify(data)}
+            
+            RESOLUCIONES:
+            ${JSON.stringify(mapping)}
+            
+            TAREA:
+            1. Analiza cada fila del REPORTE ORIGINAL. 
+            2. Si encuentras una fila de empleado que coincida con una RESOLUCIÓN (por nombre o código previo), reemplaza el nombre y el código por los OFICIALES.
+            3. NO CAMBIES NINGÚN OTRO DATO (Horas, Cargos, Totales, Encabezados).
+            4. Retorna el REPORTE COMPLETO como un JSON Array of Arrays corregido.
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        const cleanedText = text.replace(/```json|```/g, '').trim();
+        return JSON.parse(cleanedText);
+    };
+
     const handleAddVerifiedEmployees = async (resolutions) => {
         setIsLoading(true);
-        setIsSyncingBatch(true);
-        setSyncProgress(0);
-        setSyncTotal(resolutions.length);
-
-        // Bloquear scroll
-        document.body.style.overflow = 'hidden';
-
+        showProcessing("Por favor espere mientras se realiza la vinculación y se corrige el reporte...", "Vinculando Personal");
         try {
-            let current = 0;
-            for (let res of resolutions) {
-                const isUpdate = res._action === 'update';
-                const formattedEmp = { ...res };
-                delete formattedEmp._action;
+            // 1. Gemini AI realiza la corrección del reporte Excel
+            const correctedAoa = await runAIExcelCorrection(resolutions);
 
-                // Asegurar formato de Cargo (Primera Mayúscula)
-                if (formattedEmp.cargo) {
-                    formattedEmp.cargo = formattedEmp.cargo.charAt(0).toUpperCase() + formattedEmp.cargo.slice(1).toLowerCase();
-                }
+            // 2. Generar descarga del reporte ya corregido por la IA
+            handleDownloadCorrectedReport(correctedAoa);
 
-                if (isUpdate) {
-                    // Actualizar empleado existente localmente por Nombre (con guardia contra nulos)
-                    setEmployees(prev => prev.map(e =>
-                        (e.nombre || '').toLowerCase().trim() === (formattedEmp.nombre || '').toLowerCase().trim() ? formattedEmp : e
-                    ));
-                } else {
-                    // Sincronización optimista para nuevos
-                    setEmployees(prev => [formattedEmp, ...prev]);
-                }
-
-                // Enviar a Google Sheets con prefijo ' para preservar ceros a la izquierda
-                await syncToSheets('upsert', { ...formattedEmp, codigo_empleado: `'${formattedEmp.codigo_empleado}` }, 'Personal', true);
-
-                current++;
-                setSyncProgress(current);
-            }
-
-            // Recarga final única y refresco de página después de procesar todo el lote
-            setTimeout(() => {
-                fetchEmployees();
-                setDbStatus('conectado');
-                window.location.reload();
-            }, 1000);
-
+            // 3. Finalización
+            await fetchEmployees();
             setIsVerificationModalOpen(false);
-            setVerificationResults([]);
+            showSuccess("Vinculación completada. El Reporte de Asisencias se ha descargado automáticamente. Por favor, cárguelo para procesar.");
+
         } catch (error) {
-            console.error('[AddVerified] Error agregando empleados:', error);
-            showError("Hubo un error al sincronizar el personal. Verifique la base de datos.");
+            console.error('[Verification] Error:', error);
+            showError(`Error en la sincronización: ${error.message}`);
         } finally {
             setIsLoading(false);
-            setIsSyncingBatch(false);
-            document.body.style.overflow = 'auto';
+        }
+    };
+
+    const handleDownloadCorrectedReport = (correctedAoa) => {
+        try {
+            const wb = activeWorkbookRef.current;
+            const wsName = activeSheetNameRef.current;
+            if (!wb || !wsName) return;
+
+            const ws = wb.Sheets[wsName];
+
+            const newWs = XLSX.utils.aoa_to_sheet(correctedAoa);
+            if (ws['!cols']) newWs['!cols'] = ws['!cols'];
+            if (ws['!merges']) newWs['!merges'] = ws['!merges'];
+
+            wb.Sheets[wsName] = newWs;
+
+            const fileName = `REPORTE_CORREGIDO_AI_${payrollStore || 'LGM'}_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+
+            showSuccess("Reporte corregido descargado. Ahora puede subir este archivo para procesar la nómina.");
+        } catch (error) {
+            console.error('[DownloadCorrected] Error:', error);
+            showError("No se pudo generar el reporte corregido.");
         }
     };
 
@@ -7392,7 +7360,9 @@ function App() {
 
             const supervisorData = await readAsArrayBuffer(supervisorFile);
             const supervisorWorkbook = XLSX.read(supervisorData);
-            const supervisorSheet = supervisorWorkbook.Sheets[supervisorWorkbook.SheetNames[0]];
+            activeWorkbookRef.current = supervisorWorkbook;
+            activeSheetNameRef.current = supervisorWorkbook.SheetNames[0];
+            const supervisorSheet = supervisorWorkbook.Sheets[activeSheetNameRef.current];
 
             const supervisorJson = XLSX.utils.sheet_to_json(supervisorSheet, { range: 1 });
             console.log('[Payroll] Filas cargadas (desde Fila 2):', supervisorJson.length);
@@ -8228,7 +8198,8 @@ function App() {
         setIsLoading(true);
         setDbStatus('sincronizando');
         try {
-            const response = await fetch(EMPLOYEES_CSV_URL);
+            // Bypass de caché mediante timestamp para obtener datos frescos de Google Sheets
+            const response = await fetch(`${EMPLOYEES_CSV_URL}&t=${Date.now()}`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const csvText = await response.text();
             const lines = csvText.trim().split('\n').filter(l => l.trim());
@@ -9549,8 +9520,8 @@ function App() {
                                                         onClick={handleApproveWeek}
                                                         disabled={isLoading || isCurrentWeekApproved}
                                                         className={`px-8 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2 ${isCurrentWeekApproved
-                                                                ? 'bg-green-600 text-white cursor-not-allowed shadow-green-900/10'
-                                                                : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/10'
+                                                            ? 'bg-green-600 text-white cursor-not-allowed shadow-green-900/10'
+                                                            : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/10'
                                                             }`}
                                                     >
                                                         {isCurrentWeekApproved ? <CheckCircle size={14} /> : <CreditCard size={14} />}
