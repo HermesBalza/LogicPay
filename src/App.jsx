@@ -6495,6 +6495,7 @@ const USER_REGISTRY = [
 
 function App() {
     const [variablesLoaded, setVariablesLoaded] = useState(false);
+    const initialLoadApplied = useRef(false);
     const [activeTab, setActiveTab] = useState('stores');
     const [isSidebarOpen, setSidebarOpen] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -6577,7 +6578,7 @@ function App() {
 
         const interval = setInterval(() => {
             syncVariableToSheets(presenceKey, new Date().toISOString());
-            fetchVariables(); // Refrescar para ver a otros
+            fetchVariables(true); // Refrescar solo presencia para optimizar
         }, 60000); // Cada 1 minuto
 
         return () => clearInterval(interval);
@@ -6585,11 +6586,13 @@ function App() {
 
     // --- SINCRONIZACIÓN AUTOMÁTICA DE VARIABLES OPERATIVAS ---
     useEffect(() => {
-        if (variablesLoaded) syncVariableToSheets('processed_biweeks', processedBiweeks);
+        if (variablesLoaded && initialLoadApplied.current) {
+            syncVariableToSheets('processed_biweeks', processedBiweeks);
+        }
     }, [processedBiweeks, variablesLoaded]);
 
     useEffect(() => {
-        if (variablesLoaded) {
+        if (variablesLoaded && initialLoadApplied.current) {
             const timer = setTimeout(() => {
                 syncVariableToSheets('special_projects_data', specialProjectsData);
             }, 1000);
@@ -7139,7 +7142,8 @@ function App() {
             if (!processedBiweeks.includes(periodKey)) {
                 const updated = [...processedBiweeks, periodKey];
                 setProcessedBiweeks(updated);
-                // Eliminamos persistencia local para confiar 100% en la nube
+                // Sincronización inmediata para garantizar persistencia
+                await syncVariableToSheets('processed_biweeks', updated);
             }
 
             // ÉXITO FINAL
@@ -8294,14 +8298,14 @@ function App() {
         }
     };
 
-    const fetchVariables = async () => {
+    const fetchVariables = async (onlyPresence = false) => {
         try {
             const response = await fetch(VARIABLES_CSV_URL, { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const csvText = await response.text();
             const lines = csvText.trim().split('\n').filter(l => l.trim());
             if (lines.length < 2) {
-                setVariablesLoaded(true);
+                if (!onlyPresence) setVariablesLoaded(true);
                 return;
             }
             const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, '').toLowerCase());
@@ -8312,7 +8316,6 @@ function App() {
                 return flat;
             });
 
-            // Mapeo selectivo de variables
             const currentActiveUsers = [];
             const now = new Date();
 
@@ -8320,29 +8323,34 @@ function App() {
                 const key = String(item.key || item.clave).toLowerCase();
                 const val = item.value || item.valor;
 
-                if (key === 'user' && val) try { setUser(JSON.parse(val)); } catch (e) { }
-                if (key === 'processed_biweeks' && val) try { setProcessedBiweeks(JSON.parse(val)); } catch (e) { }
-                if (key === 'special_projects_data' && val) try {
-                    const parsed = JSON.parse(val);
-                    setSpecialProjectsData(Array.isArray(parsed) ? parsed : []);
-                } catch (e) { }
-                if (key === 'next_invoice') setNextInvoice(normalizeInvoice(val));
+                if (!onlyPresence) {
+                    if (key === 'user' && val) try { setUser(JSON.parse(val)); } catch (e) { }
+                    if (key === 'processed_biweeks' && val) try { setProcessedBiweeks(JSON.parse(val)); } catch (e) { }
+                    if (key === 'special_projects_data' && val) try {
+                        const parsed = JSON.parse(val);
+                        setSpecialProjectsData(Array.isArray(parsed) ? parsed : []);
+                    } catch (e) { }
+                    if (key === 'next_invoice') setNextInvoice(normalizeInvoice(val));
+                }
 
-                // Procesar Presencia
+                // Procesar Presencia (Siempre se procesa)
                 if (key.startsWith('presence_')) {
                     const name = key.replace('presence_', '').replace(/_/g, ' ');
                     const lastSeen = new Date(val);
-                    // Si fue visto en los últimos 5 minutos, está activo
                     if (now - lastSeen < 5 * 60 * 1000) {
                         currentActiveUsers.push({ name, lastSeen });
                     }
                 }
             });
+
             setActiveUsers(currentActiveUsers);
-            setVariablesLoaded(true);
+            if (!onlyPresence) {
+                initialLoadApplied.current = true;
+                setVariablesLoaded(true);
+            }
         } catch (error) {
             console.error('[LogicPay] Error cargando Variables:', error);
-            setVariablesLoaded(true);
+            if (!onlyPresence) setVariablesLoaded(true);
         }
     };
 
