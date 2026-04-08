@@ -4385,7 +4385,7 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     );
 };
 
-const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, setSpecialProjectsData, employees, onConfirmPayroll, onBack }) => {
+const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, setSpecialProjectsData, employees, onConfirmPayroll, onBack }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -4490,6 +4490,26 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
             }
         });
 
+        // MODIFICACIÓN: Recuperar comentarios de la base de datos (Nomina_Detalle) si existen
+        const consolidationId = `${period.store}_${period.range}`.replace(/\s+/g, '_');
+        const existingDetail = (nominaDetailData || []).find(d =>
+            String(d.id_consolidacion || '').trim() === consolidationId
+        );
+
+        let savedCommentsMap = {};
+        if (existingDetail && existingDetail.data_json) {
+            try {
+                const savedData = JSON.parse(existingDetail.data_json);
+                savedData.forEach(row => {
+                    if (row.empleado) {
+                        savedCommentsMap[String(row.empleado).trim().toLowerCase()] = row.comments || '';
+                    }
+                });
+            } catch (e) {
+                console.error("Error parseando Data_JSON de Nomina_Detalle:", e);
+            }
+        }
+
         // Crear lista consolidada
         const consolidated = Array.from(allEmpIds).map(id => {
             const empW1 = w1Map[id];
@@ -4500,7 +4520,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
             let rate = empW1?.rate || empW2?.rate || 0;
 
             // Sumar horas y montos de Proyectos Especiales para este empleado (SOLO REGISTRADOS)
-            const empNombre = id.split('_')[0].trim().toLowerCase();
+            const empNombreRaw = id.split('_')[0].trim().toLowerCase();
             let peTotalHours = 0;
             let peTotalEarnings = 0;
             let peFirstRate = 0;
@@ -4508,7 +4528,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
             (specialProjectsData || []).forEach(project => {
                 if (project.status === 'registered') {
                     (project.employees || []).forEach(row => {
-                        if (String(row.employeeName).trim().toLowerCase() === empNombre) {
+                        if (String(row.employeeName).trim().toLowerCase() === empNombreRaw) {
                             const h = parseFloat(row.hours) || 0;
                             const r = parseFloat(row.rateLogic) || 0;
                             peTotalHours += h;
@@ -4523,17 +4543,18 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
             if (rate === 0 && peFirstRate > 0) rate = peFirstRate;
 
             const rowColor = 'bg-white';
+            const finalNombre = empW1?.nombre || empW2?.nombre || (id.split('_')[0].toUpperCase());
 
             return {
                 id: id,
-                nombre: empW1?.nombre || empW2?.nombre || (id.split('_')[0].toUpperCase()),
+                nombre: finalNombre,
                 semana1: empW1 ? hoursW1 : null,
                 semana2: empW2 ? hoursW2 : null,
                 pe: peTotalHours,
                 peEarnings: peTotalEarnings,
                 rate: rate,
                 cargo: empW1?.cargo || empW2?.cargo || 'Externo/PE',
-                comments: '',
+                comments: savedCommentsMap[finalNombre.trim().toLowerCase()] || '',
                 rowColor: rowColor
             };
         });
@@ -4541,7 +4562,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
         // Ordenar por nombre
         consolidated.sort((a, b) => a.nombre.localeCompare(b.nombre));
         setBiweeklyEmployees(consolidated);
-    }, [period, nominaHistoryData, specialProjectsData]);
+    }, [period, nominaHistoryData, specialProjectsData, nominaDetailData]);
 
     if (!period) return null;
 
@@ -4554,6 +4575,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
 
     const subtotalNomina = biweeklyEmployees.reduce((acc, emp) => acc + calculatePagoTotal(emp), 0);
     const totalFinal = subtotalNomina;
+
+    // FASE 9.8: Verificar si la nómina ya fue procesada (Persistencia en Variables)
+    const periodKey = `${period.store}-${period.w1?.start}-${period.w2?.end}`;
+    const isAlreadyProcessed = (processedBiweeks || []).includes(periodKey);
 
     const handleExportPDF = async () => {
         const element = biweeklyReportRef.current;
@@ -4743,15 +4768,20 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, setIsPEModal
                     <div data-html2canvas-ignore className="mt-12 flex justify-between items-center gap-4 border-t-2 border-gray-50 pt-10">
                         <button
                             onClick={() => onConfirmPayroll(biweeklyEmployees)}
-                            disabled={isSaving || biweeklyEmployees.length === 0}
-                            className={`px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isSaving ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/20'}`}
+                            disabled={isSaving || isAlreadyProcessed || biweeklyEmployees.length === 0}
+                            className={`px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isSaving
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : isAlreadyProcessed
+                                        ? 'bg-green-600 text-white cursor-not-allowed'
+                                        : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/20'
+                                }`}
                         >
                             {isSaving ? (
                                 <div className="w-4 h-4 border-2 border-white/30 border-t-[#303a7f] rounded-full animate-spin" />
                             ) : (
                                 <CheckCircle size={16} />
                             )}
-                            {isSaving ? 'Confirmando...' : 'Confirmar Nómina'}
+                            {isSaving ? 'Confirmando...' : isAlreadyProcessed ? 'Nómina Confirmada' : 'Confirmar Nómina'}
                         </button>
 
                         <div className="flex gap-4">
@@ -6543,6 +6573,7 @@ function App() {
     const [isBiweeklyManagementOpen, setIsBiweeklyManagementOpen] = useState(false);
     const [selectedBiweeklyPeriod, setSelectedBiweeklyPeriod] = useState(null);
     const [nominaHistoryData, setNominaHistoryData] = useState([]); // FASE 9: Historial Persistente
+    const [nominaDetailData, setNominaDetailData] = useState([]); // FASE 9.5: Detalle Consolidado (Comentarios)
     const [selectedHistoryStore, setSelectedHistoryStore] = useState('');
     const [isHistoricalDataLoaded, setIsHistoricalDataLoaded] = useState(false); // Flag para la UI
     const [processedBiweeks, setProcessedBiweeks] = useState([]);
@@ -7134,6 +7165,9 @@ function App() {
             setConfirmPayrollProgress(60);
             setConfirmPayrollStep("Sincronizando Nómina Detalle...");
             await syncToSheets('upsert', consolidatedNomina, 'Nomina_Detalle');
+
+            // Refrescar datos de detalle para que la vista los tenga actualizados
+            await fetchNominaDetail();
 
             // 5. Actualizar estado visual
             setConfirmPayrollProgress(95);
@@ -8243,6 +8277,29 @@ function App() {
         }
     };
 
+    const fetchNominaDetail = async () => {
+        try {
+            const response = await fetch(NOMINA_DETAIL_CSV_URL, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const csvText = await response.text();
+            const lines = csvText.trim().split('\n').filter(l => l.trim());
+            if (lines.length < 2) {
+                setNominaDetailData([]);
+                return;
+            }
+            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, '').toLowerCase());
+            const loaded = lines.slice(1).map(line => {
+                const values = parseCSVRow(line);
+                const flat = {};
+                headers.forEach((h, i) => { if (h) flat[h] = (values[i] || '').trim(); });
+                return flat;
+            });
+            setNominaDetailData(loaded);
+        } catch (error) {
+            console.error('[LogicPay] Error cargando Nomina_Detalle:', error);
+        }
+    };
+
     const fetchSpecialProjectsHistory = async () => {
         try {
             const response = await fetch(SPECIAL_PROJECTS_HISTORY_CSV_URL, { cache: 'no-store' });
@@ -8398,6 +8455,7 @@ function App() {
         fetchStores();
         fetchEmployees();
         fetchNominaHistory();
+        fetchNominaDetail();
         fetchSpecialProjectsHistory();
         fetchWosHistory();
         fetchVariables();
@@ -8715,7 +8773,6 @@ function App() {
                                                     </div>
                                                     <div>
                                                         <p className="text-[10px] font-black text-[#303a7f] uppercase leading-none mb-1">{u.name}</p>
-                                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Última actividad hace poco</p>
                                                     </div>
                                                 </div>
                                                 <div className="w-1.5 h-1.5 bg-green-400 rounded-full shadow-[0_0_8px_#4ade80]" />
@@ -9482,14 +9539,25 @@ function App() {
 
                                     {semanaTableData.length > 0 && (
                                         <div className="mt-10 flex justify-end gap-4 border-t-2 border-gray-50 pt-8">
-                                            <button
-                                                onClick={handleApproveWeek}
-                                                disabled={isLoading}
-                                                className="px-8 py-3 bg-[#303a7f] text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/10 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2"
-                                            >
-                                                <CreditCard size={14} />
-                                                Aprobar Semana
-                                            </button>
+                                            {(() => {
+                                                const isCurrentWeekApproved = (nominaHistoryData || []).some(h =>
+                                                    String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                                                    h.fecha_inicio === fechaDesde
+                                                );
+                                                return (
+                                                    <button
+                                                        onClick={handleApproveWeek}
+                                                        disabled={isLoading || isCurrentWeekApproved}
+                                                        className={`px-8 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2 ${isCurrentWeekApproved
+                                                                ? 'bg-green-600 text-white cursor-not-allowed shadow-green-900/10'
+                                                                : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/10'
+                                                            }`}
+                                                    >
+                                                        {isCurrentWeekApproved ? <CheckCircle size={14} /> : <CreditCard size={14} />}
+                                                        {isCurrentWeekApproved ? 'Semana Aprobada' : 'Aprobar Semana'}
+                                                    </button>
+                                                );
+                                            })()}
                                         </div>
                                     )}
                                 </section>
@@ -9846,6 +9914,8 @@ function App() {
                 <BiweeklyPayrollManagementView
                     period={selectedBiweeklyPeriod}
                     nominaHistoryData={nominaHistoryData}
+                    nominaDetailData={nominaDetailData}
+                    processedBiweeks={processedBiweeks}
                     setIsPEModalOpen={setIsPEModalOpen}
                     setPayrollStore={setPayrollStore}
                     setFechaDesde={setFechaDesde}
