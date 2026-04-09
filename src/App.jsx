@@ -9463,15 +9463,31 @@ function App() {
                                         </div>
 
                                         <div className="flex items-center gap-4">
-                                            <button
-                                                onClick={handleOpenSpecialProjects}
-                                                disabled={semanaTableData.length === 0}
-                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${semanaTableData.length > 0 ? 'bg-amber-50 text-[#b76b00] border-amber-100 hover:bg-amber-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
-                                                title="Abrir Proyectos Especiales"
-                                            >
-                                                <Star size={16} fill="currentColor" />
-                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">Proyectos Especiales</span>
-                                            </button>
+                                            {(() => {
+                                                const isCurrentWeekApproved = (nominaHistoryData || []).some(h =>
+                                                    String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                                                    h.fecha_inicio === fechaDesde
+                                                );
+                                                return (
+                                                    <>
+                                                    <button
+                                                        onClick={handleOpenSpecialProjects}
+                                                        disabled={semanaTableData.length === 0 || isCurrentWeekApproved}
+                                                        title={isCurrentWeekApproved ? 'Semana aprobada: no se pueden agregar Proyectos Especiales' : 'Abrir Proyectos Especiales'}
+                                                        className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${
+                                                            isCurrentWeekApproved
+                                                                ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60'
+                                                                : semanaTableData.length > 0
+                                                                    ? 'bg-amber-50 text-[#b76b00] border-amber-100 hover:bg-amber-100'
+                                                                    : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                                                        }`}
+                                                    >
+                                                        <Star size={16} fill="currentColor" />
+                                                        <span className="text-[9px] font-black uppercase tracking-widest leading-none">Proyectos Especiales</span>
+                                                    </button>
+                                                    </>
+                                                );
+                                            })()}
                                             <button
                                                 onClick={() => setIsVWHModalOpen(true)}
                                                 disabled={semanaTableData.length === 0}
@@ -9554,18 +9570,24 @@ function App() {
                                                         <tr key={idx} className="group hover:bg-[#303a7f]/[0.02] transition-colors">
                                                             <td className="p-4 border-r-[2px] border-gray-100">
                                                                 <div className="flex items-center gap-4">
-                                                                    <div className="flex flex-col gap-1">
-                                                                        <button
-                                                                            onClick={() => handleBulkAudit(idx, 'sup')}
-                                                                            className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'sup' ? 'bg-[#303a7f] text-white border-[#303a7f]' : 'bg-blue-50 text-[#303a7f] border-blue-100 hover:bg-[#303a7f] hover:text-white'}`}
-                                                                            title="Toda la semana: Supervisor"
-                                                                        >S</button>
-                                                                        <button
-                                                                            onClick={() => handleBulkAudit(idx, 'bio')}
-                                                                            className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'bio' ? 'bg-[#6bbdb7] text-white border-[#6bbdb7]' : 'bg-teal-50 text-[#6bbdb7] border-teal-100 hover:bg-[#6bbdb7] hover:text-white'}`}
-                                                                            title="Toda la semana: Biométrico"
-                                                                        >B</button>
-                                                                    </div>
+                                                                    {/* Botones S/B por fila — ocultos cuando la semana está aprobada */}
+                                                                    {!(nominaHistoryData || []).some(h =>
+                                                                        String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                                                                        h.fecha_inicio === fechaDesde
+                                                                    ) && (
+                                                                        <div className="flex flex-col gap-1">
+                                                                            <button
+                                                                                onClick={() => handleBulkAudit(idx, 'sup')}
+                                                                                className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'sup' ? 'bg-[#303a7f] text-white border-[#303a7f]' : 'bg-blue-50 text-[#303a7f] border-blue-100 hover:bg-[#303a7f] hover:text-white'}`}
+                                                                                title="Toda la semana: Supervisor"
+                                                                            >S</button>
+                                                                            <button
+                                                                                onClick={() => handleBulkAudit(idx, 'bio')}
+                                                                                className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'bio' ? 'bg-[#6bbdb7] text-white border-[#6bbdb7]' : 'bg-teal-50 text-[#6bbdb7] border-teal-100 hover:bg-[#6bbdb7] hover:text-white'}`}
+                                                                                title="Toda la semana: Biométrico"
+                                                                            >B</button>
+                                                                        </div>
+                                                                    )}
                                                                     <div className="flex flex-col">
                                                                         <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
                                                                         <span className="text-[9px] font-black text-[#6bbdb7] tabular-nums tracking-[0.1em] mt-1">ID: {row.codigo || '----'}</span>
@@ -9582,31 +9604,45 @@ function App() {
                                                                 return (
                                                                     <td key={day} className="p-3 text-center border-l-[3px] border-gray-200">
                                                                         <div className="flex flex-col gap-2">
-                                                                            {/* Pills Interactivos */}
-                                                                            <div className="flex justify-between gap-1">
-                                                                                <button
-                                                                                    onClick={() => handleAuditChange(idx, day, dayVal.sup)}
-                                                                                    className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.sup ? 'bg-blue-100/50 border-[#303a7f]/20 text-[#303a7f] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'}`}
-                                                                                >
-                                                                                    {dayVal.sup}
-                                                                                </button>
-                                                                                <button
-                                                                                    onClick={() => handleAuditChange(idx, day, dayVal.bio)}
-                                                                                    className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.bio ? 'bg-teal-50/50 border-[#6bbdb7]/20 text-[#6bbdb7] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'} ${dayVal.bio === 'X' ? '!text-red-500' : ''}`}
-                                                                                >
-                                                                                    {dayVal.bio}
-                                                                                </button>
-                                                                            </div>
-                                                                            {/* Input de Auditoría */}
-                                                                            <div className={`relative rounded-xl overflow-hidden shadow-sm transition-all duration-300 border-[2px] ${isManual ? 'border-[#6bbdb7] shadow-[0_0_15px_rgba(107,189,183,0.2)]' : 'border-[#303a7f]'}`}>
-                                                                                <input
-                                                                                    type="text"
-                                                                                    value={dayVal.final}
-                                                                                    onChange={(e) => handleAuditChange(idx, day, e.target.value)}
-                                                                                    className="w-full bg-[#f9f9f9] px-2 py-2 text-center text-[12px] font-black text-[#303a7f] tabular-nums outline-none border-none placeholder-gray-300"
-                                                                                    placeholder="0:00"
-                                                                                />
-                                                                            </div>
+                                                                            {/* Pills Interactivos — bloqueados si la semana fue aprobada */}
+                                                                            {!(nominaHistoryData || []).some(h =>
+                                                                                String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                                                                                h.fecha_inicio === fechaDesde
+                                                                            ) && (
+                                                                                <div className="flex justify-between gap-1">
+                                                                                    <button
+                                                                                        onClick={() => handleAuditChange(idx, day, dayVal.sup)}
+                                                                                        className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.sup ? 'bg-blue-100/50 border-[#303a7f]/20 text-[#303a7f] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'}`}
+                                                                                    >
+                                                                                        {dayVal.sup}
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => handleAuditChange(idx, day, dayVal.bio)}
+                                                                                        className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.bio ? 'bg-teal-50/50 border-[#6bbdb7]/20 text-[#6bbdb7] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'} ${dayVal.bio === 'X' ? '!text-red-500' : ''}`}
+                                                                                    >
+                                                                                        {dayVal.bio}
+                                                                                    </button>
+                                                                                </div>
+                                                                            )}
+                                                                            {/* Input de Auditoría — bloqueado en solo lectura si la semana fue aprobada */}
+                                                                            {(() => {
+                                                                                const weekLocked = (nominaHistoryData || []).some(h =>
+                                                                                    String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                                                                                    h.fecha_inicio === fechaDesde
+                                                                                );
+                                                                                return (
+                                                                                    <div className={`relative rounded-xl overflow-hidden shadow-sm transition-all duration-300 border-[2px] ${isManual ? 'border-[#6bbdb7] shadow-[0_0_15px_rgba(107,189,183,0.2)]' : 'border-[#303a7f]'}`}>
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            value={dayVal.final}
+                                                                                            onChange={(e) => !weekLocked && handleAuditChange(idx, day, e.target.value)}
+                                                                                            readOnly={weekLocked}
+                                                                                            className={`w-full bg-[#f9f9f9] px-2 py-2 text-center text-[12px] font-black text-[#303a7f] tabular-nums outline-none border-none placeholder-gray-300 ${weekLocked ? 'cursor-not-allowed' : ''}`}
+                                                                                            placeholder={weekLocked ? '' : '0:00'}
+                                                                                        />
+                                                                                    </div>
+                                                                                );
+                                                                            })()}
                                                                         </div>
                                                                     </td>
                                                                 );
@@ -9633,6 +9669,7 @@ function App() {
 
                                     {semanaTableData.length > 0 && (
                                         <div className="mt-10 flex justify-end gap-4 border-t-2 border-gray-50 pt-8">
+                                            {/* Botón Aprobar Semana — pasa a estado verde irreversible una vez aprobada */}
                                             {(() => {
                                                 const isCurrentWeekApproved = (nominaHistoryData || []).some(h =>
                                                     String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
