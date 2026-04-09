@@ -7283,7 +7283,7 @@ function App() {
             // 3. Finalización
             await fetchEmployees();
             setIsVerificationModalOpen(false);
-            showSuccess("Vinculación completada. El Reporte de Asisencias se ha descargado automáticamente. Por favor, cárguelo para procesar.");
+            showSuccess("Vinculación completada. El Reporte de Asistencias se ha descargado automáticamente. Por favor, cárguelo para procesar.");
 
         } catch (error) {
             console.error('[Verification] Error:', error);
@@ -7858,6 +7858,7 @@ function App() {
         }
 
         setIsProcessingSheets(true);
+        showProcessing("Estamos procesando las imágenes de las planillas. Por favor, espere un momento...", "PROCESANDO IMÁGENES");
         try {
             const fileToBase64 = (file) => {
                 return new Promise((resolve, reject) => {
