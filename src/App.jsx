@@ -8071,7 +8071,6 @@ function App() {
             billingPendingSaveRef.current.push({ id: record.codigo, field: 'wos', val: wosNumber });
 
             setIsSyncingBilling(true);
-            showSuccess("Pago de Nómina (VWH) aceptado correctamente.");
 
         } else if (row.type === 'P.E.') {
             const record = row.matchedPERecord;
@@ -8090,7 +8089,6 @@ function App() {
             pePendingSaveRef.current.push({ id: record.correlativo || record.Correlativo, field: 'wos', val: wosNumber });
 
             setIsSyncingPE(true);
-            showSuccess("Pago de Proyecto Especial aceptado correctamente.");
         }
     };
 
