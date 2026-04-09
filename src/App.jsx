@@ -11,6 +11,8 @@ import {
     Upload,
     FileText,
     CheckCircle,
+    XCircle,
+    AlertCircle,
     Clock,
     Eye,
     Bug,
@@ -5346,7 +5348,7 @@ const EditableCell = ({ value, onChange, type = "text", className }) => {
 };
 
 // ─── Componente de Proyecto Individual dentro de P.E ──────────────────────────
-const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdateProject, onRemoveProject, onRegisterEmployee, onRegisterProject, minDate, maxDate }) => {
+const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdateProject, onRemoveProject, onAnulateProject, onRegisterEmployee, onRegisterProject, minDate, maxDate }) => {
     const isRegistered = project.status === 'registered';
 
     // Estados locales para evitar re-renders globales en cada tecla
@@ -5420,20 +5422,41 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                             <span className="text-lg font-black leading-none">#{project.invoice}</span>
                         </div>
                         {isRegistered && (
-                            <div className="bg-teal-50 text-[#6bbdb7] px-3 py-1.5 rounded-lg border border-teal-100 flex items-center gap-1.5 animate-in fade-in zoom-in-95">
-                                <CheckCircle size={10} />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Registrado</span>
+                            <div className="flex gap-2 animate-in fade-in zoom-in-95">
+                                <div className="bg-teal-50 text-[#6bbdb7] px-3 py-1.5 rounded-lg border border-teal-100 flex items-center gap-1.5">
+                                    <CheckCircle size={10} />
+                                    <span className="text-[9px] font-black uppercase tracking-widest">Registrado</span>
+                                </div>
+                                {project.visible === 'anulado' && (
+                                    <div className="bg-red-50 text-red-500 px-3 py-1.5 rounded-lg border border-red-100 flex items-center gap-1.5">
+                                        <XCircle size={10} />
+                                        <span className="text-[9px] font-black uppercase tracking-widest">ANULADO</span>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
-                    {/* Botón eliminar proyecto */}
-                    <button
-                        onClick={() => onRemoveProject(project.id)}
-                        className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all flex-shrink-0 border-2 border-transparent hover:border-red-100"
-                        title="Eliminar este proyecto"
-                    >
-                        <Trash2 size={16} />
-                    </button>
+                    {/* Acciones del proyecto */}
+                    <div className="flex items-center gap-3">
+                        {!isRegistered ? (
+                            <button
+                                onClick={() => onRemoveProject(project.id)}
+                                className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all flex-shrink-0 border-2 border-transparent hover:border-red-100"
+                                title="Eliminar este proyecto"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        ) : (
+                            project.visible !== 'anulado' && (
+                                <button
+                                    onClick={() => onAnulateProject(project)}
+                                    className="px-4 py-2 bg-white text-red-500 border-2 border-red-100 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-50 hover:border-red-500 transition-all active:scale-95 shadow-sm"
+                                >
+                                    Anular
+                                </button>
+                            )
+                        )}
+                    </div>
                 </div>
 
                 {/* Metadatos del proyecto en grid */}
@@ -5638,7 +5661,8 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
 });
 
 // ─── Vista Principal de Proyectos Especiales ─────────────────────────────────
-const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterProject, onRegisterEmployee, onUpdateLocationHistory, onSyncCorrelativo }) => {
+const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterProject, onAnulateProjectSheet, onRegisterEmployee, onUpdateLocationHistory, onSyncCorrelativo }) => {
+    const [anulatingProject, setAnulatingProject] = useState(null);
 
     // Convertir el rango de fechas MM/DD/YYYY a YYYY-MM-DD para los inputs tipo date
     const toInputDate = (str) => {
@@ -5723,13 +5747,53 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
             if (!success) return;
         }
 
-        // 3. Marcar proyecto como registrado
-        updateProject(project.id, { status: 'registered' });
-    }, [onUpdateLocationHistory, onRegisterProject, updateProject]);
+        // 3. Marcar proyecto como registrado y asignar ID_Consolidacion para acciones inmediatas (anular)
+        const period = `${fechaDesde} - ${fechaHasta}`;
+        const normalizedStore = (storeName || project.nombre || '').trim().replace(/\s+/g, '_');
+        const consolidationId = `${normalizedStore}_${period.replace(/\s+/g, '_')}_${project.invoice}`;
+        
+        updateProject(project.id, { 
+            status: 'registered', 
+            id_consolidacion: consolidationId 
+        });
+    }, [onUpdateLocationHistory, onRegisterProject, updateProject, fechaDesde, fechaHasta, storeName]);
+
+    const handleConfirmAnulate = async (project, inputInvoice) => {
+        if (String(inputInvoice) !== String(project.invoice)) {
+            showError("El número de Invoice no coincide.");
+            return;
+        }
+
+        let consolidationId = project.id_consolidacion;
+        
+        // Fallback: Calcular ID si no está presente (proyectos recién registrados)
+        if (!consolidationId) {
+            const period = `${fechaDesde} - ${fechaHasta}`;
+            const normalizedStore = (storeName || project.nombre || '').trim().replace(/\s+/g, '_');
+            consolidationId = `${normalizedStore}_${period.replace(/\s+/g, '_')}_${project.invoice}`;
+        }
+
+        if (onAnulateProjectSheet) {
+            const success = await onAnulateProjectSheet(consolidationId);
+            if (success) {
+                // Actualizar localmente para mostrar el badge sin esperar al polling
+                updateProject(project.id, { visible: 'anulado' });
+                setAnulatingProject(null);
+            }
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-[200] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500 font-sans">
             <div className="max-w-5xl mx-auto p-4 lg:p-6 pb-16">
+                {/* Modal de Anulación */}
+                {anulatingProject && (
+                    <AnularProjectModal
+                        project={anulatingProject}
+                        onClose={() => setAnulatingProject(null)}
+                        onConfirm={(invoice) => handleConfirmAnulate(anulatingProject, invoice)}
+                    />
+                )}
                 {/* Header global de la vista */}
                 <div className="flex flex-col md:flex-row items-center justify-between mb-6 bg-white p-5 rounded-[1.8rem] shadow-xl shadow-blue-900/5 border-2 border-brand-primary/5 gap-4">
                     <div className="flex items-center gap-4">
@@ -5771,6 +5835,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                                 stores={stores}
                                 onUpdateProject={updateProject}
                                 onRemoveProject={removeProject}
+                                onAnulateProject={(p) => setAnulatingProject(p)}
                                 onRegisterEmployee={onRegisterEmployee}
                                 onRegisterProject={handleRegisterProject}
                                 minDate={minDate}
@@ -5948,6 +6013,65 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
                     >
                         <Download size={18} />
                         Descargar PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ─── Componente Modal para Anular Proyecto ───────────────────────────────────
+const AnularProjectModal = ({ project, onClose, onConfirm }) => {
+    const [inputInvoice, setInputInvoice] = useState('');
+    const isValid = String(inputInvoice).trim() === String(project.invoice);
+
+    const inputCls = "w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold text-[#303a7f] outline-none focus:border-red-400 transition-all text-center placeholder:text-gray-300 placeholder:font-medium";
+
+    return (
+        <div className="fixed inset-0 z-[600] bg-[#303a7f]/40 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-md rounded-[3rem] shadow-[0_40px_100px_-20px_rgba(220,38,38,0.2)] border-2 border-red-100/20 p-10 animate-in zoom-in-95 duration-500">
+                <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-8">
+                    <AlertCircle size={40} />
+                </div>
+                
+                <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase text-center mb-4">
+                    Anular Proyecto Especial
+                </h3>
+                
+                <p className="text-gray-500 font-bold text-sm leading-relaxed text-center mb-10">
+                    Esta acción marcará el proyecto <span className="text-[#303a7f]">#{project.invoice}</span> como "anulado" en la base de datos. Esta acción no se puede deshacer.
+                    <br /><br />
+                    Para confirmar, escriba el número de Invoice a continuación:
+                </p>
+
+                <div className="mb-8">
+                    <input
+                        type="text"
+                        value={inputInvoice}
+                        onChange={(e) => setInputInvoice(e.target.value)}
+                        placeholder={`Escriba ${project.invoice} aquí...`}
+                        className={inputCls}
+                        autoFocus
+                    />
+                </div>
+
+                <div className="flex gap-4">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={() => onConfirm(inputInvoice)}
+                        disabled={!isValid}
+                        className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
+                            isValid 
+                            ? 'bg-red-500 text-white shadow-red-900/20 hover:bg-red-600' 
+                            : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
+                        }`}
+                    >
+                        Anular
                     </button>
                 </div>
             </div>
@@ -6932,6 +7056,48 @@ function App() {
         }
     };
 
+    const handleAnulateSpecialProject = async (projectIdConsolidacion) => {
+        if (!projectIdConsolidacion) return false;
+
+        // Buscar el registro original en el historial para no perder datos de otras columnas
+        const existing = specialProjectsHistoryData.find(h => 
+            String(h.id_consolidacion || h.ID_Consolidacion || '').trim() === String(projectIdConsolidacion).trim()
+        );
+
+        if (!existing) {
+            showError("No se pudo recuperar la información original del proyecto para anularlo.");
+            return false;
+        }
+
+        const payload = {
+            "ID_Consolidacion": projectIdConsolidacion,
+            "Tienda": existing.tienda || existing.Tienda || '',
+            "Periodo": existing.periodo || existing.Periodo || '',
+            "Data_JSON": existing.data_json || existing.Data_JSON || '{}',
+            "Fecha_Confirmacion": existing.fecha_confirmacion || existing.Fecha_Confirmacion || '',
+            "Correlativo": existing.correlativo || existing.Correlativo || '',
+            "Fecha Rad.": existing['fecha rad.'] || existing['Fecha Rad.'] || '',
+            "Pago": existing.pago || existing.Pago || '',
+            "Fecha de Pago": existing['fecha de pago'] || existing['Fecha de Pago'] || '',
+            "WOS": existing.wos || existing.WOS || 0,
+            "Status": existing.status || existing.Status || '',
+            "Visible": 'anulado'
+        };
+
+        try {
+            showProcessing('Anulando Proyecto Especial en la base de datos...');
+            await syncToSheets('update', payload, 'Proyectos_Especiales', false, ['ID_Consolidacion']);
+            showSuccess('Proyecto Especial anulado correctamente.');
+            // Refrescar el historial para que el cambio se refleje en la UI
+            fetchSpecialProjectsHistory();
+            return true;
+        } catch (error) {
+            console.error('[SpecialProjects] Error anulando en Google Sheets:', error);
+            showError('No se pudo anular el Proyecto Especial.');
+            return false;
+        }
+    };
+
     const parseDateFromString = (dateString) => {
         if (!dateString) return null;
         const parts = dateString.split('/').map(part => part.trim());
@@ -6980,13 +7146,15 @@ function App() {
                     const parsed = JSON.parse(record.data_json || '{}');
                     const items = Array.isArray(parsed) ? parsed : [parsed];
                     return items.map((item, itemIndex) => ({
-                        id: `${record.id_consolidacion || recordIndex}-${itemIndex}`,
+                        id: `${record.id_consolidacion || record.ID_Consolidacion || recordIndex}-${itemIndex}`,
+                        id_consolidacion: record.id_consolidacion || record.ID_Consolidacion,
                         invoice: normalizeInvoice(item.invoice),
                         fecha: item.fecha || fechaDesde,
                         nombre: item.proyecto || item.nombre || '',
                         descripcion: item.descripcion || '',
                         comentarios: item.comentarios || '',
                         employees: Array.isArray(item.employees) ? item.employees : [],
+                        visible: record.visible || record.Visible || '',
                         status: 'registered'
                     }));
                 } catch (error) {
@@ -10285,6 +10453,7 @@ function App() {
                     }}
                     onSyncCorrelativo={handleSyncCorrelativo}
                     onRegisterProject={handleRegisterSpecialProject}
+                    onAnulateProjectSheet={handleAnulateSpecialProject}
                     onRegisterEmployee={(newEmp) => {
                         // Agregar al estado local de empleados
                         setEmployees(prev => [newEmp, ...prev]);
