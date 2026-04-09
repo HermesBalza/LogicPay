@@ -4659,13 +4659,16 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-black text-[#303a7f] text-xs tabular-nums">{totalHours.toFixed(2)}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-[#6bbdb7] text-xs tabular-nums">${Number(emp.rate).toFixed(2)}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-right font-black text-[#303a7f] text-xs tabular-nums bg-opacity-30">${pagoTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            {/* Campo de comentario — bloqueado en modo solo lectura una vez que la nómina ha sido confirmada.
+                                                Doble protección: readOnly bloquea el DOM y el guardia en onChange evita cualquier modificación de estado. */}
                                             <td className={`p-4 px-2 py-1 transition-colors ${emp.comments ? 'bg-amber-100' : 'bg-transparent'}`}>
                                                 <input
                                                     type="text"
                                                     value={emp.comments || ''}
-                                                    onChange={(e) => handleCommentChange(idx, e.target.value)}
-                                                    className={`w-full bg-transparent border-none text-[11px] font-bold outline-none ring-0 focus:ring-0 transition-colors ${emp.comments ? 'text-amber-600' : 'text-gray-500 placeholder-gray-200'}`}
-                                                    placeholder="Añadir comentario..."
+                                                    onChange={(e) => !isAlreadyProcessed && handleCommentChange(idx, e.target.value)}
+                                                    readOnly={isAlreadyProcessed}
+                                                    className={`w-full bg-transparent border-none text-[11px] font-bold outline-none ring-0 focus:ring-0 transition-colors ${isAlreadyProcessed ? 'cursor-not-allowed' : ''} ${emp.comments ? 'text-amber-600' : 'text-gray-500 placeholder-gray-200'}`}
+                                                    placeholder={isAlreadyProcessed ? '' : 'Añadir comentario...'}
                                                 />
                                             </td>
                                         </tr>
