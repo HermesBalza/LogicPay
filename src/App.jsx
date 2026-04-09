@@ -1398,7 +1398,7 @@ const StoreAddView = ({ onSave, onBack }) => {
 };
 
 
-const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], wosHistoryData = [], syncToSheets, onRefreshHistory }) => {
+const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], wosHistoryData = [], syncToSheets, onRefreshHistory, onAcceptPayment }) => {
     const fileInputRef = useRef(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isCrossing, setIsCrossing] = useState(false);
@@ -1927,7 +1927,9 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                             </td>
                                         </tr>
                                     ) : crossMatchResults.filter(r => r.type !== 'Sin Registro').map(row => {
-                                        const isAccepted = acceptedKeys.has(row.key);
+                                        const isAlreadyAudit = (row.type === 'VWH' && (row.matchedNominaRecord?.wos || row.matchedNominaRecord?.WOS)) || 
+                                                              (row.type === 'P.E.' && (row.matchedPERecord?.wos || row.matchedPERecord?.WOS));
+                                        const isAccepted = acceptedKeys.has(row.key) || isAlreadyAudit;
                                         const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
                                         const hasMatch = row.lgmBilled > 0;
                                         const absDiff = Math.abs(row.diff);
@@ -2000,15 +2002,15 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                                         </button>
 
                                                         {isAccepted ? (
-                                                            <div className="inline-flex items-center gap-1.5 bg-green-50 text-green-600 px-4 py-2 rounded-xl border border-green-100 min-w-[100px] justify-center">
+                                                            <div className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-400 px-4 py-2 rounded-xl border border-gray-200 min-w-[100px] justify-center opacity-70 cursor-not-allowed">
                                                                 <CheckCircle size={12} />
-                                                                <span className="text-[9px] font-black uppercase tracking-widest">Aceptado</span>
+                                                                <span className="text-[9px] font-black uppercase tracking-widest">Confirmado</span>
                                                             </div>
                                                         ) : (
                                                             <button
                                                                 onClick={() => {
                                                                     setAcceptedKeys(prev => new Set([...prev, row.key]));
-                                                                    if (onAcceptPayment) onAcceptPayment(row);
+                                                                    if (onAcceptPayment) onAcceptPayment(row, wosData);
                                                                 }}
                                                                 className="inline-flex items-center gap-1.5 bg-[#6bbdb7] hover:bg-[#59aba5] text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md shadow-teal-900/10 min-w-[100px] justify-center"
                                                             >
@@ -6642,7 +6644,7 @@ function App() {
                     }
                     if (!existing) continue;
 
-                    let statusVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['Status'] || existing['status'] || 'Due');
+                    let statusVal = field === 'pagada' ? (val ? 'Pagada' : 'Due') : (existing['Status'] || existing['status'] || 'Due');
 
                     const correlativoVal = String(existing.correlativo || existing.Correlativo || '')
                         .trim()
@@ -8036,6 +8038,59 @@ function App() {
             showError(`Error al digitalizar planillas: ${error.message}`);
         } finally {
             setIsProcessingSheets(false);
+        }
+    };
+
+    const handleAcceptWOSPayment = (row, wosMetadata) => {
+        let paymentDate = wosMetadata.paymentDueDate || '';
+        const wosNumber = wosMetadata.wosNumber || '';
+        const paymentAmount = row.kbsAnnounced || 0;
+
+        // Normalización obligatoria a MM/DD/YYYY
+        if (paymentDate.includes('-')) {
+            const parts = paymentDate.split('-');
+            if (parts.length === 3 && parts[0].length === 4) {
+                paymentDate = `${parts[1]}/${parts[2]}/${parts[0]}`;
+            }
+        }
+
+        if (row.type === 'VWH') {
+            const record = row.matchedNominaRecord;
+            if (!record) return;
+
+            // Actualizar estado local para feedback inmediato
+            setNominaHistoryData(prev => prev.map(h => 
+                (String(h.nombre).trim().toLowerCase() === String(record.nombre).trim().toLowerCase() && String(h.codigo) === String(record.codigo))
+                ? { ...h, "pago": paymentAmount, "fecha de pago": paymentDate, "wos": wosNumber }
+                : h
+            ));
+
+            // Añadir a la cola de sincronización de VWH
+            billingPendingSaveRef.current.push({ id: record.codigo, field: 'pago', val: paymentAmount });
+            billingPendingSaveRef.current.push({ id: record.codigo, field: 'fecha de pago', val: paymentDate });
+            billingPendingSaveRef.current.push({ id: record.codigo, field: 'wos', val: wosNumber });
+
+            setIsSyncingBilling(true);
+            showSuccess("Pago de Nómina (VWH) aceptado correctamente.");
+
+        } else if (row.type === 'P.E.') {
+            const record = row.matchedPERecord;
+            if (!record) return;
+
+            // Actualizar estado local
+            setSpecialProjectsHistoryData(prev => prev.map(h => 
+                (String(h.correlativo || h.Correlativo || '').trim() === String(record.correlativo || record.Correlativo || '').trim())
+                ? { ...h, "pago": paymentAmount, "fecha de pago": paymentDate, "wos": wosNumber }
+                : h
+            ));
+
+            // Añadir a la cola de PE
+            pePendingSaveRef.current.push({ id: record.correlativo || record.Correlativo, field: 'pago', val: paymentAmount });
+            pePendingSaveRef.current.push({ id: record.correlativo || record.Correlativo, field: 'fecha de pago', val: paymentDate });
+            pePendingSaveRef.current.push({ id: record.correlativo || record.Correlativo, field: 'wos', val: wosNumber });
+
+            setIsSyncingPE(true);
+            showSuccess("Pago de Proyecto Especial aceptado correctamente.");
         }
     };
 
@@ -10155,6 +10210,7 @@ function App() {
                 wosHistoryData={wosHistoryData}
                 syncToSheets={syncToSheets}
                 onRefreshHistory={fetchWosHistory}
+                onAcceptPayment={handleAcceptWOSPayment}
             />
 
             {/* Decorative Brand Gradients */}
