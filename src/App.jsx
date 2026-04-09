@@ -3224,7 +3224,8 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
         // Clonar o modificar temporalmente el estilo para evitar truncamiento por scroll
         const originalStyle = element.style.cssText;
         const scrollableDiv = element.querySelector('.overflow-y-auto');
-        const originalScrollStyle = scrollableDiv ? scrollableDiv.style.cssText : '';
+        let originalScrollStyle = '';
+        if (scrollableDiv) originalScrollStyle = scrollableDiv.style.cssText;
 
         try {
             // Forzamos expansión total para la captura
@@ -3288,88 +3289,80 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
     };
 
     return (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-blue-900/10 animate-in fade-in duration-300">
-            <div ref={reportRef} className="bg-white w-full max-w-5xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-blue-100/50 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
-                {/* Header */}
-                <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/50 to-transparent">
-                    <div className="flex items-center gap-5">
-                        <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
-                            <ClipboardCheck size={24} />
-                        </div>
-                        <div>
-                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">REPORTE VWH</h3>
-                            <p className="text-[#6bbdb7] font-black uppercase text-[12px] tracking-[0.1em]">
-                                {payrollStore} | Week: {fechaDesde} - {fechaHasta}
-                            </p>
-                        </div>
+        <div className="fixed inset-0 z-[300] bg-white animate-in fade-in duration-500 overflow-hidden flex flex-col">
+            {/* Header Flotante (Botones) */}
+            <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm" data-html2canvas-ignore="true">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-[#303a7f]/5 rounded-xl text-[#303a7f]">
+                        <ClipboardCheck size={20} />
                     </div>
-                    <div className="flex gap-4" data-html2canvas-ignore="true">
-                        <button
-                            onClick={downloadVWHAsPDF}
-                            className="flex items-center gap-3 px-6 py-3 bg-[#6bbdb7] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 shadow-lg shadow-teal-900/20"
-                        >
-                            <Download size={16} />
-                            Descargar PDF
-                        </button>
-                        <button
-                            onClick={onClose}
-                            className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-blue-100 text-[#303a7f] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
-                        >
-                            <ArrowLeft size={16} />
-                            Volver
-                        </button>
+                    <div>
+                        <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Visor de Reporte VWH</h2>
+                        <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest">{payrollStore}</p>
                     </div>
                 </div>
-
-                {/* Resumen de Tienda */}
-                <div className="px-8 py-6 bg-gray-50/50 border-b-2 border-gray-100 grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Site Name</p>
-                        <p className="text-sm font-black text-[#303a7f] uppercase">{payrollStore}</p>
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">KBS ID</p>
-                        <p className="text-sm font-black text-[#303a7f] uppercase">{kbsId}</p>
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Vendor Name</p>
-                        <p className="text-sm font-black text-[#303a7f] uppercase">Logic Group Management</p>
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">TOTAL HOURS</p>
-                        <p className="text-lg font-black text-[#6bbdb7]">{totalHours.toFixed(2)}</p>
-                    </div>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={downloadVWHAsPDF}
+                        className="px-6 py-3 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg active:scale-95"
+                    >
+                        <Download size={16} />
+                        Descargar PDF
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center"
+                    >
+                        <X size={20} />
+                    </button>
                 </div>
+            </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-8">
-                    <div className="overflow-x-auto rounded-[2rem] border-[3px] border-gray-100 shadow-sm">
-                        <table className="w-full text-left border-collapse">
+            {/* Contenido del Reporte (Capturable) */}
+            <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-gray-50/10">
+                <div ref={reportRef} className="bg-white mx-auto shadow-2xl border-2 border-gray-100 max-w-7xl">
+                    {/* Encabezado Superior Gris (Estilo Imagen) */}
+                    <div className="bg-[#d9d9d9] border-b-2 border-black p-4 text-center">
+                        <h1 className="text-sm font-black text-black uppercase tracking-widest italic">
+                            {payrollStore} From {fechaDesde} to {fechaHasta}.
+                        </h1>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
                             <thead>
-                                <tr className="bg-gray-50/50">
-                                    <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-100">Employee Identifier</th>
-                                    <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-100">Hours</th>
-                                    <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-100">Job Code</th>
-                                    <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-100 bg-[#303a7f]/5">KBS Contract Hourly Rate</th>
+                                <tr className="bg-[#d9d9d9]">
+                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">Site Code</th>
+                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">KBS ID</th>
+                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">Vendor Name</th>
+                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">Employee Identifier</th>
+                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">Date</th>
+                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">Hours</th>
+                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">Job Code</th>
+                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">KBS Contract Hourly Rate</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y-[3px] divide-gray-100">
+                            <tbody>
                                 {data.map((row, idx) => (
-                                    <tr key={idx} className="hover:bg-blue-50/10 transition-colors">
-                                        <td className="p-5 border-r-[2px] border-gray-50">
-                                            <span className="text-sm font-black text-[#303a7f] uppercase">{row.nombre}</span>
-                                        </td>
-                                        <td className="p-5 text-center border-l-[2px] border-gray-50">
-                                            <span className="text-sm font-black tabular-nums text-gray-600">{row.total.final}</span>
-                                        </td>
-                                        <td className="p-5 text-center border-l-[2px] border-gray-50">
-                                            <span className="text-xs font-bold text-gray-500 uppercase">{row.cargo}</span>
-                                        </td>
-                                        <td className="p-5 text-right bg-blue-50/5 border-l-[2px] border-gray-50">
-                                            <span className="text-sm font-black text-[#303a7f] tabular-nums">${getKbsRate(row.cargo).toFixed(2)}</span>
-                                        </td>
+                                    <tr key={idx} className="border-b border-gray-200">
+                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-bold text-gray-700 text-center">{payrollStore}</td>
+                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-bold text-gray-700 text-center">{kbsId}</td>
+                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-bold text-gray-700 text-center">Logic Group Management</td>
+                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-black text-[#303a7f] uppercase pl-4">{row.nombre}</td>
+                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-bold text-gray-700 text-center">{fechaDesde}-{fechaHasta}</td>
+                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-black tabular-nums text-[#303a7f] text-center">{hhmmToDecimal(row.total.final).toFixed(2)}</td>
+                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-bold text-gray-500 uppercase text-center">{row.cargo}</td>
+                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-black text-[#303a7f] text-center italic">${getKbsRate(row.cargo).toFixed(2)}</td>
                                     </tr>
                                 ))}
+                                {/* Fila de Resumen Final */}
+                                <tr className="bg-[#d9d9d9]">
+                                    <td colSpan={5} className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-right italic pr-10">TOTAL JANITORIAL HOURS</td>
+                                    <td className="border-2 border-black p-2 text-[12px] font-black text-black text-center tabular-nums italic">
+                                        {totalHours.toFixed(2)}
+                                    </td>
+                                    <td colSpan={2} className="border-2 border-black bg-white"></td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
