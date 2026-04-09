@@ -6612,6 +6612,10 @@ function App() {
     const [wosHistoryData, setWosHistoryData] = useState([]); // FASE 12: Historial WOS
 
     // --- OBSERVADOR DE SINCRONIZACIÓN: Proyectos Especiales (Debounced con Cola) ---
+    // FIX: El observer ahora admite dos formatos de tarea:
+    //   1. __prebuilt:true → payload pre-construido en el momento del click (vía handleAcceptWOSPayment).
+    //      No realiza re-lookups: usa los datos del record tal como estaban cuando el usuario presionó Aceptar.
+    //   2. Formato legado {id, field, val} → usado por las ediciones manuales en BillingView.
     useEffect(() => {
         if (pePendingSaveRef.current.length === 0) return;
 
@@ -6626,51 +6630,61 @@ function App() {
 
             try {
                 for (const task of queue) {
-                    const { id, field, val } = task;
-                    let sourceData = specialProjectsHistoryData;
-                    if (!sourceData || sourceData.length === 0) {
-                        sourceData = await fetchSpecialProjectsHistory();
-                    }
+                    let payload;
 
-                    let existing = sourceData.find(h =>
-                        String(h.correlativo || h.Correlativo || '').trim() === String(id).trim()
-                    );
+                    if (task.__prebuilt) {
+                        // FIX Bug #1 y #4: Payload pre-construido en el click → usar directamente sin re-lookups stale.
+                        const { __prebuilt, ...rest } = task;
+                        payload = rest;
+                    } else {
+                        // Formato legado {id, field, val} de BillingView → mantener lógica original.
+                        const { id, field, val } = task;
+                        let sourceData = specialProjectsHistoryData;
+                        if (!sourceData || sourceData.length === 0) {
+                            sourceData = await fetchSpecialProjectsHistory();
+                        }
 
-                    if (!existing) {
-                        sourceData = await fetchSpecialProjectsHistory();
-                        existing = sourceData.find(h =>
-                            String(h.correlativo || h.Correlativo || '').trim() === String(id).trim()
+                        // FIX Bug #2: Normalizar apóstrofe en la búsqueda del correlativo.
+                        let existing = sourceData.find(h =>
+                            String(h.correlativo || h.Correlativo || '').replace(/^'+/, '').trim() === String(id).replace(/^'+/, '').trim()
                         );
+
+                        if (!existing) {
+                            sourceData = await fetchSpecialProjectsHistory();
+                            existing = sourceData.find(h =>
+                                String(h.correlativo || h.Correlativo || '').replace(/^'+/, '').trim() === String(id).replace(/^'+/, '').trim()
+                            );
+                        }
+                        if (!existing) continue;
+
+                        let statusVal = field === 'pagada' ? (val ? 'Pagada' : 'Due') : (existing['Status'] || existing['status'] || 'Due');
+
+                        const correlativoVal = String(existing.correlativo || existing.Correlativo || '')
+                            .trim()
+                            .replace(/^'+/, '')
+                            .trim();
+                        if (!correlativoVal) continue;
+
+                        payload = {
+                            "ID_Consolidacion": existing.id_consolidacion || existing.ID_Consolidacion || '',
+                            "Tienda": existing.tienda || existing.Tienda || '',
+                            "Periodo": existing.periodo || existing.Periodo || '',
+                            "Data_JSON": existing.data_json || existing.Data_JSON || '{}',
+                            "Fecha_Confirmacion": existing.fecha_confirmacion || existing.Fecha_Confirmacion || '',
+                            "Correlativo": correlativoVal,
+                            "Fecha Rad.": field === 'fecha rad.' ? val : (existing['fecha rad.'] || existing['Fecha Rad.'] || ''),
+                            "Pago": field === 'pago' ? val : (existing['pago'] || existing['Pago'] || ''),
+                            "Fecha de Pago": field === 'fecha de pago' ? val : (existing['fecha de pago'] || existing['Fecha de Pago'] || ''),
+                            "WOS": field === 'wos' ? val : (existing['wos'] || existing['WOS'] || 0),
+                            "Status": statusVal
+                        };
                     }
-                    if (!existing) continue;
-
-                    let statusVal = field === 'pagada' ? (val ? 'Pagada' : 'Due') : (existing['Status'] || existing['status'] || 'Due');
-
-                    const correlativoVal = String(existing.correlativo || existing.Correlativo || '')
-                        .trim()
-                        .replace(/^'+/, '')
-                        .trim();
-                    if (!correlativoVal) continue;
-
-                    const payload = {
-                        "ID_Consolidacion": existing.id_consolidacion || existing.ID_Consolidacion || '',
-                        "Tienda": existing.tienda || existing.Tienda || '',
-                        "Periodo": existing.periodo || existing.Periodo || '',
-                        "Data_JSON": existing.data_json || existing.Data_JSON || '{}',
-                        "Fecha_Confirmacion": existing.fecha_confirmacion || existing.Fecha_Confirmacion || '',
-                        "Correlativo": correlativoVal,
-                        "Fecha Rad.": field === 'fecha rad.' ? val : (existing['fecha rad.'] || existing['Fecha Rad.'] || ''),
-                        "Pago": field === 'pago' ? val : (existing['pago'] || existing['Pago'] || ''),
-                        "Fecha de Pago": field === 'fecha de pago' ? val : (existing['fecha de pago'] || existing['Fecha de Pago'] || ''),
-                        "WOS": field === 'wos' ? val : (existing['wos'] || existing['WOS'] || 0),
-                        "Status": statusVal
-                    };
 
                     await syncToSheets('update', payload, 'Proyectos_Especiales', false, ['Correlativo']);
-                    console.log("[LogicPay] Sincronización Exitosa P.E (Cola):", correlativoVal, field, val);
+                    console.log('[LogicPay] Sincronización Exitosa P.E (Cola):', payload.Correlativo);
                 }
             } catch (e) {
-                console.error("[LogicPay] Error en Sincronización P.E (Batch):", e);
+                console.error('[LogicPay] Error en Sincronización P.E (Batch):', e);
             } finally {
                 setIsSyncingBilling(false);
             }
@@ -6680,6 +6694,11 @@ function App() {
     }, [specialProjectsHistoryData]);
 
     // --- OBSERVADOR DE SINCRONIZACIÓN: Nómina Regular (VWH) (Debounced con Cola) ---
+    // FIX: El observer ahora admite dos formatos de tarea:
+    //   1. __prebuilt:true → payload pre-construido en el momento del click (vía handleAcceptWOSPayment).
+    //      No realiza re-lookups: elimina la dependencia de selectedHistoryStore como closure stale.
+    //   2. Formato legado {id, field, val} → usado por las ediciones manuales en BillingView.
+    //   En ambos casos se envía matchKeys: ['nombre', 'codigo'] para localización exacta en Sheets.
     useEffect(() => {
         if (billingPendingSaveRef.current.length === 0) return;
         if (billingSaveTimeoutRef.current) clearTimeout(billingSaveTimeoutRef.current);
@@ -6693,35 +6712,52 @@ function App() {
 
             try {
                 for (const task of queue) {
-                    const { id: week, field, val } = task;
-                    const existing = nominaHistoryData.find(h =>
-                        String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
-                        String(h.codigo) === String(week)
-                    ) || {};
+                    let payload;
 
-                    const payload = {
-                        nombre: selectedHistoryStore,
-                        codigo: existing.codigo ? (String(existing.codigo).startsWith("'") ? existing.codigo : `'${existing.codigo}`) : `'${week}`,
-                        fecha_inicio: existing.fecha_inicio || '',
-                        fecha_fin: existing.fecha_fin || '',
-                        data_json: existing.data_json || '{}',
-                        "Fecha Rad.": field === 'fecha rad.' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
-                        "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
-                        "Fecha de Pago": field === 'fecha de pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
-                        "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
-                        "Status": field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['Status'] || existing['status'] || 'Due')
-                    };
+                    if (task.__prebuilt) {
+                        // FIX Bug #1 y #4: Payload pre-construido en el click → usar directamente sin closure stale.
+                        const { __prebuilt, ...rest } = task;
+                        payload = rest;
+                    } else {
+                        // Formato legado {id: week, field, val} de BillingView → mantener lógica original.
+                        const { id: week, field, val } = task;
+                        // FIX Bug #2: Normalizar apóstrofe antes de comparar para evitar fallos de find().
+                        const existing = nominaHistoryData.find(h =>
+                            String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
+                            String(h.codigo).replace(/^'+/, '').trim() === String(week).replace(/^'+/, '').trim()
+                        ) || {};
 
+                        payload = {
+                            nombre: selectedHistoryStore,
+                            codigo: existing.codigo ? (String(existing.codigo).startsWith("'") ? existing.codigo : `'${existing.codigo}`) : `'${String(week).replace(/^'+/, '').trim()}`,
+                            fecha_inicio: existing.fecha_inicio || '',
+                            fecha_fin: existing.fecha_fin || '',
+                            data_json: existing.data_json || '{}',
+                            "Fecha Rad.": field === 'fecha rad.' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
+                            "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
+                            "Fecha de Pago": field === 'fecha de pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
+                            "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
+                            "Status": field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['Status'] || existing['status'] || 'Due')
+                        };
+                    }
+
+                    // FIX Bug #3: matchKeys explícitos para que el Apps Script localice la fila exacta
+                    // sin ambigüedad y nunca cree una fila nueva cuando ya existe el registro.
                     await fetch(API_URL, {
                         method: 'POST',
                         mode: 'no-cors',
                         headers: { 'Content-Type': 'text/plain' },
-                        body: JSON.stringify({ action: 'upsert', sheetName: 'Nomina_Historico', data: payload })
+                        body: JSON.stringify({
+                            action: 'upsert',
+                            sheetName: 'Nomina_Historico',
+                            data: payload,
+                            matchKeys: ['nombre', 'codigo']
+                        })
                     });
-                    console.log("[LogicPay] Sincronización Exitosa VWH (Cola):", week, field, val);
+                    console.log('[LogicPay] Sincronización Exitosa VWH (Cola):', payload.nombre, payload.codigo);
                 }
             } catch (e) {
-                console.error("[LogicPay] Error en Sincronización VWH (Batch):", e);
+                console.error('[LogicPay] Error en Sincronización VWH (Batch):', e);
             } finally {
                 setIsSyncingBilling(false);
             }
@@ -8058,17 +8094,33 @@ function App() {
             const record = row.matchedNominaRecord;
             if (!record) return;
 
-            // Actualizar estado local para feedback inmediato
-            setNominaHistoryData(prev => prev.map(h => 
-                (String(h.nombre).trim().toLowerCase() === String(record.nombre).trim().toLowerCase() && String(h.codigo) === String(record.codigo))
+            // Actualizar estado local para feedback inmediato.
+            // FIX Bug #2: Normalizar apóstrofe en ambos lados para comparación robusta.
+            setNominaHistoryData(prev => prev.map(h =>
+                (String(h.nombre).trim().toLowerCase() === String(record.nombre).trim().toLowerCase() &&
+                 String(h.codigo).replace(/^'+/, '').trim() === String(record.codigo).replace(/^'+/, '').trim())
                 ? { ...h, "pago": paymentAmount, "fecha de pago": paymentDate, "wos": wosNumber }
                 : h
             ));
 
-            // Añadir a la cola de sincronización de VWH
-            billingPendingSaveRef.current.push({ id: record.codigo, field: 'pago', val: paymentAmount });
-            billingPendingSaveRef.current.push({ id: record.codigo, field: 'fecha de pago', val: paymentDate });
-            billingPendingSaveRef.current.push({ id: record.codigo, field: 'wos', val: wosNumber });
+            // FIX Bug #1 y #4: Construir el payload completo AHORA, en el momento del click,
+            // cuando `record` contiene los datos 100% correctos.
+            // Se usa __prebuilt:true para que el observer lo use directamente sin re-lookups stale.
+            // Un solo objeto en cola elimina las condiciones de carrera de 3 POSTs separados.
+            const codigoVWHClean = String(record.codigo || '').replace(/^'+/, '').trim();
+            billingPendingSaveRef.current.push({
+                __prebuilt: true,
+                nombre: record.nombre,
+                codigo: `'${codigoVWHClean}`,
+                fecha_inicio: record.fecha_inicio || '',
+                fecha_fin: record.fecha_fin || '',
+                data_json: record.data_json || '{}',
+                "Fecha Rad.": record['Fecha Rad.'] || record['fecha rad.'] || '',
+                "Pago": paymentAmount,
+                "Fecha de Pago": paymentDate,
+                "WOS": wosNumber,
+                "Status": record['Status'] || record['status'] || 'Due'
+            });
 
             setIsSyncingBilling(true);
 
@@ -8076,17 +8128,31 @@ function App() {
             const record = row.matchedPERecord;
             if (!record) return;
 
-            // Actualizar estado local
-            setSpecialProjectsHistoryData(prev => prev.map(h => 
+            // Actualizar estado local para feedback inmediato.
+            setSpecialProjectsHistoryData(prev => prev.map(h =>
                 (String(h.correlativo || h.Correlativo || '').trim() === String(record.correlativo || record.Correlativo || '').trim())
                 ? { ...h, "pago": paymentAmount, "fecha de pago": paymentDate, "wos": wosNumber }
                 : h
             ));
 
-            // Añadir a la cola de PE
-            pePendingSaveRef.current.push({ id: record.correlativo || record.Correlativo, field: 'pago', val: paymentAmount });
-            pePendingSaveRef.current.push({ id: record.correlativo || record.Correlativo, field: 'fecha de pago', val: paymentDate });
-            pePendingSaveRef.current.push({ id: record.correlativo || record.Correlativo, field: 'wos', val: wosNumber });
+            // FIX Bug #1 y #4: Construir el payload completo AHORA, en el momento del click,
+            // cuando `record` contiene los datos 100% correctos.
+            // Un solo objeto en cola elimina las condiciones de carrera de 3 POSTs separados.
+            const correlativoPEClean = String(record.correlativo || record.Correlativo || '').replace(/^'+/, '').trim();
+            pePendingSaveRef.current.push({
+                __prebuilt: true,
+                "ID_Consolidacion": record.id_consolidacion || record.ID_Consolidacion || '',
+                "Tienda": record.tienda || record.Tienda || '',
+                "Periodo": record.periodo || record.Periodo || '',
+                "Data_JSON": record.data_json || record.Data_JSON || '{}',
+                "Fecha_Confirmacion": record.fecha_confirmacion || record.Fecha_Confirmacion || '',
+                "Correlativo": correlativoPEClean,
+                "Fecha Rad.": record['fecha rad.'] || record['Fecha Rad.'] || '',
+                "Pago": paymentAmount,
+                "Fecha de Pago": paymentDate,
+                "WOS": wosNumber,
+                "Status": record['Status'] || record['status'] || 'Due'
+            });
 
             setIsSyncingPE(true);
         }
