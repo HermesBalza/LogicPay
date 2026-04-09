@@ -6218,7 +6218,8 @@ const BillingView = ({
     };
 
     const activePERecords = (specialHistoryData || []).filter(h =>
-        h && String(h.tienda || '').trim().toLowerCase() === String(storeName || '').trim().toLowerCase()
+        h && String(h.tienda || '').trim().toLowerCase() === String(storeName || '').trim().toLowerCase() &&
+        String(h.visible || h.Visible || '').trim().toLowerCase() !== 'anulado'
     );
 
     const peTableDataMap = {};
