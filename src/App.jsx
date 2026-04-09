@@ -1929,8 +1929,8 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                             </td>
                                         </tr>
                                     ) : crossMatchResults.filter(r => r.type !== 'Sin Registro').map(row => {
-                                        const isAlreadyAudit = (row.type === 'VWH' && (row.matchedNominaRecord?.wos || row.matchedNominaRecord?.WOS)) || 
-                                                              (row.type === 'P.E.' && (row.matchedPERecord?.wos || row.matchedPERecord?.WOS));
+                                        const isAlreadyAudit = (row.type === 'VWH' && (row.matchedNominaRecord?.wos || row.matchedNominaRecord?.WOS)) ||
+                                            (row.type === 'P.E.' && (row.matchedPERecord?.wos || row.matchedPERecord?.WOS));
                                         const isAccepted = acceptedKeys.has(row.key) || isAlreadyAudit;
                                         const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
                                         const hasMatch = row.lgmBilled > 0;
@@ -3290,81 +3290,143 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
 
     return (
         <div className="fixed inset-0 z-[300] bg-white animate-in fade-in duration-500 overflow-hidden flex flex-col">
-            {/* Header Flotante (Botones) */}
-            <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm" data-html2canvas-ignore="true">
+            {/* Header Flotante (Botones de Control Superiores) */}
+            <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-40 shadow-sm" data-html2canvas-ignore="true">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-[#303a7f]/5 rounded-xl text-[#303a7f]">
-                        <ClipboardCheck size={20} />
+                    <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
+                        <Receipt size={20} />
                     </div>
-                    <div>
+                    <div className="flex flex-col">
                         <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Visor de Reporte VWH</h2>
-                        <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest">{payrollStore}</p>
+                        <div className="flex items-center gap-2">
+                            <div className="h-0.5 w-6 bg-[#6bbdb7] rounded-full" />
+                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-[0.3em] opacity-90">{payrollStore}</p>
+                        </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
                     <button
                         onClick={downloadVWHAsPDF}
-                        className="px-6 py-3 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg active:scale-95"
+                        className="px-6 py-3 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 flex items-center gap-2"
                     >
                         <Download size={16} />
                         Descargar PDF
                     </button>
                     <button
                         onClick={onClose}
-                        className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center"
+                        className="group p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center"
                     >
-                        <X size={20} />
+                        <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
                     </button>
                 </div>
             </div>
 
-            {/* Contenido del Reporte (Capturable) */}
-            <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-gray-50/10">
-                <div ref={reportRef} className="bg-white mx-auto shadow-2xl border-2 border-gray-100 max-w-7xl">
-                    {/* Encabezado Superior Gris (Estilo Imagen) */}
-                    <div className="bg-[#d9d9d9] border-b-2 border-black p-4 text-center">
-                        <h1 className="text-sm font-black text-black uppercase tracking-widest italic">
-                            {payrollStore} From {fechaDesde} to {fechaHasta}.
-                        </h1>
+            {/* Contenido del Reporte (Capturable - Atractivo Visual) */}
+            <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-[#fcfdfe]">
+                <div ref={reportRef} className="bg-white mx-auto h-fit max-w-7xl relative shadow-2xl border-2 border-gray-50 rounded-[4rem] overflow-hidden">
+                    {/* Header Premium (Estilo Referencia) */}
+                    <div className="p-12 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/20 to-transparent">
+                        <div className="flex items-center gap-6">
+                            <div className="p-5 bg-[#303a7f] text-white rounded-[1.8rem] shadow-2xl shadow-blue-900/30 transform rotate-3 hover:rotate-0 transition-all duration-500">
+                                <ClipboardCheck size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">REPORTE VWH</h3>
+                                <div className="flex items-center gap-3">
+                                    <p className="text-[#6bbdb7] font-black uppercase text-[12px] tracking-[0.2em]">
+                                        {payrollStore} | Period: {fechaDesde} - {fechaHasta}
+                                    </p>
+
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
-                            <thead>
-                                <tr className="bg-[#d9d9d9]">
-                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">Site Code</th>
-                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">KBS ID</th>
-                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">Vendor Name</th>
-                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">Employee Identifier</th>
-                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">Date</th>
-                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">Hours</th>
-                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">Job Code</th>
-                                    <th className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-center italic">KBS Contract Hourly Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.map((row, idx) => (
-                                    <tr key={idx} className="border-b border-gray-200">
-                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-bold text-gray-700 text-center">{payrollStore}</td>
-                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-bold text-gray-700 text-center">{kbsId}</td>
-                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-bold text-gray-700 text-center">Logic Group Management</td>
-                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-black text-[#303a7f] uppercase pl-4">{row.nombre}</td>
-                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-bold text-gray-700 text-center">{fechaDesde}-{fechaHasta}</td>
-                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-black tabular-nums text-[#303a7f] text-center">{hhmmToDecimal(row.total.final).toFixed(2)}</td>
-                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-bold text-gray-500 uppercase text-center">{row.cargo}</td>
-                                        <td className="border-2 border-gray-300 p-2 text-[10px] font-black text-[#303a7f] text-center italic">${getKbsRate(row.cargo).toFixed(2)}</td>
+                    {/* Resumen de Información (Estilo Limpio) */}
+                    <div className="px-12 py-10 grid grid-cols-2 md:grid-cols-4 gap-12 border-b-2 border-gray-50 bg-gray-50/30">
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Site Name</p>
+                            <p className="text-[13px] font-black text-[#303a7f] uppercase leading-tight">{payrollStore}</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">KBS ID</p>
+                            <p className="text-sm font-black text-[#303a7f] uppercase tabular-nums">{kbsId}</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Vendor Name</p>
+                            <p className="text-sm font-black text-[#303a7f] uppercase">Logic Group Management</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Total Hours</p>
+                            <p className="text-3xl font-black text-[#6bbdb7] tabular-nums leading-none tracking-tighter">{totalHours.toFixed(2)}</p>
+                        </div>
+                    </div>
+
+                    {/* Tabla de 8 Columnas con Estilo Premium */}
+                    <div className="p-12">
+                        <div className="overflow-hidden rounded-[2.5rem] border-2 border-gray-100 shadow-2xl shadow-blue-900/[0.04]">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-50/80">
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Site Code</th>
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">KBS ID</th>
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100">Vendor Name</th>
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Employee Identifier</th>
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Date</th>
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Hours</th>
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Job Code</th>
+                                        <th className="p-5 text-[9px] font-black text-white uppercase tracking-[0.2em] text-right bg-[#303a7f] px-8">Rate</th>
                                     </tr>
-                                ))}
-                                {/* Fila de Resumen Final */}
-                                <tr className="bg-[#d9d9d9]">
-                                    <td colSpan={5} className="border-2 border-black p-2 text-[10px] font-black text-black uppercase text-right italic pr-10">TOTAL JANITORIAL HOURS</td>
-                                    <td className="border-2 border-black p-2 text-[12px] font-black text-black text-center tabular-nums italic">
-                                        {totalHours.toFixed(2)}
-                                    </td>
-                                    <td colSpan={2} className="border-2 border-black bg-white"></td>
-                                </tr>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y-2 divide-gray-50">
+                                    {data.map((row, idx) => (
+                                        <tr key={idx} className="group hover:bg-blue-50/20 transition-all duration-300">
+                                            <td className="p-5 text-[11px] font-bold text-gray-500 uppercase pl-8">{payrollStore}</td>
+                                            <td className="p-5 text-[11px] font-bold text-gray-500 text-center tabular-nums">{kbsId}</td>
+                                            <td className="p-5 text-[10px] font-black text-gray-400 uppercase opacity-40">Logic Group</td>
+                                            <td className="p-5 pl-8">
+                                                <span className="text-[13px] font-black text-[#303a7f] uppercase tracking-tight group-hover:text-blue-600 transition-colors duration-500">{row.nombre}</span>
+                                            </td>
+                                            <td className="p-5 text-[11px] font-bold text-gray-400 text-center whitespace-nowrap">{fechaDesde}-{fechaHasta}</td>
+                                            <td className="p-5 text-center">
+                                                <span className="px-4 py-1.5 bg-[#303a7f]/5 rounded-xl text-xs font-black text-[#303a7f] tabular-nums">
+                                                    {hhmmToDecimal(row.total.final).toFixed(2)}
+                                                </span>
+                                            </td>
+                                            <td className="p-5 text-center">
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-3 py-1 rounded-md">{row.cargo}</span>
+                                            </td>
+                                            <td className="p-5 text-right px-8 bg-[#303a7f]/[0.02]">
+                                                <span className="text-xs font-black text-[#303a7f] tabular-nums">${getKbsRate(row.cargo).toFixed(2)}</span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {/* Fila de Resumen Final Premium */}
+                                    <tr className="bg-[#303a7f] border-t-4 border-white">
+                                        <td colSpan={5} className="p-8 text-[11px] font-black text-white uppercase tracking-[0.3em] text-right italic pr-12 opacity-80">
+                                            TOTAL BIWEEKLY JANITORIAL HOURS
+                                        </td>
+                                        <td className="p-8 text-center bg-[#303a7f]/90">
+                                            <span className="text-2xl font-black text-white tabular-nums drop-shadow-xl tracking-tighter">
+                                                {totalHours.toFixed(2)}
+                                            </span>
+                                        </td>
+                                        <td colSpan={2} className="bg-white/5 opacity-0"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Footer del Reporte */}
+                        <div className="mt-16 flex justify-between items-center opacity-30 px-6 border-t-2 border-gray-50 pt-8">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-[#303a7f] flex items-center justify-center text-white">
+                                    <Receipt size={14} />
+                                </div>
+                                <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">AdWisers LogicPay</p>
+                            </div>
+                            <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">Logic Group Management LLC.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -5744,10 +5806,10 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
         const period = `${fechaDesde} - ${fechaHasta}`;
         const normalizedStore = (storeName || project.nombre || '').trim().replace(/\s+/g, '_');
         const consolidationId = `${normalizedStore}_${period.replace(/\s+/g, '_')}_${project.invoice}`;
-        
-        updateProject(project.id, { 
-            status: 'registered', 
-            id_consolidacion: consolidationId 
+
+        updateProject(project.id, {
+            status: 'registered',
+            id_consolidacion: consolidationId
         });
     }, [onUpdateLocationHistory, onRegisterProject, updateProject, fechaDesde, fechaHasta, storeName]);
 
@@ -5758,7 +5820,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
         }
 
         let consolidationId = project.id_consolidacion;
-        
+
         // Fallback: Calcular ID si no está presente (proyectos recién registrados)
         if (!consolidationId) {
             const period = `${fechaDesde} - ${fechaHasta}`;
@@ -6026,11 +6088,11 @@ const AnularProjectModal = ({ project, onClose, onConfirm }) => {
                 <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-8">
                     <AlertCircle size={40} />
                 </div>
-                
+
                 <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase text-center mb-4">
                     Anular Proyecto Especial
                 </h3>
-                
+
                 <p className="text-gray-500 font-bold text-sm leading-relaxed text-center mb-10">
                     Esta acción marcará el proyecto <span className="text-[#303a7f]">#{project.invoice}</span> como "anulado" en la base de datos. Esta acción no se puede deshacer.
                     <br /><br />
@@ -6058,11 +6120,10 @@ const AnularProjectModal = ({ project, onClose, onConfirm }) => {
                     <button
                         onClick={() => onConfirm(inputInvoice)}
                         disabled={!isValid}
-                        className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
-                            isValid 
-                            ? 'bg-red-500 text-white shadow-red-900/20 hover:bg-red-600' 
+                        className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 ${isValid
+                            ? 'bg-red-500 text-white shadow-red-900/20 hover:bg-red-600'
                             : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
-                        }`}
+                            }`}
                     >
                         Anular
                     </button>
@@ -7054,7 +7115,7 @@ function App() {
         if (!projectIdConsolidacion) return false;
 
         // Buscar el registro original en el historial para no perder datos de otras columnas
-        const existing = specialProjectsHistoryData.find(h => 
+        const existing = specialProjectsHistoryData.find(h =>
             String(h.id_consolidacion || h.ID_Consolidacion || '').trim() === String(projectIdConsolidacion).trim()
         );
 
@@ -8298,9 +8359,9 @@ function App() {
             // FIX Bug #2: Normalizar apóstrofe en ambos lados para comparación robusta.
             setNominaHistoryData(prev => prev.map(h =>
                 (String(h.nombre).trim().toLowerCase() === String(record.nombre).trim().toLowerCase() &&
-                 String(h.codigo).replace(/^'+/, '').trim() === String(record.codigo).replace(/^'+/, '').trim())
-                ? { ...h, "pago": paymentAmount, "fecha de pago": paymentDate, "wos": wosNumber }
-                : h
+                    String(h.codigo).replace(/^'+/, '').trim() === String(record.codigo).replace(/^'+/, '').trim())
+                    ? { ...h, "pago": paymentAmount, "fecha de pago": paymentDate, "wos": wosNumber }
+                    : h
             ));
 
             // FIX Bug #1 y #4: Construir el payload completo AHORA, en el momento del click,
@@ -8331,8 +8392,8 @@ function App() {
             // Actualizar estado local para feedback inmediato.
             setSpecialProjectsHistoryData(prev => prev.map(h =>
                 (String(h.correlativo || h.Correlativo || '').trim() === String(record.correlativo || record.Correlativo || '').trim())
-                ? { ...h, "pago": paymentAmount, "fecha de pago": paymentDate, "wos": wosNumber }
-                : h
+                    ? { ...h, "pago": paymentAmount, "fecha de pago": paymentDate, "wos": wosNumber }
+                    : h
             ));
 
             // FIX Bug #1 y #4: Construir el payload completo AHORA, en el momento del click,
@@ -9667,21 +9728,20 @@ function App() {
                                                 );
                                                 return (
                                                     <>
-                                                    <button
-                                                        onClick={handleOpenSpecialProjects}
-                                                        disabled={semanaTableData.length === 0 || isCurrentWeekApproved}
-                                                        title={isCurrentWeekApproved ? 'Semana aprobada: no se pueden agregar Proyectos Especiales' : 'Abrir Proyectos Especiales'}
-                                                        className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${
-                                                            isCurrentWeekApproved
+                                                        <button
+                                                            onClick={handleOpenSpecialProjects}
+                                                            disabled={semanaTableData.length === 0 || isCurrentWeekApproved}
+                                                            title={isCurrentWeekApproved ? 'Semana aprobada: no se pueden agregar Proyectos Especiales' : 'Abrir Proyectos Especiales'}
+                                                            className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${isCurrentWeekApproved
                                                                 ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60'
                                                                 : semanaTableData.length > 0
                                                                     ? 'bg-amber-50 text-[#b76b00] border-amber-100 hover:bg-amber-100'
                                                                     : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
-                                                        }`}
-                                                    >
-                                                        <Star size={16} fill="currentColor" />
-                                                        <span className="text-[9px] font-black uppercase tracking-widest leading-none">Proyectos Especiales</span>
-                                                    </button>
+                                                                }`}
+                                                        >
+                                                            <Star size={16} fill="currentColor" />
+                                                            <span className="text-[9px] font-black uppercase tracking-widest leading-none">Proyectos Especiales</span>
+                                                        </button>
                                                     </>
                                                 );
                                             })()}
@@ -9772,19 +9832,19 @@ function App() {
                                                                         String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
                                                                         h.fecha_inicio === fechaDesde
                                                                     ) && (
-                                                                        <div className="flex flex-col gap-1">
-                                                                            <button
-                                                                                onClick={() => handleBulkAudit(idx, 'sup')}
-                                                                                className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'sup' ? 'bg-[#303a7f] text-white border-[#303a7f]' : 'bg-blue-50 text-[#303a7f] border-blue-100 hover:bg-[#303a7f] hover:text-white'}`}
-                                                                                title="Toda la semana: Supervisor"
-                                                                            >S</button>
-                                                                            <button
-                                                                                onClick={() => handleBulkAudit(idx, 'bio')}
-                                                                                className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'bio' ? 'bg-[#6bbdb7] text-white border-[#6bbdb7]' : 'bg-teal-50 text-[#6bbdb7] border-teal-100 hover:bg-[#6bbdb7] hover:text-white'}`}
-                                                                                title="Toda la semana: Biométrico"
-                                                                            >B</button>
-                                                                        </div>
-                                                                    )}
+                                                                            <div className="flex flex-col gap-1">
+                                                                                <button
+                                                                                    onClick={() => handleBulkAudit(idx, 'sup')}
+                                                                                    className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'sup' ? 'bg-[#303a7f] text-white border-[#303a7f]' : 'bg-blue-50 text-[#303a7f] border-blue-100 hover:bg-[#303a7f] hover:text-white'}`}
+                                                                                    title="Toda la semana: Supervisor"
+                                                                                >S</button>
+                                                                                <button
+                                                                                    onClick={() => handleBulkAudit(idx, 'bio')}
+                                                                                    className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'bio' ? 'bg-[#6bbdb7] text-white border-[#6bbdb7]' : 'bg-teal-50 text-[#6bbdb7] border-teal-100 hover:bg-[#6bbdb7] hover:text-white'}`}
+                                                                                    title="Toda la semana: Biométrico"
+                                                                                >B</button>
+                                                                            </div>
+                                                                        )}
                                                                     <div className="flex flex-col">
                                                                         <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
                                                                         <span className="text-[9px] font-black text-[#6bbdb7] tabular-nums tracking-[0.1em] mt-1">ID: {row.codigo || '----'}</span>
@@ -9806,21 +9866,21 @@ function App() {
                                                                                 String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
                                                                                 h.fecha_inicio === fechaDesde
                                                                             ) && (
-                                                                                <div className="flex justify-between gap-1">
-                                                                                    <button
-                                                                                        onClick={() => handleAuditChange(idx, day, dayVal.sup)}
-                                                                                        className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.sup ? 'bg-blue-100/50 border-[#303a7f]/20 text-[#303a7f] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'}`}
-                                                                                    >
-                                                                                        {dayVal.sup}
-                                                                                    </button>
-                                                                                    <button
-                                                                                        onClick={() => handleAuditChange(idx, day, dayVal.bio)}
-                                                                                        className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.bio ? 'bg-teal-50/50 border-[#6bbdb7]/20 text-[#6bbdb7] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'} ${dayVal.bio === 'X' ? '!text-red-500' : ''}`}
-                                                                                    >
-                                                                                        {dayVal.bio}
-                                                                                    </button>
-                                                                                </div>
-                                                                            )}
+                                                                                    <div className="flex justify-between gap-1">
+                                                                                        <button
+                                                                                            onClick={() => handleAuditChange(idx, day, dayVal.sup)}
+                                                                                            className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.sup ? 'bg-blue-100/50 border-[#303a7f]/20 text-[#303a7f] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'}`}
+                                                                                        >
+                                                                                            {dayVal.sup}
+                                                                                        </button>
+                                                                                        <button
+                                                                                            onClick={() => handleAuditChange(idx, day, dayVal.bio)}
+                                                                                            className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.bio ? 'bg-teal-50/50 border-[#6bbdb7]/20 text-[#6bbdb7] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'} ${dayVal.bio === 'X' ? '!text-red-500' : ''}`}
+                                                                                        >
+                                                                                            {dayVal.bio}
+                                                                                        </button>
+                                                                                    </div>
+                                                                                )}
                                                                             {/* Input de Auditoría — bloqueado en solo lectura si la semana fue aprobada */}
                                                                             {(() => {
                                                                                 const weekLocked = (nominaHistoryData || []).some(h =>
