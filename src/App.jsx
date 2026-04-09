@@ -5352,12 +5352,14 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
     // Estados locales para evitar re-renders globales en cada tecla
     const [localNombre, setLocalNombre] = useState(project.nombre || '');
     const [localDesc, setLocalDesc] = useState(project.descripcion || '');
+    const [localComentarios, setLocalComentarios] = useState(project.comentarios || '');
 
     // Sincronizar estados locales si el proyecto cambia externamente (ej: al cargar)
     useEffect(() => {
         setLocalNombre(project.nombre || '');
         setLocalDesc(project.descripcion || '');
-    }, [project.nombre, project.descripcion]);
+        setLocalComentarios(project.comentarios || '');
+    }, [project.nombre, project.descripcion, project.comentarios]);
 
     // Actualiza un campo del proyecto (invoice, fecha, nombre, descripcion)
     const updateMeta = (field, value) => onUpdateProject(project.id, { [field]: value });
@@ -5486,6 +5488,29 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                             className={`${inputCls} ${isRegistered ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
                     </div>
+                </div>
+
+                {/* Observaciones (Comentarios) */}
+                <div className="mt-4">
+                    <div className="flex justify-between items-center mb-1.5">
+                        <label className={labelCls}>Observaciones / Comentarios Internos</label>
+                        <span className={`text-[8px] font-black uppercase tracking-widest ${localComentarios.length >= 200 ? 'text-red-500' : 'text-gray-400'}`}>
+                            {localComentarios.length} / 200
+                        </span>
+                    </div>
+                    <textarea
+                        value={localComentarios}
+                        placeholder="Deje aquí cualquier observación relevante para la facturación o el pago... (Máximo 200 caracteres)"
+                        onChange={(e) => {
+                            if (e.target.value.length <= 200) {
+                                setLocalComentarios(e.target.value);
+                            }
+                        }}
+                        onBlur={() => updateMeta('comentarios', localComentarios)}
+                        readOnly={isRegistered}
+                        rows={2}
+                        className={`${inputCls} resize-none py-3 ${isRegistered ? 'opacity-60 cursor-not-allowed' : 'hover:border-[#6bbdb7]'}`}
+                    />
                 </div>
             </div>
 
@@ -5884,6 +5909,14 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Observaciones / Notes */}
+                        {project.comentarios && (
+                            <div className="mb-12 p-8 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200">
+                                <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-2">Observations / Notes</span>
+                                <p className="text-xs font-bold text-[#303a7f] leading-relaxed italic">"{project.comentarios}"</p>
+                            </div>
+                        )}
 
                         {/* Total Area */}
                         <div className="flex justify-end pr-5">
@@ -6880,6 +6913,7 @@ function App() {
                 fecha: project.fecha,
                 proyecto: project.nombre,
                 descripcion: project.descripcion,
+                comentarios: project.comentarios,
                 employees: project.employees || []
             }),
             Fecha_Confirmacion: currentTimestamp,
@@ -6951,6 +6985,7 @@ function App() {
                         fecha: item.fecha || fechaDesde,
                         nombre: item.proyecto || item.nombre || '',
                         descripcion: item.descripcion || '',
+                        comentarios: item.comentarios || '',
                         employees: Array.isArray(item.employees) ? item.employees : [],
                         status: 'registered'
                     }));
