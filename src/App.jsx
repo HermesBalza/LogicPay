@@ -6050,9 +6050,127 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 };
 
 // ─── Componente del Modal de Factura (Elegante y Premium) ───────────────────
+// ─── Modal Premium de Envío de Factura por Correo ──────────────────────────────
+const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend }) => {
+    const [to, setTo] = useState('');
+    const [subject, setSubject] = useState(`Invoice #${project.invoice} - ${project.proyecto || project.nombre} - ${project.tienda}`);
+    const [body, setBody] = useState(`Hola,\n\nAdjunto envío la factura #${project.invoice} correspondiente a los servicios profesionales del Proyecto Especial "${project.proyecto || project.nombre}" en la tienda ${project.tienda}.\n\nSaludos,\nLogic Group Management`);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300 font-sans">
+            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-[0_32px_80px_rgba(48,58,127,0.25)] border-2 border-white/50 overflow-hidden animate-in zoom-in-95 duration-500">
+                {/* Header */}
+                <div className="px-10 py-6 border-b-2 border-gray-50 bg-gradient-to-r from-blue-50/50 to-transparent flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <Mail size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Enviar Factura</h3>
+                            <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Configuración de Envío de Proyecto</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Body - Grid Layout */}
+                <div className="px-10 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                        {/* To */}
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
+                            <div className="relative">
+                                <input
+                                    type="email"
+                                    value={to}
+                                    onChange={(e) => setTo(e.target.value)}
+                                    placeholder="ejemplo@kbs-services.com"
+                                    className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
+                                />
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]">
+                                    <Send size={16} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Subject */}
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto del Correo</label>
+                            <input
+                                type="text"
+                                value={subject}
+                                onChange={(e) => setSubject(e.target.value)}
+                                className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
+                            />
+                        </div>
+
+                        {/* Attachment Preview */}
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documento Adjunto</label>
+                            <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
+                                <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10">
+                                    <FileText size={18} />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">Invoice_{project.invoice}.pdf</p>
+                                    <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
+                                </div>
+                                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm">
+                                    <Check size={14} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column: Message */}
+                    <div className="flex flex-col space-y-1.5 h-full">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
+                        <div className="flex-1 relative min-h-[180px]">
+                            <textarea
+                                value={body}
+                                onChange={(e) => setBody(e.target.value)}
+                                className="w-full h-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-10 pb-10 flex gap-4">
+                    <button
+                        onClick={onClose}
+                        className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={() => onSend({ to, subject, body })}
+                        className="flex-1 py-4 bg-[#6bbdb7] text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-[0_15px_30px_rgba(107,189,183,0.3)] hover:bg-[#59aba5] transition-all active:scale-95 flex items-center justify-center gap-3 group"
+                    >
+                        <Receipt size={18} className="group-hover:rotate-12 transition-transform" />
+                        Enviar Ahora
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
     const reportRef = useRef(null);
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+
     if (!isOpen || !project) return null;
+
+    const handleSendEmail = (emailData) => {
+        console.log('Enviando factura por email:', emailData);
+        alert(`Configuración lista: Se enviará el Invoice #${project.invoice} a ${emailData.to} cuando terminemos el Paso 3.`);
+        setIsEmailModalOpen(false);
+    };
 
     const handleDownloadPDF = async () => {
         const element = reportRef.current;
@@ -6197,6 +6315,13 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
                         Cerrar
                     </button>
                     <button
+                        onClick={() => setIsEmailModalOpen(true)}
+                        className="px-10 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl shadow-blue-900/10 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3"
+                    >
+                        <Mail size={18} />
+                        Enviar por Correo
+                    </button>
+                    <button
                         onClick={handleDownloadPDF}
                         className="px-12 py-4 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl shadow-teal-900/20 hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3"
                     >
@@ -6205,6 +6330,14 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
                     </button>
                 </div>
             </div>
+
+            {/* Modal de Envío por Correo */}
+            <SpecialProjectEmailModal
+                isOpen={isEmailModalOpen}
+                onClose={() => setIsEmailModalOpen(false)}
+                project={project}
+                onSend={handleSendEmail}
+            />
         </div>
     );
 };
@@ -6382,7 +6515,7 @@ const BillingView = ({
             utilidad: (stats.facturacion || 0) - (stats.costos || 0),
             pago: h['pago'] || h['Pago'] || '',
             fecha_pago: h['fecha de pago'] || h['Fecha de Pago'] || '',
-            wos: h['wos'] || h['WOS'] || 0,
+            wos: h['wos'] || h['WOS'] || '',
             pagada: isPaid
         };
     });
@@ -6437,7 +6570,7 @@ const BillingView = ({
                         radicacion: h['Fecha Rad.'] || h['fecha rad.'] || '',
                         pago: h['Pago'] || h['pago'] || '',
                         fecha_pago: h['Fecha de Pago'] || h['fecha de pago'] || '',
-                        wos: h['WOS'] || h['wos'] || 0,
+                        wos: h['WOS'] || h['wos'] || '',
                         pagada: h['pagada'] === true || h['pagada'] === 'true' || (h['Status'] || h['status']) === 'Paid'
                     };
                 }
@@ -6560,8 +6693,8 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <input type="number" value={row.wos} onChange={(e) => onUpdateManual(row.id, 'wos', e.target.value)}
-                                        className={`bg-transparent border-none text-[10px] font-black outline-none w-8 text-center ${row.wos > 0 ? 'text-orange-500' : 'text-gray-300'}`} />
+                                    <input type="text" value={row.wos} onChange={(e) => onUpdateManual(row.id, 'wos', e.target.value)}
+                                        className={`bg-transparent border-none text-[10px] font-black outline-none w-20 text-center ${row.wos ? 'text-orange-500' : 'text-gray-300'}`} />
                                 </td>
                                 <td className="px-3 py-4 text-center">
                                     <input
@@ -6654,8 +6787,8 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <input type="number" value={row.wos} onChange={(e) => onUpdateManualPE(row.correlativo, 'wos', e.target.value)}
-                                        className={`bg-transparent border-none text-[10px] font-black outline-none w-8 text-center ${row.wos > 0 ? 'text-orange-500' : 'text-gray-300'}`} />
+                                    <input type="text" value={row.wos} onChange={(e) => onUpdateManualPE(row.correlativo, 'wos', e.target.value)}
+                                        className={`bg-transparent border-none text-[10px] font-black outline-none w-20 text-center ${row.wos ? 'text-orange-500' : 'text-gray-300'}`} />
                                 </td>
                                 <td className="px-3 py-4 text-center">
                                     <input
