@@ -2191,14 +2191,14 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
 
                             <div className="mt-8 p-6 bg-blue-50/30 rounded-[1.5rem] border border-blue-100/50">
                                 <p className="text-[10px] font-bold text-[#303a7f]/60 uppercase tracking-widest leading-relaxed text-center">
-                                    Estos datos fueron extraídos automáticamente del PDF mediante inteligencia artificial AdWisers. Representan el desglose exacto contenido en el documento oficial de KBS.
+                                    Estos datos representan información exacta extraída del Documento WOS enviado por KBS.
                                 </p>
                             </div>
                         </div>
 
                         {/* Footer */}
                         <div className="p-6 border-t font-black text-[10px] text-gray-400 text-center uppercase tracking-[0.2em] bg-white">
-                            LogicPay Auditor Audit Evidence
+                            LogicPay by AdWisers
                         </div>
                     </div>
                 </div>
@@ -6819,104 +6819,8 @@ const BillingView = ({
 
 // --- CONFIGURACIÓN VIEW (MAESTRO) ---
 const SettingsView = () => {
-    const [showKey, setShowKey] = useState(false);
-    const geminiKey = import.meta.env.VITE_GEMINI_API_KEY || 'No configurada';
-
     return (
-        <div className="w-full h-full flex flex-col animate-in fade-in duration-700 bg-[#fcfdfe]">
-            <div className="p-12 max-w-4xl mx-auto w-full">
-                {/* Header Premium de Ajustes */}
-                <div className="flex items-center gap-6 mb-16">
-                    <div className="p-5 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-3xl shadow-xl shadow-blue-900/10 transform -rotate-3">
-                        <Settings size={32} />
-                    </div>
-                    <div>
-                        <h2 className="text-4xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-2">Configuración Central</h2>
-                        <p className="text-[#6bbdb7] text-xs font-black uppercase tracking-[0.3em] opacity-80 italic">LogicPay Management System v2.5</p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                    {/* Tarjeta de Inteligencia Artificial */}
-                    <div className="bg-white rounded-[2.5rem] border-2 border-gray-100 p-10 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-500 group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                            <Cpu size={120} className="text-[#303a7f]" />
-                        </div>
-
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="w-12 h-12 rounded-2xl bg-teal-50 flex items-center justify-center text-[#6bbdb7]">
-                                <Sparkles size={24} />
-                            </div>
-                            <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tight">Inteligencia Artificial</h3>
-                        </div>
-
-                        <p className="text-gray-400 text-sm font-bold leading-relaxed mb-10">
-                            Configure la llave de acceso para los motores de <span className="text-[#303a7f]">Google Gemini</span>. Esta llave permite el procesamiento de auditorías WOS y análisis de nómina con IA.
-                        </p>
-
-                        <div className="space-y-6 relative z-10">
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Gemini API Key (Configurada en .env)</label>
-                                <div className="relative group">
-                                    <input
-                                        type={showKey ? "text" : "password"}
-                                        value={geminiKey}
-                                        readOnly
-                                        className="w-full bg-gray-50/50 border-2 border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold text-[#303a7f]/50 outline-none cursor-not-allowed tabular-nums"
-                                    />
-                                    <button
-                                        onClick={() => setShowKey(!showKey)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-teal-600 transition-colors"
-                                    >
-                                        {showKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="pt-2">
-                                <div className="flex items-center gap-3 p-4 bg-teal-50/50 rounded-2xl border-2 border-[#6bbdb7]/20 border-dashed">
-                                    <Lock size={16} className="text-[#6bbdb7]" />
-                                    <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-tighter leading-none m-0">Inmutable (Seguridad de Entorno)</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Tarjeta Informativa de Seguridad */}
-                    <div className="bg-[#303a7f] rounded-[2.5rem] p-10 shadow-2xl shadow-blue-900/20 flex flex-col justify-between relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
-
-                        <div>
-                            <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-white mb-8">
-                                <ShieldCheck size={28} />
-                            </div>
-                            <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-4">Arquitectura Stateless</h3>
-                            <p className="text-blue-100/60 text-sm font-bold leading-relaxed">
-                                Este sistema NO utiliza almacenamiento local persistente (localStorage). Toda la información de sesión y variables operativas se sincronizan en una arquitectura central basada en la nube, garantizando que todos los usuarios autorizados trabajen sobre la misma fuente de verdad en tiempo real.
-                            </p>
-                        </div>
-
-                        <div className="mt-12 bg-white/5 rounded-2xl p-6 border border-white/10 space-y-4">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <Activity size={14} className="text-teal-400" />
-                                    <span className="text-[10px] font-black text-white uppercase tracking-widest">IA Engine Status</span>
-                                </div>
-                                <div className="w-1.5 h-1.5 bg-teal-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(45,212,191,0.8)]" />
-                            </div>
-                            <p className="text-xs font-bold text-blue-100/40 m-0">
-                                Model: <span className="text-[#6bbdb7] uppercase tracking-tighter">gemini-3-flash-preview</span>
-                            </p>
-                            <div className="h-px bg-white/5" />
-                            <div className="flex items-center gap-3">
-                                <History size={14} className="text-[#6bbdb7]" />
-                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Cloud Sync Mode: ON</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <div className="w-full h-full bg-white animate-in fade-in duration-700" />
     );
 };
 
@@ -6932,14 +6836,18 @@ const USER_REGISTRY = [
 function App() {
     const [variablesLoaded, setVariablesLoaded] = useState(false);
     const initialLoadApplied = useRef(false);
-    const [activeTab, setActiveTab] = useState('stores');
+    const [activeTab, setActiveTab] = useState(sessionStorage.getItem('activeTab') || 'stores');
     const [isSidebarOpen, setSidebarOpen] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm, setSearchTerm] = useState(sessionStorage.getItem('searchTerm') || '');
     const [editingStore, setEditingStore] = useState(null);
+    const pendingStoreId = useRef(sessionStorage.getItem('editingStoreId'));
     const [isAddingStore, setIsAddingStore] = useState(false);
     const [editingEmployee, setEditingEmployee] = useState(null);
+    const pendingEmployeeId = useRef(sessionStorage.getItem('editingEmployeeId'));
     const [isAddingEmployee, setIsAddingEmployee] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [stores, setStores] = useState([]);
+    const [employees, setEmployees] = useState([]);
     const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado' | 'desconectado' | 'sincronizando'
 
     const [user, setUser] = useState(null);
@@ -6966,8 +6874,8 @@ function App() {
     const [payrollProgress, setPayrollProgress] = useState(0); // FASE 5: Progreso Nómina
     const [payrollTotalRows, setPayrollTotalRows] = useState(0); // FASE 5: Total filas Nómina
     const [payrollStep, setPayrollStep] = useState('supervisor'); // 'supervisor' | 'ia' | 'crossover'
-    const [fechaDesde, setFechaDesde] = useState('');
-    const [fechaHasta, setFechaHasta] = useState('');
+    const [fechaDesde, setFechaDesde] = useState(sessionStorage.getItem('fechaDesde') || '');
+    const [fechaHasta, setFechaHasta] = useState(sessionStorage.getItem('fechaHasta') || '');
     const [earningsTableData, setEarningsTableData] = useState([]); // FASE 6: Reporte Monetario (LSG)
     const [kbsBillingTableData, setKbsBillingTableData] = useState([]); // FASE 6.5: Reporte Facturación (KBS)
     const [isWeeklyApproved, setIsWeeklyApproved] = useState(false); // FASE 6: Estado de aprobación
@@ -6975,12 +6883,16 @@ function App() {
     const [statusModalMessage, setStatusModalMessage] = useState('');
     const [statusModalTitle, setStatusModalTitle] = useState('');
     const [statusModalType, setStatusModalType] = useState('success'); // 'success' | 'error'
-    const [payrollView, setPayrollView] = useState('history'); // 'history' | 'engine'
-    const [isBiweeklyManagementOpen, setIsBiweeklyManagementOpen] = useState(false);
-    const [selectedBiweeklyPeriod, setSelectedBiweeklyPeriod] = useState(null);
+    const [payrollView, setPayrollView] = useState(sessionStorage.getItem('payrollView') || 'history'); // 'history' | 'engine'
+    const [isBiweeklyManagementOpen, setIsBiweeklyManagementOpen] = useState(sessionStorage.getItem('isBiweeklyManagementOpen') === 'true');
+    const [selectedBiweeklyPeriod, setSelectedBiweeklyPeriod] = useState(() => {
+        const saved = sessionStorage.getItem('selectedBiweeklyPeriod');
+        if (saved) try { return JSON.parse(saved); } catch (e) { return null; }
+        return null;
+    });
     const [nominaHistoryData, setNominaHistoryData] = useState([]); // FASE 9: Historial Persistente
     const [nominaDetailData, setNominaDetailData] = useState([]); // FASE 9.5: Detalle Consolidado (Comentarios)
-    const [selectedHistoryStore, setSelectedHistoryStore] = useState('');
+    const [selectedHistoryStore, setSelectedHistoryStore] = useState(sessionStorage.getItem('selectedHistoryStore') || '');
     const [isHistoricalDataLoaded, setIsHistoricalDataLoaded] = useState(false); // Flag para la UI
     const [processedBiweeks, setProcessedBiweeks] = useState([]);
 
@@ -8409,13 +8321,80 @@ function App() {
     //     if (variablesLoaded) syncVariableToSheets('active_tab', activeTab);
     // }, [activeTab, variablesLoaded]);
 
+    // --- LÓGICA DE PERSISTENCIA DE NAVEGACIÓN (Nivel Dios) ---
+    useEffect(() => {
+        sessionStorage.setItem('activeTab', activeTab);
+        sessionStorage.setItem('editingStoreId', editingStore?.codigo || '');
+        sessionStorage.setItem('editingEmployeeId', editingEmployee?.codigo_empleado || '');
+        sessionStorage.setItem('isBiweeklyManagementOpen', isBiweeklyManagementOpen);
+        sessionStorage.setItem('payrollView', payrollView);
+        sessionStorage.setItem('searchTerm', searchTerm);
+        if (selectedBiweeklyPeriod) sessionStorage.setItem('selectedBiweeklyPeriod', JSON.stringify(selectedBiweeklyPeriod));
+        else sessionStorage.removeItem('selectedBiweeklyPeriod');
+        if (selectedHistoryStore) sessionStorage.setItem('selectedHistoryStore', selectedHistoryStore);
+        if (fechaDesde) sessionStorage.setItem('fechaDesde', fechaDesde);
+        if (fechaHasta) sessionStorage.setItem('fechaHasta', fechaHasta);
+    }, [activeTab, editingStore, editingEmployee, isBiweeklyManagementOpen, payrollView, selectedHistoryStore, fechaDesde, fechaHasta]);
+
+    // Re-hidratación de Tiendas
+    useEffect(() => {
+        if (stores.length > 0 && pendingStoreId.current) {
+            const store = stores.find(s => s.codigo === pendingStoreId.current);
+            if (store) {
+                setEditingStore(store);
+            }
+            pendingStoreId.current = null; // Solo una vez
+        }
+    }, [stores]);
+
+    // Re-hidratación de Personal
+    useEffect(() => {
+        if (employees.length > 0 && pendingEmployeeId.current) {
+            const emp = employees.find(e => e.codigo_empleado === pendingEmployeeId.current);
+            if (emp) {
+                setEditingEmployee(emp);
+            }
+            pendingEmployeeId.current = null; // Solo una vez
+        }
+    }, [employees]);
+
+    // Re-hidratación de Nómina (Engine View)
+    useEffect(() => {
+        if (activeTab === 'payroll' && payrollView === 'engine' && selectedHistoryStore && fechaDesde && nominaHistoryData.length > 0 && !isHistoricalDataLoaded) {
+            const normalizeDate = (d) => {
+                if (!d) return '';
+                const parts = d.split('/');
+                if (parts.length === 3) {
+                    return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+                }
+                return d;
+            };
+            const targetStart = normalizeDate(fechaDesde);
+            const hData = nominaHistoryData.find(h =>
+                String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
+                normalizeDate(h.fecha_inicio) === targetStart
+            );
+
+            if (hData) {
+                try {
+                    const payload = JSON.parse(hData.data_json);
+                    setSemanaTableData(payload.semanaTableData || []);
+                    setBiometricTableData(payload.biometricTableData || []);
+                    setEarningsTableData(payload.earningsTableData || []);
+                    setKbsBillingTableData(payload.kbsBillingTableData || []);
+                    setRawBiometricData(payload.rawBiometricData || []);
+                    setPayrollStore(selectedHistoryStore);
+                    setIsHistoricalDataLoaded(true);
+                } catch (e) { console.error('Error re-hidratando nómina:', e); }
+            }
+        }
+    }, [activeTab, payrollView, selectedHistoryStore, fechaDesde, nominaHistoryData, isHistoricalDataLoaded]);
+
     const handleLogout = () => {
         setUser(null);
         syncVariableToSheets('user', null);
+        sessionStorage.clear(); // Limpiar rastro de navegación
     };
-
-    const [stores, setStores] = useState([]);
-    const [employees, setEmployees] = useState([]);
 
     const processSheetImagesWithAI = async () => {
         if (!sheetFiles.length || !geminiApiKey) {
@@ -9453,6 +9432,13 @@ function App() {
                             )}
                         </button>
                     ))}
+
+                    {/* Branding al extremo derecho */}
+                    <div className="absolute right-6 hidden xl:flex items-center gap-3 px-4 py-2 bg-white/5 rounded-2xl border border-white/10 transition-all duration-500 hover:bg-white/10 cursor-default group">
+                        <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 group-hover:text-[#6bbdb7] transition-colors">
+                            LogicPay v1.2<span className="text-white/10 mx-1">|</span> <span className="text-white/20 group-hover:text-white/40">by AdWisers</span>
+                        </span>
+                    </div>
                 </nav>
                 {/* Subtle page-level decoration */}
                 <div
