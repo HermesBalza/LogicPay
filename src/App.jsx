@@ -58,7 +58,8 @@ import {
     Zap,
     Sparkles,
     EyeOff,
-    Activity
+    Activity,
+    Loader2
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -70,6 +71,7 @@ const genAIClient = (key) => new GoogleGenerativeAI(key);
 
 // ─── BASE DE DATOS: Google Sheets via Apps Script (escritura) ───────────────
 const API_URL = 'https://script.google.com/macros/s/AKfycbxpul9_uMVb1RfBj7E5ASUJ470Ps4b5seldhCdC1oOTCNkgcWU0HNIpkP1k5eTXImrEoA/exec';
+const MAIL_API_URL = 'https://script.google.com/macros/s/AKfycbwJO2nSGQxA5TjaMUsuhlVUlZhksSFIm1oQihRsM3M9C6BJoMeBOu4mu7Nqxd56bVYunw/exec'; // Vincular con la URL del Script desplegado en la segunda cuenta de Gmail
 
 // ─── BASE DE DATOS: Google Sheets publicado como CSV (lectura) ───────────────
 const SHEETS_CSV_URL = import.meta.env.VITE_SHEET_TIENDAS_URL;
@@ -3213,7 +3215,51 @@ const InvalidCodesModal = ({ isOpen, onClose, invalidEmployees }) => {
     );
 };
 
-const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend }) => {
+
+// ─── Modal de Notificación de Envío (Premium) ──────────────────────────────
+const EmailNotificationModal = ({ isOpen, type, message, onOk }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-10 flex flex-col items-center text-center animate-in zoom-in-95 duration-500 border-2 border-white relative overflow-hidden">
+                {/* Background Decor */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16 opacity-50" />
+                
+                <div className={`w-20 h-20 rounded-[1.8rem] flex items-center justify-center mb-8 shadow-2xl transition-all duration-500 relative z-10 ${
+                    type === 'loading' 
+                    ? 'bg-[#303a7f] text-white shadow-blue-900/20' 
+                    : 'bg-[#6bbdb7] text-white shadow-teal-900/20'
+                }`}>
+                    {type === 'loading' ? (
+                        <Loader2 size={36} className="animate-spin" />
+                    ) : (
+                        <CheckCircle size={36} className="animate-in zoom-in duration-500" />
+                    )}
+                </div>
+
+                <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-4 relative z-10">
+                    {type === 'loading' ? 'Enviando...' : '¡Correo Enviado!'}
+                </h3>
+                
+                <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-10 uppercase tracking-[0.1em] px-4 relative z-10">
+                    {message}
+                </p>
+
+                {type === 'success' && (
+                    <button
+                        onClick={onOk}
+                        className="w-full py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#1e234d] transition-all active:scale-95 relative z-10"
+                    >
+                        Ok, Entendido
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending }) => {
     const [to, setTo] = useState('');
     const [subject, setSubject] = useState(`Reporte VWH - ${storeName} - Periodo: ${fechaDesde} - ${fechaHasta}`);
     const [body, setBody] = useState(`Hola,\n\nAdjunto envío el reporte de nómina correspondiente a la semana del ${fechaDesde} al ${fechaHasta} para la tienda ${storeName}.\n\nSaludos,\nLogic Group Management`);
@@ -3310,11 +3356,16 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                         Cancelar
                     </button>
                     <button
-                        onClick={() => onSend({ to, subject, body })}
-                        className="flex-1 py-4 bg-[#6bbdb7] text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-[0_15px_30px_rgba(107,189,183,0.3)] hover:bg-[#59aba5] transition-all active:scale-95 flex items-center justify-center gap-3 group"
+                        onClick={() => !isSending && onSend({ to, subject, body })}
+                        disabled={isSending}
+                        className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3 group ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-[0_15px_30px_rgba(107,189,183,0.3)] hover:bg-[#59aba5]'}`}
                     >
-                        <Receipt size={18} className="group-hover:rotate-12 transition-transform" />
-                        Enviar Ahora
+                        {isSending ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <Receipt size={18} className="group-hover:rotate-12 transition-transform" />
+                        )}
+                        {isSending ? 'Procesando Envío...' : 'Enviar Ahora'}
                     </button>
                 </div>
             </div>
@@ -3325,13 +3376,97 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
 const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta }) => {
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
+    const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
 
     if (!isOpen) return null;
 
-    const handleSendEmail = (emailData) => {
-        console.log('Enviando email:', emailData);
-        alert(`Configuración lista: Se enviará a ${emailData.to} cuando terminemos el Paso 3.`);
-        setIsEmailModalOpen(false);
+    const handleSendEmail = async (emailData) => {
+        if (!MAIL_API_URL) {
+            setNotificationModal({
+                isOpen: true,
+                type: 'success', // Usamos éxito con botón para mostrar errores críticos de config
+                message: "Error: No se ha configurado la URL del Script de Correo (MAIL_API_URL). Por favor vincule la cuenta primero."
+            });
+            return;
+        }
+
+        const element = reportRef.current;
+        if (!element) return;
+
+        setIsSendingEmail(true);
+        setNotificationModal({
+            isOpen: true,
+            type: 'loading',
+            message: `Estamos preparando y enviando el reporte a ${emailData.to}. Por favor, no cierre esta ventana.`
+        });
+
+        const originalStyle = element.style.cssText;
+        const scrollableDiv = element.querySelector('.overflow-y-auto');
+        let originalScrollStyle = '';
+        if (scrollableDiv) originalScrollStyle = scrollableDiv.style.cssText;
+
+        try {
+            element.style.height = 'auto';
+            element.style.maxHeight = 'none';
+            element.style.overflow = 'visible';
+            if (scrollableDiv) {
+                scrollableDiv.style.height = 'auto';
+                scrollableDiv.style.maxHeight = 'none';
+                scrollableDiv.style.overflow = 'visible';
+            }
+
+            const canvas = await html2canvas(element, {
+                scale: 1.5,
+                useCORS: true,
+                logging: false,
+                backgroundColor: "#ffffff",
+                windowWidth: element.scrollWidth,
+                windowHeight: element.scrollHeight
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const imgWidth = 210;
+            const pageHeight = (canvas.height * imgWidth) / canvas.width;
+            const pdf = new jsPDF('p', 'mm', [imgWidth, pageHeight]);
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
+
+            const pdfBase64 = pdf.output('datauristring').split(',')[1];
+
+            await fetch(MAIL_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    to: emailData.to,
+                    subject: emailData.subject,
+                    body: emailData.body,
+                    attachments: [{
+                        name: `VWH_Report_${payrollStore}_${fechaDesde.replace(/\//g, '-')}.pdf`,
+                        type: 'application/pdf',
+                        base64: pdfBase64
+                    }]
+                })
+            });
+
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: `El reporte VWH ha sido procesado y enviado con éxito a ${emailData.to}.`
+            });
+            setIsEmailModalOpen(false);
+        } catch (error) {
+            console.error('Error enviando email:', error);
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: "Ocurrió un error al procesar el envío. Por favor, verifique la conexión e intente nuevamente."
+            });
+        } finally {
+            setIsSendingEmail(false);
+            element.style.cssText = originalStyle;
+            if (scrollableDiv) scrollableDiv.style.cssText = originalScrollStyle;
+        }
     };
 
     const downloadVWHAsPDF = async () => {
@@ -3563,6 +3698,14 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
                 fechaDesde={fechaDesde}
                 fechaHasta={fechaHasta}
                 onSend={handleSendEmail}
+                isSending={isSendingEmail}
+            />
+
+            <EmailNotificationModal
+                isOpen={notificationModal.isOpen}
+                type={notificationModal.type}
+                message={notificationModal.message}
+                onOk={() => setNotificationModal({ ...notificationModal, isOpen: false })}
             />
         </div>
     );
@@ -6051,7 +6194,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 
 // ─── Componente del Modal de Factura (Elegante y Premium) ───────────────────
 // ─── Modal Premium de Envío de Factura por Correo ──────────────────────────────
-const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend }) => {
+const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending }) => {
     const [to, setTo] = useState('');
     const [subject, setSubject] = useState(`Invoice #${project.invoice} - ${project.proyecto || project.nombre} - ${project.tienda}`);
     const [body, setBody] = useState(`Hola,\n\nAdjunto envío la factura #${project.invoice} correspondiente a los servicios profesionales del Proyecto Especial "${project.proyecto || project.nombre}" en la tienda ${project.tienda}.\n\nSaludos,\nLogic Group Management`);
@@ -6148,11 +6291,16 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend }) => {
                         Cancelar
                     </button>
                     <button
-                        onClick={() => onSend({ to, subject, body })}
-                        className="flex-1 py-4 bg-[#6bbdb7] text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-[0_15px_30px_rgba(107,189,183,0.3)] hover:bg-[#59aba5] transition-all active:scale-95 flex items-center justify-center gap-3 group"
+                        onClick={() => !isSending && onSend({ to, subject, body })}
+                        disabled={isSending}
+                        className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3 group ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-[0_15px_30px_rgba(107,189,183,0.3)] hover:bg-[#59aba5]'}`}
                     >
-                        <Receipt size={18} className="group-hover:rotate-12 transition-transform" />
-                        Enviar Ahora
+                        {isSending ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <Receipt size={18} className="group-hover:rotate-12 transition-transform" />
+                        )}
+                        {isSending ? 'Procesando Envío...' : 'Enviar Ahora'}
                     </button>
                 </div>
             </div>
@@ -6163,13 +6311,80 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend }) => {
 const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
+    const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
 
     if (!isOpen || !project) return null;
 
-    const handleSendEmail = (emailData) => {
-        console.log('Enviando factura por email:', emailData);
-        alert(`Configuración lista: Se enviará el Invoice #${project.invoice} a ${emailData.to} cuando terminemos el Paso 3.`);
-        setIsEmailModalOpen(false);
+    const handleSendEmail = async (emailData) => {
+        if (!MAIL_API_URL) {
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: "Error: No se ha configurado la URL del Script de Correo (MAIL_API_URL). Por favor vincule la cuenta primero."
+            });
+            return;
+        }
+
+        const element = reportRef.current;
+        if (!element) return;
+
+        setIsSendingEmail(true);
+        setNotificationModal({
+            isOpen: true,
+            type: 'loading',
+            message: `Estamos preparando y enviando el Invoice #${project.invoice} a ${emailData.to}. Por favor espere.`
+        });
+
+        try {
+            const canvas = await html2canvas(element, {
+                scale: 1.5,
+                useCORS: true,
+                logging: false,
+                backgroundColor: "#ffffff",
+                windowWidth: 1000
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 210;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+
+            const pdfBase64 = pdf.output('datauristring').split(',')[1];
+
+            await fetch(MAIL_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    to: emailData.to,
+                    subject: emailData.subject,
+                    body: emailData.body,
+                    attachments: [{
+                        name: `Invoice_${project.invoice}_${project.tienda.replace(/\s+/g, '_')}.pdf`,
+                        type: 'application/pdf',
+                        base64: pdfBase64
+                    }]
+                })
+            });
+
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: `La factura #${project.invoice} ha sido enviada con éxito a ${emailData.to}.`
+            });
+            setIsEmailModalOpen(false);
+        } catch (error) {
+            console.error('Error enviando factura por email:', error);
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: "Error crítico al procesar el envío de la factura. Verifique la conexión."
+            });
+        } finally {
+            setIsSendingEmail(false);
+        }
     };
 
     const handleDownloadPDF = async () => {
@@ -6337,6 +6552,14 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
                 onClose={() => setIsEmailModalOpen(false)}
                 project={project}
                 onSend={handleSendEmail}
+                isSending={isSendingEmail}
+            />
+
+            <EmailNotificationModal
+                isOpen={notificationModal.isOpen}
+                type={notificationModal.type}
+                message={notificationModal.message}
+                onOk={() => setNotificationModal({ ...notificationModal, isOpen: false })}
             />
         </div>
     );
