@@ -65,7 +65,8 @@ import {
     BarChart3,
     PieChart,
     Filter,
-    Target
+    Target,
+    Eraser
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -670,78 +671,76 @@ const DashboardView = ({
             {/* Header & Controls */}
             <div className="px-8 pb-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-                    <div>
-                        <h2 className="text-3xl font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
-                            <Activity className="text-[#6bbdb7]" size={32} />
-                        </h2>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-xl shadow-blue-900/5 border border-gray-100">
+                            <div 
+                                className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200 cursor-pointer relative hover:bg-gray-100 transition-colors group"
+                                onClick={() => openDatePicker(fromDateRef)}
+                            >
+                                <Calendar size={14} className="text-[#303a7f] pointer-events-none" />
+                                <div className="min-w-[120px] pointer-events-none">
+                                    <span className="block text-xs font-black text-[#333333] uppercase tracking-wider">
+                                        {dateFrom ? formatDisplayDate(dateFrom) : 'Desde'}
+                                    </span>
+                                </div>
+                                <input
+                                    ref={fromDateRef}
+                                    type="date"
+                                    lang="en-US"
+                                    value={dateFrom || ''}
+                                    onChange={(e) => setDateFrom(e.target.value || null)}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (typeof e.target.showPicker === 'function') {
+                                            e.target.showPicker();
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            <div 
+                                className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200 cursor-pointer relative hover:bg-gray-100 transition-colors group"
+                                onClick={() => openDatePicker(toDateRef)}
+                            >
+                                <Calendar size={14} className="text-[#303a7f] pointer-events-none" />
+                                <div className="min-w-[120px] pointer-events-none">
+                                    <span className="block text-xs font-black text-[#333333] uppercase tracking-wider">
+                                        {dateTo ? formatDisplayDate(dateTo) : 'Hasta'}
+                                    </span>
+                                </div>
+                                <input
+                                    ref={toDateRef}
+                                    type="date"
+                                    lang="en-US"
+                                    value={dateTo || ''}
+                                    onChange={(e) => setDateTo(e.target.value || null)}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (typeof e.target.showPicker === 'function') {
+                                            e.target.showPicker();
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setDateFrom(null);
+                                    setDateTo(null);
+                                }}
+                                title="Limpiar Filtros de Fecha"
+                                className="flex items-center justify-center p-2.5 bg-[#f9f9f9] rounded-xl border border-gray-200 text-[#303a7f] hover:bg-blue-50 hover:text-blue-600 hover:border-blue-100 transition-all active:scale-95"
+                            >
+                                <Eraser size={16} strokeWidth={2.5} />
+                            </button>
+                        </div>
                     </div>
                     
-                    {/* Control Panel (Filtros) */}
+                    {/* Control Panel (Filtros Restantes) */}
                     <div className="flex flex-wrap gap-3 bg-white p-3 rounded-2xl shadow-xl shadow-blue-900/5 border border-gray-100">
-                        <div 
-                            className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200 cursor-pointer relative hover:bg-gray-100 transition-colors group"
-                            onClick={() => openDatePicker(fromDateRef)}
-                        >
-                            <Calendar size={14} className="text-[#303a7f] pointer-events-none" />
-                            <div className="min-w-[140px] pointer-events-none">
-                                <span className="block text-xs font-black text-[#333333] uppercase tracking-wider">
-                                    {dateFrom ? formatDisplayDate(dateFrom) : 'Desde'}
-                                </span>
-                            </div>
-                            <input
-                                ref={fromDateRef}
-                                type="date"
-                                lang="en-US"
-                                value={dateFrom || ''}
-                                onChange={(e) => setDateFrom(e.target.value || null)}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (typeof e.target.showPicker === 'function') {
-                                        e.target.showPicker();
-                                    }
-                                }}
-                            />
-                        </div>
-
-                        <div 
-                            className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200 cursor-pointer relative hover:bg-gray-100 transition-colors group"
-                            onClick={() => openDatePicker(toDateRef)}
-                        >
-                            <Calendar size={14} className="text-[#303a7f] pointer-events-none" />
-                            <div className="min-w-[140px] pointer-events-none">
-                                <span className="block text-xs font-black text-[#333333] uppercase tracking-wider">
-                                    {dateTo ? formatDisplayDate(dateTo) : 'Hasta'}
-                                </span>
-                            </div>
-                            <input
-                                ref={toDateRef}
-                                type="date"
-                                lang="en-US"
-                                value={dateTo || ''}
-                                onChange={(e) => setDateTo(e.target.value || null)}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (typeof e.target.showPicker === 'function') {
-                                        e.target.showPicker();
-                                    }
-                                }}
-                            />
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setDateFrom(null);
-                                setDateTo(null);
-                            }}
-                            className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200 text-xs font-black uppercase tracking-wider text-[#333333]"
-                        >
-                            <XCircle size={14} className="text-[#303a7f]" />
-                            Limpiar
-                        </button>
-
                         <div className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200">
                             <StoreIcon size={14} className="text-[#303a7f]" />
                             <select 
