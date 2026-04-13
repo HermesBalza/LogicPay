@@ -63,13 +63,18 @@ import {
     TrendingUp,
     TrendingDown,
     BarChart3,
-    PieChart,
+    PieChart as PieChartIcon,
     Filter,
     Target,
     Eraser
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { 
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, 
+  CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell,
+  ComposedChart, Line
+} from 'recharts';
 
 
 // ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
@@ -467,6 +472,7 @@ const DashboardView = ({
     const [selectedStore, setSelectedStore] = useState('Todas');
     const [selectedEmployee, setSelectedEmployee] = useState('Todos');
     const [selectedSupervisor, setSelectedSupervisor] = useState('Todos');
+    const [trendPeriod, setTrendPeriod] = useState('monthly'); // 'monthly' | 'weekly'
     const fromDateRef = useRef(null);
     const toDateRef = useRef(null);
 
@@ -504,7 +510,15 @@ const DashboardView = ({
         if (!dateFrom && !dateTo) return true;
         if (!dateStr) return false;
 
-        const d = new Date(dateStr.split(',')[0]);
+        let cleanStr = String(dateStr).split(',')[0].split('-')[0].trim();
+        const parts = cleanStr.split('/');
+        let d;
+        if (parts.length === 3) {
+            d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+        } else {
+            d = new Date(cleanStr);
+        }
+        
         if (isNaN(d.getTime())) return true;
 
         if (dateFrom) {
@@ -663,6 +677,77 @@ const DashboardView = ({
     const vwhRecords = filteredWOS.filter(w => w.WOS_Data && typeof w.WOS_Data === 'string' && w.WOS_Data.includes('VWH'));
     const incidenciaVWH = vwhRecords.length;
 
+    // ─── LÓGICA DE DATOS PARA GRÁFICOS (Recharts Data) ───────────────────────
+    
+    // Gráfico de Tendencia: Ingresos vs Costos
+    const chartTrendData = useMemo(() => {
+        const groups = {};
+        const processGroup = (dateStr, income, cost) => {
+            if (!dateStr) return;
+            
+            // 1. Limpieza y Parseo MM/DD/YYYY
+            let cleanStr = String(dateStr).split(',')[0].split('-')[0].trim();
+            if (!isDateInRange(cleanStr)) return;
+
+            const parts = cleanStr.split('/');
+            let d;
+            if (parts.length === 3) {
+                d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+            } else {
+                d = new Date(cleanStr);
+            }
+
+            if (isNaN(d.getTime())) return;
+            
+            // FILTRO NIVEL DIOS: No mostrar nada posterior al día de hoy (13 de Abril de 2026)
+            const today = new Date(2026, 3, 13, 23, 59, 59); 
+            if (d > today) return;
+
+            let key;
+            let sortKey;
+            
+            if (trendPeriod === 'monthly') {
+                const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                key = `${months[d.getMonth()]} ${d.getFullYear()}`;
+                sortKey = d.getFullYear() * 100 + d.getMonth();
+            } else {
+                const startOfYear = new Date(d.getFullYear(), 0, 1);
+                const diff = d.getTime() - startOfYear.getTime();
+                const oneDay = 86400000;
+                const dayOfYear = Math.floor(diff / oneDay);
+                const firstSundayOffset = startOfYear.getDay(); 
+                const weekNumber = Math.ceil((dayOfYear + firstSundayOffset + 1) / 7);
+                
+                key = `Sem ${weekNumber} (${d.getFullYear()})`;
+                sortKey = d.getFullYear() * 1000 + weekNumber;
+            }
+
+            if (!groups[key]) {
+                groups[key] = { label: key, ingresos: 0, costos: 0, sortKey };
+            }
+            groups[key].ingresos += income;
+            groups[key].costos += cost;
+        };
+
+        filteredNomina.forEach(n => processGroup(n.Fecha_Envio || n.Timestamp || n.Periodo, parseFloat(n.Pago_KBS) || 0, parseFloat(n.Pago_LGM) || 0));
+        filteredPE.forEach(pe => processGroup(pe.timestamp || pe.Timestamp || pe.fecha, parseFloat(pe.pago_kbs || pe.Pago_KBS) || 0, parseFloat(pe.pago_lgm || pe.Pago_LGM) || 0));
+
+        return Object.values(groups)
+            .filter(g => g.ingresos > 1 || g.costos > 1) // Mayor rigor: al menos $1 de actividad
+            .sort((a, b) => a.sortKey - b.sortKey);
+    }, [filteredNomina, filteredPE, trendPeriod, dateFrom, dateTo]);
+
+    // Composición de Ingresos
+    const compositionData = useMemo(() => [
+        { name: 'Nómina Regular', value: totalKBS_Nomina, color: '#303a7f' },
+        { name: 'Proyectos Especiales', value: totalKBS_PE, color: '#6bbdb7' }
+    ], [totalKBS_Nomina, totalKBS_PE]);
+
+    // Rendimiento por Tienda (Interactivo)
+    const chartStoreData = useMemo(() => {
+        return storeStats.sort((a, b) => b.margen - a.margen).slice(0, 8);
+    }, [storeStats]);
+
     // Helper formatter
     const formatMoney = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
 
@@ -805,6 +890,124 @@ const DashboardView = ({
                         </div>
                     ))}
                 </div>
+                
+                {/* 1.5 Gráficos de Tendencia y Composición (Nivel Dios) */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    {/* Tendencia Temporal */}
+                    <div className="lg:col-span-2 bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/[0.03] border border-gray-100 flex flex-col min-h-[450px]">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-[#303a7f]/5 rounded-2xl text-[#303a7f]">
+                                    <Activity size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter">Tendencia de Salud Financiera</h3>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Evolución de Ingresos y Costos</p>
+                                </div>
+                            </div>
+
+                            {/* Selector de Periodicidad */}
+                            <div className="flex bg-gray-50 p-1.5 rounded-2xl border border-gray-100 self-end md:self-auto">
+                                <button 
+                                    onClick={() => setTrendPeriod('monthly')}
+                                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${trendPeriod === 'monthly' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f]'}`}
+                                >Mes</button>
+                                <button 
+                                    onClick={() => setTrendPeriod('weekly')}
+                                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${trendPeriod === 'weekly' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f]'}`}
+                                >Semana</button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 w-full h-full min-h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={chartTrendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#6bbdb7" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="#6bbdb7" stopOpacity={0}/>
+                                        </linearGradient>
+                                        <linearGradient id="colorCostos" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#303a7f" stopOpacity={0.1}/>
+                                            <stop offset="95%" stopColor="#303a7f" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                    <XAxis 
+                                        dataKey="label" 
+                                        axisLine={false} 
+                                        tickLine={false} 
+                                        tick={{ fontSize: 10, fontWeight: 'bold', fill: '#999' }}
+                                        dy={10}
+                                    />
+                                    <YAxis 
+                                        axisLine={false} 
+                                        tickLine={false} 
+                                        tick={{ fontSize: 10, fontWeight: 'bold', fill: '#999' }}
+                                        tickFormatter={(val) => `$${val > 1000 ? (val/1000).toFixed(0)+'k' : val}`}
+                                    />
+                                    <Tooltip 
+                                        contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 50px rgba(0,0,0,0.1)', padding: '20px' }}
+                                        itemStyle={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}
+                                    />
+                                    <Area type="monotone" dataKey="ingresos" name="Ingresos (KBS)" stroke="#6bbdb7" strokeWidth={4} fillOpacity={1} fill="url(#colorIngresos)" />
+                                    <Area type="monotone" dataKey="costos" name="Costos (LGM)" stroke="#303a7f" strokeWidth={4} fillOpacity={1} fill="url(#colorCostos)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Mix de Ingresos (Composición) */}
+                    <div className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/[0.03] border border-gray-100 flex flex-col justify-between items-center text-center">
+                        <div className="w-full text-left mb-6">
+                            <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Mix de Ingresos</h3>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Distribución por Tipo</p>
+                        </div>
+                        
+                        <div className="w-full flex-1 flex items-center justify-center relative">
+                            <ResponsiveContainer width="100%" height={250}>
+                                <PieChart>
+                                    <Pie
+                                        data={compositionData}
+                                        innerRadius={60}
+                                        outerRadius={90}
+                                        paddingAngle={10}
+                                        dataKey="value"
+                                        stroke="none"
+                                        onClick={(data) => {
+                                            // Interacción: Filtrar por tipo (si tuviéramos ese filtro global)
+                                            console.log("Pie Clicked", data);
+                                        }}
+                                    >
+                                        {compositionData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} className="cursor-pointer hover:opacity-80 transition-opacity" />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip 
+                                        formatter={(value) => formatMoney(value)}
+                                        contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ROI Total</span>
+                                <span className="text-2xl font-black text-[#303a7f] tracking-tighter">{roiPercent}%</span>
+                            </div>
+                        </div>
+
+                        <div className="w-full space-y-3 mt-6">
+                            {compositionData.map((item, i) => (
+                                <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                                        <span className="text-[10px] font-black text-[#333333] uppercase truncate max-w-[120px]">{item.name}</span>
+                                    </div>
+                                    <span className="text-xs font-black text-[#303a7f]">{((item.value / totalIngresos) * 100).toFixed(0)}%</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                     {/* 2. P&L Resumido */}
@@ -816,22 +1019,22 @@ const DashboardView = ({
                         <div className="flex-1 space-y-6">
                             <div className="space-y-3">
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Desglose de Ingresos</p>
-                                <div className="flex justify-between items-center bg-[#f9f9f9] p-3 rounded-xl">
+                                <div className="flex justify-between items-center bg-[#f9f9f9] p-3 rounded-xl border-l-[4px] border-[#6bbdb7]">
                                     <span className="text-xs font-bold text-[#333333]">Nómina Regular</span>
                                     <span className="text-sm font-black text-green-600">{formatMoney(totalKBS_Nomina)}</span>
                                 </div>
-                                <div className="flex justify-between items-center bg-[#f9f9f9] p-3 rounded-xl">
+                                <div className="flex justify-between items-center bg-[#f9f9f9] p-3 rounded-xl border-l-[4px] border-[#303a7f]">
                                     <span className="text-xs font-bold text-[#333333]">Proyectos Especiales</span>
                                     <span className="text-sm font-black text-blue-600">{formatMoney(totalKBS_PE)}</span>
                                 </div>
                             </div>
                             <div className="space-y-3">
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Desglose de Costos</p>
-                                <div className="flex justify-between items-center bg-[#f9f9f9] p-3 rounded-xl">
+                                <div className="flex justify-between items-center bg-[#f9f9f9] p-3 rounded-xl border-l-[4px] border-red-200">
                                     <span className="text-xs font-bold text-[#333333]">Nómina Regular</span>
                                     <span className="text-sm font-black text-red-500">{formatMoney(totalLGM_Nomina)}</span>
                                 </div>
-                                <div className="flex justify-between items-center bg-[#f9f9f9] p-3 rounded-xl">
+                                <div className="flex justify-between items-center bg-[#f9f9f9] p-3 rounded-xl border-l-[4px] border-orange-200">
                                     <span className="text-xs font-bold text-[#333333]">Proyectos Especiales</span>
                                     <span className="text-sm font-black text-orange-500">{formatMoney(totalLGM_PE)}</span>
                                 </div>
@@ -839,48 +1042,89 @@ const DashboardView = ({
                         </div>
                     </div>
 
-                    {/* 3. Store Performance */}
-                    <div className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border border-gray-100 lg:col-span-2 flex flex-col">
-                        <div className="flex justify-between items-center mb-6">
-                            <div className="flex items-center gap-3">
-                                <StoreIcon className="text-[#303a7f]" size={24} />
-                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Rendimiento por Tienda</h3>
-                            </div>
-                            <span className="bg-[#303a7f]/10 text-[#303a7f] text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest">
-                                Promedio: {formatMoney(costoPromedioTienda)}
-                            </span>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
-                            <div>
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Top 5 Tiendas Rentables</p>
-                                <div className="space-y-2">
-                                    {top5Tiendas.map((ts, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-2.5 bg-[#f9f9f9] rounded-xl hover:bg-green-50 transition-colors">
-                                            <div className="flex items-center gap-2 overflow-hidden">
-                                                <div className="w-5 h-5 rounded bg-[#303a7f] text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">{idx + 1}</div>
-                                                <span className="text-xs font-bold text-[#333333] truncate">{ts.nombre}</span>
-                                            </div>
-                                            <span className="text-xs font-black text-green-600 ml-2">{formatMoney(ts.margen)}</span>
-                                        </div>
-                                    ))}
-                                    {top5Tiendas.length === 0 && <p className="text-xs text-gray-400 italic">No hay datos suficientes.</p>}
+                    {/* 3. Rendimiento por Tienda (Interactive Bar Chart) */}
+                    <div className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/[0.03] border border-gray-100 lg:col-span-2 flex flex-col">
+                        <div className="flex justify-between items-center mb-8">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-indigo-50 rounded-2xl text-[#303a7f]">
+                                    <TrendingUp size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter">Rendimiento por Tienda</h3>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Análisis de Margen Operativo</p>
                                 </div>
                             </div>
+                            <div className="flex flex-col items-end">
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Promedio LGM</span>
+                                <span className="text-sm font-black text-[#303a7f] tracking-tighter">{formatMoney(costoPromedioTienda)}</span>
+                            </div>
+                        </div>
 
+                        <div className="flex-1 w-full h-full min-h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={chartStoreData} margin={{ top: 0, right: 30, left: 20, bottom: 20 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f5" />
+                                    <XAxis 
+                                        dataKey="nombre" 
+                                        axisLine={false} 
+                                        tickLine={false} 
+                                        tick={{ fontSize: 9, fontWeight: 'bold', fill: '#666' }}
+                                        interval={0}
+                                        angle={-15}
+                                        textAnchor="end"
+                                    />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#999' }} />
+                                    <Tooltip 
+                                        cursor={{ fill: 'rgba(48,58,127,0.02)' }}
+                                        contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
+                                        formatter={(value) => formatMoney(value)}
+                                    />
+                                    <Bar 
+                                        dataKey="margen" 
+                                        name="Margen Neto" 
+                                        radius={[8, 8, 0, 0]} 
+                                        barSize={32}
+                                        onClick={(data) => {
+                                            // INTERACTIVIDAD NIVEL DIOS: Filtrar dashboard por esta tienda
+                                            if (data && data.nombre) {
+                                                setSelectedStore(data.nombre);
+                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                            }
+                                        }}
+                                    >
+                                        {chartStoreData.map((entry, index) => (
+                                            <Cell 
+                                                key={`cell-${index}`} 
+                                                fill={entry.margen > 0 ? '#6bbdb7' : '#f43f5e'} 
+                                                className="cursor-pointer hover:opacity-80 transition-all"
+                                            />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 pt-8 border-t border-gray-50">
                             <div>
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Alertas Utilización (Over-budget)</p>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Alertas Utilización</p>
                                 <div className="space-y-2">
-                                    {overBudgetStores.slice(0, 5).map((ts, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-2.5 bg-red-50/50 rounded-xl border border-red-100">
+                                    {overBudgetStores.slice(0, 3).map((ts, idx) => (
+                                        <div key={idx} className="flex items-center justify-between p-3 bg-red-50/50 rounded-2xl border border-red-100">
                                             <span className="text-xs font-bold text-red-900 truncate">{ts.nombre}</span>
-                                            <span className="text-[10px] font-black bg-red-500 text-white px-2 py-1 rounded-md">{ts.utilizacion.toFixed(0)}% Utilizado</span>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-16 h-1.5 bg-red-100 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-red-500" style={{ width: '100%' }}></div>
+                                                </div>
+                                                <span className="text-[10px] font-black text-red-600">{ts.utilizacion.toFixed(0)}%</span>
+                                            </div>
                                         </div>
                                     ))}
                                     {overBudgetStores.length === 0 && (
-                                        <div className="p-4 bg-green-50/50 rounded-xl border border-green-100 text-center">
-                                            <CheckCircle size={20} className="text-green-500 mx-auto mb-1" />
-                                            <span className="text-xs font-bold text-green-700">Todas en presupuesto</span>
+                                        <div className="p-4 bg-green-50/50 rounded-2xl border border-green-100 flex items-center justify-center gap-3">
+                                            <div className="w-8 h-8 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
+                                                <Check size={16} />
+                                            </div>
+                                            <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">Ejecución en Presupuesto</span>
                                         </div>
                                     )}
                                 </div>
