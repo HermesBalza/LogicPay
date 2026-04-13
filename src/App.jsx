@@ -59,7 +59,13 @@ import {
     Sparkles,
     EyeOff,
     Activity,
-    Loader2
+    Loader2,
+    TrendingUp,
+    TrendingDown,
+    BarChart3,
+    PieChart,
+    Filter,
+    Target
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -417,6 +423,392 @@ const LoginView = ({ onLogin }) => {
         </div>
     );
 };
+
+// --- Full Screen Dashboard View ---
+const DashboardView = ({
+    nominaHistoryData = [],
+    nominaDetailData = [],
+    specialProjectsHistoryData = [],
+    wosHistoryData = [],
+    stores = [],
+    employees = []
+}) => {
+    const [dateRange, setDateRange] = useState('all');
+    const [selectedStore, setSelectedStore] = useState('Todas');
+    const [selectedEmployee, setSelectedEmployee] = useState('Todos');
+    const [selectedSupervisor, setSelectedSupervisor] = useState('Todos');
+
+    // Fechas auxiliares
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    const isDateInRange = (dateStr) => {
+        if (dateRange === 'all') return true;
+        if (!dateStr) return false;
+        
+        const d = new Date(dateStr.split(',')[0]); 
+        if (isNaN(d.getTime())) return true; 
+
+        if (dateRange === 'year') {
+            return d.getFullYear() === currentYear;
+        }
+        if (dateRange === 'month') {
+            return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+        }
+        return true;
+    };
+
+    // 1. Filtrado Base
+    const filteredNomina = useMemo(() => nominaHistoryData.filter(h => {
+        const passDate = isDateInRange(h.Fecha_Envio || h.Timestamp || h.Periodo);
+        const passStore = selectedStore === 'Todas' || h.Tienda === selectedStore;
+        return passDate && passStore;
+    }), [nominaHistoryData, dateRange, selectedStore]);
+
+    const filteredDetail = useMemo(() => nominaDetailData.filter(d => {
+        const passDate = isDateInRange(d.Fecha_Confirmacion || d.Periodo);
+        const passStore = selectedStore === 'Todas' || d.Tienda === selectedStore;
+        const passEmployee = selectedEmployee === 'Todos' || String(d.Empleado).trim().toLowerCase() === String(selectedEmployee).trim().toLowerCase();
+        return passDate && passStore && passEmployee;
+    }), [nominaDetailData, dateRange, selectedStore, selectedEmployee]);
+
+    const filteredPE = useMemo(() => specialProjectsHistoryData.filter(pe => {
+        const passDate = isDateInRange(pe.timestamp || pe.Timestamp || pe.fecha);
+        const passStore = selectedStore === 'Todas' || pe.tienda === selectedStore || pe.Tienda === selectedStore;
+        return passDate && passStore;
+    }), [specialProjectsHistoryData, dateRange, selectedStore]);
+
+    const filteredWOS = useMemo(() => wosHistoryData.filter(wos => {
+        const passDate = isDateInRange(wos.Fecha_Envio || wos.Timestamp || wos.Fecha);
+        const passStore = selectedStore === 'Todas' || wos.Tienda === selectedStore;
+        return passDate && passStore;
+    }), [wosHistoryData, dateRange, selectedStore]);
+
+    // 2. Cálculos de KPIs Principales
+    const totalKBS_Nomina = filteredNomina.reduce((acc, curr) => acc + (parseFloat(curr.Pago_KBS) || 0), 0);
+    const totalLGM_Nomina = filteredNomina.reduce((acc, curr) => acc + (parseFloat(curr.Pago_LGM) || 0), 0);
+    
+    const totalKBS_PE = filteredPE.reduce((acc, curr) => acc + (parseFloat(curr.pago_kbs || curr.Pago_KBS) || 0), 0);
+    const totalLGM_PE = filteredPE.reduce((acc, curr) => acc + (parseFloat(curr.pago_lgm || curr.Pago_LGM) || 0), 0);
+
+    const totalIngresos = totalKBS_Nomina + totalKBS_PE;
+    const totalCostos = totalLGM_Nomina + totalLGM_PE;
+    const margenBruto = totalIngresos - totalCostos;
+    const roiPercent = totalIngresos > 0 ? ((margenBruto / totalIngresos) * 100).toFixed(1) : 0;
+
+    const pendientesWOS = filteredWOS.filter(w => w.Status !== 'Paid').reduce((acc, curr) => acc + (parseFloat(curr.Monto_WOS || 0)), 0);
+    const pendientesNomina = filteredNomina.filter(n => !n.Status || n.Status === 'Due').reduce((acc, curr) => acc + (parseFloat(curr.Pago_LGM) || 0), 0);
+
+    // 3. Estadísticas por Tienda
+    const storeStats = stores.map(store => {
+        if (selectedSupervisor !== 'Todos' && store.supervisor_lsg !== selectedSupervisor) return null;
+        
+        const nStore = filteredNomina.filter(n => n.Tienda === store.nombre);
+        const peStore = filteredPE.filter(pe => pe.tienda === store.nombre || pe.Tienda === store.nombre);
+        
+        const kStore = nStore.reduce((acc, n) => acc + (parseFloat(n.Pago_KBS) || 0), 0) + 
+                       peStore.reduce((acc, pe) => acc + (parseFloat(pe.pago_kbs || pe.Pago_KBS) || 0), 0);
+        const lStore = nStore.reduce((acc, n) => acc + (parseFloat(n.Pago_LGM) || 0), 0) + 
+                       peStore.reduce((acc, pe) => acc + (parseFloat(pe.pago_lgm || pe.Pago_LGM) || 0), 0);
+        
+        const margen = kStore - lStore;
+        const dStore = filteredDetail.filter(d => d.Tienda === store.nombre);
+        const horasConsumidas = dStore.reduce((acc, d) => acc + (parseFloat(d.Total_Horas) || 0), 0);
+        const maxHoras = store.max_horas || 1; 
+        const utilizacion = ((horasConsumidas / maxHoras) * 100);
+
+        return { nombre: store.nombre, margen, kStore, lStore, horasConsumidas, maxHoras, utilizacion, supervisor: store.supervisor_lsg };
+    }).filter(Boolean);
+
+    const top5Tiendas = [...storeStats].sort((a, b) => b.margen - a.margen).slice(0, 5);
+    const overBudgetStores = storeStats.filter(s => s.utilizacion > 100);
+    const costoPromedioTienda = storeStats.length > 0 ? (totalCostos / storeStats.length) : 0;
+
+    // 4. Workforce Analytics
+    const empStatsMap = {};
+    filteredDetail.forEach(d => {
+        if (!empStatsMap[d.Empleado]) {
+            empStatsMap[d.Empleado] = { nombre: d.Empleado, horas: 0, pagoLGM: 0, cargo: d.Cargo };
+        }
+        empStatsMap[d.Empleado].horas += parseFloat(d.Total_Horas) || 0;
+        empStatsMap[d.Empleado].pagoLGM += parseFloat(d.Total_LGM) || 0;
+    });
+    const empStatsArr = Object.values(empStatsMap);
+    const topEmpleados = [...empStatsArr].sort((a, b) => b.horas - a.horas).slice(0, 5);
+
+    const cargosCount = {};
+    employees.forEach(e => {
+        const c = e.cargo || 'SIN CARGO';
+        cargosCount[c] = (cargosCount[c] || 0) + 1;
+    });
+
+    const activos = employees.filter(e => !e.fecha_egreso).length;
+    const inactivos = employees.filter(e => e.fecha_egreso).length;
+    const totalEmps = employees.length || 1;
+    const rotacion = ((inactivos / totalEmps) * 100).toFixed(1);
+    const costoPromedioEmp = empStatsArr.length > 0 ? (totalCostos / empStatsArr.length) : 0;
+
+    // 5. PE & VWH
+    const volumenPE = filteredPE.length;
+    const margenPE = totalKBS_PE - totalLGM_PE;
+    const vwhRecords = filteredWOS.filter(w => w.WOS_Data && typeof w.WOS_Data === 'string' && w.WOS_Data.includes('VWH'));
+    const incidenciaVWH = vwhRecords.length;
+
+    // Helper formatter
+    const formatMoney = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
+
+    return (
+        <div className="h-full overflow-y-auto custom-scrollbar pb-32 animate-in fade-in zoom-in-95 duration-500">
+            {/* Header & Controls */}
+            <div className="p-8 pb-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                    <div>
+                        <h2 className="text-3xl font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
+                            <Activity className="text-[#6bbdb7]" size={32} />
+                            Centro de Mando General
+                        </h2>
+                        <p className="text-gray-400 text-sm font-bold uppercase tracking-widest mt-1">
+                            Monitor de Rendimiento Integral LGM
+                        </p>
+                    </div>
+                    
+                    {/* Control Panel (Filtros) */}
+                    <div className="flex flex-wrap gap-3 bg-white p-3 rounded-2xl shadow-xl shadow-blue-900/5 border border-gray-100">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200">
+                            <Calendar size={14} className="text-[#303a7f]" />
+                            <select 
+                                value={dateRange}
+                                onChange={(e) => setDateRange(e.target.value)}
+                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none"
+                            >
+                                <option value="all">Historico Total</option>
+                                <option value="year">Año Actual</option>
+                                <option value="month">Mes Actual</option>
+                            </select>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200">
+                            <StoreIcon size={14} className="text-[#303a7f]" />
+                            <select 
+                                value={selectedStore}
+                                onChange={(e) => setSelectedStore(e.target.value)}
+                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[120px] truncate"
+                            >
+                                <option value="Todas">Todas las Tiendas</option>
+                                {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200">
+                            <Users size={14} className="text-[#303a7f]" />
+                            <select 
+                                value={selectedEmployee}
+                                onChange={(e) => setSelectedEmployee(e.target.value)}
+                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[120px] truncate"
+                            >
+                                <option value="Todos">Todos los Empleados</option>
+                                {employees.map(emp => <option key={emp.codigo_empleado} value={emp.nombre}>{emp.nombre}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200">
+                            <ShieldCheck size={14} className="text-[#303a7f]" />
+                            <select 
+                                value={selectedSupervisor}
+                                onChange={(e) => setSelectedSupervisor(e.target.value)}
+                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[120px] truncate"
+                            >
+                                <option value="Todos">Supervisores</option>
+                                {[...new Set(stores.map(s => s.supervisor_lsg).filter(Boolean))].map(sup => 
+                                    <option key={sup} value={sup}>{sup}</option>
+                                )}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 1. Resumen Financiero Global (KPIs Principales) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+                    {[
+                        { title: "Total Facturado KBS", val: formatMoney(totalIngresos), subtitle: "Ingresos Brutos", icon: Target, color: "text-blue-500", bg: "bg-blue-50" },
+                        { title: "Costo de Nómina LGM", val: formatMoney(totalCostos), subtitle: "Pagos a Empleados", icon: Users, color: "text-red-500", bg: "bg-red-50" },
+                        { title: "Margen de Ganancia", val: formatMoney(margenBruto), subtitle: "Gross Profit", icon: DollarSign, color: "text-green-500", bg: "bg-green-50" },
+                        { title: "Rentabilidad (ROI)", val: `${roiPercent}%`, subtitle: "Margen %", icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50" },
+                        { title: "Cuentas por Cobrar", val: formatMoney(pendientesWOS), subtitle: "WOS / Pending", icon: Receipt, color: "text-orange-500", bg: "bg-orange-50" },
+                        { title: "Nómina Pendiente", val: formatMoney(pendientesNomina), subtitle: "Obligaciones Act.", icon: AlertTriangle, color: "text-rose-500", bg: "bg-rose-50" },
+                    ].map((kpi, idx) => (
+                        <div key={idx} className="bg-white rounded-[1.5rem] p-5 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col justify-between hover:-translate-y-1 transition-transform cursor-default">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className={`p-2.5 rounded-xl ${kpi.bg}`}>
+                                    <kpi.icon size={20} className={kpi.color} />
+                                </div>
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-black text-[#333333] tracking-tighter">{kpi.val}</h3>
+                                <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest mt-1">{kpi.title}</p>
+                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{kpi.subtitle}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    {/* 2. P&L Resumido */}
+                    <div className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col">
+                        <div className="flex items-center gap-3 mb-6">
+                            <BarChart3 className="text-[#6bbdb7]" size={24} />
+                            <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">P&L Resumido</h3>
+                        </div>
+                        <div className="flex-1 space-y-6">
+                            <div className="space-y-3">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Desglose de Ingresos</p>
+                                <div className="flex justify-between items-center bg-[#f9f9f9] p-3 rounded-xl">
+                                    <span className="text-xs font-bold text-[#333333]">Nómina Regular</span>
+                                    <span className="text-sm font-black text-green-600">{formatMoney(totalKBS_Nomina)}</span>
+                                </div>
+                                <div className="flex justify-between items-center bg-[#f9f9f9] p-3 rounded-xl">
+                                    <span className="text-xs font-bold text-[#333333]">Proyectos Especiales</span>
+                                    <span className="text-sm font-black text-blue-600">{formatMoney(totalKBS_PE)}</span>
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Desglose de Costos</p>
+                                <div className="flex justify-between items-center bg-[#f9f9f9] p-3 rounded-xl">
+                                    <span className="text-xs font-bold text-[#333333]">Nómina Regular</span>
+                                    <span className="text-sm font-black text-red-500">{formatMoney(totalLGM_Nomina)}</span>
+                                </div>
+                                <div className="flex justify-between items-center bg-[#f9f9f9] p-3 rounded-xl">
+                                    <span className="text-xs font-bold text-[#333333]">Proyectos Especiales</span>
+                                    <span className="text-sm font-black text-orange-500">{formatMoney(totalLGM_PE)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 3. Store Performance */}
+                    <div className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border border-gray-100 lg:col-span-2 flex flex-col">
+                        <div className="flex justify-between items-center mb-6">
+                            <div className="flex items-center gap-3">
+                                <StoreIcon className="text-[#303a7f]" size={24} />
+                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Rendimiento por Tienda</h3>
+                            </div>
+                            <span className="bg-[#303a7f]/10 text-[#303a7f] text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest">
+                                Promedio: {formatMoney(costoPromedioTienda)}
+                            </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Top 5 Tiendas Rentables</p>
+                                <div className="space-y-2">
+                                    {top5Tiendas.map((ts, idx) => (
+                                        <div key={idx} className="flex items-center justify-between p-2.5 bg-[#f9f9f9] rounded-xl hover:bg-green-50 transition-colors">
+                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                <div className="w-5 h-5 rounded bg-[#303a7f] text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">{idx + 1}</div>
+                                                <span className="text-xs font-bold text-[#333333] truncate">{ts.nombre}</span>
+                                            </div>
+                                            <span className="text-xs font-black text-green-600 ml-2">{formatMoney(ts.margen)}</span>
+                                        </div>
+                                    ))}
+                                    {top5Tiendas.length === 0 && <p className="text-xs text-gray-400 italic">No hay datos suficientes.</p>}
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Alertas Utilización (Over-budget)</p>
+                                <div className="space-y-2">
+                                    {overBudgetStores.slice(0, 5).map((ts, idx) => (
+                                        <div key={idx} className="flex items-center justify-between p-2.5 bg-red-50/50 rounded-xl border border-red-100">
+                                            <span className="text-xs font-bold text-red-900 truncate">{ts.nombre}</span>
+                                            <span className="text-[10px] font-black bg-red-500 text-white px-2 py-1 rounded-md">{ts.utilizacion.toFixed(0)}% Utilizado</span>
+                                        </div>
+                                    ))}
+                                    {overBudgetStores.length === 0 && (
+                                        <div className="p-4 bg-green-50/50 rounded-xl border border-green-100 text-center">
+                                            <CheckCircle size={20} className="text-green-500 mx-auto mb-1" />
+                                            <span className="text-xs font-bold text-green-700">Todas en presupuesto</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    {/* 4. Workforce Analytics */}
+                    <div className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border border-gray-100">
+                        <div className="flex justify-between items-center mb-6">
+                            <div className="flex items-center gap-3">
+                                <Users className="text-[#6bbdb7]" size={24} />
+                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Workforce Analytics</h3>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                            <div className="bg-[#f9f9f9] p-4 rounded-2xl">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Rotación Personal</p>
+                                <div className="flex items-end gap-2">
+                                    <h4 className="text-2xl font-black text-[#333333] tracking-tighter">{rotacion}%</h4>
+                                    <span className="text-[10px] font-bold text-gray-500 uppercase mb-1">({inactivos} Inactivos)</span>
+                                </div>
+                            </div>
+                            <div className="bg-[#f9f9f9] p-4 rounded-2xl">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Costo Promedio / Emp</p>
+                                <h4 className="text-2xl font-black text-[#303a7f] tracking-tighter">{formatMoney(costoPromedioEmp)}</h4>
+                            </div>
+                        </div>
+
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Top Empleados (Horas Laboradas)</p>
+                        <div className="space-y-2">
+                            {topEmpleados.map((emp, idx) => (
+                                <div key={idx} className="flex items-center justify-between p-2.5 border-b border-gray-50 last:border-0">
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-bold text-[#333333]">{emp.nombre}</span>
+                                        <span className="text-[9px] font-black text-[#6bbdb7] uppercase">{emp.cargo}</span>
+                                    </div>
+                                    <span className="text-sm font-black text-[#303a7f]">{emp.horas.toFixed(1)} hrs</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* 5. PE & VWH */}
+                    <div className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col">
+                        <div className="flex items-center gap-3 mb-6">
+                            <Sparkles className="text-orange-400" size={24} />
+                            <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Proyectos Especiales & VWH</h3>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 flex-1">
+                            <div className="bg-orange-50/50 border border-orange-100 p-4 rounded-2xl flex flex-col justify-center">
+                                <p className="text-[10px] font-black text-orange-800/60 uppercase tracking-widest mb-1">Volumen PE</p>
+                                <h4 className="text-3xl font-black text-orange-600 tracking-tighter">{volumenPE}</h4>
+                                <p className="text-[9px] font-bold text-orange-800/40 uppercase mt-2">Ejecutados en periodo</p>
+                            </div>
+                            
+                            <div className="bg-green-50/50 border border-green-100 p-4 rounded-2xl flex flex-col justify-center">
+                                <p className="text-[10px] font-black text-green-800/60 uppercase tracking-widest mb-1">Impacto (Margen PE)</p>
+                                <h4 className="text-2xl font-black text-green-600 tracking-tighter truncate">{formatMoney(margenPE)}</h4>
+                                <p className="text-[9px] font-bold text-green-800/40 uppercase mt-2">Beneficio Neto PE</p>
+                            </div>
+
+                            <div className="bg-purple-50/50 border border-purple-100 p-4 rounded-2xl col-span-2 flex flex-col justify-center items-center text-center">
+                                <p className="text-[10px] font-black text-purple-800/60 uppercase tracking-widest mb-1">Incidencia VWH</p>
+                                <h4 className="text-4xl font-black text-purple-600 tracking-tighter mb-1">{incidenciaVWH}</h4>
+                                <p className="text-[10px] font-bold text-purple-800/60 uppercase">Registros / Auditorías VWH Encontradas</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    );
+};
+
+// --- Full Screen Tax Center View ---
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
     <button
@@ -10511,31 +10903,16 @@ function App() {
                         <SettingsView />
                     )}
 
-                    {/* VISTA DE RESPALDO (Dashboard, Otros) */}
+                    {/* VISTA DEL DASHBOARD */}
                     {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'settings')) && (
-                        <div className="flex flex-col items-center justify-center py-32 text-center animate-in fade-in zoom-in-95 duration-1000">
-                            <div className="p-12 bg-white rounded-[2rem] border-2 border-brand-primary/10 mb-10 relative shadow-2xl shadow-blue-900/[0.06]">
-                                <div
-                                    style={{ backgroundColor: '#f9f9f9', opacity: 0.5 }}
-                                    className="absolute inset-0 blur-[60px] rounded-full"
-                                />
-                                <Clock size={64} className="text-[#303a7f] relative z-10 animate-pulse" />
-                            </div>
-                            <h3 className="text-3xl font-black text-[#303a7f] mb-4 tracking-tighter uppercase leading-none">Arquitectura en Desarrollo</h3>
-                            <p className="text-gray-400 max-w-xl mx-auto text-base font-bold leading-relaxed opacity-60 uppercase tracking-tight">
-                                Implementando protocolos de alta disponibilidad y gestión masiva de datos para AdWisers LLC.
-                            </p>
-
-                            <div className="mt-12 flex gap-3">
-                                {[1, 2, 3].map(i => (
-                                    <div
-                                        key={i}
-                                        style={i === 2 ? { backgroundColor: '#6bbdb7', boxShadow: '0 0 15px #6bbdb7' } : { backgroundColor: '#e5e7eb' }}
-                                        className={`h-1.5 w-12 rounded-full transition-all duration-500 ${i === 2 && 'scale-x-125'}`}
-                                    />
-                                ))}
-                            </div>
-                        </div>
+                        <DashboardView
+                            nominaHistoryData={nominaHistoryData}
+                            nominaDetailData={nominaDetailData}
+                            specialProjectsHistoryData={specialProjectsHistoryData}
+                            wosHistoryData={wosHistoryData}
+                            stores={stores}
+                            employees={employees}
+                        />
                     )}
                 </div>
             </main>
