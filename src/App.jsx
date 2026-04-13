@@ -461,29 +461,63 @@ const DashboardView = ({
     stores = [],
     employees = []
 }) => {
-    const [dateRange, setDateRange] = useState('all');
+    const [dateFrom, setDateFrom] = useState(null);
+    const [dateTo, setDateTo] = useState(null);
     const [selectedStore, setSelectedStore] = useState('Todas');
     const [selectedEmployee, setSelectedEmployee] = useState('Todos');
     const [selectedSupervisor, setSelectedSupervisor] = useState('Todos');
+    const fromDateRef = useRef(null);
+    const toDateRef = useRef(null);
 
-    // Fechas auxiliares
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+    const formatDisplayDate = (dateValue) => {
+        if (!dateValue) return '';
+        const date = new Date(dateValue);
+        if (isNaN(date.getTime())) return '';
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${month}/${day}/${year}`;
+    };
+
+    const openDatePicker = (ref) => {
+        if (!ref?.current) return;
+        const input = ref.current;
+        
+        // Intentar abrir el picker directamente
+        try {
+            if (typeof input.showPicker === 'function') {
+                input.showPicker();
+            } else {
+                // Fallback para navegadores antiguos
+                input.focus();
+                input.click();
+            }
+        } catch (error) {
+            // Último recurso
+            input.focus();
+            input.click();
+        }
+    };
 
     const isDateInRange = (dateStr) => {
-        if (dateRange === 'all') return true;
+        if (!dateFrom && !dateTo) return true;
         if (!dateStr) return false;
-        
-        const d = new Date(dateStr.split(',')[0]); 
-        if (isNaN(d.getTime())) return true; 
 
-        if (dateRange === 'year') {
-            return d.getFullYear() === currentYear;
+        const d = new Date(dateStr.split(',')[0]);
+        if (isNaN(d.getTime())) return true;
+
+        if (dateFrom) {
+            const fromDate = new Date(dateFrom);
+            fromDate.setHours(0, 0, 0, 0);
+            if (d < fromDate) return false;
         }
-        if (dateRange === 'month') {
-            return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+
+        if (dateTo) {
+            const toDate = new Date(dateTo);
+            toDate.setHours(23, 59, 59, 999);
+            if (d > toDate) return false;
         }
+
         return true;
     };
 
@@ -492,26 +526,71 @@ const DashboardView = ({
         const passDate = isDateInRange(h.Fecha_Envio || h.Timestamp || h.Periodo);
         const passStore = selectedStore === 'Todas' || h.Tienda === selectedStore;
         return passDate && passStore;
-    }), [nominaHistoryData, dateRange, selectedStore]);
+    }), [nominaHistoryData, dateFrom, dateTo, selectedStore]);
 
-    const filteredDetail = useMemo(() => nominaDetailData.filter(d => {
-        const passDate = isDateInRange(d.Fecha_Confirmacion || d.Periodo);
-        const passStore = selectedStore === 'Todas' || d.Tienda === selectedStore;
-        const passEmployee = selectedEmployee === 'Todos' || String(d.Empleado).trim().toLowerCase() === String(selectedEmployee).trim().toLowerCase();
-        return passDate && passStore && passEmployee;
-    }), [nominaDetailData, dateRange, selectedStore, selectedEmployee]);
+    const hhmmToDecimal = (hhmm) => {
+        if (!hhmm || hhmm === 'X' || hhmm === '0:00') return 0;
+        const val = String(hhmm).trim();
+        if (val.includes(':')) {
+            const [h, m] = val.split(':').map(Number);
+            return (Number.isFinite(h) ? h : 0) + (Number.isFinite(m) ? m : 0) / 60;
+        }
+        return parseFloat(val) || 0;
+    };
+
+    const derivedNominaHistoryEmployees = useMemo(() => {
+        const rows = [];
+        nominaHistoryData.forEach(h => {
+            const rawJson = h.data_json || h.Data_JSON || h['data_json'] || h['Data_JSON'] || '';
+            if (!rawJson) return;
+            try {
+                const payload = JSON.parse(rawJson);
+                const records = Array.isArray(payload) ? payload : [payload];
+                records.forEach(record => {
+                    const semana = Array.isArray(record.semanaTableData) ? record.semanaTableData : [];
+                    semana.forEach(emp => {
+                        const totalHoras = hhmmToDecimal(emp?.total?.final ?? emp?.total?.sup ?? emp?.total ?? 0);
+                        if (!emp?.nombre) return;
+                        rows.push({
+                            Empleado: emp.nombre,
+                            Tienda: h.Tienda || h.tienda || h.nombre || '',
+                            Cargo: emp.cargo || '',
+                            Total_Horas: totalHoras,
+                            Total_LGM: 0,
+                            Periodo: h.Periodo || h.periodo || `${h.fecha_inicio || ''} - ${h.fecha_fin || ''}`,
+                            Fecha_Confirmacion: h.Fecha_Confirmacion || h['Fecha Rad.'] || h['Fecha Rad'] || h.fecha || '',
+                            Status: h.Status || h.status || 'Paid'
+                        });
+                    });
+                });
+            } catch (e) {
+                console.error('Error parsing detalle de Nomina_Historico:', e);
+            }
+        });
+        return rows;
+    }, [nominaHistoryData]);
+
+    const filteredDetail = useMemo(() => {
+        const allDetails = [...nominaDetailData, ...derivedNominaHistoryEmployees];
+        return allDetails.filter(d => {
+            const passDate = isDateInRange(d.Fecha_Confirmacion || d.Periodo);
+            const passStore = selectedStore === 'Todas' || d.Tienda === selectedStore;
+            const passEmployee = selectedEmployee === 'Todos' || String(d.Empleado).trim().toLowerCase() === String(selectedEmployee).trim().toLowerCase();
+            return passDate && passStore && passEmployee;
+        });
+    }, [nominaDetailData, derivedNominaHistoryEmployees, dateFrom, dateTo, selectedStore, selectedEmployee]);
 
     const filteredPE = useMemo(() => specialProjectsHistoryData.filter(pe => {
         const passDate = isDateInRange(pe.timestamp || pe.Timestamp || pe.fecha);
         const passStore = selectedStore === 'Todas' || pe.tienda === selectedStore || pe.Tienda === selectedStore;
         return passDate && passStore;
-    }), [specialProjectsHistoryData, dateRange, selectedStore]);
+    }), [specialProjectsHistoryData, dateFrom, dateTo, selectedStore]);
 
     const filteredWOS = useMemo(() => wosHistoryData.filter(wos => {
         const passDate = isDateInRange(wos.Fecha_Envio || wos.Timestamp || wos.Fecha);
         const passStore = selectedStore === 'Todas' || wos.Tienda === selectedStore;
         return passDate && passStore;
-    }), [wosHistoryData, dateRange, selectedStore]);
+    }), [wosHistoryData, dateFrom, dateTo, selectedStore]);
 
     // 2. Cálculos de KPIs Principales
     const totalKBS_Nomina = filteredNomina.reduce((acc, curr) => acc + (parseFloat(curr.Pago_KBS) || 0), 0);
@@ -589,33 +668,80 @@ const DashboardView = ({
     return (
         <div className="h-full overflow-y-auto custom-scrollbar pb-32 animate-in fade-in zoom-in-95 duration-500">
             {/* Header & Controls */}
-            <div className="p-8 pb-4">
+            <div className="px-8 pb-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
                     <div>
                         <h2 className="text-3xl font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
                             <Activity className="text-[#6bbdb7]" size={32} />
-                            Centro de Mando General
                         </h2>
-                        <p className="text-gray-400 text-sm font-bold uppercase tracking-widest mt-1">
-                            Monitor de Rendimiento Integral LGM
-                        </p>
                     </div>
                     
                     {/* Control Panel (Filtros) */}
                     <div className="flex flex-wrap gap-3 bg-white p-3 rounded-2xl shadow-xl shadow-blue-900/5 border border-gray-100">
-                        <div className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200">
-                            <Calendar size={14} className="text-[#303a7f]" />
-                            <select 
-                                value={dateRange}
-                                onChange={(e) => setDateRange(e.target.value)}
-                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none"
-                            >
-                                <option value="all">Historico Total</option>
-                                <option value="year">Año Actual</option>
-                                <option value="month">Mes Actual</option>
-                            </select>
+                        <div 
+                            className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200 cursor-pointer relative hover:bg-gray-100 transition-colors group"
+                            onClick={() => openDatePicker(fromDateRef)}
+                        >
+                            <Calendar size={14} className="text-[#303a7f] pointer-events-none" />
+                            <div className="min-w-[140px] pointer-events-none">
+                                <span className="block text-xs font-black text-[#333333] uppercase tracking-wider">
+                                    {dateFrom ? formatDisplayDate(dateFrom) : 'Desde'}
+                                </span>
+                            </div>
+                            <input
+                                ref={fromDateRef}
+                                type="date"
+                                lang="en-US"
+                                value={dateFrom || ''}
+                                onChange={(e) => setDateFrom(e.target.value || null)}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (typeof e.target.showPicker === 'function') {
+                                        e.target.showPicker();
+                                    }
+                                }}
+                            />
                         </div>
-                        
+
+                        <div 
+                            className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200 cursor-pointer relative hover:bg-gray-100 transition-colors group"
+                            onClick={() => openDatePicker(toDateRef)}
+                        >
+                            <Calendar size={14} className="text-[#303a7f] pointer-events-none" />
+                            <div className="min-w-[140px] pointer-events-none">
+                                <span className="block text-xs font-black text-[#333333] uppercase tracking-wider">
+                                    {dateTo ? formatDisplayDate(dateTo) : 'Hasta'}
+                                </span>
+                            </div>
+                            <input
+                                ref={toDateRef}
+                                type="date"
+                                lang="en-US"
+                                value={dateTo || ''}
+                                onChange={(e) => setDateTo(e.target.value || null)}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (typeof e.target.showPicker === 'function') {
+                                        e.target.showPicker();
+                                    }
+                                }}
+                            />
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setDateFrom(null);
+                                setDateTo(null);
+                            }}
+                            className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200 text-xs font-black uppercase tracking-wider text-[#333333]"
+                        >
+                            <XCircle size={14} className="text-[#303a7f]" />
+                            Limpiar
+                        </button>
+
                         <div className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200">
                             <StoreIcon size={14} className="text-[#303a7f]" />
                             <select 
@@ -9478,12 +9604,12 @@ function App() {
                 setDbStatus('conectado');
                 return;
             }
-            const headers = parseCSVRow(lines[0]);
+            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
             const loaded = lines.slice(1).map(line => {
                 const values = parseCSVRow(line);
-                const flat = {};
-                headers.forEach((h, i) => { flat[h.trim()] = (values[i] || '').trim(); });
-                return csvRowToEmployee(flat);
+                const obj = createCSVRowObject(headers, values);
+                // Permitir que csvRowToEmployee encuentre campos con variantes de nombre
+                return csvRowToEmployee(obj);
             });
             setEmployees(loaded);
             setDbStatus('conectado');
@@ -9576,16 +9702,25 @@ function App() {
             const loaded = lines.slice(1).map(line => {
                 const values = parseCSVRow(line);
                 const obj = createCSVRowObject(headers, values);
-                if (obj.Data_JSON) {
+                const rawJson = obj.data_json || obj.Data_JSON || '';
+                if (rawJson) {
                     try {
-                        const data = JSON.parse(obj.Data_JSON);
-                        obj.Pago_KBS = data.kbsBillingTableData ? data.kbsBillingTableData.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
-                        obj.Pago_LGM = data.earningsTableData ? data.earningsTableData.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
-                        obj.Tienda = obj.Tienda || obj.nombre;
-                        obj.Timestamp = obj['Fecha Rad.'];
-                        obj.Status = obj.Status || 'Paid';
+                        const parsed = JSON.parse(rawJson);
+                        const projects = Array.isArray(parsed) ? parsed : [parsed];
+                        obj.Pago_KBS = projects.reduce((total, project) => {
+                            const emps = Array.isArray(project.employees) ? project.employees : [];
+                            return total + emps.reduce((sum, emp) => sum + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0)), 0);
+                        }, 0);
+                        obj.Pago_LGM = projects.reduce((total, project) => {
+                            const emps = Array.isArray(project.employees) ? project.employees : [];
+                            return total + emps.reduce((sum, emp) => sum + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateLogic) || 0)), 0);
+                        }, 0);
+                        obj.Tienda = obj.Tienda || obj.tienda || obj.nombre;
+                        obj.Timestamp = obj.Fecha_Confirmacion || obj.fecha_confirmacion || obj['Fecha Confirmacion'] || obj['Fecha_Confirmacion'] || obj['Fecha Rad.'] || obj['Fecha Rad'] || obj.fecha;
+                        obj.fecha = obj.Timestamp || obj.fecha || obj.periodo || obj.Periodo;
+                        obj.Status = obj.Status || obj.status || 'Paid';
                     } catch (e) {
-                        console.error('Error parsing Data_JSON in special projects', e);
+                        console.error('Error parsing Data_JSON en proyectos especiales', e);
                     }
                 }
                 return obj;
