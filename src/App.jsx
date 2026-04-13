@@ -109,6 +109,34 @@ const parseCSVRow = (row) => {
     return result;
 };
 
+const normalizeCSVHeaderKey = (header) => {
+    if (!header) return '';
+    const cleaned = header.trim().replace(/^\ufeff/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return cleaned
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9_]/g, '')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '');
+};
+
+const createCSVRowObject = (headers, values) => {
+    const flat = {};
+    headers.forEach((header, index) => {
+        const rawValue = (values[index] || '').trim();
+        const normalizedHeader = normalizeCSVHeaderKey(header);
+        const lowerHeader = header.toLowerCase();
+        const lowerNormalizedHeader = normalizedHeader.toLowerCase();
+
+        flat[header] = rawValue;
+        flat[lowerHeader] = rawValue;
+        if (normalizedHeader) {
+            flat[normalizedHeader] = rawValue;
+            flat[lowerNormalizedHeader] = rawValue;
+        }
+    });
+    return flat;
+};
+
 const normalizeInvoice = (value) => {
     const parsed = Number(value);
     return Number.isInteger(parsed) && parsed >= 100 ? parsed : 100;
@@ -9477,12 +9505,24 @@ function App() {
                 setNominaHistoryData([]);
                 return;
             }
-            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, '').toLowerCase());
+            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
             const loaded = lines.slice(1).map(line => {
                 const values = parseCSVRow(line);
-                const flat = {};
-                headers.forEach((h, i) => { if (h) flat[h] = (values[i] || '').trim(); });
-                return flat;
+                const obj = createCSVRowObject(headers, values);
+                if (obj.data_json) {
+                    try {
+                        const data = JSON.parse(obj.data_json);
+                        obj.Pago_KBS = data.kbsBillingTableData ? data.kbsBillingTableData.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
+                        obj.Pago_LGM = data.earningsTableData ? data.earningsTableData.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
+                        obj.Tienda = obj.nombre;
+                        obj.Fecha_Envio = obj['Fecha Rad.'];
+                        obj.Periodo = obj.fecha_inicio + ' - ' + obj.fecha_fin;
+                        obj.Status = obj.Status || 'Paid';
+                    } catch (e) {
+                        console.error('Error parsing data_json in nomina history', e);
+                    }
+                }
+                return obj;
             });
             setNominaHistoryData(loaded);
         } catch (error) {
@@ -9500,12 +9540,21 @@ function App() {
                 setNominaDetailData([]);
                 return;
             }
-            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, '').toLowerCase());
+            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
             const loaded = lines.slice(1).map(line => {
                 const values = parseCSVRow(line);
-                const flat = {};
-                headers.forEach((h, i) => { if (h) flat[h] = (values[i] || '').trim(); });
-                return flat;
+                const obj = createCSVRowObject(headers, values);
+                if (obj.Data_JSON) {
+                    try {
+                        const data = JSON.parse(obj.Data_JSON);
+                        if (typeof data === 'object' && !Array.isArray(data)) {
+                            Object.assign(obj, data);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing Data_JSON in nomina detail', e);
+                    }
+                }
+                return obj;
             });
             setNominaDetailData(loaded);
         } catch (error) {
@@ -9523,12 +9572,23 @@ function App() {
                 setSpecialProjectsHistoryData([]);
                 return [];
             }
-            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, '').toLowerCase());
+            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
             const loaded = lines.slice(1).map(line => {
                 const values = parseCSVRow(line);
-                const flat = {};
-                headers.forEach((h, i) => { if (h) flat[h] = (values[i] || '').trim(); });
-                return flat;
+                const obj = createCSVRowObject(headers, values);
+                if (obj.Data_JSON) {
+                    try {
+                        const data = JSON.parse(obj.Data_JSON);
+                        obj.Pago_KBS = data.kbsBillingTableData ? data.kbsBillingTableData.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
+                        obj.Pago_LGM = data.earningsTableData ? data.earningsTableData.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
+                        obj.Tienda = obj.Tienda || obj.nombre;
+                        obj.Timestamp = obj['Fecha Rad.'];
+                        obj.Status = obj.Status || 'Paid';
+                    } catch (e) {
+                        console.error('Error parsing Data_JSON in special projects', e);
+                    }
+                }
+                return obj;
             });
             setSpecialProjectsHistoryData(loaded);
             return loaded; // Devolver para flujos asíncronos
@@ -9550,14 +9610,24 @@ function App() {
                 return [];
             }
 
-            // Usamos limpieza extrema para emular el formato esperado
-            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, '').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase());
+            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
 
             const loaded = lines.slice(1).map(line => {
                 const values = parseCSVRow(line);
-                const flat = {};
-                headers.forEach((h, i) => { if (h) flat[h] = (values[i] || '').trim(); });
-                return flat;
+                const obj = createCSVRowObject(headers, values);
+                if (obj.Data_JSON) {
+                    try {
+                        const data = JSON.parse(obj.Data_JSON);
+                        if (typeof data === 'object' && !Array.isArray(data)) {
+                            Object.assign(obj, data);
+                        }
+                        obj.Fecha = obj.Date;
+                        obj.WOS_Data = obj.Data_JSON; // or something
+                    } catch (e) {
+                        console.error('Error parsing Data_JSON in WOS', e);
+                    }
+                }
+                return obj;
             });
 
             setWosHistoryData(loaded);
