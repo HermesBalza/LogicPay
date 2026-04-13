@@ -3225,12 +3225,11 @@ const EmailNotificationModal = ({ isOpen, type, message, onOk }) => {
             <div className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-10 flex flex-col items-center text-center animate-in zoom-in-95 duration-500 border-2 border-white relative overflow-hidden">
                 {/* Background Decor */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16 opacity-50" />
-                
-                <div className={`w-20 h-20 rounded-[1.8rem] flex items-center justify-center mb-8 shadow-2xl transition-all duration-500 relative z-10 ${
-                    type === 'loading' 
-                    ? 'bg-[#303a7f] text-white shadow-blue-900/20' 
-                    : 'bg-[#6bbdb7] text-white shadow-teal-900/20'
-                }`}>
+
+                <div className={`w-20 h-20 rounded-[1.8rem] flex items-center justify-center mb-8 shadow-2xl transition-all duration-500 relative z-10 ${type === 'loading'
+                        ? 'bg-[#303a7f] text-white shadow-blue-900/20'
+                        : 'bg-[#6bbdb7] text-white shadow-teal-900/20'
+                    }`}>
                     {type === 'loading' ? (
                         <Loader2 size={36} className="animate-spin" />
                     ) : (
@@ -3241,7 +3240,7 @@ const EmailNotificationModal = ({ isOpen, type, message, onOk }) => {
                 <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-4 relative z-10">
                     {type === 'loading' ? 'Enviando...' : '¡Correo Enviado!'}
                 </h3>
-                
+
                 <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-10 uppercase tracking-[0.1em] px-4 relative z-10">
                     {message}
                 </p>
@@ -7130,6 +7129,7 @@ function App() {
     const [isVWHModalOpen, setIsVWHModalOpen] = useState(false);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [isPEModalOpen, setIsPEModalOpen] = useState(false);
+    const [isEmployeeStatsModalOpen, setIsEmployeeStatsModalOpen] = useState(false);
 
     const [specialProjectsData, setSpecialProjectsData] = useState([]);
 
@@ -9524,6 +9524,60 @@ function App() {
 
             <SheetProgressModal isOpen={isProcessingSheets} />
 
+            {isEmployeeStatsModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm" onClick={() => setIsEmployeeStatsModalOpen(false)} />
+                    <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-md relative shadow-2xl border-2 border-white animate-in zoom-in-95 duration-300">
+                        <button
+                            onClick={() => setIsEmployeeStatsModalOpen(false)}
+                            className="absolute top-6 right-6 w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <div className="flex items-center gap-4 mb-8">
+                            <div className="w-12 h-12 bg-[#303a7f]/5 rounded-2xl flex items-center justify-center text-[#303a7f]">
+                                <Users size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter leading-tight">Estado del Personal</h3>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Resumen detallado de registros</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-[#f9f9f9] p-6 rounded-3xl border-2 border-transparent hover:border-green-500/20 transition-all group">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform">
+                                        <CheckCircle size={16} />
+                                    </div>
+                                    <span className="text-[24px] font-black text-[#333333] tracking-tighter">{employees.filter(e => !e.fecha_egreso).length}</span>
+                                </div>
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Activos</span>
+                            </div>
+
+                            <div className="bg-[#f9f9f9] p-6 rounded-3xl border-2 border-transparent hover:border-red-500/20 transition-all group">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform">
+                                        <XCircle size={16} />
+                                    </div>
+                                    <span className="text-[24px] font-black text-[#333333] tracking-tighter">{employees.filter(e => e.fecha_egreso).length}</span>
+                                </div>
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Inactivos</span>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 p-5 bg-[#303a7f] rounded-3xl flex items-center justify-between shadow-xl shadow-blue-900/20">
+                            <div className="flex flex-col">
+                                <span className="text-[8px] font-black text-white/50 uppercase tracking-[0.2em] mb-0.5">Total General</span>
+                                <span className="text-sm font-black text-white uppercase tracking-widest">Base de Datos</span>
+                            </div>
+                            <span className="text-3xl font-black text-white tracking-tighter">{employees.length}</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Logo y Status Bar Superior */}
             <header className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-b-2 border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-6">
@@ -9659,7 +9713,7 @@ function App() {
                     {/* Branding al extremo derecho */}
                     <div className="absolute right-6 hidden xl:flex items-center gap-3 px-4 py-2 bg-white/5 rounded-2xl border border-white/10 transition-all duration-500 hover:bg-white/10 cursor-default group">
                         <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 group-hover:text-[#6bbdb7] transition-colors">
-                            LogicPay v1.2<span className="text-white/10 mx-1">|</span> <span className="text-white/20 group-hover:text-white/40">by AdWisers</span>
+                            LogicPay v1.2<span className="text-white/10 mx-1">|</span> <span className="text-white/20 group-hover:text-orange-500">by AdWisers</span>
                         </span>
                     </div>
                 </nav>
@@ -9791,6 +9845,18 @@ function App() {
                                         className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
                                     />
                                 </div>
+
+                                {/* Contador de Personal */}
+                                <button
+                                    onClick={() => setIsEmployeeStatsModalOpen(true)}
+                                    className="h-11 px-6 bg-white border-2 border-brand-primary/10 rounded-2xl flex items-center gap-3 hover:border-[#303a7f]/20 hover:bg-[#303a7f]/5 transition-all group shadow-sm"
+                                >
+                                    <div className="w-2 h-2 rounded-full bg-[#6bbdb7] animate-pulse" />
+                                    <div className="flex flex-col items-start leading-tight">
+                                        <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">{employees.length}</span>
+                                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Registrados</span>
+                                    </div>
+                                </button>
 
                                 {/* Toggle de Vistas: Lista / Cuadrícula */}
                                 <div className="h-11 bg-white border-2 border-brand-primary/10 rounded-2xl p-1 flex items-center gap-1 shadow-sm">
