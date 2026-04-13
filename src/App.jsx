@@ -674,7 +674,7 @@ const DashboardView = ({
     // 5. PE & VWH
     const volumenPE = filteredPE.length;
     const margenPE = totalKBS_PE - totalLGM_PE;
-    const vwhRecords = filteredWOS.filter(w => w.WOS_Data && typeof w.WOS_Data === 'string' && w.WOS_Data.includes('VWH'));
+    const vwhRecords = filteredWOS.filter(w => w.auditDate);
     const incidenciaVWH = vwhRecords.length;
 
     // ─── LÓGICA DE DATOS PARA GRÁFICOS (Recharts Data) ───────────────────────
@@ -867,14 +867,13 @@ const DashboardView = ({
                 </div>
 
                 {/* 1. Resumen Financiero Global (KPIs Principales) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
                     {[
                         { title: "Total Facturado KBS", val: formatMoney(totalIngresos), subtitle: "Ingresos Brutos", icon: Target, color: "text-blue-500", bg: "bg-blue-50" },
                         { title: "Costo de Nómina LGM", val: formatMoney(totalCostos), subtitle: "Pagos a Empleados", icon: Users, color: "text-red-500", bg: "bg-red-50" },
                         { title: "Margen de Ganancia", val: formatMoney(margenBruto), subtitle: "Gross Profit", icon: DollarSign, color: "text-green-500", bg: "bg-green-50" },
                         { title: "Rentabilidad (ROI)", val: `${roiPercent}%`, subtitle: "Margen %", icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50" },
                         { title: "Cuentas por Cobrar", val: formatMoney(pendientesWOS), subtitle: "WOS / Pending", icon: Receipt, color: "text-orange-500", bg: "bg-orange-50" },
-                        { title: "Nómina Pendiente", val: formatMoney(pendientesNomina), subtitle: "Obligaciones Act.", icon: AlertTriangle, color: "text-rose-500", bg: "bg-rose-50" },
                     ].map((kpi, idx) => (
                         <div key={idx} className="bg-white rounded-[1.5rem] p-5 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col justify-between hover:-translate-y-1 transition-transform cursor-default">
                             <div className="flex justify-between items-start mb-4">
