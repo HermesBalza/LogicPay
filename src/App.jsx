@@ -4194,7 +4194,9 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     );
 };
 
-const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent }) => {
+const VWHTableModal = (props) => {
+    const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId } = props;
+    const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -4271,7 +4273,7 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
                 })
             });
 
-            const reportKey = `${payrollStore}_${currentStartDate}_${currentEndDate}`;
+            const reportKey = normalizeKey(recordId || `${payrollStore}_${currentStartDate}_${currentEndDate}`);
             if (onEmailSent) onEmailSent(reportKey);
 
             setNotificationModal({
@@ -4352,6 +4354,7 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
     // Determinar fechas dinámicas según la parte activa
     const currentStartDate = !showSplit ? fechaDesde : (activeSplitPart === 'A' ? fechaDesde : splitInfo.dateBStart);
     const currentEndDate = !showSplit ? fechaHasta : (activeSplitPart === 'A' ? splitInfo.dateAEnd : fechaHasta);
+    const reportKey = normalizeKey(props.recordId || `${payrollStore}_${currentStartDate}_${currentEndDate}`);
 
     const hhmmToDecimal = (hhmm) => {
         if (!hhmm || hhmm === 'X' || hhmm === '0:00') return 0;
@@ -4541,16 +4544,16 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
                 )}
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => !emailsSent[`${payrollStore}_${currentStartDate}_${currentEndDate}`] && setIsEmailModalOpen(true)}
-                        disabled={emailsSent[`${payrollStore}_${currentStartDate}_${currentEndDate}`] || isSendingEmail}
+                        onClick={() => !emailsSent[reportKey] && setIsEmailModalOpen(true)}
+                        disabled={emailsSent[reportKey] || isSendingEmail}
                         className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center gap-2 ${
-                            emailsSent[`${payrollStore}_${currentStartDate}_${currentEndDate}`] 
+                            emailsSent[reportKey] 
                             ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none" 
                             : "bg-[#303a7f] text-white hover:bg-[#1e234d] shadow-blue-900/10"
                         }`}
                     >
                         <Mail size={16} />
-                        {emailsSent[`${payrollStore}_${currentStartDate}_${currentEndDate}`] ? "Correo Enviado" : "Enviar por Correo"}
+                        {emailsSent[reportKey] ? "Correo Enviado" : "Enviar por Correo"}
                     </button>
                     <button
                         onClick={downloadVWHAsPDF}
@@ -7199,6 +7202,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending 
 };
 
 const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {}, onEmailSent }) => {
+    const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -7259,7 +7263,8 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                 })
             });
 
-            if (onEmailSent) onEmailSent(project.invoice);
+            const reportKey = normalizeKey(project.invoice);
+            if (onEmailSent) onEmailSent(reportKey);
 
             setNotificationModal({
                 isOpen: true,
@@ -7422,16 +7427,16 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                         Cerrar
                     </button>
                     <button
-                        onClick={() => !emailsSent[project.invoice] && setIsEmailModalOpen(true)}
-                        disabled={emailsSent[project.invoice] || isSendingEmail}
+                        onClick={() => !emailsSent[normalizeKey(project.invoice)] && setIsEmailModalOpen(true)}
+                        disabled={emailsSent[normalizeKey(project.invoice)] || isSendingEmail}
                         className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl transition-all active:scale-95 flex items-center gap-3 ${
-                            emailsSent[project.invoice] 
+                            emailsSent[normalizeKey(project.invoice)] 
                             ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none" 
                             : "bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]"
                         }`}
                     >
                         <Mail size={18} />
-                        {emailsSent[project.invoice] ? "Correo Enviado" : "Enviar por Correo"}
+                        {emailsSent[normalizeKey(project.invoice)] ? "Correo Enviado" : "Enviar por Correo"}
                     </button>
                     <button
                         onClick={handleDownloadPDF}
@@ -7585,8 +7590,11 @@ const BillingView = ({
     onOpenVWH = () => { },
     onOpenPE = () => { },
     onUpdateManual = () => { },
-    onUpdateManualPE = () => { }
+    onUpdateManualPE = () => { },
+    vwhEmailsSent = {},
+    peEmailsSent = {}
 }) => {
+    const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     // --- LÓGICA TABLA VWH (Nómina Regular) ---
     // Filtrado y ordenado seguro (Safe-Sort)
     const activeRecords = (historyData || [])
@@ -7660,6 +7668,9 @@ const BillingView = ({
             id: h.codigo,
             radicacion: h['Fecha Rad.'] || h['fecha rad.'] || '',
             semana: h.fecha_inicio && h.fecha_fin ? `${h.fecha_inicio} - ${h.fecha_fin}` : 'Período Desconocido',
+            fecha_inicio: h.fecha_inicio || '',
+            fecha_fin: h.fecha_fin || '',
+            nombre_store: h.nombre || '',
             horas: stats.horas || 0,
             facturacion: stats.facturacion || 0,
             costos: stats.costos || 0,
@@ -7813,13 +7824,35 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-3 py-4 text-center">
-                                    <button
-                                        onClick={() => onOpenVWH(row.id)}
-                                        title="Ver Detalle de Nómina VWH"
-                                        className="text-[10px] font-bold text-[#303a7f] hover:text-[#6bbdb7] transition-all active:scale-95 border-b border-dashed border-[#303a7f]/30 hover:border-[#6bbdb7] pb-0.5"
-                                    >
-                                        {row.semana}
-                                    </button>
+                                    <div className="flex items-center justify-center gap-2">
+                                        <button
+                                            onClick={() => onOpenVWH(row.id)}
+                                            title="Ver Detalle de Nómina VWH"
+                                            className="text-[10px] font-bold text-[#303a7f] hover:text-[#6bbdb7] transition-all active:scale-95 border-b border-dashed border-[#303a7f]/30 hover:border-[#6bbdb7] pb-0.5"
+                                        >
+                                            {row.semana}
+                                        </button>
+                                        {(() => {
+                                            // Construir múltiples variantes de clave para máxima compatibilidad con Variables
+                                            const fi = row.fecha_inicio || '';
+                                            const ff = row.fecha_fin || '';
+                                            const sn = row.nombre_store || storeName || '';
+                                            const candidateKeys = [
+                                                `${sn}_${fi}_${ff}`,
+                                                `${sn.toLowerCase()}_${fi}_${ff}`,
+                                                `${storeName}_${fi}_${ff}`,
+                                                `${storeName.toLowerCase()}_${fi}_${ff}`,
+                                            ];
+                                            const isSent = candidateKeys.some(k => vwhEmailsSent[k] || vwhEmailsSent[k.toLowerCase()]);
+                                            return isSent ? (
+                                                <Send 
+                                                    size={18} 
+                                                    className="text-[#6bbdb7] drop-shadow-[0_0_15px_rgba(107,189,183,1)] animate-in fade-in zoom-in duration-500" 
+                                                    title="Correo Enviado"
+                                                />
+                                            ) : null;
+                                        })()}
+                                    </div>
                                 </td>
                                 <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{row.horas.toFixed(1)} <span className="text-[8px] text-gray-300 font-bold ml-0.5">H</span></td>
                                 <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{formatCurrency(row.facturacion)}</td>
@@ -7897,16 +7930,33 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <button
-                                        onClick={() => onOpenPE(row.id)}
-                                        title="Ver Detalle de Proyecto Especial"
-                                        className="group/pe flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-all w-full"
-                                    >
-                                        <span className="text-[10px] font-black text-[#303a7f] group-hover/pe:text-[#6bbdb7] border-b border-dashed border-[#303a7f]/30 group-hover/pe:border-[#6bbdb7] transition-all mb-0.5">
-                                            {row.nombre}
-                                        </span>
-                                        <span className="text-[8px] font-bold text-gray-400">Inv: {row.invoice}</span>
-                                    </button>
+                                    <div className="flex items-center justify-center gap-2">
+                                        <button
+                                            onClick={() => onOpenPE(row.id)}
+                                            title="Ver Detalle de Proyecto Especial"
+                                            className="group/pe flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-all"
+                                        >
+                                            <span className="text-[10px] font-black text-[#303a7f] group-hover/pe:text-[#6bbdb7] border-b border-dashed border-[#303a7f]/30 group-hover/pe:border-[#6bbdb7] transition-all mb-0.5 text-center">
+                                                {row.nombre}
+                                            </span>
+                                            <span className="text-[8px] font-bold text-gray-400">Inv: {row.invoice}</span>
+                                        </button>
+                                        {(() => {
+                                            // Comparar número de invoice (normalizado sin símbolo # ni espacios)
+                                            const invNorm = String(row.invoice || '').replace(/[^0-9]/g, '');
+                                            const isSent = Object.keys(peEmailsSent).some(k => {
+                                                const kNorm = String(k).replace(/[^0-9]/g, '');
+                                                return kNorm === invNorm && peEmailsSent[k];
+                                            });
+                                            return isSent ? (
+                                                <Send 
+                                                    size={18} 
+                                                    className="text-[#6bbdb7] drop-shadow-[0_0_15px_rgba(107,189,183,1)] animate-in fade-in zoom-in duration-500"
+                                                    title="Correo Enviado"
+                                                />
+                                            ) : null;
+                                        })()}
+                                    </div>
                                 </td>
                                 <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{row.horas.toFixed(1)} <span className="text-[8px] text-gray-300 font-bold ml-0.5">H</span></td>
                                 <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{formatCurrency(row.facturacion)}</td>
@@ -8032,6 +8082,7 @@ function App() {
     const [processedBiweeks, setProcessedBiweeks] = useState([]);
     const [vwhEmailsSent, setVwhEmailsSent] = useState({});
     const [peEmailsSent, setPeEmailsSent] = useState({});
+    const [vwhRecordId, setVwhRecordId] = useState(null);
 
     const [invalidCodes, setInvalidCodes] = useState([]);
     const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
@@ -10524,6 +10575,7 @@ function App() {
                 fechaDesde={fechaDesde}
                 fechaHasta={fechaHasta}
                 emailsSent={vwhEmailsSent}
+                recordId={vwhRecordId}
                 onEmailSent={(reportKey) => {
                     const updated = { ...vwhEmailsSent, [reportKey]: true };
                     setVwhEmailsSent(updated);
@@ -11734,6 +11786,8 @@ function App() {
                             onOpenPE={(projectId) => {
                                 handleOpenSpecialProjectInvoice(projectId);
                             }}
+                            vwhEmailsSent={vwhEmailsSent}
+                            peEmailsSent={peEmailsSent}
                         />
                     </div>
                 </div>
