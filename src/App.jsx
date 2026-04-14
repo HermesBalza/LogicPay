@@ -9885,7 +9885,7 @@ function App() {
                         obj.Tienda = obj.nombre;
                         obj.Fecha_Envio = obj['Fecha Rad.'];
                         obj.Periodo = obj.fecha_inicio + ' - ' + obj.fecha_fin;
-                        obj.Status = obj.Status || 'Paid';
+                        obj.Status = obj.Status || 'Due';
                     } catch (e) {
                         console.error('Error parsing data_json in nomina history', e);
                     }
@@ -9960,7 +9960,7 @@ function App() {
                         obj.Tienda = obj.Tienda || obj.tienda || obj.nombre;
                         obj.Timestamp = obj.Fecha_Confirmacion || obj.fecha_confirmacion || obj['Fecha Confirmacion'] || obj['Fecha_Confirmacion'] || obj['Fecha Rad.'] || obj['Fecha Rad'] || obj.fecha;
                         obj.fecha = obj.Timestamp || obj.fecha || obj.periodo || obj.Periodo;
-                        obj.Status = obj.Status || obj.status || 'Paid';
+                        obj.Status = obj.Status || obj.status || 'Due';
                     } catch (e) {
                         console.error('Error parsing Data_JSON en proyectos especiales', e);
                     }
