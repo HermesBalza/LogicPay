@@ -7198,7 +7198,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending 
     );
 };
 
-const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
+const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {}, onEmailSent }) => {
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -7258,6 +7258,8 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
                     }]
                 })
             });
+
+            if (onEmailSent) onEmailSent(project.invoice);
 
             setNotificationModal({
                 isOpen: true,
@@ -7420,11 +7422,16 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project }) => {
                         Cerrar
                     </button>
                     <button
-                        onClick={() => setIsEmailModalOpen(true)}
-                        className="px-10 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl shadow-blue-900/10 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3"
+                        onClick={() => !emailsSent[project.invoice] && setIsEmailModalOpen(true)}
+                        disabled={emailsSent[project.invoice] || isSendingEmail}
+                        className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl transition-all active:scale-95 flex items-center gap-3 ${
+                            emailsSent[project.invoice] 
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none" 
+                            : "bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]"
+                        }`}
                     >
                         <Mail size={18} />
-                        Enviar por Correo
+                        {emailsSent[project.invoice] ? "Correo Enviado" : "Enviar por Correo"}
                     </button>
                     <button
                         onClick={handleDownloadPDF}
@@ -8024,6 +8031,7 @@ function App() {
     const [isHistoricalDataLoaded, setIsHistoricalDataLoaded] = useState(false); // Flag para la UI
     const [processedBiweeks, setProcessedBiweeks] = useState([]);
     const [vwhEmailsSent, setVwhEmailsSent] = useState({});
+    const [peEmailsSent, setPeEmailsSent] = useState({});
 
     const [invalidCodes, setInvalidCodes] = useState([]);
     const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
@@ -10211,6 +10219,7 @@ function App() {
                     if (key === 'user' && val) try { setUser(JSON.parse(val)); } catch (e) { }
                     if (key === 'processed_biweeks' && val) try { setProcessedBiweeks(JSON.parse(val)); } catch (e) { }
                     if (key === 'vwh_emails_sent' && val) try { setVwhEmailsSent(JSON.parse(val)); } catch (e) { }
+                    if (key === 'pe_emails_sent' && val) try { setPeEmailsSent(JSON.parse(val)); } catch (e) { }
                     if (key === 'special_projects_data' && val) try {
                         const parsed = JSON.parse(val);
                         setSpecialProjectsData(Array.isArray(parsed) ? parsed : []);
@@ -12099,6 +12108,12 @@ function App() {
                 isOpen={isSpecialProjectInvoiceOpen}
                 onClose={() => setIsSpecialProjectInvoiceOpen(false)}
                 project={selectedSpecialProjectInvoice}
+                emailsSent={peEmailsSent}
+                onEmailSent={(invoice) => {
+                    const updated = { ...peEmailsSent, [invoice]: true };
+                    setPeEmailsSent(updated);
+                    syncVariableToSheets('pe_emails_sent', updated);
+                }}
             />
 
             {/* VISTA DE WOS (FULL SCREEN) */}
