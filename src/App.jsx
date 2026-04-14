@@ -4194,7 +4194,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     );
 };
 
-const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta }) => {
+const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent }) => {
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -4270,6 +4270,9 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
                     }]
                 })
             });
+
+            const reportKey = `${payrollStore}_${currentStartDate}_${currentEndDate}`;
+            if (onEmailSent) onEmailSent(reportKey);
 
             setNotificationModal({
                 isOpen: true,
@@ -4538,11 +4541,16 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
                 )}
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => setIsEmailModalOpen(true)}
-                        className="px-6 py-3 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#1e234d] transition-all shadow-lg shadow-blue-900/10 active:scale-95 flex items-center gap-2"
+                        onClick={() => !emailsSent[`${payrollStore}_${currentStartDate}_${currentEndDate}`] && setIsEmailModalOpen(true)}
+                        disabled={emailsSent[`${payrollStore}_${currentStartDate}_${currentEndDate}`] || isSendingEmail}
+                        className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center gap-2 ${
+                            emailsSent[`${payrollStore}_${currentStartDate}_${currentEndDate}`] 
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none" 
+                            : "bg-[#303a7f] text-white hover:bg-[#1e234d] shadow-blue-900/10"
+                        }`}
                     >
                         <Mail size={16} />
-                        Enviar por Correo
+                        {emailsSent[`${payrollStore}_${currentStartDate}_${currentEndDate}`] ? "Correo Enviado" : "Enviar por Correo"}
                     </button>
                     <button
                         onClick={downloadVWHAsPDF}
@@ -8015,6 +8023,7 @@ function App() {
     const [selectedHistoryStore, setSelectedHistoryStore] = useState(sessionStorage.getItem('selectedHistoryStore') || '');
     const [isHistoricalDataLoaded, setIsHistoricalDataLoaded] = useState(false); // Flag para la UI
     const [processedBiweeks, setProcessedBiweeks] = useState([]);
+    const [vwhEmailsSent, setVwhEmailsSent] = useState({});
 
     const [invalidCodes, setInvalidCodes] = useState([]);
     const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
@@ -10201,6 +10210,7 @@ function App() {
                 if (!onlyPresence) {
                     if (key === 'user' && val) try { setUser(JSON.parse(val)); } catch (e) { }
                     if (key === 'processed_biweeks' && val) try { setProcessedBiweeks(JSON.parse(val)); } catch (e) { }
+                    if (key === 'vwh_emails_sent' && val) try { setVwhEmailsSent(JSON.parse(val)); } catch (e) { }
                     if (key === 'special_projects_data' && val) try {
                         const parsed = JSON.parse(val);
                         setSpecialProjectsData(Array.isArray(parsed) ? parsed : []);
@@ -10504,6 +10514,12 @@ function App() {
                 stores={stores}
                 fechaDesde={fechaDesde}
                 fechaHasta={fechaHasta}
+                emailsSent={vwhEmailsSent}
+                onEmailSent={(reportKey) => {
+                    const updated = { ...vwhEmailsSent, [reportKey]: true };
+                    setVwhEmailsSent(updated);
+                    syncVariableToSheets('vwh_emails_sent', updated);
+                }}
             />
 
             <BatchSyncProgressModal
