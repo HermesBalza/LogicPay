@@ -7815,22 +7815,13 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <input type="text" placeholder="$0.00" value={formatCurrencyInput(row.pago)} onChange={(e) => onUpdateManual(row.id, 'pago', e.target.value)}
-                                        className="bg-transparent border-none text-[10px] font-black text-[#303a7f] outline-none w-20 text-center" />
+                                    <span className="text-[10px] font-black text-[#303a7f] whitespace-nowrap">{formatCurrencyInput(row.pago) || '$0.00'}</span>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <div className="relative inline-block w-20">
-                                        <input type="text" readOnly placeholder="--/--/--" value={row.fecha_pago}
-                                            className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
-                                        <input type="date" value={toISODate(row.fecha_pago)}
-                                            onChange={(e) => onUpdateManual(row.id, 'fecha de pago', fromISODate(e.target.value))}
-                                            onClick={(e) => e.target.showPicker?.()}
-                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
-                                    </div>
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">{row.fecha_pago || '--/--/--'}</span>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <input type="text" value={row.wos} onChange={(e) => onUpdateManual(row.id, 'wos', e.target.value)}
-                                        className={`bg-transparent border-none text-[10px] font-black outline-none w-20 text-center ${row.wos ? 'text-orange-500' : 'text-gray-300'}`} />
+                                    <span className={`text-[10px] font-black ${row.wos ? 'text-orange-500' : 'text-gray-300'}`}>{row.wos || '---'}</span>
                                 </td>
                                 <td className="px-3 py-4 text-center">
                                     <input
@@ -7911,22 +7902,13 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <input type="text" placeholder="$0.00" value={formatCurrencyInput(row.pago)} onChange={(e) => onUpdateManualPE(row.correlativo, 'pago', e.target.value)}
-                                        className="bg-transparent border-none text-[10px] font-black text-[#303a7f] outline-none w-20 text-center" />
+                                    <span className="text-[10px] font-black text-[#303a7f] whitespace-nowrap">{formatCurrencyInput(row.pago) || '$0.00'}</span>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <div className="relative inline-block w-20">
-                                        <input type="text" readOnly placeholder="--/--/--" value={row.fecha_pago}
-                                            className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
-                                        <input type="date" value={toISODate(row.fecha_pago)}
-                                            onChange={(e) => onUpdateManualPE(row.correlativo, 'fecha de pago', fromISODate(e.target.value))}
-                                            onClick={(e) => e.target.showPicker?.()}
-                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
-                                    </div>
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">{row.fecha_pago || '--/--/--'}</span>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <input type="text" value={row.wos} onChange={(e) => onUpdateManualPE(row.correlativo, 'wos', e.target.value)}
-                                        className={`bg-transparent border-none text-[10px] font-black outline-none w-20 text-center ${row.wos ? 'text-orange-500' : 'text-gray-300'}`} />
+                                    <span className={`text-[10px] font-black ${row.wos ? 'text-orange-500' : 'text-gray-300'}`}>{row.wos || '---'}</span>
                                 </td>
                                 <td className="px-3 py-4 text-center">
                                     <input
