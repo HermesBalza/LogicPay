@@ -260,6 +260,40 @@ const handleNativeDateChange = (e, setter) => {
     setter(`${m}/${d}/${y}`);
 };
 
+const getSplitInfo = (fechaDesde) => {
+    if (!fechaDesde || !fechaDesde.includes('/')) return { hasSplit: false };
+    const [m, d, y] = fechaDesde.split('/');
+    const sun = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+    const startMonth = sun.getMonth();
+
+    for (let i = 1; i < 7; i++) {
+        const current = new Date(sun);
+        current.setDate(sun.getDate() + i);
+        if (current.getMonth() !== startMonth) {
+            // Se encontró división en el índice de día 'i'
+            const lastDayA = new Date(current);
+            lastDayA.setDate(lastDayA.getDate() - 1);
+            const firstDayB = new Date(current);
+            
+            const formatDate = (date) => {
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                const yyyy = date.getFullYear();
+                return `${mm}/${dd}/${yyyy}`;
+            };
+
+            return {
+                hasSplit: true,
+                splitIdx: i,
+                dateAEnd: formatDate(lastDayA),
+                dateBStart: formatDate(firstDayB)
+            };
+        }
+    }
+    return { hasSplit: false };
+};
+
+
 // Convierte una fila plana del CSV a la estructura de tienda que usa la app.
 // Mapeo explícito para evitar ambigüedades con claves que contienen guiones bajos
 // (ej: supervisor_kbs, max_horas, tarifas_shift_lead_kbs).
@@ -4165,6 +4199,7 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
+    const [activeSplitPart, setActiveSplitPart] = useState('A');
 
     if (!isOpen) return null;
 
@@ -4229,7 +4264,7 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
                     subject: emailData.subject,
                     body: emailData.body,
                     attachments: [{
-                        name: `VWH_Report_${payrollStore}_${fechaDesde.replace(/\//g, '-')}.pdf`,
+                        name: `VWH_Report_${payrollStore}_${currentStartDate.replace(/\//g, '-')}.pdf`,
                         type: 'application/pdf',
                         base64: pdfBase64
                     }]
@@ -4294,7 +4329,7 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
 
             const pdf = new jsPDF('p', 'mm', [imgWidth, pageHeight]);
             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
-            pdf.save(`VWH_Report_${payrollStore}_${fechaDesde.replace(/\//g, '-')}.pdf`);
+            pdf.save(`VWH_Report_${payrollStore}_${currentStartDate.replace(/\//g, '-')}.pdf`);
         } catch (error) {
             console.error('Error generating PDF:', error);
         } finally {
@@ -4306,6 +4341,14 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
 
     const store = stores.find(s => s.nombre === payrollStore);
     const kbsId = store?.codigo || '---';
+
+    const splitInfo = getSplitInfo(fechaDesde);
+    const isFullWeek = fechaDesde && fechaHasta && getFormattedDateForDay(fechaDesde, 6) === getFormattedDateForDay(fechaHasta, 0);
+    const showSplit = isFullWeek && splitInfo.hasSplit;
+
+    // Determinar fechas dinámicas según la parte activa
+    const currentStartDate = !showSplit ? fechaDesde : (activeSplitPart === 'A' ? fechaDesde : splitInfo.dateBStart);
+    const currentEndDate = !showSplit ? fechaHasta : (activeSplitPart === 'A' ? splitInfo.dateAEnd : fechaHasta);
 
     const hhmmToDecimal = (hhmm) => {
         if (!hhmm || hhmm === 'X' || hhmm === '0:00') return 0;
@@ -4327,6 +4370,136 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
         return store.tarifas[cargoKey]?.kbs || 0;
     };
 
+    const renderVWHReport = (reportData, start, end, isSplitPart = false) => {
+        const days = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+        let currentTotal = 0;
+
+        // Si es parte de una división, recalculamos el total solo para los días del rango
+        const processedData = reportData.map(emp => {
+            let empTotalFragment = 0;
+            if (isSplitPart) {
+                const startIndex = isSplitPart === 'A' ? 0 : splitInfo.splitIdx;
+                const endIndex = isSplitPart === 'A' ? splitInfo.splitIdx - 1 : 6;
+
+                for (let i = startIndex; i <= endIndex; i++) {
+                    empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                }
+            } else {
+                empTotalFragment = hhmmToDecimal(emp.total.final);
+            }
+            currentTotal += empTotalFragment;
+            return { ...emp, fragmentTotal: empTotalFragment };
+        });
+
+        return (
+            <div className="bg-white mx-auto h-fit max-w-7xl relative shadow-2xl border-2 border-gray-50 rounded-[4rem] overflow-hidden mb-16 last:mb-0">
+                {/* Header Premium (Estilo Referencia) */}
+                <div className="p-12 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/20 to-transparent">
+                    <div className="flex items-center gap-6">
+                        <div className="p-5 bg-[#303a7f] text-white rounded-[1.8rem] shadow-2xl shadow-blue-900/30 transform rotate-3 hover:rotate-0 transition-all duration-500">
+                            <ClipboardCheck size={32} />
+                        </div>
+                        <div>
+                            <h3 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">REPORTE VWH</h3>
+                            <div className="flex items-center gap-3">
+                                <p className="text-[#6bbdb7] font-black uppercase text-[12px] tracking-[0.2em]">
+                                    {payrollStore} | Period: {start} - {end}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Resumen de Información (Estilo Limpio) */}
+                <div className="px-12 py-10 grid grid-cols-2 md:grid-cols-4 gap-12 border-b-2 border-gray-50 bg-gray-50/30">
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Site Name</p>
+                        <p className="text-[13px] font-black text-[#303a7f] uppercase leading-tight">{payrollStore}</p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">KBS ID</p>
+                        <p className="text-sm font-black text-[#303a7f] uppercase tabular-nums">{kbsId}</p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Vendor Name</p>
+                        <p className="text-sm font-black text-[#303a7f] uppercase">Logic Group Management</p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Total Hours</p>
+                        <p className="text-3xl font-black text-[#6bbdb7] tabular-nums leading-none tracking-tighter">{currentTotal.toFixed(2)}</p>
+                    </div>
+                </div>
+
+                {/* Tabla de 8 Columnas con Estilo Premium */}
+                <div className="p-12">
+                    <div className="overflow-hidden rounded-[2.5rem] border-2 border-gray-100 shadow-2xl shadow-blue-900/[0.04]">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50/80">
+                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Site Code</th>
+                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">KBS ID</th>
+                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100">Vendor Name</th>
+                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Employee Identifier</th>
+                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Date</th>
+                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Hours</th>
+                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Job Code</th>
+                                    <th className="p-5 text-[9px] font-black text-white uppercase tracking-[0.2em] text-right bg-[#303a7f] px-8">Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y-2 divide-gray-50">
+                                {processedData.filter(emp => emp.fragmentTotal > 0).map((row, idx) => (
+                                    <tr key={idx} className="group hover:bg-blue-50/20 transition-all duration-300">
+                                        <td className="p-5 text-[11px] font-bold text-gray-500 uppercase pl-8">{payrollStore}</td>
+                                        <td className="p-5 text-[11px] font-bold text-gray-500 text-center tabular-nums">{kbsId}</td>
+                                        <td className="p-5 text-[10px] font-black text-gray-400 uppercase opacity-40">Logic Group</td>
+                                        <td className="p-5 pl-8">
+                                            <span className="text-[13px] font-black text-[#303a7f] uppercase tracking-tight group-hover:text-blue-600 transition-colors duration-500">{row.nombre}</span>
+                                        </td>
+                                        <td className="p-5 text-[11px] font-bold text-gray-400 text-center whitespace-nowrap">{start}-{end}</td>
+                                        <td className="p-5 text-center">
+                                            <span className="px-4 py-1.5 bg-[#303a7f]/5 rounded-xl text-xs font-black text-[#303a7f] tabular-nums">
+                                                {row.fragmentTotal.toFixed(2)}
+                                            </span>
+                                        </td>
+                                        <td className="p-5 text-center">
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-3 py-1 rounded-md">{row.cargo}</span>
+                                        </td>
+                                        <td className="p-5 text-right px-8 bg-[#303a7f]/[0.02]">
+                                            <span className="text-xs font-black text-[#303a7f] tabular-nums">${getKbsRate(row.cargo).toFixed(2)}</span>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {/* Fila de Resumen Final Premium */}
+                                <tr className="bg-[#303a7f] border-t-4 border-white">
+                                    <td colSpan={5} className="p-8 text-[11px] font-black text-white uppercase tracking-[0.3em] text-right italic pr-12 opacity-80">
+                                        TOTAL BIWEEKLY JANITORIAL HOURS
+                                    </td>
+                                    <td className="p-8 text-center bg-[#303a7f]/90">
+                                        <span className="text-2xl font-black text-white tabular-nums drop-shadow-xl tracking-tighter">
+                                            {currentTotal.toFixed(2)}
+                                        </span>
+                                    </td>
+                                    <td colSpan={2} className="bg-white/5 opacity-0"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Footer del Reporte */}
+                    <div className="mt-16 flex justify-between items-center opacity-30 px-6 border-t-2 border-gray-50 pt-8">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-[#303a7f] flex items-center justify-center text-white">
+                                <Receipt size={14} />
+                            </div>
+                            <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">AdWisers LogicPay</p>
+                        </div>
+                        <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">Logic Group Management LLC.</p>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="fixed inset-0 z-[300] bg-white animate-in fade-in duration-500 overflow-hidden flex flex-col">
             {/* Header Flotante (Botones de Control Superiores) */}
@@ -4343,6 +4516,24 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
                         </div>
                     </div>
                 </div>
+
+                {/* PAGINADOR (Solo si hay split) */}
+                {showSplit && (
+                    <div className="flex items-center gap-1 bg-gray-50 p-1.5 rounded-2xl border-2 border-gray-100 shadow-inner">
+                        <button
+                            onClick={() => setActiveSplitPart('A')}
+                            className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-500 ${activeSplitPart === 'A' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f]'}`}
+                        >
+                            Página 1 de 2
+                        </button>
+                        <button
+                            onClick={() => setActiveSplitPart('B')}
+                            className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-500 ${activeSplitPart === 'B' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f]'}`}
+                        >
+                            Página 2 de 2
+                        </button>
+                    </div>
+                )}
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => setIsEmailModalOpen(true)}
@@ -4369,121 +4560,23 @@ const VWHTableModal = ({ isOpen, onClose, data, payrollStore, stores, fechaDesde
 
             {/* Contenido del Reporte (Capturable - Atractivo Visual) */}
             <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-[#fcfdfe]">
-                <div ref={reportRef} className="bg-white mx-auto h-fit max-w-7xl relative shadow-2xl border-2 border-gray-50 rounded-[4rem] overflow-hidden">
-                    {/* Header Premium (Estilo Referencia) */}
-                    <div className="p-12 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/20 to-transparent">
-                        <div className="flex items-center gap-6">
-                            <div className="p-5 bg-[#303a7f] text-white rounded-[1.8rem] shadow-2xl shadow-blue-900/30 transform rotate-3 hover:rotate-0 transition-all duration-500">
-                                <ClipboardCheck size={32} />
-                            </div>
-                            <div>
-                                <h3 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">REPORTE VWH</h3>
-                                <div className="flex items-center gap-3">
-                                    <p className="text-[#6bbdb7] font-black uppercase text-[12px] tracking-[0.2em]">
-                                        {payrollStore} | Period: {fechaDesde} - {fechaHasta}
-                                    </p>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Resumen de Información (Estilo Limpio) */}
-                    <div className="px-12 py-10 grid grid-cols-2 md:grid-cols-4 gap-12 border-b-2 border-gray-50 bg-gray-50/30">
-                        <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Site Name</p>
-                            <p className="text-[13px] font-black text-[#303a7f] uppercase leading-tight">{payrollStore}</p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">KBS ID</p>
-                            <p className="text-sm font-black text-[#303a7f] uppercase tabular-nums">{kbsId}</p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Vendor Name</p>
-                            <p className="text-sm font-black text-[#303a7f] uppercase">Logic Group Management</p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Total Hours</p>
-                            <p className="text-3xl font-black text-[#6bbdb7] tabular-nums leading-none tracking-tighter">{totalHours.toFixed(2)}</p>
-                        </div>
-                    </div>
-
-                    {/* Tabla de 8 Columnas con Estilo Premium */}
-                    <div className="p-12">
-                        <div className="overflow-hidden rounded-[2.5rem] border-2 border-gray-100 shadow-2xl shadow-blue-900/[0.04]">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-50/80">
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Site Code</th>
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">KBS ID</th>
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100">Vendor Name</th>
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Employee Identifier</th>
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Date</th>
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Hours</th>
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Job Code</th>
-                                        <th className="p-5 text-[9px] font-black text-white uppercase tracking-[0.2em] text-right bg-[#303a7f] px-8">Rate</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y-2 divide-gray-50">
-                                    {data.map((row, idx) => (
-                                        <tr key={idx} className="group hover:bg-blue-50/20 transition-all duration-300">
-                                            <td className="p-5 text-[11px] font-bold text-gray-500 uppercase pl-8">{payrollStore}</td>
-                                            <td className="p-5 text-[11px] font-bold text-gray-500 text-center tabular-nums">{kbsId}</td>
-                                            <td className="p-5 text-[10px] font-black text-gray-400 uppercase opacity-40">Logic Group</td>
-                                            <td className="p-5 pl-8">
-                                                <span className="text-[13px] font-black text-[#303a7f] uppercase tracking-tight group-hover:text-blue-600 transition-colors duration-500">{row.nombre}</span>
-                                            </td>
-                                            <td className="p-5 text-[11px] font-bold text-gray-400 text-center whitespace-nowrap">{fechaDesde}-{fechaHasta}</td>
-                                            <td className="p-5 text-center">
-                                                <span className="px-4 py-1.5 bg-[#303a7f]/5 rounded-xl text-xs font-black text-[#303a7f] tabular-nums">
-                                                    {hhmmToDecimal(row.total.final).toFixed(2)}
-                                                </span>
-                                            </td>
-                                            <td className="p-5 text-center">
-                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-3 py-1 rounded-md">{row.cargo}</span>
-                                            </td>
-                                            <td className="p-5 text-right px-8 bg-[#303a7f]/[0.02]">
-                                                <span className="text-xs font-black text-[#303a7f] tabular-nums">${getKbsRate(row.cargo).toFixed(2)}</span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {/* Fila de Resumen Final Premium */}
-                                    <tr className="bg-[#303a7f] border-t-4 border-white">
-                                        <td colSpan={5} className="p-8 text-[11px] font-black text-white uppercase tracking-[0.3em] text-right italic pr-12 opacity-80">
-                                            TOTAL BIWEEKLY JANITORIAL HOURS
-                                        </td>
-                                        <td className="p-8 text-center bg-[#303a7f]/90">
-                                            <span className="text-2xl font-black text-white tabular-nums drop-shadow-xl tracking-tighter">
-                                                {totalHours.toFixed(2)}
-                                            </span>
-                                        </td>
-                                        <td colSpan={2} className="bg-white/5 opacity-0"></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Footer del Reporte */}
-                        <div className="mt-16 flex justify-between items-center opacity-30 px-6 border-t-2 border-gray-50 pt-8">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-[#303a7f] flex items-center justify-center text-white">
-                                    <Receipt size={14} />
-                                </div>
-                                <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">AdWisers LogicPay</p>
-                            </div>
-                            <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">Logic Group Management LLC.</p>
-                        </div>
-                    </div>
+                <div ref={reportRef} className="mx-auto h-fit max-w-7xl relative">
+                    {!showSplit ? (
+                        renderVWHReport(data, fechaDesde, fechaHasta)
+                    ) : (
+                        renderVWHReport(data, currentStartDate, currentEndDate, activeSplitPart)
+                    )}
                 </div>
             </div>
+
 
             {/* Modal de Envío por Correo */}
             <VWHEmailModal
                 isOpen={isEmailModalOpen}
                 onClose={() => setIsEmailModalOpen(false)}
                 storeName={payrollStore}
-                fechaDesde={fechaDesde}
-                fechaHasta={fechaHasta}
+                fechaDesde={currentStartDate}
+                fechaHasta={currentEndDate}
                 onSend={handleSendEmail}
                 isSending={isSendingEmail}
             />
@@ -9072,35 +9165,83 @@ function App() {
             }
 
             // FASE 9: Guardar Historial de Nómina en Sheet 'Nomina_Historico'
-            const payloadStr = JSON.stringify({
-                semanaTableData,
-                biometricTableData,
-                earningsTableData: earnings.map(e => e.lsg),
-                kbsBillingTableData: earnings.map(e => e.kbs),
-                rawBiometricData
-            });
-            const wkId = `'WK-${fechaDesde}`;
-            const historyObj = {
-                nombre: payrollStore,
-                codigo: wkId,
-                fecha_inicio: fechaDesde,
-                fecha_fin: fechaHasta,
-                data_json: payloadStr
+            const splitInfo = getSplitInfo(fechaDesde);
+
+            const saveHistoryPart = async (start, end, partLabel = null) => {
+                const days = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                const startIndex = partLabel === 'A' ? 0 : (partLabel === 'B' ? splitInfo.splitIdx : 0);
+                const endIndex = partLabel === 'A' ? splitInfo.splitIdx - 1 : (partLabel === 'B' ? 6 : 6);
+
+                const fragmentEarnings = semanaTableData.map(emp => {
+                    const cargoLower = emp.cargo.toLowerCase();
+                    const cargoKey = cargoLower.includes('shift') ? 'shift_lead' :
+                        cargoLower.includes('utility') ? 'utility' : 'janitorial';
+                    const rateLSG = store.tarifas[cargoKey]?.lsg || 0;
+                    const rateKBS = store.tarifas[cargoKey]?.kbs || 0;
+
+                    let totalLSG = 0;
+                    let totalKBS = 0;
+                    for (let i = startIndex; i <= endIndex; i++) {
+                        const hrs = hhmmToDecimal(emp[days[i]]?.final || 0);
+                        totalLSG += hrs * rateLSG;
+                        totalKBS += hrs * rateKBS;
+                    }
+                    return {
+                        lsg: { ...emp, total: totalLSG },
+                        kbs: { ...emp, total: totalKBS }
+                    };
+                });
+
+                const payload = {
+                    semanaTableData,
+                    biometricTableData,
+                    earningsTableData: fragmentEarnings.map(e => e.lsg),
+                    kbsBillingTableData: fragmentEarnings.map(e => e.kbs),
+                    rawBiometricData,
+                    isSplitFragment: !!partLabel,
+                    fragmentRange: { start, end }
+                };
+
+                const historyObj = {
+                    nombre: payrollStore,
+                    codigo: `'WK-${start}`,
+                    fecha_inicio: start,
+                    fecha_fin: end,
+                    data_json: JSON.stringify(payload)
+                };
+
+                await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'upsert',
+                        sheetName: 'Nomina_Historico',
+                        data: historyObj
+                    })
+                });
+                return historyObj;
             };
-            await fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({
-                    action: 'upsert',
-                    sheetName: 'Nomina_Historico',
-                    data: historyObj
-                })
-            });
+
+            let savedRecords = [];
+            if (splitInfo.hasSplit) {
+                console.log('[Payroll] Detectada división de mes. Guardando dos fragmentos...');
+                const recA = await saveHistoryPart(fechaDesde, splitInfo.dateAEnd, 'A');
+                const recB = await saveHistoryPart(splitInfo.dateBStart, fechaHasta, 'B');
+                savedRecords = [recA, recB];
+            } else {
+                const rec = await saveHistoryPart(fechaDesde, fechaHasta);
+                savedRecords = [rec];
+            }
 
             // Recargar o actualizar el estado local para reflejarlo en la UI
             setNominaHistoryData(prev => {
-                const updated = prev.filter(h => !(String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === fechaDesde));
-                return [...updated, historyObj];
+                let updated = [...prev];
+                savedRecords.forEach(rec => {
+                    updated = updated.filter(h => !(String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === rec.fecha_inicio));
+                    updated.push(rec);
+                });
+                return updated;
             });
+
 
             showSuccess("Cálculo Semanal procesado, Guardado en Historial y Personal actualizado exitosamente.");
             fetchEmployees();
