@@ -7801,7 +7801,7 @@ const BillingView = ({
                                     <button
                                         onClick={() => onOpenVWH(row.id)}
                                         title="Ver Detalle de Nómina VWH"
-                                        className="text-[10px] font-bold text-[#303a7f] hover:text-[#6bbdb7] hover:underline cursor-pointer transition-all active:scale-95"
+                                        className="text-[10px] font-bold text-[#303a7f] hover:text-[#6bbdb7] transition-all active:scale-95 border-b border-dashed border-[#303a7f]/30 hover:border-[#6bbdb7] pb-0.5"
                                     >
                                         {row.semana}
                                     </button>
@@ -7894,9 +7894,11 @@ const BillingView = ({
                                     <button
                                         onClick={() => onOpenPE(row.id)}
                                         title="Ver Detalle de Proyecto Especial"
-                                        className="inline-flex flex-col items-center group/pe cursor-pointer active:scale-95 transition-all w-full"
+                                        className="group/pe flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-all w-full"
                                     >
-                                        <span className="text-[10px] font-black text-[#303a7f] group-hover/pe:text-[#6bbdb7] group-hover/pe:underline">{row.nombre}</span>
+                                        <span className="text-[10px] font-black text-[#303a7f] group-hover/pe:text-[#6bbdb7] border-b border-dashed border-[#303a7f]/30 group-hover/pe:border-[#6bbdb7] transition-all mb-0.5">
+                                            {row.nombre}
+                                        </span>
                                         <span className="text-[8px] font-bold text-gray-400">Inv: {row.invoice}</span>
                                     </button>
                                 </td>
