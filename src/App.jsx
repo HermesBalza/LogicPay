@@ -10955,7 +10955,7 @@ function App() {
                                         <div className="hidden xl:block flex-1 pl-4">Supervisor Asignado</div>
                                         <div className="w-10 text-right">Acción</div>
                                     </div>
-                                    <div className="divide-y divide-gray-50 max-h-[1000px] overflow-y-auto">
+                                    <div className="divide-y divide-gray-50">
                                         {filteredStores.map((store, i) => (
                                             <StoreRow key={i} store={store} employees={employees} onEdit={setEditingStore} />
                                         ))}
@@ -11074,7 +11074,7 @@ function App() {
                                         <div className="hidden md:block w-48 text-left">Tienda</div>
                                         <div className="w-24 text-center">Estado</div>
                                     </div>
-                                    <div className="divide-y divide-gray-50 max-h-[1000px] overflow-y-auto">
+                                    <div className="divide-y divide-gray-50">
                                         {employees.filter(e => e.nombre.toLowerCase().includes(searchTerm.toLowerCase())).map((employee, i) => (
                                             <EmployeeRow key={i} employee={employee} onEdit={setEditingEmployee} />
                                         ))}
