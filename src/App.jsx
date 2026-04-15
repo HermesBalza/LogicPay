@@ -8096,6 +8096,7 @@ function App() {
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [isPEModalOpen, setIsPEModalOpen] = useState(false);
     const [isEmployeeStatsModalOpen, setIsEmployeeStatsModalOpen] = useState(false);
+    const [isStoreStatsModalOpen, setIsStoreStatsModalOpen] = useState(false);
 
     const [specialProjectsData, setSpecialProjectsData] = useState([]);
 
@@ -10405,9 +10406,9 @@ function App() {
         }).catch(err => console.error(`[LogicPay] Error localizando Variable ${key}:`, err));
     };
 
-    const filteredStores = stores.filter(s =>
-        s?.nombre?.toLowerCase().includes(searchTerm?.toLowerCase() || '')
-    );
+    const filteredStores = stores
+        .filter(s => s?.nombre?.toLowerCase().includes(searchTerm?.toLowerCase() || ''))
+        .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
 
     const handleSaveStore = (updatedStore) => {
         setStores(prev => prev.map(s => s.codigo === updatedStore.codigo ? updatedStore : s));
@@ -10651,6 +10652,60 @@ function App() {
                     </div>
                 </div>
             )}
+ 
+            {isStoreStatsModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm" onClick={() => setIsStoreStatsModalOpen(false)} />
+                    <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-md relative shadow-2xl border-2 border-white animate-in zoom-in-95 duration-300">
+                        <button
+                            onClick={() => setIsStoreStatsModalOpen(false)}
+                            className="absolute top-6 right-6 w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <div className="flex items-center gap-4 mb-8">
+                            <div className="w-12 h-12 bg-[#303a7f]/5 rounded-2xl flex items-center justify-center text-[#303a7f]">
+                                <StoreIcon size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter leading-tight">Estado de Unidades</h3>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Resumen logístico de sedes</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-[#f9f9f9] p-6 rounded-3xl border-2 border-transparent hover:border-green-500/20 transition-all group">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform">
+                                        <MapPin size={16} />
+                                    </div>
+                                    <span className="text-[24px] font-black text-[#333333] tracking-tighter">{stores.length}</span>
+                                </div>
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sedes</span>
+                            </div>
+
+                            <div className="bg-[#f9f9f9] p-6 rounded-3xl border-2 border-transparent hover:border-blue-500/20 transition-all group">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+                                        <History size={16} />
+                                    </div>
+                                    <span className="text-[24px] font-black text-[#333333] tracking-tighter">{new Set(stores.map(s => s.estado)).size}</span>
+                                </div>
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Zonas</span>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 p-5 bg-[#303a7f] rounded-3xl flex items-center justify-between shadow-xl shadow-blue-900/20">
+                            <div className="flex flex-col">
+                                <span className="text-[8px] font-black text-white/50 uppercase tracking-[0.2em] mb-0.5">Total Registradas</span>
+                                <span className="text-sm font-black text-white uppercase tracking-widest">Base de Datos</span>
+                            </div>
+                            <span className="text-3xl font-black text-white tracking-tighter">{stores.length}</span>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Logo y Status Bar Superior */}
             <header className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-b-2 border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
@@ -10812,7 +10867,18 @@ function App() {
                                         className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
                                     />
                                 </div>
-
+ 
+                                <button
+                                    onClick={() => setIsStoreStatsModalOpen(true)}
+                                    className="h-11 px-6 bg-white border-2 border-brand-primary/10 rounded-2xl flex items-center gap-3 hover:border-[#303a7f]/20 hover:bg-[#303a7f]/5 transition-all group shadow-sm"
+                                >
+                                    <div className="w-2 h-2 rounded-full bg-[#6bbdb7] animate-pulse" />
+                                    <div className="flex flex-col items-start leading-tight">
+                                        <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">{stores.length}</span>
+                                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Registradas</span>
+                                    </div>
+                                </button>
+ 
                                 {/* Toggle de Vistas para Tiendas */}
                                 <div className="h-11 bg-white border-2 border-brand-primary/10 rounded-2xl p-1 flex items-center gap-1 shadow-sm">
                                     <button
