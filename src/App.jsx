@@ -3288,7 +3288,13 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                 finalValue = `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}/${date.getUTCFullYear()}`;
             }
         }
-        setEditedEmployee(prev => ({ ...prev, [field]: finalValue }));
+        setEditedEmployee(prev => {
+            const updated = { ...prev, [field]: finalValue };
+            if (field === 'first_name' || field === 'last_name') {
+                updated.nombre = `${updated.first_name || ''} ${updated.last_name || ''}`.trim();
+            }
+            return updated;
+        });
     };
 
     const handleCancel = () => {
@@ -3391,9 +3397,9 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                 <input
                                     type="text"
                                     value={editedEmployee.nombre}
-                                    onChange={(e) => updateField('nombre', e.target.value)}
-                                    className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#303a7f] font-black text-lg text-center rounded-xl p-2.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all tracking-tighter mb-1"
-                                    placeholder="Nombre completo..."
+                                    readOnly
+                                    className="w-full bg-gray-50 border-2 border-brand-primary/10 text-gray-400 font-bold text-lg text-center rounded-xl p-2.5 outline-none transition-all tracking-tighter mb-1 cursor-not-allowed"
+                                    placeholder="Nombre completo (Auto)..."
                                 />
                             ) : (
                                 <h2 className="text-xl font-black text-[#333333] tracking-tighter mb-1 line-clamp-2 px-2">{editedEmployee.nombre}</h2>
@@ -3830,7 +3836,13 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
                 finalValue = `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}/${date.getUTCFullYear()}`;
             }
         }
-        setNewEmployee(prev => ({ ...prev, [field]: finalValue }));
+        setNewEmployee(prev => {
+            const updated = { ...prev, [field]: finalValue };
+            if (field === 'first_name' || field === 'last_name') {
+                updated.nombre = `${updated.first_name || ''} ${updated.last_name || ''}`.trim();
+            }
+            return updated;
+        });
     };
 
 
@@ -3880,7 +3892,7 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
                             <div className="space-y-4 text-left">
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Nombre Completo</label>
-                                    <input type="text" value={newEmployee.nombre} onChange={(e) => updateField('nombre', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Ej: Juan Pérez" />
+                                    <input type="text" value={newEmployee.nombre} readOnly className="w-full bg-gray-50 border-2 border-brand-primary/10 rounded-xl p-3.5 font-bold text-sm text-gray-400 cursor-not-allowed" placeholder="Nombre (Composición Automática)" />
                                 </div>
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Código de Empleado</label>
@@ -4719,7 +4731,12 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
             const normalized = normalizeName(emp.nombre);
             const id = String(emp.codigo_empleado || '').trim();
             if (id) {
-                idToInfoMap[id] = { nombre: emp.nombre, cargo: emp.cargo || 'Personal' };
+                idToInfoMap[id] = { 
+                    nombre: emp.nombre, 
+                    cargo: emp.cargo || 'Personal',
+                    firstName: emp.first_name,
+                    lastName: emp.last_name
+                };
                 if (normalized) nameToIdMap[normalized] = id;
             }
         });
@@ -4760,6 +4777,8 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
                             id: empId,
                             nombre: info.nombre,
                             cargo: info.cargo,
+                            firstName: info.firstName,
+                            lastName: info.lastName,
                             totalBox1: 0,
                             periods: {}
                         };
@@ -4799,6 +4818,8 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
                                 id: empId,
                                 nombre: info.nombre,
                                 cargo: info.cargo,
+                                firstName: info.firstName,
+                                lastName: info.lastName,
                                 totalBox1: 0,
                                 periods: {}
                             };
@@ -4832,9 +4853,9 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
                 row.id.toString().includes(searchTerm)
             )
             .sort((a, b) => {
-                const lastNameA = a.nombre.trim().split(' ').pop().toLowerCase();
-                const lastNameB = b.nombre.trim().split(' ').pop().toLowerCase();
-                return lastNameA.localeCompare(lastNameB);
+                const nameA = (a.lastName || a.nombre.split(' ').pop() || '').toLowerCase();
+                const nameB = (b.lastName || b.nombre.split(' ').pop() || '').toLowerCase();
+                return nameA.localeCompare(nameB);
             });
     }, [reportData.rows, searchTerm]);
 
@@ -4945,7 +4966,9 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
                                         <tr key={row.id} className="hover:bg-blue-50/20 transition-colors group">
                                             <td className="p-6 sticky left-0 bg-white group-hover:bg-blue-50/20 z-10 border-r-2 border-gray-50 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.05)]">
                                                 <div className="flex flex-col">
-                                                    <span className="text-sm font-black text-[#303a7f] uppercase tracking-tight">{row.nombre}</span>
+                                                    <span className="text-sm font-black text-[#303a7f] uppercase tracking-tight">
+                                                        {row.lastName && row.firstName ? `${row.lastName} ${row.firstName}` : row.nombre}
+                                                    </span>
                                                     <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-0.5">ID: {row.id}</span>
                                                 </div>
                                             </td>
