@@ -8057,7 +8057,8 @@ function App() {
     const initialLoadApplied = useRef(false);
     const [activeTab, setActiveTab] = useState(sessionStorage.getItem('activeTab') || 'stores');
     const [isSidebarOpen, setSidebarOpen] = useState(true);
-    const [searchTerm, setSearchTerm] = useState(sessionStorage.getItem('searchTerm') || '');
+    const [storeSearchTerm, setStoreSearchTerm] = useState(sessionStorage.getItem('storeSearchTerm') || '');
+    const [employeeSearchTerm, setEmployeeSearchTerm] = useState(sessionStorage.getItem('employeeSearchTerm') || '');
     const [editingStore, setEditingStore] = useState(null);
     const pendingStoreId = useRef(sessionStorage.getItem('editingStoreId'));
     const [isAddingStore, setIsAddingStore] = useState(false);
@@ -9600,13 +9601,14 @@ function App() {
         sessionStorage.setItem('editingEmployeeId', editingEmployee?.codigo_empleado || '');
         sessionStorage.setItem('isBiweeklyManagementOpen', isBiweeklyManagementOpen);
         sessionStorage.setItem('payrollView', payrollView);
-        sessionStorage.setItem('searchTerm', searchTerm);
+        sessionStorage.setItem('storeSearchTerm', storeSearchTerm);
+        sessionStorage.setItem('employeeSearchTerm', employeeSearchTerm);
         if (selectedBiweeklyPeriod) sessionStorage.setItem('selectedBiweeklyPeriod', JSON.stringify(selectedBiweeklyPeriod));
         else sessionStorage.removeItem('selectedBiweeklyPeriod');
         if (selectedHistoryStore) sessionStorage.setItem('selectedHistoryStore', selectedHistoryStore);
         if (fechaDesde) sessionStorage.setItem('fechaDesde', fechaDesde);
         if (fechaHasta) sessionStorage.setItem('fechaHasta', fechaHasta);
-    }, [activeTab, editingStore, editingEmployee, isBiweeklyManagementOpen, payrollView, selectedHistoryStore, fechaDesde, fechaHasta]);
+    }, [activeTab, editingStore, editingEmployee, isBiweeklyManagementOpen, payrollView, selectedHistoryStore, fechaDesde, fechaHasta, storeSearchTerm, employeeSearchTerm]);
 
     // Re-hidratación de Tiendas
     useEffect(() => {
@@ -10441,7 +10443,7 @@ function App() {
     };
 
     const filteredStores = stores
-        .filter(s => s?.nombre?.toLowerCase().includes(searchTerm?.toLowerCase() || ''))
+        .filter(s => s?.nombre?.toLowerCase().includes(storeSearchTerm?.toLowerCase() || ''))
         .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
 
     const handleSaveStore = (updatedStore) => {
@@ -10902,8 +10904,8 @@ function App() {
                                     <input
                                         type="text"
                                         placeholder="Filtrar por nombre de Tienda o Ubicación..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        value={storeSearchTerm}
+                                        onChange={(e) => setStoreSearchTerm(e.target.value)}
                                         className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
                                     />
                                 </div>
@@ -11020,8 +11022,8 @@ function App() {
                                     <input
                                         type="text"
                                         placeholder="Filtrar por nombre o apellido..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        value={employeeSearchTerm}
+                                        onChange={(e) => setEmployeeSearchTerm(e.target.value)}
                                         className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
                                     />
                                 </div>
@@ -11095,7 +11097,7 @@ function App() {
 
                             {personalViewMode === 'grid' ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
-                                    {employees.filter(e => e.nombre.toLowerCase().includes(searchTerm.toLowerCase())).map((employee, i) => (
+                                    {employees.filter(e => e.nombre.toLowerCase().includes(employeeSearchTerm.toLowerCase())).map((employee, i) => (
                                         <EmployeeCard key={i} employee={employee} onEdit={setEditingEmployee} />
                                     ))}
 
@@ -11115,7 +11117,7 @@ function App() {
                                         <div className="w-24 text-center">Estado</div>
                                     </div>
                                     <div className="divide-y divide-gray-50">
-                                        {employees.filter(e => e.nombre.toLowerCase().includes(searchTerm.toLowerCase())).map((employee, i) => (
+                                        {employees.filter(e => e.nombre.toLowerCase().includes(employeeSearchTerm.toLowerCase())).map((employee, i) => (
                                             <EmployeeRow key={i} employee={employee} onEdit={setEditingEmployee} />
                                         ))}
                                     </div>
