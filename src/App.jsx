@@ -1449,7 +1449,7 @@ const EmployeeRow = ({ employee, onEdit }) => (
 );
 
 // --- Full Screen Store Editor ---
-const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) => {
+const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onProcessPayroll }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [confirmName, setConfirmName] = useState('');
@@ -1752,14 +1752,25 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete }) =
                     <div className="lg:col-span-8 space-y-6">
                         {/* Matrix Payroll Settings */}
                         <section className={`bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
-                            <div className="flex items-center gap-4 mb-8">
-                                <div className="bg-[#303a7f] p-3 rounded-xl shadow-xl shadow-blue-900/10">
-                                    <DollarSign className="text-white" size={20} />
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 mb-8">
+                                <div className="flex items-center gap-4">
+                                    <div className="bg-[#303a7f] p-3 rounded-xl shadow-xl shadow-blue-900/10">
+                                        <DollarSign className="text-white" size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-black text-[#333333] tracking-tighter">Matriz Salarial Dual</h3>
+                                        <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-1">Margen Operativo KBS vs Logic Solutions Group</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="text-2xl font-black text-[#333333] tracking-tighter">Matriz Salarial Dual</h3>
-                                    <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-1">Margen Operativo KBS vs Logic Solutions Group</p>
-                                </div>
+                                {!isEditing && (
+                                    <button
+                                        onClick={() => onProcessPayroll(store.nombre)}
+                                        className="px-6 py-3 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-lg shadow-blue-900/10 active:scale-95 flex items-center gap-2"
+                                    >
+                                        <CreditCard size={16} />
+                                        Procesar Nómina
+                                    </button>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -10505,6 +10516,12 @@ function App() {
                     onBack={() => setEditingStore(null)}
                     onSave={handleSaveStore}
                     onDelete={handleDeleteStore}
+                    onProcessPayroll={(storeName) => {
+                        setSelectedHistoryStore(storeName);
+                        setActiveTab('payroll');
+                        setPayrollView('history');
+                        setEditingStore(null);
+                    }}
                 />
             )}
 
