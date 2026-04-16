@@ -358,6 +358,10 @@ const csvRowToEmployee = (flat) => {
         country: findValue(['country', 'P Country']) || 'EE. UU.',
         email_tax: findValue(['email_tax', 'P Email Address (optional)']) || '',
         site_code: (findValue(['site_code', 'Site Code']) || '').toString().replace(/^'/, ''),
+        // --- Rates Personales y Observaciones ---
+        rateKBS: parseFloat(findValue(['Rate KBS', 'rate_kbs'])) || 0,
+        rateLGM: parseFloat(findValue(['Rate LGM', 'rate_lgm'])) || 0,
+        observaciones: findValue(['Observaciones', 'observaciones']) || '',
         locationHistory: (() => {
             try {
                 const val = findValue(['locationHistory', 'location_history', 'historial_ubicaciones']);
@@ -3527,6 +3531,50 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                             className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs resize-none`}
                                         />
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* --- Sección de Tarifas Especiales y Notas --- */}
+                            <div className="mt-6 pt-6 border-t-2 border-gray-50 space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="group">
+                                        <label className="text-[8px] text-[#303a7f] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Rate Personal KBS ($/hr)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
+                                            <input
+                                                type="number"
+                                                value={editedEmployee.rateKBS || ''}
+                                                onChange={(e) => updateField('rateKBS', parseFloat(e.target.value) || 0)}
+                                                readOnly={!isEditing}
+                                                className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#303a7f]'} rounded-xl p-3 pl-7 outline-none font-black text-xs transition-all`}
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[8px] text-[#6bbdb7] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Rate Personal LGM ($/hr)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
+                                            <input
+                                                type="number"
+                                                value={editedEmployee.rateLGM || ''}
+                                                onChange={(e) => updateField('rateLGM', parseFloat(e.target.value) || 0)}
+                                                readOnly={!isEditing}
+                                                className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#6bbdb7]'} rounded-xl p-3 pl-7 outline-none font-black text-xs transition-all`}
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="group">
+                                    <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Observaciones / Notas Internas</label>
+                                    <textarea
+                                        value={editedEmployee.observaciones || ''}
+                                        onChange={(e) => updateField('observaciones', e.target.value)}
+                                        readOnly={!isEditing}
+                                        placeholder="Ingrese notas u observaciones sobre el empleado..."
+                                        className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 italic' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-[11px] min-h-[60px] resize-none transition-all`}
+                                    />
                                 </div>
                             </div>
                         </section>
@@ -9169,8 +9217,14 @@ function App() {
                 const cargoKey = cargoLower.includes('shift') ? 'shift_lead' :
                     cargoLower.includes('utility') ? 'utility' : 'janitorial';
 
-                const rateLSG = store.tarifas[cargoKey]?.lsg || 0;
-                const rateKBS = store.tarifas[cargoKey]?.kbs || 0;
+                // Buscar información personal del empleado para obtener rates personalizados
+                const employeeInfo = employees.find(e =>
+                    e.codigo_empleado.toString().trim() === emp.codigo.toString().trim() &&
+                    e.nombre.toString().trim().toLowerCase() === emp.nombre.toString().trim().toLowerCase()
+                );
+
+                const rateLSG = (employeeInfo && employeeInfo.rateLGM) ? employeeInfo.rateLGM : (store.tarifas[cargoKey]?.lsg || 0);
+                const rateKBS = (employeeInfo && employeeInfo.rateKBS) ? employeeInfo.rateKBS : (store.tarifas[cargoKey]?.kbs || 0);
 
                 const calcDay = (val, rate) => hhmmToDecimal(val) * rate;
 
@@ -9297,8 +9351,15 @@ function App() {
                     const cargoLower = emp.cargo.toLowerCase();
                     const cargoKey = cargoLower.includes('shift') ? 'shift_lead' :
                         cargoLower.includes('utility') ? 'utility' : 'janitorial';
-                    const rateLSG = store.tarifas[cargoKey]?.lsg || 0;
-                    const rateKBS = store.tarifas[cargoKey]?.kbs || 0;
+
+                    // Buscar información personal del empleado para obtener rates personalizados
+                    const employeeInfo = employees.find(e =>
+                        e.codigo_empleado.toString().trim() === emp.codigo.toString().trim() &&
+                        e.nombre.toString().trim().toLowerCase() === emp.nombre.toString().trim().toLowerCase()
+                    );
+
+                    const rateLSG = (employeeInfo && employeeInfo.rateLGM) ? employeeInfo.rateLGM : (store.tarifas[cargoKey]?.lsg || 0);
+                    const rateKBS = (employeeInfo && employeeInfo.rateKBS) ? employeeInfo.rateKBS : (store.tarifas[cargoKey]?.kbs || 0);
 
                     let totalLSG = 0;
                     let totalKBS = 0;
@@ -10483,7 +10544,11 @@ function App() {
             tin: updatedEmployee.tin ? `'${updatedEmployee.tin.toString().replace(/^'/, '')}` : '',
             zip: updatedEmployee.zip ? `'${updatedEmployee.zip.toString().replace(/^'/, '')}` : '',
             site_code: updatedEmployee.site_code ? `'${updatedEmployee.site_code.toString().replace(/^'/, '')}` : '',
-            cuenta_bancaria: updatedEmployee.cuenta_bancaria ? `'${updatedEmployee.cuenta_bancaria.toString().replace(/^'/, '')}` : ''
+            cuenta_bancaria: updatedEmployee.cuenta_bancaria ? `'${updatedEmployee.cuenta_bancaria.toString().replace(/^'/, '')}` : '',
+            // Mapeo de llaves para Google Sheets (Nombres de Columnas Exactos)
+            'Rate KBS': updatedEmployee.rateKBS || 0,
+            'Rate LGM': updatedEmployee.rateLGM || 0,
+            'Observaciones': updatedEmployee.observaciones || ''
         }, 'Personal');
     };
 
