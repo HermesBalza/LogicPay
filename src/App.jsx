@@ -4266,7 +4266,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
 };
 
 const VWHTableModal = (props) => {
-    const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId } = props;
+    const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId, employees = [] } = props;
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -4439,12 +4439,12 @@ const VWHTableModal = (props) => {
 
     const totalHours = data.reduce((acc, emp) => acc + hhmmToDecimal(emp.total.final), 0);
 
-    const getKbsRate = (cargo) => {
-        if (!store) return 0;
-        const cargoLower = cargo.toLowerCase();
-        const cargoKey = cargoLower.includes('shift') ? 'shift_lead' :
-            cargoLower.includes('utility') ? 'utility' : 'janitorial';
-        return store.tarifas[cargoKey]?.kbs || 0;
+    const getKbsRate = (cargo, nombre) => {
+        // Fuente única de verdad: Rate Personal KBS del Empleado
+        const employeeInfo = employees.find(e =>
+            String(e.nombre).trim().toLowerCase() === String(nombre || '').trim().toLowerCase()
+        );
+        return employeeInfo?.rateKBS || 0;
     };
 
     const renderVWHReport = (reportData, start, end, isSplitPart = false) => {
@@ -4544,7 +4544,7 @@ const VWHTableModal = (props) => {
                                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-3 py-1 rounded-md">{row.cargo}</span>
                                         </td>
                                         <td className="p-5 text-right px-8 bg-[#303a7f]/[0.02]">
-                                            <span className="text-xs font-black text-[#303a7f] tabular-nums">${getKbsRate(row.cargo).toFixed(2)}</span>
+                                            <span className="text-xs font-black text-[#303a7f] tabular-nums">${getKbsRate(row.cargo, row.nombre).toFixed(2)}</span>
                                         </td>
                                     </tr>
                                 ))}
@@ -6696,16 +6696,9 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
     // Auto-rellenar Rate KBS y LGM al seleccionar un empleado
     const handleSelectEmployee = (rowId, emp) => {
         const updates = { employeeName: emp.nombre };
-        if (stores && emp.cargo && emp.tienda) {
-            const store = stores.find(s =>
-                String(s.nombre).trim().toLowerCase() === String(emp.tienda).trim().toLowerCase()
-            );
-            const cargoKey = String(emp.cargo).trim().toLowerCase();
-            if (store?.tarifas?.[cargoKey]) {
-                updates.rateKBS = store.tarifas[cargoKey].kbs || 0;
-                updates.rateLogic = store.tarifas[cargoKey].lsg || 0;
-            }
-        }
+        // Fuente única de verdad: Rate Personal del Empleado
+        if (emp.rateKBS) updates.rateKBS = emp.rateKBS;
+        if (emp.rateLGM) updates.rateLogic = emp.rateLGM;
         updateRow(rowId, updates);
     };
 
@@ -8776,22 +8769,20 @@ function App() {
 
                 let totalKBS = 0;
                 const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase());
-                if (dbEmp && dbEmp.tienda) {
-                    const store = stores.find(s => String(s.nombre).trim().toLowerCase() === String(dbEmp.tienda).trim().toLowerCase());
-                    const cargoKey = String(dbEmp.cargo).trim().toLowerCase();
-                    if (store?.tarifas?.[cargoKey]) {
-                        const rateKBS = store.tarifas[cargoKey].kbs || 0;
-                        totalKBS = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * rateKBS;
-                        (specialProjectsData || []).forEach(project => {
-                            if (project.status === 'registered') {
-                                (project.employees || []).forEach(row => {
-                                    if (String(row.employeeName).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()) {
-                                        totalKBS += (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0);
-                                    }
-                                });
-                            }
-                        });
-                    }
+                if (dbEmp) {
+                    // Fuente única de verdad: Rate Personal KBS del Empleado
+                    const rateKBS = dbEmp.rateKBS || 0;
+                    totalKBS = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * rateKBS;
+                    // Sumar KBS de Proyectos Especiales (ya usan rate personal por fila)
+                    (specialProjectsData || []).forEach(project => {
+                        if (project.status === 'registered') {
+                            (project.employees || []).forEach(row => {
+                                if (String(row.employeeName).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()) {
+                                    totalKBS += (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0);
+                                }
+                            });
+                        }
+                    });
                 }
 
                 return {
@@ -9223,8 +9214,9 @@ function App() {
                     e.nombre.toString().trim().toLowerCase() === emp.nombre.toString().trim().toLowerCase()
                 );
 
-                const rateLSG = (employeeInfo && employeeInfo.rateLGM) ? employeeInfo.rateLGM : (store.tarifas[cargoKey]?.lsg || 0);
-                const rateKBS = (employeeInfo && employeeInfo.rateKBS) ? employeeInfo.rateKBS : (store.tarifas[cargoKey]?.kbs || 0);
+                // Fuente única de verdad: Rates Personales del Empleado
+                const rateLSG = employeeInfo?.rateLGM || 0;
+                const rateKBS = employeeInfo?.rateKBS || 0;
 
                 const calcDay = (val, rate) => hhmmToDecimal(val) * rate;
 
@@ -9358,8 +9350,9 @@ function App() {
                         e.nombre.toString().trim().toLowerCase() === emp.nombre.toString().trim().toLowerCase()
                     );
 
-                    const rateLSG = (employeeInfo && employeeInfo.rateLGM) ? employeeInfo.rateLGM : (store.tarifas[cargoKey]?.lsg || 0);
-                    const rateKBS = (employeeInfo && employeeInfo.rateKBS) ? employeeInfo.rateKBS : (store.tarifas[cargoKey]?.kbs || 0);
+                    // Fuente única de verdad: Rates Personales del Empleado
+                    const rateLSG = employeeInfo?.rateLGM || 0;
+                    const rateKBS = employeeInfo?.rateKBS || 0;
 
                     let totalLSG = 0;
                     let totalKBS = 0;
@@ -10680,6 +10673,7 @@ function App() {
                 data={semanaTableData}
                 payrollStore={payrollStore}
                 stores={stores}
+                employees={employees}
                 fechaDesde={fechaDesde}
                 fechaHasta={fechaHasta}
                 emailsSent={vwhEmailsSent}
