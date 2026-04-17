@@ -4160,8 +4160,8 @@ const EmailNotificationModal = ({ isOpen, type, message, onOk }) => {
     );
 };
 
-const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending }) => {
-    const [to, setTo] = useState('');
+const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, defaultTo = '' }) => {
+    const [to, setTo] = useState(defaultTo || '');
     const [subject, setSubject] = useState(`Reporte VWH - ${storeName} - Periodo: ${fechaDesde} - ${fechaHasta}`);
     const [body, setBody] = useState(`Hola,\n\nAdjunto envío el reporte de nómina correspondiente a la semana del ${fechaDesde} al ${fechaHasta} para la tienda ${storeName}.\n\nSaludos,\nLogic Group Management`);
 
@@ -4672,6 +4672,7 @@ const VWHTableModal = (props) => {
                 fechaHasta={currentEndDate}
                 onSend={handleSendEmail}
                 isSending={isSendingEmail}
+                defaultTo={stores.find(s => normalizeKey(s.nombre) === normalizeKey(payrollStore))?.correo || ''}
             />
 
             <EmailNotificationModal
@@ -7171,8 +7172,8 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 
 // ─── Componente del Modal de Factura (Elegante y Premium) ───────────────────
 // ─── Modal Premium de Envío de Factura por Correo ──────────────────────────────
-const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending }) => {
-    const [to, setTo] = useState('');
+const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending, defaultTo = '' }) => {
+    const [to, setTo] = useState(defaultTo || '');
     const [subject, setSubject] = useState(`Invoice #${project.invoice} - ${project.proyecto || project.nombre} - ${project.tienda}`);
     const [body, setBody] = useState(`Hola,\n\nAdjunto envío la factura #${project.invoice} correspondiente a los servicios profesionales del Proyecto Especial "${project.proyecto || project.nombre}" en la tienda ${project.tienda}.\n\nSaludos,\nLogic Group Management`);
 
@@ -7285,7 +7286,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending 
     );
 };
 
-const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {}, onEmailSent }) => {
+const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {}, onEmailSent, stores = [] }) => {
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -7539,6 +7540,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                 project={project}
                 onSend={handleSendEmail}
                 isSending={isSendingEmail}
+                defaultTo={stores.find(s => normalizeKey(s.nombre) === normalizeKey(project.tienda || project.Tienda || project.nombre))?.correo || ''}
             />
 
             <EmailNotificationModal
@@ -12364,6 +12366,7 @@ function App() {
                 onClose={() => setIsSpecialProjectInvoiceOpen(false)}
                 project={selectedSpecialProjectInvoice}
                 emailsSent={peEmailsSent}
+                stores={stores}
                 onEmailSent={(invoice) => {
                     // 1. Marcar como enviado
                     const updated = { ...peEmailsSent, [invoice]: true };
