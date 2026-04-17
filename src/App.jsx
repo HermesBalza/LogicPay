@@ -7889,13 +7889,10 @@ const BillingView = ({
                         ) : tableData.map((row) => (
                             <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
                                 <td className="px-3 py-4 text-center">
-                                    <div className="relative inline-block w-20">
-                                        <input type="text" readOnly placeholder="--/--/--" value={row.radicacion}
-                                            className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
-                                        <input type="date" value={toISODate(row.radicacion)}
-                                            onChange={(e) => onUpdateManual(row.id, 'fecha rad.', fromISODate(e.target.value))}
-                                            onClick={(e) => e.target.showPicker?.()}
-                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                                    <div className="inline-block w-24">
+                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${row.radicacion ? 'text-[#303a7f]' : 'text-gray-300'}`}>
+                                            {row.radicacion || '--/--/--'}
+                                        </span>
                                     </div>
                                 </td>
                                 <td className="px-3 py-4 text-center">
@@ -7995,13 +7992,10 @@ const BillingView = ({
                         ) : peTableData.map((row) => (
                             <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
                                 <td className="px-3 py-4 text-center">
-                                    <div className="relative inline-block w-20">
-                                        <input type="text" readOnly placeholder="--/--/--" value={row.radicacion}
-                                            className="bg-transparent border-none text-[10px] font-bold text-gray-400 uppercase outline-none focus:text-[#303a7f] text-center w-full pointer-events-none" />
-                                        <input type="date" value={toISODate(row.radicacion)}
-                                            onChange={(e) => onUpdateManualPE(row.correlativo, 'fecha rad.', fromISODate(e.target.value))}
-                                            onClick={(e) => e.target.showPicker?.()}
-                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                                    <div className="inline-block w-24">
+                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${row.radicacion ? 'text-[#303a7f]' : 'text-gray-300'}`}>
+                                            {row.radicacion || '--/--/--'}
+                                        </span>
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
@@ -8699,7 +8693,8 @@ function App() {
                     foundProject = {
                         ...p,
                         tienda: h.tienda,
-                        periodo: h.periodo
+                        periodo: h.periodo,
+                        correlativo: h.correlativo || h.Correlativo || ''
                     };
                 }
             } catch (e) {
@@ -10679,9 +10674,27 @@ function App() {
                 emailsSent={vwhEmailsSent}
                 recordId={vwhRecordId}
                 onEmailSent={(reportKey) => {
+                    // 1. Marcar como enviado
                     const updated = { ...vwhEmailsSent, [reportKey]: true };
                     setVwhEmailsSent(updated);
                     syncVariableToSheets('vwh_emails_sent', updated);
+
+                    // 2. Automatización Fecha Rad. (MM/DD/YYYY)
+                    if (vwhRecordId) {
+                        const autoDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+                        
+                        setNominaHistoryData(prev => prev.map(h => {
+                            if (String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && String(h.codigo) === String(vwhRecordId)) {
+                                const updatedHist = { ...h };
+                                updatedHist['fecha rad.'] = autoDate;
+                                updatedHist['Fecha Rad.'] = autoDate;
+                                return updatedHist;
+                            }
+                            return h;
+                        }));
+                        billingPendingSaveRef.current.push({ id: vwhRecordId, field: 'fecha rad.', val: autoDate });
+                        setIsSyncingBilling(true);
+                    }
                 }}
             />
 
@@ -11940,6 +11953,7 @@ function App() {
                                         setFechaDesde(hData.fecha_inicio);
                                         setFechaHasta(hData.fecha_fin);
                                         setPayrollStore(selectedHistoryStore);
+                                        setVwhRecordId(weekId); // <--- CORRECCIÓN: Guardar el ID para la automatización
                                         setIsHistoricalDataLoaded(true);
                                         setIsVWHModalOpen(true);
                                     } catch (e) {
@@ -12331,9 +12345,29 @@ function App() {
                 project={selectedSpecialProjectInvoice}
                 emailsSent={peEmailsSent}
                 onEmailSent={(invoice) => {
+                    // 1. Marcar como enviado
                     const updated = { ...peEmailsSent, [invoice]: true };
                     setPeEmailsSent(updated);
                     syncVariableToSheets('pe_emails_sent', updated);
+
+                    // 2. Automatización Fecha Rad. (MM/DD/YYYY)
+                    if (selectedSpecialProjectInvoice) {
+                        const autoDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+                        const correlativo = String(selectedSpecialProjectInvoice.correlativo || selectedSpecialProjectInvoice.Correlativo || '').trim();
+                        
+                        setSpecialProjectsHistoryData(prev => prev.map(h => {
+                            const hId = String(h.correlativo || h.Correlativo || '').trim();
+                            if (hId && hId === correlativo) {
+                                const updatedHist = { ...h };
+                                updatedHist['fecha rad.'] = autoDate;
+                                updatedHist['Fecha Rad.'] = autoDate;
+                                return updatedHist;
+                            }
+                            return h;
+                        }));
+                        pePendingSaveRef.current.push({ id: correlativo, field: 'fecha rad.', val: autoDate });
+                        setIsSyncingBilling(true);
+                    }
                 }}
             />
 
