@@ -8188,6 +8188,7 @@ function App() {
     // Referencias para persistir el workbook original del supervisor y permitir descarga corregida
     const activeWorkbookRef = useRef(null);
     const activeSheetNameRef = useRef(null);
+    const mainContentRef = useRef(null);
 
     // --- LÓGICA DE PRESENCIA (Heartbeat) ---
     useEffect(() => {
@@ -8225,6 +8226,13 @@ function App() {
     useEffect(() => {
         if (variablesLoaded) syncVariableToSheets('next_invoice', nextInvoice);
     }, [nextInvoice, variablesLoaded]);
+
+    // --- EFECTO: SCROLL TO TOP AL CAMBIAR DE PESTAÑA ---
+    useEffect(() => {
+        if (mainContentRef.current) {
+            mainContentRef.current.scrollTo({ top: 0, behavior: 'auto' });
+        }
+    }, [activeTab]);
 
     const handleLogin = (userNameOrData) => {
         let userData;
@@ -10930,7 +10938,10 @@ function App() {
             </header>
 
             {/* Main Content Area con padding ajustado para top y bottom navs */}
-            <main className="flex-1 h-screen overflow-y-auto px-2 pt-24 pb-44 lg:px-6 relative">
+            <main 
+                ref={mainContentRef}
+                className="flex-1 h-screen overflow-y-auto px-2 pt-24 pb-44 lg:px-6 relative"
+            >
 
                 {/* Navigation Inferior Minimalista (Franja Completa) */}
                 <nav className="fixed bottom-0 inset-x-0 z-50 bg-[#303a7f] border-t border-white/10 p-2 flex items-center justify-center gap-2 shadow-[0_-10px_40px_rgba(48,58,127,0.2)]">
