@@ -516,11 +516,15 @@ const DashboardView = ({
 
     const formatDisplayDate = (dateValue) => {
         if (!dateValue) return '';
+        if (dateValue.includes('-')) {
+            const [y, m, d] = dateValue.split('-');
+            return `${m}/${d}/${y}`;
+        }
         const date = new Date(dateValue);
         if (isNaN(date.getTime())) return '';
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const year = date.getFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        const year = date.getUTCFullYear();
         return `${month}/${day}/${year}`;
     };
 
@@ -560,13 +564,15 @@ const DashboardView = ({
         if (isNaN(d.getTime())) return true;
 
         if (dateFrom) {
-            const fromDate = new Date(dateFrom);
+            const [y, m, d_] = dateFrom.split('-');
+            const fromDate = new Date(parseInt(y), parseInt(m) - 1, parseInt(d_));
             fromDate.setHours(0, 0, 0, 0);
             if (d < fromDate) return false;
         }
 
         if (dateTo) {
-            const toDate = new Date(dateTo);
+            const [y, m, d_] = dateTo.split('-');
+            const toDate = new Date(parseInt(y), parseInt(m) - 1, parseInt(d_));
             toDate.setHours(23, 59, 59, 999);
             if (d > toDate) return false;
         }
@@ -731,6 +737,9 @@ const DashboardView = ({
             let d;
             if (parts.length === 3) {
                 d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+            } else if (cleanStr.includes('-')) {
+                const [y, m, d_] = cleanStr.split('-');
+                d = new Date(parseInt(y), parseInt(m) - 1, parseInt(d_));
             } else {
                 d = new Date(cleanStr);
             }
