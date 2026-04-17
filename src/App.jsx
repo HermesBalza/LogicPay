@@ -9197,6 +9197,15 @@ function App() {
         }
     };
 
+    const formatDecimal = (val) => {
+        if (val === null || val === undefined || val === '') return '';
+        if (typeof val === 'number') return Math.round(val * 100) / 100;
+        if (typeof val === 'string' && !val.includes(':') && val !== 'X' && !isNaN(parseFloat(val))) {
+            return Math.round(parseFloat(val) * 100) / 100;
+        }
+        return val;
+    };
+
     const hhmmToDecimal = (hhmm) => {
         if (!hhmm || hhmm === 'X' || hhmm === '0:00') return 0;
         const val = String(hhmm);
@@ -11689,13 +11698,13 @@ function App() {
                                                                                             onClick={() => handleAuditChange(idx, day, dayVal.sup)}
                                                                                             className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.sup ? 'bg-blue-100/50 border-[#303a7f]/20 text-[#303a7f] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'}`}
                                                                                         >
-                                                                                            {dayVal.sup}
+                                                                                            {formatDecimal(dayVal.sup)}
                                                                                         </button>
                                                                                         <button
                                                                                             onClick={() => handleAuditChange(idx, day, dayVal.bio)}
                                                                                             className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.bio ? 'bg-teal-50/50 border-[#6bbdb7]/20 text-[#6bbdb7] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'} ${dayVal.bio === 'X' ? '!text-red-500' : ''}`}
                                                                                         >
-                                                                                            {dayVal.bio}
+                                                                                            {formatDecimal(dayVal.bio)}
                                                                                         </button>
                                                                                     </div>
                                                                                 )}
@@ -11709,7 +11718,7 @@ function App() {
                                                                                     <div className={`relative rounded-xl overflow-hidden shadow-sm transition-all duration-300 border-[2px] ${isManual ? 'border-[#6bbdb7] shadow-[0_0_15px_rgba(107,189,183,0.2)]' : 'border-[#303a7f]'}`}>
                                                                                         <input
                                                                                             type="text"
-                                                                                            value={dayVal.final}
+                                                                                            value={formatDecimal(dayVal.final)}
                                                                                             onChange={(e) => !weekLocked && handleAuditChange(idx, day, e.target.value)}
                                                                                             readOnly={weekLocked}
                                                                                             className={`w-full bg-[#f9f9f9] px-2 py-2 text-center text-[12px] font-black text-[#303a7f] tabular-nums outline-none border-none placeholder-gray-300 ${weekLocked ? 'cursor-not-allowed' : ''}`}
@@ -11725,12 +11734,12 @@ function App() {
                                                             <td className="p-4 text-right bg-gray-100/30 border-l-[3px] border-gray-200">
                                                                 <div className="flex flex-col items-end gap-2">
                                                                     <div className="flex gap-4 opacity-40 text-[8px] font-black uppercase">
-                                                                        <span>S: {row.total.sup}h</span>
-                                                                        <span>B: {row.total.bio}h</span>
+                                                                        <span>S: {formatDecimal(row.total.sup)}h</span>
+                                                                        <span>B: {formatDecimal(row.total.bio)}h</span>
                                                                     </div>
                                                                     <div className="bg-[#303a7f] px-4 py-2 rounded-2xl shadow-lg shadow-blue-900/10">
                                                                         <span className="text-lg font-black text-white tabular-nums tracking-tighter">
-                                                                            {row.total.final}{String(row.total.final || '').includes(':') ? '' : 'h'}
+                                                                            {formatDecimal(row.total.final)}{String(row.total.final || '').includes(':') ? '' : 'h'}
                                                                         </span>
                                                                     </div>
                                                                 </div>
