@@ -4402,7 +4402,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
 };
 
 const VWHTableModal = (props) => {
-    const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId, employees = [] } = props;
+    const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId, employees = [], isRadicated = false } = props;
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -4751,16 +4751,16 @@ const VWHTableModal = (props) => {
                 )}
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => !emailsSent[reportKey] && setIsEmailModalOpen(true)}
-                        disabled={emailsSent[reportKey] || isSendingEmail}
+                        onClick={() => !isRadicated && setIsEmailModalOpen(true)}
+                        disabled={isRadicated || isSendingEmail}
                         className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center gap-2 ${
-                            emailsSent[reportKey] 
+                            isRadicated
                             ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none" 
                             : "bg-[#303a7f] text-white hover:bg-[#1e234d] shadow-blue-900/10"
                         }`}
                     >
                         <Mail size={16} />
-                        {emailsSent[reportKey] ? "Correo Enviado" : "Enviar por Correo"}
+                        {isRadicated ? "Correo Enviado" : "Enviar por Correo"}
                     </button>
                     <button
                         onClick={downloadVWHAsPDF}
@@ -7413,7 +7413,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
     );
 };
 
-const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {}, onEmailSent, stores = [] }) => {
+const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {}, onEmailSent, stores = [], isRadicated = false }) => {
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -7421,6 +7421,8 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
     const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
 
     if (!isOpen || !project) return null;
+
+    const isActuallySent = !!isRadicated;
 
     const handleSendEmail = async (emailData) => {
         if (!MAIL_API_URL) {
@@ -7639,16 +7641,16 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                         Cerrar
                     </button>
                     <button
-                        onClick={() => !emailsSent[normalizeKey(project.invoice)] && setIsEmailModalOpen(true)}
-                        disabled={emailsSent[normalizeKey(project.invoice)] || isSendingEmail}
+                        onClick={() => !isActuallySent && setIsEmailModalOpen(true)}
+                        disabled={isActuallySent || isSendingEmail}
                         className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl transition-all active:scale-95 flex items-center gap-3 ${
-                            emailsSent[normalizeKey(project.invoice)] 
+                            isActuallySent 
                             ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none" 
                             : "bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]"
                         }`}
                     >
                         <Mail size={18} />
-                        {emailsSent[normalizeKey(project.invoice)] ? "Correo Enviado" : "Enviar por Correo"}
+                        {isActuallySent ? "Correo Enviado" : "Enviar por Correo"}
                     </button>
                     <button
                         onClick={handleDownloadPDF}
@@ -8038,7 +8040,7 @@ const BillingView = ({
                                         <button
                                             onClick={() => onOpenVWH(row.id)}
                                             title="Ver Detalle de Nómina VWH"
-                                            className="text-[10px] font-bold text-[#303a7f] hover:text-[#6bbdb7] transition-all active:scale-95 border-b border-dashed border-[#303a7f]/30 hover:border-[#6bbdb7] pb-0.5"
+                                            className="text-[#303a7f] hover:text-[#6bbdb7] border-[#303a7f]/30 hover:border-[#6bbdb7] active:scale-95 text-[10px] font-bold transition-all border-b border-dashed pb-0.5"
                                         >
                                             {row.semana}
                                         </button>
@@ -8057,12 +8059,11 @@ const BillingView = ({
                                                 `${storeName}_${fi}_${ff}`,
                                                 `${storeName.toLowerCase()}_${fi}_${ff}`,
                                             ];
-                                            const isSent = candidateKeys.some(k => vwhEmailsSent[k] || vwhEmailsSent[k.toLowerCase()]);
-                                            return isSent ? (
+                                            return (row.radicacion && row.radicacion !== '--/--/--') ? (
                                                 <Send 
                                                     size={18} 
                                                     className="text-[#6bbdb7] drop-shadow-[0_0_15px_rgba(107,189,183,1)] animate-in fade-in zoom-in duration-500" 
-                                                    title="Correo Enviado"
+                                                    title={`Enviado el ${row.radicacion}`}
                                                 />
                                             ) : null;
                                         })()}
@@ -8158,17 +8159,11 @@ const BillingView = ({
                                             const invNorm = normalizeKey(invRaw);
                                             const invDigits = invRaw.replace(/[^0-9]/g, '');
                                             
-                                            const isSent = Object.keys(peEmailsSent).some(k => {
-                                                const kNorm = normalizeKey(k);
-                                                const kDigits = String(k).replace(/[^0-9]/g, '');
-                                                return kNorm === invNorm || (invDigits && kDigits === invDigits && peEmailsSent[k]);
-                                            }) || peEmailsSent[invNorm];
-                                            
-                                            return isSent ? (
+                                            return (row.radicacion && row.radicacion !== '--/--/--') ? (
                                                 <Send 
                                                     size={18} 
                                                     className="text-[#6bbdb7] drop-shadow-[0_0_15px_rgba(107,189,183,1)] animate-in fade-in zoom-in duration-500"
-                                                    title="Correo Enviado"
+                                                    title={`Enviado el ${row.radicacion}`}
                                                 />
                                             ) : null;
                                         })()}
@@ -10380,6 +10375,7 @@ function App() {
                         obj.Pago_LGM = data.earningsTableData ? data.earningsTableData.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
                         obj.Tienda = obj.nombre;
                         obj.Fecha_Envio = obj['Fecha Rad.'];
+                        obj.radicacion = obj['Fecha Rad.'] || obj['fecha rad.'] || '';
                         obj.Periodo = obj.fecha_inicio + ' - ' + obj.fecha_fin;
                         obj.Status = obj.Status || 'Due';
                     } catch (e) {
@@ -10455,6 +10451,7 @@ function App() {
                         }, 0);
                         obj.Tienda = obj.Tienda || obj.tienda || obj.nombre;
                         obj.Timestamp = obj.Fecha_Confirmacion || obj.fecha_confirmacion || obj['Fecha Confirmacion'] || obj['Fecha_Confirmacion'] || obj['Fecha Rad.'] || obj['Fecha Rad'] || obj.fecha;
+                        obj.radicacion = obj['Fecha Rad.'] || obj['Fecha Rad'] || obj['fecha rad.'] || '';
                         obj.fecha = obj.Timestamp || obj.fecha || obj.periodo || obj.Periodo;
                         obj.Status = obj.Status || obj.status || 'Due';
                     } catch (e) {
@@ -10876,6 +10873,10 @@ function App() {
                 fechaHasta={fechaHasta}
                 emailsSent={vwhEmailsSent}
                 recordId={vwhRecordId}
+                isRadicated={(() => {
+                    const rad = nominaHistoryData.find(h => String(h.codigo) === String(vwhRecordId))?.radicacion;
+                    return !!(rad && rad !== '--/--/--');
+                })()}
                 onEmailSent={(reportKey) => {
                     // 1. Marcar como enviado
                     const updated = { ...vwhEmailsSent, [reportKey]: true };
@@ -10891,6 +10892,7 @@ function App() {
                                 const updatedHist = { ...h };
                                 updatedHist['fecha rad.'] = autoDate;
                                 updatedHist['Fecha Rad.'] = autoDate;
+                                updatedHist.radicacion = autoDate; // Sincronización con la UI
                                 return updatedHist;
                             }
                             return h;
@@ -12556,6 +12558,15 @@ function App() {
                 project={selectedSpecialProjectInvoice}
                 emailsSent={peEmailsSent}
                 stores={stores}
+                isRadicated={(() => {
+                    const h = specialProjectsHistoryData.find(h => {
+                        const hId = String(h.correlativo || h.Correlativo || '').trim();
+                        const currentId = String(selectedSpecialProjectInvoice?.correlativo || selectedSpecialProjectInvoice?.Correlativo || '').trim();
+                        return hId && currentId && hId === currentId;
+                    });
+                    const rad = h?.radicacion;
+                    return !!(rad && rad !== '--/--/--');
+                })()}
                 onEmailSent={(invoice) => {
                     // 1. Marcar como enviado
                     const updated = { ...peEmailsSent, [invoice]: true };
@@ -12573,6 +12584,7 @@ function App() {
                                 const updatedHist = { ...h };
                                 updatedHist['fecha rad.'] = autoDate;
                                 updatedHist['Fecha Rad.'] = autoDate;
+                                updatedHist.radicacion = autoDate; // Sincronización con la UI
                                 return updatedHist;
                             }
                             return h;
