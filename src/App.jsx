@@ -9329,6 +9329,8 @@ function App() {
                 // Llamamos a la lógica de la IA sin bloquear el estado de carga principal si se prefiere, 
                 // pero por consistencia lo haremos parte del mismo flujo.
                 await runAICrossoverInternal();
+            } else {
+                showSuccess("La validación ha sido exitosa. La data del supervisor se ha procesado correctamente.");
             }
 
         } catch (error) {
@@ -9705,6 +9707,7 @@ function App() {
                 }));
 
                 setPayrollProgress(semanaTableData.length);
+                showSuccess("¡Procesamiento Exitoso! El cruce de datos con IA se ha realizado correctamente.");
             }
         } catch (error) {
             console.error('[IA] ERROR:', error);
