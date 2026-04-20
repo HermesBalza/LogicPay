@@ -8285,6 +8285,7 @@ function App() {
     const [statusModalMessage, setStatusModalMessage] = useState('');
     const [statusModalTitle, setStatusModalTitle] = useState('');
     const [isManualModalOpen, setIsManualModalOpen] = useState(false); // Manual de Uso
+    const supervisorFileInputRef = useRef(null); // Ref para limpiar el cargador de supervisor
 
     const [statusModalType, setStatusModalType] = useState('success'); // 'success' | 'error'
     const [payrollView, setPayrollView] = useState(sessionStorage.getItem('payrollView') || 'history'); // 'history' | 'engine'
@@ -8367,12 +8368,12 @@ function App() {
         if (variablesLoaded) syncVariableToSheets('next_invoice', nextInvoice);
     }, [nextInvoice, variablesLoaded]);
 
-    // --- EFECTO: SCROLL TO TOP AL CAMBIAR DE PESTAÑA ---
+    // --- EFECTO: SCROLL TO TOP AL CAMBIAR DE PESTAÑA O VISTA DE NÓMINA ---
     useEffect(() => {
         if (mainContentRef.current) {
             mainContentRef.current.scrollTo({ top: 0, behavior: 'auto' });
         }
-    }, [activeTab]);
+    }, [activeTab, payrollView]);
 
     const handleLogin = (userNameOrData) => {
         let userData;
@@ -9177,6 +9178,8 @@ function App() {
             // 3. Finalización
             await fetchEmployees();
             setIsVerificationModalOpen(false);
+            setSupervisorFile(null);
+            if (supervisorFileInputRef.current) supervisorFileInputRef.current.value = "";
             showSuccess("Vinculación completada. El Reporte de Asistencias se ha descargado automáticamente. Por favor, cárguelo para procesar.");
 
         } catch (error) {
@@ -9203,7 +9206,8 @@ function App() {
 
             const fileName = `REPORTE_CORREGIDO_AI_${payrollStore || 'LGM'}_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`;
             XLSX.writeFile(wb, fileName);
-
+            setSupervisorFile(null);
+            if (supervisorFileInputRef.current) supervisorFileInputRef.current.value = "";
             showSuccess("Reporte corregido descargado. Ahora puede subir este archivo para procesar la nómina.");
         } catch (error) {
             console.error('[DownloadCorrected] Error:', error);
@@ -11579,6 +11583,7 @@ function App() {
                                                     {supervisorFile ? 'Data Lista' : 'Subir Excel'}
                                                 </button>
                                                 <input
+                                                    ref={supervisorFileInputRef}
                                                     type="file" disabled={!payrollStore}
                                                     className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
                                                     onChange={(e) => setSupervisorFile(e.target.files[0])}
@@ -11587,7 +11592,10 @@ function App() {
                                             </div>
                                             {supervisorFile && (
                                                 <button
-                                                    onClick={() => setSupervisorFile(null)}
+                                                    onClick={() => {
+                                                        setSupervisorFile(null);
+                                                        if (supervisorFileInputRef.current) supervisorFileInputRef.current.value = "";
+                                                    }}
                                                     className="w-10 h-10 flex shrink-0 items-center justify-center rounded-lg border border-red-100 text-red-500 bg-red-50 hover:bg-red-100 transition-colors"
                                                 >
                                                     <Trash2 size={14} />
