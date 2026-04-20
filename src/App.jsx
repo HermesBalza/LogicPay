@@ -7920,7 +7920,11 @@ const BillingView = ({
                                             const fi = row.fecha_inicio || '';
                                             const ff = row.fecha_fin || '';
                                             const sn = row.nombre_store || storeName || '';
+                                            const rowId = String(row.id || '');
+                                            
                                             const candidateKeys = [
+                                                rowId,
+                                                normalizeKey(rowId),
                                                 `${sn}_${fi}_${ff}`,
                                                 `${sn.toLowerCase()}_${fi}_${ff}`,
                                                 `${storeName}_${fi}_${ff}`,
@@ -8022,12 +8026,17 @@ const BillingView = ({
                                             <span className="text-[8px] font-bold text-gray-400">Inv: {row.invoice}</span>
                                         </button>
                                         {(() => {
-                                            // Comparar número de invoice (normalizado sin símbolo # ni espacios)
-                                            const invNorm = String(row.invoice || '').replace(/[^0-9]/g, '');
+                                            // Comparar número de invoice de forma robusta
+                                            const invRaw = String(row.invoice || '');
+                                            const invNorm = normalizeKey(invRaw);
+                                            const invDigits = invRaw.replace(/[^0-9]/g, '');
+                                            
                                             const isSent = Object.keys(peEmailsSent).some(k => {
-                                                const kNorm = String(k).replace(/[^0-9]/g, '');
-                                                return kNorm === invNorm && peEmailsSent[k];
-                                            });
+                                                const kNorm = normalizeKey(k);
+                                                const kDigits = String(k).replace(/[^0-9]/g, '');
+                                                return kNorm === invNorm || (invDigits && kDigits === invDigits && peEmailsSent[k]);
+                                            }) || peEmailsSent[invNorm];
+                                            
                                             return isSent ? (
                                                 <Send 
                                                     size={18} 
