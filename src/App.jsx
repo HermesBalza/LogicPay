@@ -8101,7 +8101,7 @@ const USER_REGISTRY = [
 function App() {
     const [variablesLoaded, setVariablesLoaded] = useState(false);
     const initialLoadApplied = useRef(false);
-    const [activeTab, setActiveTab] = useState(sessionStorage.getItem('activeTab') || 'stores');
+    const [activeTab, setActiveTab] = useState(sessionStorage.getItem('activeTab') || 'dashboard');
     const [isSidebarOpen, setSidebarOpen] = useState(true);
     const [storeSearchTerm, setStoreSearchTerm] = useState(sessionStorage.getItem('storeSearchTerm') || '');
     const [employeeSearchTerm, setEmployeeSearchTerm] = useState(sessionStorage.getItem('employeeSearchTerm') || '');
