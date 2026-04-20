@@ -9343,6 +9343,8 @@ function App() {
         if (val === null || val === undefined || val === '') return '';
         if (typeof val === 'number') return Math.round(val * 100) / 100;
         if (typeof val === 'string' && !val.includes(':') && val !== 'X' && !isNaN(parseFloat(val))) {
+            // Si el usuario está escribiendo un decimal (. al final), no formatear para no romper la escritura
+            if (val.endsWith('.')) return val;
             return Math.round(parseFloat(val) * 100) / 100;
         }
         return val;
@@ -9484,13 +9486,22 @@ function App() {
                         }
                     });
 
-                    // Restauración obligatoria del prefijo ' para preservar ceros a la izquierda en Sheets
-                    const updatedEmp = {
-                        ...employee,
-                        tienda: payrollStore,
-                        codigo_empleado: `'${employee.codigo_empleado}`,
-                        locationHistory: JSON.stringify(merged)
-                    };
+                    // Mapeo riguroso de llaves para evitar duplicación de columnas en Google Sheets
+                    const updatedEmp = { ...employee };
+                    updatedEmp.tienda = payrollStore;
+                    updatedEmp.codigo_empleado = `'${employee.codigo_empleado}`;
+                    updatedEmp.locationHistory = JSON.stringify(merged);
+                    
+                    // Asegurar nombres exactos de columnas (Case Sensitive)
+                    updatedEmp['Rate KBS'] = employee.rateKBS || 0;
+                    updatedEmp['Rate LGM'] = employee.rateLGM || 0;
+                    updatedEmp['Observaciones'] = employee.observaciones || '';
+                    
+                    // Eliminar llaves internas camelCase para prevenir que el script de Google cree columnas nuevas
+                    delete updatedEmp.rateKBS;
+                    delete updatedEmp.rateLGM;
+                    delete updatedEmp.observaciones;
+
                     await syncToSheets('upsert', updatedEmp, 'Personal', true);
                 }
                 setSyncProgress(i + 1);
@@ -10695,8 +10706,8 @@ function App() {
     const handleSaveEmployee = (updatedEmployee) => {
         setEmployees(prev => prev.map(e => e.codigo_empleado === updatedEmployee.codigo_empleado ? updatedEmployee : e));
         setEditingEmployee(updatedEmployee);
-        // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda y evitar formateo numérico
-        syncToSheets('upsert', {
+        // Enviamos a Sheets con prefijo ' para evitar formateo numérico
+        const payload = {
             ...updatedEmployee,
             codigo_empleado: `'${updatedEmployee.codigo_empleado}`,
             tin: updatedEmployee.tin ? `'${updatedEmployee.tin.toString().replace(/^'/, '')}` : '',
@@ -10707,7 +10718,15 @@ function App() {
             'Rate KBS': updatedEmployee.rateKBS || 0,
             'Rate LGM': updatedEmployee.rateLGM || 0,
             'Observaciones': updatedEmployee.observaciones || ''
-        }, 'Personal');
+        };
+
+        // Limpieza de llaves internas para integridad del esquema en Sheets
+        delete payload.rateKBS;
+        delete payload.rateLGM;
+        delete payload.observaciones;
+
+        syncToSheets('upsert', payload, 'Personal');
+
     };
 
     const handleDeleteEmployee = (empCodigo) => {
@@ -10726,15 +10745,26 @@ function App() {
     const handleCreateEmployee = (newEmp) => {
         setEmployees(prev => [newEmp, ...prev]);
         setIsAddingEmployee(false);
-        // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda y evitar formateo numérico
-        syncToSheets('upsert', {
+        // Enviamos a Sheets con prefijo ' y mapeo de columnas exacto
+        const payload = {
             ...newEmp,
             codigo_empleado: `'${newEmp.codigo_empleado}`,
             tin: newEmp.tin ? `'${newEmp.tin.toString().replace(/^'/, '')}` : '',
             zip: newEmp.zip ? `'${newEmp.zip.toString().replace(/^'/, '')}` : '',
             site_code: newEmp.site_code ? `'${newEmp.site_code.toString().replace(/^'/, '')}` : '',
-            cuenta_bancaria: newEmp.cuenta_bancaria ? `'${newEmp.cuenta_bancaria.toString().replace(/^'/, '')}` : ''
-        }, 'Personal');
+            cuenta_bancaria: newEmp.cuenta_bancaria ? `'${newEmp.cuenta_bancaria.toString().replace(/^'/, '')}` : '',
+            'Rate KBS': newEmp.rateKBS || 0,
+            'Rate LGM': newEmp.rateLGM || 0,
+            'Observaciones': newEmp.observaciones || ''
+        };
+
+        // Limpieza de llaves internas
+        delete payload.rateKBS;
+        delete payload.rateLGM;
+        delete payload.observaciones;
+
+        syncToSheets('upsert', payload, 'Personal');
+
     };
 
     const storeNames = stores.map(s => s.nombre);
