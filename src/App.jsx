@@ -4117,8 +4117,6 @@ const InvalidCodesModal = ({ isOpen, onClose, invalidEmployees }) => {
     );
 };
 
-
-// ─── Modal de Notificación de Envío (Premium) ──────────────────────────────
 const EmailNotificationModal = ({ isOpen, type, message, onOk }) => {
     if (!isOpen) return null;
 
@@ -4155,6 +4153,135 @@ const EmailNotificationModal = ({ isOpen, type, message, onOk }) => {
                         Ok, Entendido
                     </button>
                 )}
+            </div>
+        </div>
+    );
+};
+
+// ─── Modal de Manual de Uso (Premium) ───────────────────────────────────
+const ManualUsageModal = ({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-4xl h-[85vh] rounded-[3rem] shadow-[0_40px_120px_-20px_rgba(48,58,127,0.4)] border-2 border-white/50 flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
+                
+                {/* Header Premium */}
+                <div className="px-10 py-8 border-b-2 border-gray-50 bg-gradient-to-r from-gray-50/50 to-transparent flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <BookOpen size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Manual de Uso</h2>
+                            <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Documentación y Estatus Legal</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={onClose}
+                        className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent active:scale-95"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Content Area - Scrollable */}
+                <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-white">
+                    <div className="max-w-3xl mx-auto space-y-12">
+                        
+                        {/* Welcome/Intro (Placeholder for future content) */}
+                        <div className="p-8 bg-blue-50/30 rounded-3xl border-2 border-dashed border-blue-100/50 text-center">
+                            <p className="text-sm font-bold text-[#303a7f] opacity-60 uppercase tracking-widest">Contenido del Manual en Desarrollo</p>
+                            <p className="text-[10px] text-gray-400 mt-2">Esta sección será expandida progresivamente con guías operativas.</p>
+                        </div>
+
+                        {/* Property & License Section (Hermes Note) */}
+                        <div className="space-y-8">
+                            <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter border-b-2 border-gray-100 pb-4">
+                                Nota de Propiedad y Licencia de Uso
+                            </h3>
+                            
+                            <p className="text-sm font-bold text-gray-600 leading-relaxed">
+                                El sistema <span className="text-[#303a7f] font-black">LogicPay</span> es una plataforma de gestión de nómina desarrollada, de propiedad exclusiva y operada por la agencia de marketing <span className="text-[#303a7f] font-black">Adwisers LLC</span>.
+                            </p>
+
+                            <div className="grid grid-cols-1 gap-6">
+                                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
+                                    <h4 className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-[0.2em]">Origen del Servicio</h4>
+                                    <p className="text-[11px] text-gray-500 font-bold leading-relaxed">
+                                        Este sistema ha sido provisto a <span className="font-black text-gray-700">Logic Group Management</span> como parte integral de los servicios contratados a <span className="font-black text-gray-700">Adwisers LLC</span>.
+                                    </p>
+                                </div>
+
+                                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
+                                    <h4 className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-[0.2em]">Propiedad Intelectual</h4>
+                                    <p className="text-[11px] text-gray-500 font-bold leading-relaxed">
+                                        La arquitectura, el código fuente y la marca <span className="font-black text-gray-700">LogicPay</span> pertenecen únicamente a <span className="font-black text-gray-700">Adwisers LLC</span>. Su uso por parte de terceros está sujeto a la vigencia del contrato de servicios entre ambas organizaciones.
+                                    </p>
+                                </div>
+
+                                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
+                                    <h4 className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-[0.2em]">Licencia Operativa</h4>
+                                    <p className="text-[11px] text-gray-500 font-bold leading-relaxed">
+                                        <span className="font-black text-gray-700">Logic Group Management</span> cuenta con la autorización para el uso de <span className="font-black text-gray-700">LogicPay</span> con el fin de optimizar la atención a sus clientes, bajo el respaldo tecnológico y la supervisión de procesos de la agencia <span className="font-black text-gray-700">Adwisers LLC</span>, exclusivamente mientras mantenga un contrato activo con la agencia.
+                                    </p>
+                                </div>
+
+                                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
+                                    <h4 className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-[0.2em]">Garantía de Calidad</h4>
+                                    <p className="text-[11px] text-gray-500 font-bold leading-relaxed">
+                                        La implementación de este software asegura que el pago al personal bajo <span className="font-black text-gray-700">Logic Group Management</span> sea gestionado bajo los estándares de eficiencia de <span className="font-black text-gray-700">Adwisers LLC</span>, aplicados a la estructura operativa de <span className="font-black text-gray-700">Logic Group Management</span>.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Signature / Footer Info */}
+                            <div className="pt-10 border-t-2 border-gray-50 flex flex-col items-center text-center space-y-6">
+                                <div>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Desarrollado por</p>
+                                    <p className="text-lg font-black text-[#303a7f] uppercase tracking-tighter leading-none mb-1">Hermes Balza</p>
+                                    <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">Coordinador de Procesos de AdWisers LLC</p>
+                                </div>
+
+                                <div className="bg-gray-50 px-8 py-4 rounded-2xl border border-gray-100">
+                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-2">En colaboración con</p>
+                                    <p className="text-[10px] font-black text-[#303a7f] uppercase leading-relaxed">
+                                        Nirvana Márquez y David Torres
+                                    </p>
+                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Asistentes Virtuales de AdWisers LLC para Lasting Solutions Group</p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <p className="text-sm font-black text-[#303a7f] tracking-widest">AdWisers LLC</p>
+                                    <a href="https://adwisersllc.com" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-[#6bbdb7] hover:text-[#303a7f] transition-colors uppercase tracking-[0.2em]">
+                                        https://adwisersllc.com
+                                    </a>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-8 w-full pt-6">
+                                    <div className="text-left">
+                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Sistema</p>
+                                        <p className="text-[11px] font-black text-[#303a7f] uppercase">LogicPay v1.22</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Última Actualización</p>
+                                        <p className="text-[11px] font-black text-[#303a7f] uppercase">20 de Abril 2026</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Controls */}
+                <div className="px-10 py-8 border-t-2 border-gray-50 bg-gray-50/10 flex justify-end shrink-0">
+                    <button 
+                        onClick={onClose}
+                        className="px-12 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
+                    >
+                        Cerrar Manual
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -8157,6 +8284,8 @@ function App() {
     const [isStatusModalOpen, setIsStatusModalOpen] = useState(false); // FASE 7: Modal de estatus profesional
     const [statusModalMessage, setStatusModalMessage] = useState('');
     const [statusModalTitle, setStatusModalTitle] = useState('');
+    const [isManualModalOpen, setIsManualModalOpen] = useState(false); // Manual de Uso
+
     const [statusModalType, setStatusModalType] = useState('success'); // 'success' | 'error'
     const [payrollView, setPayrollView] = useState(sessionStorage.getItem('payrollView') || 'history'); // 'history' | 'engine'
     const [isBiweeklyManagementOpen, setIsBiweeklyManagementOpen] = useState(sessionStorage.getItem('isBiweeklyManagementOpen') === 'true');
@@ -10883,6 +11012,7 @@ function App() {
                 {/* Manual de Uso & User Card */}
                 <div className="flex items-center gap-4 ml-auto">
                     <button
+                        onClick={() => setIsManualModalOpen(true)}
                         className="flex items-center gap-2 px-3 py-2 bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm"
                         title="Manual de Uso"
                     >
@@ -12425,6 +12555,13 @@ function App() {
                 onRefreshHistory={fetchWosHistory}
                 onAcceptPayment={handleAcceptWOSPayment}
             />
+
+            {isManualModalOpen && (
+                <ManualUsageModal 
+                    isOpen={isManualModalOpen} 
+                    onClose={() => setIsManualModalOpen(false)} 
+                />
+            )}
 
             {/* Decorative Brand Gradients */}
             <div
