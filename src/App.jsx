@@ -8224,24 +8224,26 @@ const SettingsView = () => {
 
 
 // ─── FASE 13: COMPONENTE CONSOLIDADO UPS (REQUERIDO POR HERMES) ──────────────
-const UPSConsolidatedModal = ({ isOpen, onClose, stores, nominaHistoryData }) => {
-    if (!isOpen) return null;
+const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData = [] }) => {
+    const reportRef = useRef(null);
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
+    const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
 
     const isUPSStore = (name) => {
         if (!name) return false;
-        const n = name.toLowerCase();
+        const n = String(name).toLowerCase();
         return n.includes("united parcel service") || n.includes("ups");
     };
 
     const hhmmToDecimal = (hhmm) => {
-        if (!hhmm || !hhmm.includes(':')) return 0;
+        if (!hhmm || typeof hhmm !== 'string' || !hhmm.includes(':')) return 0;
         const [h, m] = hhmm.split(':').map(Number);
         return h + (m / 60);
     };
 
     const getWeekRange = (dateStr) => {
         if (!dateStr) return '---';
-        // Normalizar fecha para evitar desfases de zona horaria
         let d;
         if (dateStr.includes('-')) {
             d = new Date(dateStr + "T12:00:00");
@@ -8249,12 +8251,10 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores, nominaHistoryData }) =>
             const parts = dateStr.split('/');
             d = new Date(parts[2], parts[0] - 1, parts[1], 12, 0, 0);
         }
-        
-        const day = d.getDay(); // 0 is Sunday
+        const day = d.getDay();
         const diff = d.getDate() - day;
         const sun = new Date(new Date(d).setDate(diff));
         const sat = new Date(new Date(d).setDate(diff + 6));
-        
         const fmt = (date) => {
             const m = String(date.getMonth() + 1).padStart(2, '0');
             const d = String(date.getDate()).padStart(2, '0');
@@ -8264,40 +8264,43 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores, nominaHistoryData }) =>
         return `${fmt(sun)} - ${fmt(sat)}`;
     };
 
-    const getStoreKBSID = (storeName, storesList) => {
-        const store = storesList.find(s => s.nombre === storeName);
+    const getStoreKBSID = (storeName, storesList = []) => {
+        if (!storeName || !Array.isArray(storesList)) return '';
+        const store = storesList.find(s => s && s.nombre === storeName);
         return store ? store.codigo : '';
     };
 
     const consolidatedData = useMemo(() => {
-        const upsStoreNames = new Set(stores.filter(s => isUPSStore(s.nombre)).map(s => s.nombre));
+        if (!Array.isArray(stores) || !Array.isArray(nominaHistoryData)) return [];
+        const upsStoreNames = new Set(stores.filter(s => s && isUPSStore(s.nombre)).map(s => s.nombre));
         const groups = {};
 
-        nominaHistoryData.filter(h => upsStoreNames.has(h.nombre)).forEach(h => {
+        nominaHistoryData.filter(h => h && upsStoreNames.has(h.nombre)).forEach(h => {
             const weekRange = getWeekRange(h.fecha_inicio);
             const key = `${h.nombre}|${weekRange}`;
-
             if (!groups[key]) {
                 groups[key] = {
                     siteName: h.nombre,
                     kbsId: getStoreKBSID(h.nombre, stores),
-                    vendorName: "923941 LOGIC GROUP MANAGEMENT, LLC",
+                    vendorName: "LOGIC GROUP MANAGEMENT, LLC",
                     date: weekRange,
                     hours: 0,
                     totalKBS: 0
                 };
             }
-
             try {
-                const payload = JSON.parse(h.data_json);
+                const payload = JSON.parse(h.data_json || '{}');
                 const semanaData = payload.semanaTableData || [];
                 const kbsData = payload.kbsBillingTableData || [];
-
                 semanaData.forEach(emp => {
-                    groups[key].hours += hhmmToDecimal(emp.total.final);
+                    if (emp && emp.total && emp.total.final) {
+                        groups[key].hours += hhmmToDecimal(emp.total.final);
+                    }
                 });
                 kbsData.forEach(row => {
-                    groups[key].totalKBS += row.total;
+                    if (row && typeof row.total === 'number') {
+                        groups[key].totalKBS += row.total;
+                    }
                 });
             } catch (e) { console.error("Error parsing history JSON:", e); }
         });
@@ -8306,124 +8309,255 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores, nominaHistoryData }) =>
             ...g,
             rateAverage: g.hours > 0 ? (g.totalKBS / g.hours) : 0
         })).sort((a, b) => {
-            // Sort by Date Descending, then Site Name
-            const dateA = a.date.split(' - ')[0];
-            const dateB = b.date.split(' - ')[0];
-            return new Date(dateB) - new Date(dateA) || a.siteName.localeCompare(b.siteName);
+            try {
+                const dateA = String(a.date || '').split(' - ')[0];
+                const dateB = String(b.date || '').split(' - ')[0];
+                const val = new Date(dateB || 0) - new Date(dateA || 0);
+                return isNaN(val) ? 0 : val || String(a.siteName).localeCompare(String(b.siteName));
+            } catch (e) { return 0; }
         });
     }, [nominaHistoryData, stores]);
 
     const handleExportExcel = () => {
-        const worksheet = XLSX.utils.json_to_sheet(consolidatedData.map(row => ({
-            "Site Name": row.siteName,
-            "KBS ID": row.kbsId,
-            "Vendor Name": row.vendorName,
-            "Date": row.date,
-            "Hours": row.hours.toFixed(2),
-            "Vendor Invoice Hourly Rate Average": row.rateAverage.toFixed(2)
-        })));
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "UPS Consolidated");
-        XLSX.writeFile(workbook, `UPS_Consolidated_Report_${new Date().toLocaleDateString()}.xlsx`);
+        try {
+            const worksheet = XLSX.utils.json_to_sheet(consolidatedData.map(row => ({
+                "Site Name": row.siteName,
+                "KBS ID": row.kbsId,
+                "Vendor Name": row.vendorName,
+                "Date": row.date,
+                "Hours": (row.hours || 0).toFixed(2),
+                "Vendor Invoice Hourly Rate Average": (row.rateAverage || 0).toFixed(2)
+            })));
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "UPS Consolidated");
+            XLSX.writeFile(workbook, `UPS_Consolidated_Report_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
+        } catch (e) {
+            console.error("Error exporting Excel:", e);
+            alert("Error al exportar a Excel.");
+        }
     };
 
+    const handleSendEmail = async (emailData) => {
+        if (!MAIL_API_URL) {
+            setNotificationModal({ isOpen: true, type: 'success', message: "Error: MAIL_API_URL no configurado." });
+            return;
+        }
+        const element = reportRef.current;
+        if (!element) return;
+        setIsSendingEmail(true);
+        setNotificationModal({ isOpen: true, type: 'loading', message: `Enviando reporte a ${emailData.to}...` });
+        try {
+            const canvas = await html2canvas(element, { scale: 1.5, useCORS: true, backgroundColor: "#ffffff", windowWidth: 1200 });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 210;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            const pdfBase64 = pdf.output('datauristring').split(',')[1];
+            await fetch(MAIL_API_URL, {
+                method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    to: emailData.to, subject: emailData.subject, body: emailData.body,
+                    attachments: [{ name: `UPS_Consolidated_Report_${new Date().toLocaleDateString().replace(/\//g, '_')}.pdf`, type: 'application/pdf', base64: pdfBase64 }]
+                })
+            });
+            setNotificationModal({ isOpen: true, type: 'success', message: `Reporte enviado con éxito a ${emailData.to}.` });
+            setIsEmailModalOpen(false);
+        } catch (error) {
+            setNotificationModal({ isOpen: true, type: 'success', message: "Error al enviar el correo." });
+        } finally {
+            setIsSendingEmail(false);
+        }
+    };
+
+    const totalHoursAll = consolidatedData.reduce((acc, r) => acc + (r.hours || 0), 0);
+
+    if (!isOpen) return null;
+
     return (
-        <div className="fixed inset-0 z-[600] bg-[#303a7f]/20 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300 font-sans">
-            <div className="bg-white w-full max-w-6xl h-[90vh] rounded-[3rem] shadow-[0_40px_120px_-20px_rgba(48,58,127,0.4)] border-2 border-white flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
-                {/* Header */}
-                <div className="px-10 py-6 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/30 to-transparent">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
-                            <Layers size={22} />
-                        </div>
-                        <div>
-                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Tabla Consolidada UPS</h3>
-                            <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Reporte Unificado de Tiendas United Parcel Service</p>
-                        </div>
+        <div className="fixed inset-0 z-[600] bg-white animate-in fade-in duration-500 overflow-hidden flex flex-col">
+            {/* Header Flotante (Botones de Control Superiores) - Estilo VWH */}
+            <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-40 shadow-sm" data-html2canvas-ignore="true">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
+                        <Layers size={20} />
                     </div>
-                    <div className="flex items-center gap-4">
-                        <button 
-                            onClick={handleExportExcel}
-                            className="flex items-center gap-2 px-6 py-3 bg-[#6bbdb7] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95"
-                        >
-                            <Download size={16} />
-                            Exportar Excel
-                        </button>
-                        <button 
-                            onClick={onClose} 
-                            className="p-3 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all border-2 border-transparent hover:border-red-100"
-                        >
-                            <X size={24} />
-                        </button>
+                    <div className="flex flex-col">
+                        <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Visor de Reporte Consolidado UPS</h2>
+                        <div className="flex items-center gap-2">
+                            <div className="h-0.5 w-6 bg-[#6bbdb7] rounded-full" />
+                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-[0.3em] opacity-90">United Parcel Service Stores</p>
+                        </div>
                     </div>
                 </div>
 
-                {/* Table Content */}
-                <div className="flex-1 overflow-auto p-10 custom-scrollbar bg-[#fcfdfe]">
-                    <div className="bg-white rounded-[2rem] shadow-xl shadow-blue-900/5 border-2 border-gray-50 overflow-hidden">
-                        <table className="w-full border-collapse">
-                            <thead>
-                                <tr className="bg-[#303a7f] text-white">
-                                    <th className="px-6 py-5 text-left text-[10px] font-black uppercase tracking-widest">Site Name</th>
-                                    <th className="px-6 py-5 text-center text-[10px] font-black uppercase tracking-widest">KBS ID</th>
-                                    <th className="px-6 py-5 text-center text-[10px] font-black uppercase tracking-widest">Vendor Name</th>
-                                    <th className="px-6 py-5 text-center text-[10px] font-black uppercase tracking-widest">Date</th>
-                                    <th className="px-6 py-5 text-center text-[10px] font-black uppercase tracking-widest">Hours</th>
-                                    <th className="px-6 py-5 text-right text-[10px] font-black uppercase tracking-widest">Rate Average</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y-2 divide-gray-50">
-                                {consolidatedData.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">
-                                            No hay registros consolidados de UPS.
-                                        </td>
-                                    </tr>
-                                ) : consolidatedData.map((row, idx) => (
-                                    <tr key={idx} className="group hover:bg-blue-50/30 transition-colors">
-                                        <td className="px-6 py-5">
-                                            <span className="text-xs font-black text-[#303a7f] uppercase">{row.siteName}</span>
-                                        </td>
-                                        <td className="px-6 py-5 text-center">
-                                            <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-lg border border-gray-100">{row.kbsId}</span>
-                                        </td>
-                                        <td className="px-6 py-5 text-center">
-                                            <span className="text-[9px] font-bold text-[#303a7f]/60 uppercase tracking-tight">{row.vendorName}</span>
-                                        </td>
-                                        <td className="px-6 py-5 text-center">
-                                            <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-tighter">{row.date}</span>
-                                        </td>
-                                        <td className="px-6 py-5 text-center">
-                                            <span className="text-xs font-black text-[#303a7f]">{row.hours.toFixed(2)}</span>
-                                        </td>
-                                        <td className="px-6 py-5 text-right">
-                                            <div className="inline-flex items-center gap-1.5 bg-teal-50 px-4 py-1.5 rounded-xl border border-teal-100">
-                                                <span className="text-[10px] font-black text-[#6bbdb7]">$</span>
-                                                <span className="text-xs font-black text-[#6bbdb7]">{row.rateAverage.toFixed(2)}</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => setIsEmailModalOpen(true)}
+                        disabled={isSendingEmail}
+                        className="px-6 py-3 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#1e234d] shadow-lg shadow-blue-900/10 active:scale-95 flex items-center gap-2 transition-all"
+                    >
+                        <Mail size={16} />
+                        Enviar por Correo
+                    </button>
+                    <button
+                        onClick={handleExportExcel}
+                        className="px-6 py-3 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 flex items-center gap-2"
+                    >
+                        <Download size={16} />
+                        Exportar Excel
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="group p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center"
+                    >
+                        <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Contenido del Reporte (Capturable - Estilo VWH) */}
+            <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-[#fcfdfe]">
+                <div ref={reportRef} className="mx-auto h-fit max-w-7xl relative">
+                    <div className="bg-white mx-auto h-fit max-w-7xl relative shadow-2xl border-2 border-gray-50 rounded-[4rem] overflow-hidden">
+                        {/* Header del Reporte */}
+                        <div className="p-12 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/20 to-transparent">
+                            <div className="flex items-center gap-6">
+                                <div className="p-5 bg-[#303a7f] text-white rounded-[1.8rem] shadow-2xl shadow-blue-900/30 transform rotate-3 hover:rotate-0 transition-all duration-500">
+                                    <ClipboardCheck size={32} />
+                                </div>
+                                <div>
+                                    <h3 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">CONSOLIDADO UPS</h3>
+                                    <p className="text-[#6bbdb7] font-black uppercase text-[12px] tracking-[0.2em]">Logic Group Management | Weekly Report</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 opacity-60">Generated</p>
+                                <p className="text-sm font-black text-[#303a7f] uppercase">{new Date().toLocaleDateString()}</p>
+                            </div>
+                        </div>
+
+                        {/* Resumen de Información */}
+                        <div className="px-12 py-10 grid grid-cols-2 md:grid-cols-4 gap-12 border-b-2 border-gray-50 bg-gray-50/30">
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Vendor Name</p>
+                                <p className="text-[13px] font-black text-[#303a7f] uppercase leading-tight">LOGIC GROUP MANAGEMENT, LLC</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Total Sites</p>
+                                <p className="text-sm font-black text-[#303a7f] uppercase tabular-nums">{new Set(consolidatedData.map(r => r.siteName)).size}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Report Status</p>
+                                <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-100">Finalized</span>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Total Hours</p>
+                                <p className="text-3xl font-black text-[#6bbdb7] tabular-nums leading-none tracking-tighter">{totalHoursAll.toFixed(2)}</p>
+                            </div>
+                        </div>
+
+                        {/* Tabla Estilo VWH */}
+                        <div className="p-12">
+                            <div className="overflow-hidden rounded-[2.5rem] border-2 border-gray-100 shadow-2xl shadow-blue-900/[0.04]">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-50/80">
+                                            <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Site Name</th>
+                                            <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">KBS ID</th>
+                                            <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100">Vendor Name</th>
+                                            <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Date</th>
+                                            <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Hours</th>
+                                            <th className="p-5 text-[9px] font-black text-white uppercase tracking-[0.2em] text-right bg-[#303a7f] px-8">Rate Average</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y-2 divide-gray-50">
+                                        {consolidatedData.length === 0 ? (
+                                            <tr><td colSpan={6} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros consolidados de UPS.</td></tr>
+                                        ) : consolidatedData.map((row, idx) => (
+                                            <tr key={idx} className="group hover:bg-blue-50/20 transition-all duration-300">
+                                                <td className="p-5 text-[11px] font-black text-[#303a7f] uppercase pl-8 tracking-tight">{row.siteName}</td>
+                                                <td className="p-5 text-[11px] font-bold text-gray-500 text-center tabular-nums bg-gray-50/30">{row.kbsId || '---'}</td>
+                                                <td className="p-5 text-[10px] font-black text-gray-400 uppercase opacity-40">{row.vendorName}</td>
+                                                <td className="p-5 text-[11px] font-bold text-[#6bbdb7] text-center whitespace-nowrap tabular-nums">{row.date}</td>
+                                                <td className="p-5 text-center">
+                                                    <span className="px-4 py-1.5 bg-[#303a7f]/5 rounded-xl text-xs font-black text-[#303a7f] tabular-nums">{(row.hours || 0).toFixed(2)}</span>
+                                                </td>
+                                                <td className="p-5 text-right px-8 bg-[#303a7f]/[0.02]">
+                                                    <span className="text-xs font-black text-[#303a7f] tabular-nums">${(row.rateAverage || 0).toFixed(2)}</span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {/* Fila de Resumen Final */}
+                                        <tr className="bg-[#303a7f] border-t-4 border-white">
+                                            <td colSpan={4} className="p-8 text-[11px] font-black text-white uppercase tracking-[0.3em] text-right italic pr-12 opacity-80">Total Consolidated Hours</td>
+                                            <td className="p-8 text-center bg-[#303a7f]/90">
+                                                <span className="text-2xl font-black text-white tabular-nums drop-shadow-xl tracking-tighter">{totalHoursAll.toFixed(2)}</span>
+                                            </td>
+                                            <td className="bg-white/5 opacity-0 px-8"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Footer del Reporte */}
+                            <div className="mt-16 flex justify-between items-center opacity-30 px-6 border-t-2 border-gray-50 pt-8">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-[#303a7f] flex items-center justify-center text-white"><Receipt size={14} /></div>
+                                    <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">AdWisers LogicPay</p>
+                                </div>
+                                <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">Logic Group Management LLC.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                {/* Footer */}
-                <div className="px-10 py-6 border-t-2 border-gray-50 bg-white flex justify-between items-center">
-                    <div className="flex gap-8">
-                        <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-gray-400 uppercase mb-1">Total Registros</span>
-                            <span className="text-lg font-black text-[#303a7f]">{consolidatedData.length}</span>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-gray-400 uppercase mb-1">Horas Acumuladas</span>
-                            <span className="text-lg font-black text-[#6bbdb7]">{consolidatedData.reduce((acc, r) => acc + r.hours, 0).toFixed(2)}</span>
-                        </div>
+            {/* Modales Auxiliares */}
+            <UPSConsolidatedEmailModal isOpen={isEmailModalOpen} onClose={() => setIsEmailModalOpen(false)} onSend={handleSendEmail} isSending={isSendingEmail} />
+            <EmailNotificationModal isOpen={notificationModal.isOpen} type={notificationModal.type} message={notificationModal.message} onOk={() => setNotificationModal({ ...notificationModal, isOpen: false })} />
+        </div>
+    );
+};
+
+// ─── Modal de Configuración de Correo para Consolidado UPS ──────────────────
+const UPSConsolidatedEmailModal = ({ isOpen, onClose, onSend, isSending }) => {
+    const [to, setTo] = useState('kbs.billing@services.com');
+    const [subject, setSubject] = useState(`UPS Consolidated Report - ${new Date().toLocaleDateString()}`);
+    const [body, setBody] = useState(`Hola,\n\nAdjunto envío el reporte consolidado de las tiendas United Parcel Service correspondiente al periodo procesado.\n\nSaludos,\nLogic Group Management`);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[700] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300 font-sans">
+            <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-[0_32px_80px_rgba(48,58,127,0.25)] border-2 border-white/50 overflow-hidden animate-in zoom-in-95 duration-500">
+                <div className="px-10 py-6 border-b-2 border-gray-50 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20"><Mail size={20} /></div>
+                        <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none">Enviar Reporte UPS</h3>
                     </div>
-                    <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest italic">
-                        * Los datos se consolidan automáticamente uniendo semanas partidas por fin de mes.
-                    </p>
+                    <button onClick={onClose} className="p-3 text-gray-400 hover:text-red-500 transition-all"><X size={20} /></button>
+                </div>
+                <div className="p-10 space-y-6">
+                    <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
+                        <input type="email" value={to} onChange={(e) => setTo(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-4 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs" />
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto</label>
+                        <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-4 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs" />
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Mensaje</label>
+                        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} className="w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-2xl p-4 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none" />
+                    </div>
+                </div>
+                <div className="px-10 pb-10 flex gap-4">
+                    <button onClick={onClose} className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50">Cancelar</button>
+                    <button onClick={() => onSend({ to, subject, body })} disabled={isSending} className="flex-1 py-4 bg-[#6bbdb7] text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-lg shadow-teal-900/10 hover:bg-[#59aba5] flex items-center justify-center gap-2">
+                        {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                        {isSending ? 'Enviando...' : 'Enviar Reporte'}
+                    </button>
                 </div>
             </div>
         </div>
