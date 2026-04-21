@@ -66,7 +66,9 @@ import {
     PieChart as PieChartIcon,
     Filter,
     Target,
-    Eraser
+    Eraser,
+    Layers,
+    Copy
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -8221,6 +8223,214 @@ const SettingsView = () => {
 };
 
 
+// ─── FASE 13: COMPONENTE CONSOLIDADO UPS (REQUERIDO POR HERMES) ──────────────
+const UPSConsolidatedModal = ({ isOpen, onClose, stores, nominaHistoryData }) => {
+    if (!isOpen) return null;
+
+    const isUPSStore = (name) => {
+        if (!name) return false;
+        const n = name.toLowerCase();
+        return n.includes("united parcel service") || n.includes("ups");
+    };
+
+    const hhmmToDecimal = (hhmm) => {
+        if (!hhmm || !hhmm.includes(':')) return 0;
+        const [h, m] = hhmm.split(':').map(Number);
+        return h + (m / 60);
+    };
+
+    const getWeekRange = (dateStr) => {
+        if (!dateStr) return '---';
+        // Normalizar fecha para evitar desfases de zona horaria
+        let d;
+        if (dateStr.includes('-')) {
+            d = new Date(dateStr + "T12:00:00");
+        } else {
+            const parts = dateStr.split('/');
+            d = new Date(parts[2], parts[0] - 1, parts[1], 12, 0, 0);
+        }
+        
+        const day = d.getDay(); // 0 is Sunday
+        const diff = d.getDate() - day;
+        const sun = new Date(new Date(d).setDate(diff));
+        const sat = new Date(new Date(d).setDate(diff + 6));
+        
+        const fmt = (date) => {
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            const y = date.getFullYear();
+            return `${m}/${d}/${y}`;
+        };
+        return `${fmt(sun)} - ${fmt(sat)}`;
+    };
+
+    const getStoreKBSID = (storeName, storesList) => {
+        const store = storesList.find(s => s.nombre === storeName);
+        return store ? store.codigo : '';
+    };
+
+    const consolidatedData = useMemo(() => {
+        const upsStoreNames = new Set(stores.filter(s => isUPSStore(s.nombre)).map(s => s.nombre));
+        const groups = {};
+
+        nominaHistoryData.filter(h => upsStoreNames.has(h.nombre)).forEach(h => {
+            const weekRange = getWeekRange(h.fecha_inicio);
+            const key = `${h.nombre}|${weekRange}`;
+
+            if (!groups[key]) {
+                groups[key] = {
+                    siteName: h.nombre,
+                    kbsId: getStoreKBSID(h.nombre, stores),
+                    vendorName: "923941 LOGIC GROUP MANAGEMENT, LLC",
+                    date: weekRange,
+                    hours: 0,
+                    totalKBS: 0
+                };
+            }
+
+            try {
+                const payload = JSON.parse(h.data_json);
+                const semanaData = payload.semanaTableData || [];
+                const kbsData = payload.kbsBillingTableData || [];
+
+                semanaData.forEach(emp => {
+                    groups[key].hours += hhmmToDecimal(emp.total.final);
+                });
+                kbsData.forEach(row => {
+                    groups[key].totalKBS += row.total;
+                });
+            } catch (e) { console.error("Error parsing history JSON:", e); }
+        });
+
+        return Object.values(groups).map(g => ({
+            ...g,
+            rateAverage: g.hours > 0 ? (g.totalKBS / g.hours) : 0
+        })).sort((a, b) => {
+            // Sort by Date Descending, then Site Name
+            const dateA = a.date.split(' - ')[0];
+            const dateB = b.date.split(' - ')[0];
+            return new Date(dateB) - new Date(dateA) || a.siteName.localeCompare(b.siteName);
+        });
+    }, [nominaHistoryData, stores]);
+
+    const handleExportExcel = () => {
+        const worksheet = XLSX.utils.json_to_sheet(consolidatedData.map(row => ({
+            "Site Name": row.siteName,
+            "KBS ID": row.kbsId,
+            "Vendor Name": row.vendorName,
+            "Date": row.date,
+            "Hours": row.hours.toFixed(2),
+            "Vendor Invoice Hourly Rate Average": row.rateAverage.toFixed(2)
+        })));
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "UPS Consolidated");
+        XLSX.writeFile(workbook, `UPS_Consolidated_Report_${new Date().toLocaleDateString()}.xlsx`);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[600] bg-[#303a7f]/20 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300 font-sans">
+            <div className="bg-white w-full max-w-6xl h-[90vh] rounded-[3rem] shadow-[0_40px_120px_-20px_rgba(48,58,127,0.4)] border-2 border-white flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
+                {/* Header */}
+                <div className="px-10 py-6 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/30 to-transparent">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <Layers size={22} />
+                        </div>
+                        <div>
+                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Tabla Consolidada UPS</h3>
+                            <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Reporte Unificado de Tiendas United Parcel Service</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button 
+                            onClick={handleExportExcel}
+                            className="flex items-center gap-2 px-6 py-3 bg-[#6bbdb7] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95"
+                        >
+                            <Download size={16} />
+                            Exportar Excel
+                        </button>
+                        <button 
+                            onClick={onClose} 
+                            className="p-3 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all border-2 border-transparent hover:border-red-100"
+                        >
+                            <X size={24} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Table Content */}
+                <div className="flex-1 overflow-auto p-10 custom-scrollbar bg-[#fcfdfe]">
+                    <div className="bg-white rounded-[2rem] shadow-xl shadow-blue-900/5 border-2 border-gray-50 overflow-hidden">
+                        <table className="w-full border-collapse">
+                            <thead>
+                                <tr className="bg-[#303a7f] text-white">
+                                    <th className="px-6 py-5 text-left text-[10px] font-black uppercase tracking-widest">Site Name</th>
+                                    <th className="px-6 py-5 text-center text-[10px] font-black uppercase tracking-widest">KBS ID</th>
+                                    <th className="px-6 py-5 text-center text-[10px] font-black uppercase tracking-widest">Vendor Name</th>
+                                    <th className="px-6 py-5 text-center text-[10px] font-black uppercase tracking-widest">Date</th>
+                                    <th className="px-6 py-5 text-center text-[10px] font-black uppercase tracking-widest">Hours</th>
+                                    <th className="px-6 py-5 text-right text-[10px] font-black uppercase tracking-widest">Rate Average</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y-2 divide-gray-50">
+                                {consolidatedData.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">
+                                            No hay registros consolidados de UPS.
+                                        </td>
+                                    </tr>
+                                ) : consolidatedData.map((row, idx) => (
+                                    <tr key={idx} className="group hover:bg-blue-50/30 transition-colors">
+                                        <td className="px-6 py-5">
+                                            <span className="text-xs font-black text-[#303a7f] uppercase">{row.siteName}</span>
+                                        </td>
+                                        <td className="px-6 py-5 text-center">
+                                            <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-lg border border-gray-100">{row.kbsId}</span>
+                                        </td>
+                                        <td className="px-6 py-5 text-center">
+                                            <span className="text-[9px] font-bold text-[#303a7f]/60 uppercase tracking-tight">{row.vendorName}</span>
+                                        </td>
+                                        <td className="px-6 py-5 text-center">
+                                            <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-tighter">{row.date}</span>
+                                        </td>
+                                        <td className="px-6 py-5 text-center">
+                                            <span className="text-xs font-black text-[#303a7f]">{row.hours.toFixed(2)}</span>
+                                        </td>
+                                        <td className="px-6 py-5 text-right">
+                                            <div className="inline-flex items-center gap-1.5 bg-teal-50 px-4 py-1.5 rounded-xl border border-teal-100">
+                                                <span className="text-[10px] font-black text-[#6bbdb7]">$</span>
+                                                <span className="text-xs font-black text-[#6bbdb7]">{row.rateAverage.toFixed(2)}</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-10 py-6 border-t-2 border-gray-50 bg-white flex justify-between items-center">
+                    <div className="flex gap-8">
+                        <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-gray-400 uppercase mb-1">Total Registros</span>
+                            <span className="text-lg font-black text-[#303a7f]">{consolidatedData.length}</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-gray-400 uppercase mb-1">Horas Acumuladas</span>
+                            <span className="text-lg font-black text-[#6bbdb7]">{consolidatedData.reduce((acc, r) => acc + r.hours, 0).toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest italic">
+                        * Los datos se consolidan automáticamente uniendo semanas partidas por fin de mes.
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
 const USER_REGISTRY = [
     { name: "David Torres", role: "Asistente" },
     { name: "Nirvana Márquez", role: "Asistente" },
@@ -8293,6 +8503,7 @@ function App() {
     const [nominaHistoryData, setNominaHistoryData] = useState([]); // FASE 9: Historial Persistente
     const [nominaDetailData, setNominaDetailData] = useState([]); // FASE 9.5: Detalle Consolidado (Comentarios)
     const [selectedHistoryStore, setSelectedHistoryStore] = useState(sessionStorage.getItem('selectedHistoryStore') || '');
+    const [isUPSConsolidatedOpen, setIsUPSConsolidatedOpen] = useState(false);
     const [isHistoricalDataLoaded, setIsHistoricalDataLoaded] = useState(false); // Flag para la UI
     const [processedBiweeks, setProcessedBiweeks] = useState([]);
     const [vwhEmailsSent, setVwhEmailsSent] = useState({});
@@ -12082,6 +12293,13 @@ function App() {
                         </div>
                         <div className="flex items-center gap-4">
                             <button
+                                onClick={() => setIsUPSConsolidatedOpen(true)}
+                                className="px-5 py-2.5 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-lg shadow-blue-900/10 active:scale-95 animate-in fade-in zoom-in duration-700 flex items-center gap-2"
+                            >
+                                <Layers size={14} />
+                                Consolidado UPS
+                            </button>
+                            <button
                                 onClick={handleExportBillingExcel}
                                 className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 animate-in fade-in zoom-in duration-700"
                             >
@@ -12615,6 +12833,14 @@ function App() {
                     onClose={() => setIsManualModalOpen(false)} 
                 />
             )}
+
+            {/* FASE 13: MODAL CONSOLIDADO UPS (REQUERIDO POR HERMES) */}
+            <UPSConsolidatedModal
+                isOpen={isUPSConsolidatedOpen}
+                onClose={() => setIsUPSConsolidatedOpen(false)}
+                stores={stores}
+                nominaHistoryData={nominaHistoryData}
+            />
 
             {/* Decorative Brand Gradients */}
             <div
