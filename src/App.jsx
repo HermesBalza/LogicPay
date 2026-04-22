@@ -12909,11 +12909,22 @@ function App() {
                     onRegisterEmployee={(newEmp) => {
                         // Agregar al estado local de empleados
                         setEmployees(prev => [newEmp, ...prev]);
-                        // Sincronizar con la hoja "Personal" de Google Sheets
-                        syncToSheets('upsert', {
+                        
+                        // Sincronizar con la hoja "Personal" de Google Sheets con mapeo correcto
+                        const payload = {
                             ...newEmp,
-                            codigo_empleado: `'${newEmp.codigo_empleado}`
-                        }, 'Personal');
+                            codigo_empleado: `'${newEmp.codigo_empleado}`,
+                            'Rate KBS': newEmp.rateKBS || 0,
+                            'Rate LGM': newEmp.rateLGM || 0,
+                            'Observaciones': newEmp.observaciones || ''
+                        };
+                        
+                        // Limpieza de llaves internas para integridad del esquema en Sheets
+                        delete payload.rateKBS;
+                        delete payload.rateLGM;
+                        delete payload.observaciones;
+
+                        syncToSheets('upsert', payload, 'Personal');
                     }}
                     onUpdateLocationHistory={(employeeName, newSegment) => {
                         setEmployees(prev => {
@@ -12939,12 +12950,22 @@ function App() {
                             const newEmployees = [...prev];
                             newEmployees[idx] = updatedEmp;
 
-                            // Sincronizar con Google Sheets (enviando el historial como JSON string)
-                            syncToSheets('upsert', {
+                            // Sincronizar con Google Sheets con mapeo correcto
+                            const payload = {
                                 ...updatedEmp,
                                 codigo_empleado: `'${updatedEmp.codigo_empleado}`,
-                                locationHistory: JSON.stringify(updatedEmp.locationHistory)
-                            }, 'Personal');
+                                locationHistory: JSON.stringify(updatedEmp.locationHistory),
+                                'Rate KBS': updatedEmp.rateKBS || 0,
+                                'Rate LGM': updatedEmp.rateLGM || 0,
+                                'Observaciones': updatedEmp.observaciones || ''
+                            };
+                            
+                            // Limpieza de llaves internas
+                            delete payload.rateKBS;
+                            delete payload.rateLGM;
+                            delete payload.observaciones;
+
+                            syncToSheets('upsert', payload, 'Personal');
 
                             return newEmployees;
                         });
