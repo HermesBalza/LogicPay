@@ -4404,7 +4404,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
 };
 
 const VWHTableModal = (props) => {
-    const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId, employees = [], isRadicated = false } = props;
+    const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId, employees = [], isRadicated = false, onOpenUPSConsolidated } = props;
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -4752,6 +4752,25 @@ const VWHTableModal = (props) => {
                     </div>
                 )}
                 <div className="flex items-center gap-4">
+                    {/* Botón Consolidado UPS (Solo para UPS) - Reubicado por Hermes */}
+                    {(() => {
+                        const isUPS = (name) => {
+                            const n = String(name || '').toLowerCase();
+                            return n.includes("united parcel service") || n.includes("ups");
+                        };
+                        if (isUPS(payrollStore)) {
+                            return (
+                                <button
+                                    onClick={() => onOpenUPSConsolidated && onOpenUPSConsolidated(fechaDesde)}
+                                    className="px-6 py-3 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-lg shadow-blue-900/10 active:scale-95 flex items-center gap-2 animate-in fade-in zoom-in duration-700"
+                                >
+                                    <Layers size={16} />
+                                    Consolidado UPS
+                                </button>
+                            );
+                        }
+                        return null;
+                    })()}
                     <button
                         onClick={() => !isRadicated && setIsEmailModalOpen(true)}
                         disabled={isRadicated || isSendingEmail}
@@ -8224,7 +8243,7 @@ const SettingsView = () => {
 
 
 // ─── FASE 13: COMPONENTE CONSOLIDADO UPS (REQUERIDO POR HERMES) ──────────────
-const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData = [] }) => {
+const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData = [], filterWeek = null }) => {
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -8277,6 +8296,10 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
 
         nominaHistoryData.filter(h => h && upsStoreNames.has(h.nombre)).forEach(h => {
             const weekRange = getWeekRange(h.fecha_inicio);
+
+            // FILTRADO DINÁMICO POR SEMANA (Solicitado por Hermes)
+            if (filterWeek && weekRange !== filterWeek) return;
+
             const key = `${h.nombre}|${weekRange}`;
             if (!groups[key]) {
                 groups[key] = {
@@ -8316,7 +8339,7 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
                 return isNaN(val) ? 0 : val || String(a.siteName).localeCompare(String(b.siteName));
             } catch (e) { return 0; }
         });
-    }, [nominaHistoryData, stores]);
+    }, [nominaHistoryData, stores, filterWeek]);
 
     const handleExportExcel = () => {
         try {
@@ -8638,6 +8661,8 @@ function App() {
     const [nominaDetailData, setNominaDetailData] = useState([]); // FASE 9.5: Detalle Consolidado (Comentarios)
     const [selectedHistoryStore, setSelectedHistoryStore] = useState(sessionStorage.getItem('selectedHistoryStore') || '');
     const [isUPSConsolidatedOpen, setIsUPSConsolidatedOpen] = useState(false);
+    const [upsFilterWeek, setUpsFilterWeek] = useState(null); // Para filtrar por semana específica desde VWH
+
     const [isHistoricalDataLoaded, setIsHistoricalDataLoaded] = useState(false); // Flag para la UI
     const [processedBiweeks, setProcessedBiweeks] = useState([]);
     const [vwhEmailsSent, setVwhEmailsSent] = useState({});
@@ -11222,6 +11247,33 @@ function App() {
                     const rad = nominaHistoryData.find(h => String(h.codigo) === String(vwhRecordId))?.radicacion;
                     return !!(rad && rad !== '--/--/--');
                 })()}
+                onOpenUPSConsolidated={(date) => {
+                    // Calculamos el rango de la semana a partir de la fecha seleccionada
+                    // getWeekRange ya está dentro del componente modal, así que pasamos la fecha
+                    // y el modal hará el filtrado interno.
+                    // Para simplificar, calculamos aquí el weekRange para guardarlo en el estado de filtro.
+                    const getRange = (dateStr) => {
+                        if (!dateStr) return null;
+                        let d;
+                        if (dateStr.includes('-')) d = new Date(dateStr + "T12:00:00");
+                        else {
+                            const parts = dateStr.split('/');
+                            d = new Date(parts[2], parts[0] - 1, parts[1], 12, 0, 0);
+                        }
+                        const day = d.getDay();
+                        const diff = d.getDate() - day;
+                        const sun = new Date(new Date(d).setDate(diff));
+                        const sat = new Date(new Date(d).setDate(diff + 6));
+                        const fmt = (date) => {
+                            const m = String(date.getMonth() + 1).padStart(2, '0');
+                            const d = String(date.getDate()).padStart(2, '0');
+                            return `${m}/${d}/${date.getFullYear()}`;
+                        };
+                        return `${fmt(sun)} - ${fmt(sat)}`;
+                    };
+                    setUpsFilterWeek(getRange(date));
+                    setIsUPSConsolidatedOpen(true);
+                }}
                 onEmailSent={(reportKey) => {
                     // 1. Marcar como enviado
                     const updated = { ...vwhEmailsSent, [reportKey]: true };
@@ -12427,13 +12479,6 @@ function App() {
                         </div>
                         <div className="flex items-center gap-4">
                             <button
-                                onClick={() => setIsUPSConsolidatedOpen(true)}
-                                className="px-5 py-2.5 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-lg shadow-blue-900/10 active:scale-95 animate-in fade-in zoom-in duration-700 flex items-center gap-2"
-                            >
-                                <Layers size={14} />
-                                Consolidado UPS
-                            </button>
-                            <button
                                 onClick={handleExportBillingExcel}
                                 className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 animate-in fade-in zoom-in duration-700"
                             >
@@ -12971,9 +13016,13 @@ function App() {
             {/* FASE 13: MODAL CONSOLIDADO UPS (REQUERIDO POR HERMES) */}
             <UPSConsolidatedModal
                 isOpen={isUPSConsolidatedOpen}
-                onClose={() => setIsUPSConsolidatedOpen(false)}
+                onClose={() => {
+                    setIsUPSConsolidatedOpen(false);
+                    setUpsFilterWeek(null); // Resetear filtro al cerrar
+                }}
                 stores={stores}
                 nominaHistoryData={nominaHistoryData}
+                filterWeek={upsFilterWeek}
             />
 
             {/* Decorative Brand Gradients */}
