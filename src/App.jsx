@@ -8256,9 +8256,13 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
     };
 
     const hhmmToDecimal = (hhmm) => {
-        if (!hhmm || typeof hhmm !== 'string' || !hhmm.includes(':')) return 0;
-        const [h, m] = hhmm.split(':').map(Number);
-        return h + (m / 60);
+        if (!hhmm || hhmm === 'X' || hhmm === '0:00') return 0;
+        const val = String(hhmm);
+        if (val.includes(':')) {
+            const [h, m] = val.split(':').map(Number);
+            return h + (m || 0) / 60;
+        }
+        return parseFloat(val) || 0;
     };
 
     const getWeekRange = (dateStr) => {
@@ -8321,9 +8325,9 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
                     }
                 });
                 kbsData.forEach(row => {
-                    if (row && typeof row.total === 'number') {
-                        groups[key].totalKBS += row.total;
-                    }
+                    // Soporte robusto para total o total_kbs, en formato número o string con moneda
+                    const val = row?.total || row?.total_kbs || 0;
+                    groups[key].totalKBS += parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
                 });
             } catch (e) { console.error("Error parsing history JSON:", e); }
         });
