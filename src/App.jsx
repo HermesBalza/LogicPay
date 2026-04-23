@@ -95,6 +95,7 @@ const NOMINA_DETAIL_CSV_URL = import.meta.env.VITE_SHEET_NOMINA_DETALLE_URL;
 const SPECIAL_PROJECTS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_PROYECTOS_ESPECIALES_URL;
 const WOS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_WOS_URL;
 const VARIABLES_CSV_URL = import.meta.env.VITE_SHEET_VARIABLES_URL;
+const CONSOLIDATED_STORE = "EMPLEADOS MULTI-SITIO (CONSOLIDADO)";
 
 // Parsea una fila CSV respetando campos entre comillas
 const parseCSVRow = (row) => {
@@ -147,7 +148,16 @@ const createCSVRowObject = (headers, values) => {
 
 const normalizeInvoice = (value) => {
     const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed >= 100 ? parsed : 100;
+    return isNaN(parsed) ? 0 : parsed;
+};
+
+const normalizeDate = (d) => {
+    if (!d || typeof d !== 'string') return '';
+    const parts = d.split('/');
+    if (parts.length === 3) {
+        return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+    }
+    return d;
 };
 
 const normalizeName = (name) => {
@@ -883,7 +893,7 @@ const DashboardView = ({
                                 className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[120px] truncate"
                             >
                                 <option value="Todas">Todas las Tiendas</option>
-                                {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                {stores.map((s, idx) => <option key={s.codigo || `dash-store-${idx}`} value={s.nombre}>{s.nombre}</option>)}
                             </select>
                         </div>
 
@@ -895,7 +905,7 @@ const DashboardView = ({
                                 className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[120px] truncate"
                             >
                                 <option value="Todos">Todos los Empleados</option>
-                                {employees.map(emp => <option key={emp.codigo_empleado} value={emp.nombre}>{emp.nombre}</option>)}
+                                {employees.map((emp, idx) => <option key={emp.codigo_empleado || `dash-emp-${idx}`} value={emp.nombre}>{emp.nombre}</option>)}
                             </select>
                         </div>
 
@@ -5900,44 +5910,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         });
     };
 
-    // 2. Lógica de consolidación (W1 + W2)
+    // 2. Lógica de consolidación (W1 + W2) con detección Multi-Sitio
     useEffect(() => {
         if (!period || !nominaHistoryData.length) return;
 
-        // Buscar datos de W1 y W2 en el historial
-        const normalizeDate = (d) => {
-            if (!d) return '';
-            const parts = d.split('/');
-            if (parts.length === 3) {
-                return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
-            }
-            return d;
-        };
-
-        const findWeekData = (fechaInicio) => {
-            const normalizedTarget = normalizeDate(fechaInicio);
-            const history = nominaHistoryData.find(h =>
-                String(h.nombre).trim().toLowerCase() === String(period.store).trim().toLowerCase() &&
-                normalizeDate(h.fecha_inicio) === normalizedTarget
-            );
-            if (history) {
-                try {
-                    return JSON.parse(history.data_json);
-                } catch (e) {
-                    console.error("Error parseando JSON de historial:", e);
-                    return null;
-                }
-            }
-            return null;
-        };
-
-        const w1Data = findWeekData(period.w1?.start);
-        const w2Data = findWeekData(period.w2?.start);
-
-        console.log(`[Biweekly] Buscando W1 (${period.w1?.start}):`, w1Data ? 'ENCONTRADA' : 'NO ENCONTRADA');
-        console.log(`[Biweekly] Buscando W2 (${period.w2?.start}):`, w2Data ? 'ENCONTRADA' : 'NO ENCONTRADA');
-
-        // Helper para manejar formatos "40" y "40:00"
         const parseHours = (val) => {
             if (!val || val === 'X' || val === '0:00') return 0;
             const s = String(val).trim();
@@ -5948,36 +5924,42 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             return parseFloat(s) || 0;
         };
 
-        // Mapear empleados de ambas semanas
-        const allEmpIds = new Set();
-        const w1Map = {};
-        const w2Map = {};
+        const isConsolidatedView = period.store === CONSOLIDATED_STORE;
 
-        if (w1Data?.semanaTableData) {
-            w1Data.semanaTableData.forEach(emp => {
-                const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
-                allEmpIds.add(empId);
-                w1Map[empId] = {
-                    ...emp,
-                    hours: parseHours(emp.total?.final),
-                    rate: Number(w1Data.earningsTableData?.find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)?.rate || 0)
-                };
+        // 1. Escanear TODO el historial del periodo para detectar duplicados
+        const allW1Records = nominaHistoryData.filter(h => normalizeDate(h.fecha_inicio) === normalizeDate(period.w1?.start));
+        const allW2Records = nominaHistoryData.filter(h => normalizeDate(h.fecha_inicio) === normalizeDate(period.w2?.start));
+
+        // employeeId -> Set of stores
+        const empStoreMap = {};
+        // employeeId -> { w1: [], w2: [] }
+        const empDataMap = {};
+
+        const processRecords = (records, weekKey) => {
+            records.forEach(record => {
+                try {
+                    const data = JSON.parse(record.data_json);
+                    const storeName = record.nombre;
+                    (data.semanaTableData || []).forEach(emp => {
+                        const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
+                        if (!empStoreMap[empId]) empStoreMap[empId] = new Set();
+                        empStoreMap[empId].add(storeName);
+
+                        if (!empDataMap[empId]) empDataMap[empId] = { w1: [], w2: [] };
+                        empDataMap[empId][weekKey].push({
+                            store: storeName,
+                            empData: emp,
+                            earnings: (data.earningsTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)
+                        });
+                    });
+                } catch (e) { }
             });
-        }
+        };
 
-        if (w2Data?.semanaTableData) {
-            w2Data.semanaTableData.forEach(emp => {
-                const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
-                allEmpIds.add(empId);
-                w2Map[empId] = {
-                    ...emp,
-                    hours: parseHours(emp.total?.final),
-                    rate: Number(w2Data.earningsTableData?.find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)?.rate || 0)
-                };
-            });
-        }
+        processRecords(allW1Records, 'w1');
+        processRecords(allW2Records, 'w2');
 
-        // Agregar también empleados que solo están en Proyectos Especiales REGISTRADOS
+        // También incluir Proyectos Especiales en el mapa de sedes
         (specialProjectsData || []).forEach(project => {
             if (project.status === 'registered') {
                 (project.employees || []).forEach(row => {
@@ -5985,13 +5967,31 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(row.employeeName).trim().toLowerCase());
                         const code = dbEmp ? dbEmp.codigo_empleado : 'EXT';
                         const empId = `${String(row.employeeName).trim().toLowerCase()}_${code}`;
-                        allEmpIds.add(empId);
+                        if (!empStoreMap[empId]) empStoreMap[empId] = new Set();
+                        // El proyecto ya viene asociado a una tienda en specialProjectsData (que cargamos en App.jsx)
+                        // pero aquí necesitamos saber si es una tienda distinta.
+                        // Para simplificar, si está en specialProjectsData y es un proyecto registrado, sumamos "Proyecto Especial" como una sede virtual
+                        // o usamos el nombre de la tienda del proyecto si está disponible.
+                        empStoreMap[empId].add(project.tienda || "Proyecto Especial");
                     }
                 });
             }
         });
 
-        // MODIFICACIÓN: Recuperar comentarios de la base de datos (Nomina_Detalle) si existen
+        // 2. Determinar qué empleados incluir en esta vista
+        const finalEmpIds = Object.keys(empStoreMap).filter(empId => {
+            const stores = empStoreMap[empId];
+            const isMultiSite = stores.size > 1;
+
+            if (isConsolidatedView) {
+                return isMultiSite;
+            } else {
+                // Vista de tienda regular: Incluir si trabajó aquí Y NO es multi-sitio
+                return stores.has(period.store) && !isMultiSite;
+            }
+        });
+
+        // 3. Recuperar comentarios de la base de datos
         const consolidationId = `${period.store}_${period.range}`.replace(/\s+/g, '_');
         const existingDetail = (nominaDetailData || []).find(d =>
             String(d.id_consolidacion || '').trim() === consolidationId
@@ -6006,21 +6006,28 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         savedCommentsMap[String(row.empleado).trim().toLowerCase()] = row.comments || '';
                     }
                 });
-            } catch (e) {
-                console.error("Error parseando Data_JSON de Nomina_Detalle:", e);
-            }
+            } catch (e) { }
         }
 
-        // Crear lista consolidada
-        const consolidated = Array.from(allEmpIds).map(id => {
-            const empW1 = w1Map[id];
-            const empW2 = w2Map[id];
+        // 4. Construir lista consolidada final
+        const consolidated = finalEmpIds.map(id => {
+            const data = empDataMap[id] || { w1: [], w2: [] };
 
-            const hoursW1 = empW1?.hours || 0;
-            const hoursW2 = empW2?.hours || 0;
-            let rate = empW1?.rate || empW2?.rate || 0;
+            // Si es vista consolidada, sumamos todo. Si es regular, solo lo de esta tienda.
+            const filterStore = isConsolidatedView ? null : period.store;
 
-            // Sumar horas y montos de Proyectos Especiales para este empleado (SOLO REGISTRADOS)
+            const w1Entries = filterStore ? data.w1.filter(e => e.store === filterStore) : data.w1;
+            const w2Entries = filterStore ? data.w2.filter(e => e.store === filterStore) : data.w2;
+
+            const totalHoursW1 = w1Entries.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0);
+            const totalHoursW2 = w2Entries.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0);
+
+            // Rate: Usamos el primero que encontremos (asumimos rate consistente o el de la tienda principal)
+            let rate = 0;
+            const firstEntry = [...w1Entries, ...w2Entries][0];
+            if (firstEntry && firstEntry.earnings) rate = Number(firstEntry.earnings.rate || 0);
+
+            // Proyectos Especiales
             const empNombreRaw = id.split('_')[0].trim().toLowerCase();
             let peTotalHours = 0;
             let peTotalEarnings = 0;
@@ -6028,6 +6035,9 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
             (specialProjectsData || []).forEach(project => {
                 if (project.status === 'registered') {
+                    // Si no es consolidado, solo incluir si el proyecto es de esta tienda
+                    if (!isConsolidatedView && project.tienda !== period.store) return;
+
                     (project.employees || []).forEach(row => {
                         if (String(row.employeeName).trim().toLowerCase() === empNombreRaw) {
                             const h = parseFloat(row.hours) || 0;
@@ -6040,27 +6050,26 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 }
             });
 
-            // Si el empleado no tiene rate de semanas pero tiene de P.E, lo usamos
             if (rate === 0 && peFirstRate > 0) rate = peFirstRate;
 
-            const rowColor = 'bg-white';
-            const finalNombre = empW1?.nombre || empW2?.nombre || (id.split('_')[0].toUpperCase());
+            const finalNombre = (firstEntry?.empData?.nombre) || (id.split('_')[0].toUpperCase());
+            const cargo = (firstEntry?.empData?.cargo) || 'Externo/PE';
 
             return {
                 id: id,
                 nombre: finalNombre,
-                semana1: empW1 ? hoursW1 : null,
-                semana2: empW2 ? hoursW2 : null,
+                semana1: totalHoursW1 || null,
+                semana2: totalHoursW2 || null,
                 pe: peTotalHours,
                 peEarnings: peTotalEarnings,
                 rate: rate,
-                cargo: empW1?.cargo || empW2?.cargo || 'Externo/PE',
+                cargo: cargo,
                 comments: savedCommentsMap[finalNombre.trim().toLowerCase()] || '',
-                rowColor: rowColor
+                rowColor: isConsolidatedView ? 'bg-amber-50/30' : 'bg-white',
+                isMultiSite: empStoreMap[id].size > 1
             };
         });
 
-        // Ordenar por nombre
         consolidated.sort((a, b) => a.nombre.localeCompare(b.nombre));
         setBiweeklyEmployees(consolidated);
     }, [period, nominaHistoryData, specialProjectsData, nominaDetailData]);
@@ -6311,13 +6320,17 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 {/* Header Navigation */}
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-[#303a7f] text-white rounded-2xl flex items-center justify-center shadow-xl shadow-blue-900/10">
-                            <Cpu size={24} />
+                        <div className={`w-12 h-12 ${period.store === CONSOLIDATED_STORE ? 'bg-gradient-to-br from-[#6bbdb7] to-[#303a7f]' : 'bg-[#303a7f]'} text-white rounded-2xl flex items-center justify-center shadow-xl shadow-blue-900/10`}>
+                            {period.store === CONSOLIDATED_STORE ? <Sparkles size={24} /> : <Cpu size={24} />}
                         </div>
                         <div>
-                            <h1 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">Nómina</h1>
+                            <h1 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">
+                                {period.store === CONSOLIDATED_STORE ? 'Nómina Consolidada Multi-Sitio' : 'Nómina Bisemanal'}
+                            </h1>
                             <div className="flex items-center gap-2">
-                                <span className="text-[#6bbdb7] text-[9px] font-black uppercase tracking-[0.2em] opacity-80">{period.store}</span>
+                                <span className={`${period.store === CONSOLIDATED_STORE ? 'text-amber-500' : 'text-[#6bbdb7]'} text-[9px] font-black uppercase tracking-[0.2em] opacity-80`}>
+                                    {period.store}
+                                </span>
                                 <div className="w-1 h-1 rounded-full bg-gray-200" />
                                 <span className="text-gray-400 text-[9px] font-black uppercase tracking-[0.2em]">{period.range}</span>
                             </div>
@@ -6351,6 +6364,23 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                 {/* Table Header (Mimic the Excel Image) */}
                 <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/[0.04] border-2 border-brand-primary/5 p-8 lg:p-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    {period.store === CONSOLIDATED_STORE && (
+                        <div className="mb-8 p-6 bg-amber-50 border-2 border-amber-100 rounded-3xl flex items-center gap-6 animate-in zoom-in-95 duration-500">
+                            <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
+                                <Info size={24} />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="text-sm font-black text-amber-800 uppercase tracking-tighter mb-1">Detección de Empleados Multi-Tiendas</h4>
+                                <p className="text-amber-700 text-[11px] font-medium leading-relaxed">
+                                    Esta vista muestra <strong>exclusivamente</strong> a los trabajadores que tuvieron actividad en más de una tienda durante este periodo.
+                                    Las horas mostradas son la <strong>suma total</strong> de todas las sedes donde laboraron.
+                                </p>
+                            </div>
+                            <div className="px-4 py-2 bg-amber-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-amber-900/20">
+                                {biweeklyEmployees.length} Empleados Detectados
+                            </div>
+                        </div>
+                    )}
                     {/* Table */}
                     <div className="overflow-x-auto rounded-[2rem] border-[3px] border-gray-100">
                         <table className="w-full text-left border-collapse">
@@ -6491,9 +6521,12 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
 
     const isWeekProcessed = (fechaInicio) => {
         if (!selectedStore) return false;
+        if (selectedStore === CONSOLIDATED_STORE) {
+            return historyData.some(h => normalizeDate(h.fecha_inicio) === normalizeDate(fechaInicio));
+        }
         return historyData.some(h =>
             String(h.nombre).trim().toLowerCase() === String(selectedStore).trim().toLowerCase() &&
-            h.fecha_inicio === fechaInicio
+            normalizeDate(h.fecha_inicio) === normalizeDate(fechaInicio)
         );
     };
 
@@ -6613,8 +6646,11 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                             className="w-full bg-gray-50 border-2 border-brand-primary/10 rounded-xl px-4 pr-10 py-2.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all cursor-pointer shadow-inner appearance-none h-[44px]"
                         >
                             <option value="">Selecciona una Tienda</option>
-                            {stores.map(s => (
-                                <option key={s.codigo} value={s.nombre}>{s.nombre}</option>
+                            <option value={CONSOLIDATED_STORE} style={{ fontWeight: 'black', color: '#6bbdb7' }}>
+                                [CONSOLIDADO] {CONSOLIDATED_STORE}
+                            </option>
+                            {stores.map((s, idx) => (
+                                <option key={s.codigo || `store-${idx}`} value={s.nombre}>{s.nombre}</option>
                             ))}
                         </select>
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#303a7f]/50 group-hover:text-[#303a7f] transition-colors">
@@ -9437,9 +9473,11 @@ function App() {
         const selectedRange = parsePeriodRange(period);
         if (!normalizedStore || !selectedRange) return [];
 
+        const isConsolidated = storeName === CONSOLIDATED_STORE;
+
         return specialProjectsHistoryData
             .filter(item =>
-                String(item.tienda || '').trim().toLowerCase() === normalizedStore
+                isConsolidated || String(item.tienda || '').trim().toLowerCase() === normalizedStore
             )
             .filter(item => {
                 const itemRange = parsePeriodRange(String(item.periodo || ''));
@@ -10521,14 +10559,6 @@ function App() {
     // Re-hidratación de Nómina (Engine View)
     useEffect(() => {
         if (activeTab === 'payroll' && payrollView === 'engine' && selectedHistoryStore && fechaDesde && nominaHistoryData.length > 0 && !isHistoricalDataLoaded) {
-            const normalizeDate = (d) => {
-                if (!d) return '';
-                const parts = d.split('/');
-                if (parts.length === 3) {
-                    return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
-                }
-                return d;
-            };
             const targetStart = normalizeDate(fechaDesde);
             const hData = nominaHistoryData.find(h =>
                 String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
@@ -12730,14 +12760,6 @@ function App() {
                     setFechaHasta(end);
                     if (selectedHistoryStore) {
                         setPayrollStore(selectedHistoryStore);
-                        const normalizeDate = (d) => {
-                            if (!d) return '';
-                            const parts = d.split('/');
-                            if (parts.length === 3) {
-                                return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
-                            }
-                            return d;
-                        };
                         const targetStart = normalizeDate(start);
                         const hData = nominaHistoryData.find(h =>
                             String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
