@@ -4167,7 +4167,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
     return (
         <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-4xl h-[85vh] rounded-[3rem] shadow-[0_40px_120px_-20px_rgba(48,58,127,0.4)] border-2 border-white/50 flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
-                
+
                 {/* Header Premium */}
                 <div className="px-10 py-8 border-b-2 border-gray-50 bg-gradient-to-r from-gray-50/50 to-transparent flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-4">
@@ -4179,7 +4179,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                             <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Documentación y Estatus Legal</p>
                         </div>
                     </div>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent active:scale-95"
                     >
@@ -4190,7 +4190,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                 {/* Content Area - Scrollable */}
                 <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-white">
                     <div className="max-w-3xl mx-auto space-y-12">
-                        
+
                         {/* Welcome/Intro (Placeholder for future content) */}
                         <div className="p-8 bg-blue-50/30 rounded-3xl border-2 border-dashed border-blue-100/50 text-center">
                             <p className="text-sm font-bold text-[#303a7f] opacity-60 uppercase tracking-widest">Contenido del Manual en Desarrollo</p>
@@ -4202,7 +4202,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                             <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter border-b-2 border-gray-100 pb-4">
                                 Nota de Propiedad y Licencia de Uso
                             </h3>
-                            
+
                             <p className="text-sm font-bold text-gray-600 leading-relaxed">
                                 El sistema <span className="text-[#303a7f] font-black">LogicPay</span> es una plataforma de gestión de nómina desarrollada, de propiedad exclusiva y operada por la agencia de marketing <span className="text-[#303a7f] font-black">Adwisers LLC</span>.
                             </p>
@@ -4277,7 +4277,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
 
                 {/* Footer Controls */}
                 <div className="px-10 py-8 border-t-2 border-gray-50 bg-gray-50/10 flex justify-end shrink-0">
-                    <button 
+                    <button
                         onClick={onClose}
                         className="px-12 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
                     >
@@ -4774,11 +4774,10 @@ const VWHTableModal = (props) => {
                     <button
                         onClick={() => !isRadicated && setIsEmailModalOpen(true)}
                         disabled={isRadicated || isSendingEmail}
-                        className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center gap-2 ${
-                            isRadicated
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none" 
-                            : "bg-[#303a7f] text-white hover:bg-[#1e234d] shadow-blue-900/10"
-                        }`}
+                        className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center gap-2 ${isRadicated
+                                ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
+                                : "bg-[#303a7f] text-white hover:bg-[#1e234d] shadow-blue-900/10"
+                            }`}
                     >
                         <Mail size={16} />
                         {isRadicated ? "Correo Enviado" : "Enviar por Correo"}
@@ -4937,8 +4936,8 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
             const normalized = normalizeName(emp.nombre);
             const id = String(emp.codigo_empleado || '').trim();
             if (id) {
-                idToInfoMap[id] = { 
-                    nombre: emp.nombre, 
+                idToInfoMap[id] = {
+                    nombre: emp.nombre,
                     cargo: emp.cargo || 'Personal',
                     firstName: emp.first_name,
                     lastName: emp.last_name
@@ -7916,11 +7915,10 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                     <button
                         onClick={() => !isActuallySent && setIsEmailModalOpen(true)}
                         disabled={isActuallySent || isSendingEmail}
-                        className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl transition-all active:scale-95 flex items-center gap-3 ${
-                            isActuallySent 
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none" 
-                            : "bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]"
-                        }`}
+                        className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl transition-all active:scale-95 flex items-center gap-3 ${isActuallySent
+                                ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
+                                : "bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]"
+                            }`}
                     >
                         <Mail size={18} />
                         {isActuallySent ? "Correo Enviado" : "Enviar por Correo"}
@@ -8323,7 +8321,7 @@ const BillingView = ({
                                             const ff = row.fecha_fin || '';
                                             const sn = row.nombre_store || storeName || '';
                                             const rowId = String(row.id || '');
-                                            
+
                                             const candidateKeys = [
                                                 rowId,
                                                 normalizeKey(rowId),
@@ -8333,9 +8331,9 @@ const BillingView = ({
                                                 `${storeName.toLowerCase()}_${fi}_${ff}`,
                                             ];
                                             return (row.radicacion && row.radicacion !== '--/--/--') ? (
-                                                <Send 
-                                                    size={18} 
-                                                    className="text-[#6bbdb7] drop-shadow-[0_0_15px_rgba(107,189,183,1)] animate-in fade-in zoom-in duration-500" 
+                                                <Send
+                                                    size={18}
+                                                    className="text-[#6bbdb7] drop-shadow-[0_0_15px_rgba(107,189,183,1)] animate-in fade-in zoom-in duration-500"
                                                     title={`Enviado el ${row.radicacion}`}
                                                 />
                                             ) : null;
@@ -8431,10 +8429,10 @@ const BillingView = ({
                                             const invRaw = String(row.invoice || '');
                                             const invNorm = normalizeKey(invRaw);
                                             const invDigits = invRaw.replace(/[^0-9]/g, '');
-                                            
+
                                             return (row.radicacion && row.radicacion !== '--/--/--') ? (
-                                                <Send 
-                                                    size={18} 
+                                                <Send
+                                                    size={18}
                                                     className="text-[#6bbdb7] drop-shadow-[0_0_15px_rgba(107,189,183,1)] animate-in fade-in zoom-in duration-500"
                                                     title={`Enviado el ${row.radicacion}`}
                                                 />
@@ -8938,6 +8936,7 @@ function App() {
     const [isPEModalOpen, setIsPEModalOpen] = useState(false);
     const [isEmployeeStatsModalOpen, setIsEmployeeStatsModalOpen] = useState(false);
     const [isStoreStatsModalOpen, setIsStoreStatsModalOpen] = useState(false);
+    const [isConfirmApproveModalOpen, setIsConfirmApproveModalOpen] = useState(false);
 
     const [specialProjectsData, setSpecialProjectsData] = useState([]);
 
@@ -10114,12 +10113,12 @@ function App() {
                     updatedEmp.tienda = payrollStore;
                     updatedEmp.codigo_empleado = `'${employee.codigo_empleado}`;
                     updatedEmp.locationHistory = JSON.stringify(merged);
-                    
+
                     // Asegurar nombres exactos de columnas (Case Sensitive)
                     updatedEmp['Rate KBS'] = employee.rateKBS || 0;
                     updatedEmp['Rate LGM'] = employee.rateLGM || 0;
                     updatedEmp['Observaciones'] = employee.observaciones || '';
-                    
+
                     // Eliminar llaves internas camelCase para prevenir que el script de Google cree columnas nuevas
                     delete updatedEmp.rateKBS;
                     delete updatedEmp.rateLGM;
@@ -11539,7 +11538,7 @@ function App() {
                     // 2. Automatización Fecha Rad. (MM/DD/YYYY)
                     if (vwhRecordId) {
                         const autoDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
-                        
+
                         setNominaHistoryData(prev => prev.map(h => {
                             if (String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && String(h.codigo) === String(vwhRecordId)) {
                                 const updatedHist = { ...h };
@@ -11624,7 +11623,7 @@ function App() {
                     </div>
                 </div>
             )}
- 
+
             {isStoreStatsModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm" onClick={() => setIsStoreStatsModalOpen(false)} />
@@ -11780,7 +11779,7 @@ function App() {
             </header>
 
             {/* Main Content Area con padding ajustado para top y bottom navs */}
-            <main 
+            <main
                 ref={mainContentRef}
                 className="flex-1 h-screen overflow-y-auto px-2 pt-24 pb-44 lg:px-6 relative"
             >
@@ -11843,7 +11842,7 @@ function App() {
                                         className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
                                     />
                                 </div>
- 
+
                                 <button
                                     onClick={() => setIsStoreStatsModalOpen(true)}
                                     className="h-11 px-6 bg-white border-2 border-brand-primary/10 rounded-2xl flex items-center gap-3 hover:border-[#303a7f]/20 hover:bg-[#303a7f]/5 transition-all group shadow-sm"
@@ -11854,7 +11853,7 @@ function App() {
                                         <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Registradas</span>
                                     </div>
                                 </button>
- 
+
                                 {/* Toggle de Vistas para Tiendas */}
                                 <div className="h-11 bg-white border-2 border-brand-primary/10 rounded-2xl p-1 flex items-center gap-1 shadow-sm">
                                     <button
@@ -12586,7 +12585,7 @@ function App() {
                                         </table>
                                     </div>
 
-                                    {semanaTableData.length > 0 && (
+                                    {(semanaTableData.length > 0 || specialProjectsData.length > 0) && (
                                         <div className="mt-10 flex justify-end gap-4 border-t-2 border-gray-50 pt-8">
                                             {/* Botón Aprobar Semana — pasa a estado verde irreversible una vez aprobada */}
                                             {(() => {
@@ -12595,17 +12594,51 @@ function App() {
                                                     h.fecha_inicio === fechaDesde
                                                 );
                                                 return (
-                                                    <button
-                                                        onClick={handleApproveWeek}
-                                                        disabled={isLoading || isCurrentWeekApproved}
-                                                        className={`px-8 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2 ${isCurrentWeekApproved
-                                                            ? 'bg-green-600 text-white cursor-not-allowed shadow-green-900/10'
-                                                            : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/10'
-                                                            }`}
-                                                    >
-                                                        {isCurrentWeekApproved ? <CheckCircle size={14} /> : <CreditCard size={14} />}
-                                                        {isCurrentWeekApproved ? 'Semana Aprobada' : 'Aprobar Semana'}
-                                                    </button>
+                                                    <>
+                                                        <button
+                                                            onClick={() => setIsConfirmApproveModalOpen(true)}
+                                                            disabled={isLoading || isCurrentWeekApproved}
+                                                            className={`px-8 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2 ${isCurrentWeekApproved
+                                                                ? 'bg-green-600 text-white cursor-not-allowed shadow-green-900/10'
+                                                                : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/10'
+                                                                }`}
+                                                        >
+                                                            {isCurrentWeekApproved ? <CheckCircle size={14} /> : <CreditCard size={14} />}
+                                                            {isCurrentWeekApproved ? 'Semana Aprobada' : 'Aprobar Semana'}
+                                                        </button>
+
+                                                        {isConfirmApproveModalOpen && (
+                                                            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#f9f9f9]/80 backdrop-blur-sm p-4">
+                                                                <div className="w-full max-w-md bg-white rounded-[2rem] p-8 shadow-2xl border border-gray-100 flex flex-col items-center animate-in zoom-in-95 duration-300">
+                                                                    <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-6 shadow-inner border border-red-100">
+                                                                        <AlertTriangle size={32} className="text-red-500" />
+                                                                    </div>
+                                                                    <h3 className="text-2xl font-black text-[#303a7f] mb-2 text-center tracking-tight">¿Aprobar Semana?</h3>
+                                                                    <p className="text-center text-gray-500 text-sm font-medium mb-8 leading-relaxed">
+                                                                        Esta acción <strong className="text-red-500 font-black">NO tiene vuelta atrás</strong>.<br /><br />
+                                                                        Asegúrate de haber cargado la Asistencia Semanal y/o los Proyectos Especiales de esta semana.
+                                                                    </p>
+                                                                    <div className="flex gap-4 w-full">
+                                                                        <button
+                                                                            onClick={() => setIsConfirmApproveModalOpen(false)}
+                                                                            className="flex-1 py-4 bg-gray-50 hover:bg-gray-100 text-gray-600 font-black rounded-2xl transition-all border border-gray-200 uppercase text-[10px] tracking-widest active:scale-95"
+                                                                        >
+                                                                            Cancelar
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setIsConfirmApproveModalOpen(false);
+                                                                                handleApproveWeek();
+                                                                            }}
+                                                                            className="flex-1 py-4 bg-[#303a7f] hover:bg-[#252a5e] text-white font-black rounded-2xl transition-all shadow-lg shadow-blue-900/20 uppercase text-[10px] tracking-widest active:scale-95 flex justify-center items-center gap-2"
+                                                                        >
+                                                                            <CheckCircle size={14} /> Aprobar
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </>
                                                 );
                                             })()}
                                         </div>
@@ -13161,7 +13194,7 @@ function App() {
                     onRegisterEmployee={(newEmp) => {
                         // Agregar al estado local de empleados
                         setEmployees(prev => [newEmp, ...prev]);
-                        
+
                         // Sincronizar con la hoja "Personal" de Google Sheets con mapeo correcto
                         const payload = {
                             ...newEmp,
@@ -13170,7 +13203,7 @@ function App() {
                             'Rate LGM': newEmp.rateLGM || 0,
                             'Observaciones': newEmp.observaciones || ''
                         };
-                        
+
                         // Limpieza de llaves internas para integridad del esquema en Sheets
                         delete payload.rateKBS;
                         delete payload.rateLGM;
@@ -13211,7 +13244,7 @@ function App() {
                                 'Rate LGM': updatedEmp.rateLGM || 0,
                                 'Observaciones': updatedEmp.observaciones || ''
                             };
-                            
+
                             // Limpieza de llaves internas
                             delete payload.rateKBS;
                             delete payload.rateLGM;
@@ -13251,7 +13284,7 @@ function App() {
                     if (selectedSpecialProjectInvoice) {
                         const autoDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
                         const correlativo = String(selectedSpecialProjectInvoice.correlativo || selectedSpecialProjectInvoice.Correlativo || '').trim();
-                        
+
                         setSpecialProjectsHistoryData(prev => prev.map(h => {
                             const hId = String(h.correlativo || h.Correlativo || '').trim();
                             if (hId && hId === correlativo) {
@@ -13284,9 +13317,9 @@ function App() {
             />
 
             {isManualModalOpen && (
-                <ManualUsageModal 
-                    isOpen={isManualModalOpen} 
-                    onClose={() => setIsManualModalOpen(false)} 
+                <ManualUsageModal
+                    isOpen={isManualModalOpen}
+                    onClose={() => setIsManualModalOpen(false)}
                 />
             )}
 
