@@ -5776,11 +5776,121 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
     );
 };
 
+const NominaEmailModal = ({ isOpen, onClose, period, onSend, isSending, defaultTo = '' }) => {
+    const [to, setTo] = useState(defaultTo || '');
+    const [subject, setSubject] = useState(`Reporte de Nómina - ${period?.store} - Periodo: ${period?.range}`);
+    const [body, setBody] = useState(`Hola,\n\nAdjunto envío el reporte de nómina correspondiente a la semana del ${period?.range} para la tienda ${period?.store}.\n\nSaludos,\nLogic Group Management`);
+
+    if (!isOpen || !period) return null;
+
+    return (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300 font-sans">
+            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-[0_32px_80px_rgba(48,58,127,0.25)] border-2 border-white/50 overflow-hidden animate-in zoom-in-95 duration-500">
+                <div className="px-10 py-6 border-b-2 border-gray-50 bg-gradient-to-r from-blue-50/50 to-transparent flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <Mail size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Enviar Nómina</h3>
+                            <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="px-10 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
+                            <div className="relative">
+                                <input
+                                    type="email"
+                                    value={to}
+                                    onChange={(e) => setTo(e.target.value)}
+                                    placeholder="ejemplo@kbs-services.com"
+                                    className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
+                                />
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]">
+                                    <Send size={16} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto del Correo</label>
+                            <input
+                                type="text"
+                                value={subject}
+                                onChange={(e) => setSubject(e.target.value)}
+                                className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documento Adjunto</label>
+                            <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
+                                <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10">
+                                    <FileText size={18} />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">Nomina_{period.store.replace(/\s+/g, '_')}_{period.range.replace(/\//g, '-')}.pdf</p>
+                                    <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
+                                </div>
+                                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm">
+                                    <Check size={14} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col space-y-1.5 h-full">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
+                        <div className="flex-1 relative min-h-[180px]">
+                            <textarea
+                                value={body}
+                                onChange={(e) => setBody(e.target.value)}
+                                className="w-full h-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="px-10 pb-10 flex gap-4">
+                    <button
+                        onClick={onClose}
+                        className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={() => !isSending && onSend({ to, subject, body })}
+                        disabled={isSending}
+                        className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3 group ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-[0_15px_30px_rgba(107,189,183,0.3)] hover:bg-[#59aba5]'}`}
+                    >
+                        {isSending ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <Receipt size={18} className="group-hover:rotate-12 transition-transform" />
+                        )}
+                        {isSending ? 'Procesando Envío...' : 'Enviar Ahora'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, setSpecialProjectsData, employees, onConfirmPayroll, onBack }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
     const biweeklyReportRef = useRef(null);
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
+    const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
 
     const handleCommentChange = (index, value) => {
         setBiweeklyEmployees(prev => {
@@ -5971,6 +6081,136 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     const periodKey = `${period.store}-${period.w1?.start}-${period.w2?.end}`;
     const isAlreadyProcessed = (processedBiweeks || []).includes(periodKey);
 
+    const handleSendNominaEmail = async (emailData) => {
+        if (!MAIL_API_URL) {
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: "Error: No se ha configurado la URL del Script de Correo (MAIL_API_URL). Por favor vincule la cuenta primero."
+            });
+            return;
+        }
+
+        const element = biweeklyReportRef.current;
+        if (!element) return;
+
+        setIsSendingEmail(true);
+        setNotificationModal({
+            isOpen: true,
+            type: 'loading',
+            message: `Estamos preparando y enviando la nómina a ${emailData.to}. Por favor espere.`
+        });
+
+        try {
+            const canvas = await html2canvas(element, {
+                scale: 1.5,
+                useCORS: true,
+                logging: false,
+                backgroundColor: "#ffffff",
+                windowWidth: 1300,
+                onclone: (clonedDoc) => {
+                    const clonedRoot = clonedDoc.getElementById('biweekly-report-pdf-root');
+                    if (clonedRoot) {
+                        clonedRoot.style.width = '1300px';
+                        clonedRoot.style.maxWidth = 'none';
+                        clonedRoot.style.minWidth = '1300px';
+                        clonedRoot.style.height = 'auto';
+                        clonedRoot.style.overflow = 'visible';
+                        clonedRoot.style.boxShadow = 'none';
+
+                        const tableContainer = clonedRoot.querySelector('.overflow-x-auto');
+                        if (tableContainer) {
+                            tableContainer.style.overflow = 'visible';
+                            tableContainer.style.width = '100.2%';
+                            tableContainer.style.maxWidth = 'none';
+                        }
+
+                        const originalInputs = element.querySelectorAll('input');
+                        const clonedInputs = clonedRoot.querySelectorAll('input');
+                        originalInputs.forEach((input, i) => {
+                            if (clonedInputs[i]) {
+                                const parent = clonedInputs[i].parentNode;
+                                const textNode = document.createElement('div');
+                                textNode.className = `text-[9px] font-bold uppercase tracking-tight ${input.value ? 'text-amber-600' : 'text-gray-400'}`;
+                                textNode.innerText = input.value;
+                                parent.replaceChild(textNode, clonedInputs[i]);
+                            }
+                        });
+
+                        const table = clonedRoot.querySelector('table');
+                        if (table) {
+                            table.style.width = '100%';
+                            table.style.tableLayout = 'fixed';
+                        }
+
+                        const tableBody = clonedRoot.querySelector('tbody');
+                        if (tableBody) {
+                            const currentRows = tableBody.querySelectorAll('tr').length;
+                            if (currentRows < 20) {
+                                for (let i = currentRows; i < 20; i++) {
+                                    const emptyRow = document.createElement('tr');
+                                    emptyRow.className = 'border-b border-gray-50 h-[48px]';
+                                    emptyRow.innerHTML = `
+                                        <td class="p-4 border-r-2 border-gray-100">&nbsp;</td>
+                                        <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
+                                        <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
+                                        <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
+                                        <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
+                                        <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
+                                        <td class="p-4 border-r-2 border-gray-100 text-right font-black text-gray-200 text-xs">-</td>
+                                        <td class="p-4 text-center font-bold text-gray-200 text-xs">-</td>
+                                    `;
+                                    tableBody.appendChild(emptyRow);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const imgWidth = 210;
+            const pageHeight = (canvas.height * imgWidth) / canvas.width;
+
+            const pdf = new jsPDF('p', 'mm', [imgWidth, pageHeight]);
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
+
+            const pdfBase64 = pdf.output('datauristring').split(',')[1];
+
+            await fetch(MAIL_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    to: emailData.to,
+                    subject: emailData.subject,
+                    body: emailData.body,
+                    attachments: [{
+                        name: `Nomina_${period.store.replace(/\s+/g, '_')}_${period.range.replace(/\//g, '-')}.pdf`,
+                        type: 'application/pdf',
+                        base64: pdfBase64
+                    }]
+                })
+            });
+
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: `La nómina ha sido enviada con éxito a ${emailData.to}.`
+            });
+            setIsEmailModalOpen(false);
+        } catch (error) {
+            console.error('Error enviando nómina por email:', error);
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: "Error crítico al procesar el envío de la nómina. Verifique la conexión."
+            });
+        } finally {
+            setIsSendingEmail(false);
+        }
+    };
+
     const handleExportPDF = async () => {
         const element = biweeklyReportRef.current;
         if (!element) return;
@@ -6086,6 +6326,20 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                     <div className="flex items-center gap-3" data-html2canvas-ignore>
                         <button
+                            onClick={() => setIsEmailModalOpen(true)}
+                            className="px-8 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/20"
+                        >
+                            <Mail size={16} />
+                            Enviar por Correo
+                        </button>
+                        <button
+                            onClick={handleExportPDF}
+                            className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/10"
+                        >
+                            <Download size={16} />
+                            Exportar PDF
+                        </button>
+                        <button
                             onClick={onBack}
                             className="group flex items-center gap-2.5 px-5 py-2.5 bg-white border-2 border-gray-100 text-[#303a7f] rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-blue-900/5 hover:border-[#303a7f] hover:shadow-blue-900/10 transition-all active:scale-95"
                         >
@@ -6159,7 +6413,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     </div>
 
                     {/* Action Bar */}
-                    <div data-html2canvas-ignore className="mt-12 flex justify-between items-center gap-4 border-t-2 border-gray-50 pt-10">
+                    <div data-html2canvas-ignore className="mt-12 flex justify-end items-center gap-4 border-t-2 border-gray-50 pt-10">
                         <button
                             onClick={() => onConfirmPayroll(biweeklyEmployees)}
                             disabled={isSaving || isAlreadyProcessed || biweeklyEmployees.length === 0}
@@ -6177,26 +6431,24 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             )}
                             {isSaving ? 'Confirmando...' : isAlreadyProcessed ? 'Nómina Confirmada' : 'Confirmar Nómina'}
                         </button>
-
-                        <div className="flex gap-4">
-                            <button
-                                onClick={handleExportPDF}
-                                className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/10"
-                            >
-                                <Download size={16} />
-                                Exportar PDF
-                            </button>
-                            <button
-                                onClick={() => alert("Función de envío por correo en desarrollo...")}
-                                className="px-8 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/20"
-                            >
-                                <Mail size={16} />
-                                Enviar por Correo
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>
+
+            <NominaEmailModal
+                isOpen={isEmailModalOpen}
+                onClose={() => setIsEmailModalOpen(false)}
+                period={period}
+                onSend={handleSendNominaEmail}
+                isSending={isSendingEmail}
+            />
+
+            <EmailNotificationModal
+                isOpen={notificationModal.isOpen}
+                type={notificationModal.type}
+                message={notificationModal.message}
+                onOk={() => setNotificationModal({ ...notificationModal, isOpen: false })}
+            />
         </div>
     );
 };
