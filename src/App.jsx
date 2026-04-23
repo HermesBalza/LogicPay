@@ -12392,11 +12392,11 @@ function App() {
                                                     <>
                                                         <button
                                                             onClick={handleOpenSpecialProjects}
-                                                            disabled={semanaTableData.length === 0 || isCurrentWeekApproved}
+                                                            disabled={!payrollStore || !fechaDesde || !fechaHasta || isCurrentWeekApproved}
                                                             title={isCurrentWeekApproved ? 'Semana aprobada: no se pueden agregar Proyectos Especiales' : 'Abrir Proyectos Especiales'}
                                                             className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${isCurrentWeekApproved
                                                                 ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60'
-                                                                : semanaTableData.length > 0
+                                                                : (payrollStore && fechaDesde && fechaHasta)
                                                                     ? 'bg-amber-50 text-[#b76b00] border-amber-100 hover:bg-amber-100'
                                                                     : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
                                                                 }`}
