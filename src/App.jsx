@@ -4775,8 +4775,8 @@ const VWHTableModal = (props) => {
                         onClick={() => !isRadicated && setIsEmailModalOpen(true)}
                         disabled={isRadicated || isSendingEmail}
                         className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center gap-2 ${isRadicated
-                                ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
-                                : "bg-[#303a7f] text-white hover:bg-[#1e234d] shadow-blue-900/10"
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
+                            : "bg-[#303a7f] text-white hover:bg-[#1e234d] shadow-blue-900/10"
                             }`}
                     >
                         <Mail size={16} />
@@ -5890,6 +5890,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
     const handleCommentChange = (index, value) => {
         setBiweeklyEmployees(prev => {
@@ -6414,7 +6415,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     {/* Action Bar */}
                     <div data-html2canvas-ignore className="mt-12 flex justify-end items-center gap-4 border-t-2 border-gray-50 pt-10">
                         <button
-                            onClick={() => onConfirmPayroll(biweeklyEmployees)}
+                            onClick={() => setIsConfirmModalOpen(true)}
                             disabled={isSaving || isAlreadyProcessed || biweeklyEmployees.length === 0}
                             className={`px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isSaving
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -6430,6 +6431,38 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             )}
                             {isSaving ? 'Confirmando...' : isAlreadyProcessed ? 'Nómina Confirmada' : 'Confirmar Nómina'}
                         </button>
+
+                        {isConfirmModalOpen && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#f9f9f9]/80 backdrop-blur-sm p-4 text-left">
+                                <div className="w-full max-w-md bg-white rounded-[2rem] p-8 shadow-2xl border border-gray-100 flex flex-col items-center animate-in zoom-in-95 duration-300">
+                                    <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-6 shadow-inner border border-red-100">
+                                        <AlertTriangle size={32} className="text-red-500" />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-[#303a7f] mb-2 text-center tracking-tight uppercase">¿Confirmar Nómina?</h3>
+                                    <p className="text-center text-gray-500 text-sm font-medium mb-8 leading-relaxed">
+                                        Esta acción <strong className="text-red-500 font-black uppercase">no tiene vuelta atrás</strong>.<br /><br />
+                                        Asegúrate de haber colocado todos los comentarios necesarios en la nómina.
+                                    </p>
+                                    <div className="flex gap-4 w-full">
+                                        <button
+                                            onClick={() => setIsConfirmModalOpen(false)}
+                                            className="flex-1 py-4 bg-gray-50 hover:bg-gray-100 text-gray-600 font-black rounded-2xl transition-all border border-gray-200 uppercase text-[10px] tracking-widest active:scale-95"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsConfirmModalOpen(false);
+                                                onConfirmPayroll(biweeklyEmployees);
+                                            }}
+                                            className="flex-1 py-4 bg-[#303a7f] hover:bg-[#252a5e] text-white font-black rounded-2xl transition-all shadow-lg shadow-blue-900/20 uppercase text-[10px] tracking-widest active:scale-95 flex justify-center items-center gap-2"
+                                        >
+                                            <CheckCircle size={14} /> Aprobar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -7916,8 +7949,8 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                         onClick={() => !isActuallySent && setIsEmailModalOpen(true)}
                         disabled={isActuallySent || isSendingEmail}
                         className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl transition-all active:scale-95 flex items-center gap-3 ${isActuallySent
-                                ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
-                                : "bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]"
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
+                            : "bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]"
                             }`}
                     >
                         <Mail size={18} />
