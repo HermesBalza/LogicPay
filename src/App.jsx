@@ -8562,7 +8562,7 @@ const SettingsView = () => {
 
 
 // ─── FASE 13: COMPONENTE CONSOLIDADO UPS (REQUERIDO POR HERMES) ──────────────
-const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData = [], filterWeek = null }) => {
+const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData = [], filterWeek = null, onOpenVWH }) => {
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -8630,6 +8630,7 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
                     kbsId: getStoreKBSID(h.nombre, stores),
                     vendorName: "LOGIC GROUP MANAGEMENT, LLC",
                     date: weekRange,
+                    weekId: h.codigo,
                     hours: 0,
                     totalKBS: 0
                 };
@@ -8825,7 +8826,12 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
                                                 <td className="p-5 text-[11px] font-black text-[#303a7f] uppercase pl-8 tracking-tight">{row.siteName}</td>
                                                 <td className="p-5 text-[11px] font-bold text-gray-500 text-center tabular-nums bg-gray-50/30">{row.kbsId || '---'}</td>
                                                 <td className="p-5 text-[10px] font-black text-gray-400 uppercase opacity-40">{row.vendorName}</td>
-                                                <td className="p-5 text-[11px] font-bold text-[#6bbdb7] text-center whitespace-nowrap tabular-nums">{row.date}</td>
+                                                <td 
+                                                    className="p-5 text-[11px] font-bold text-[#6bbdb7] text-center whitespace-nowrap tabular-nums cursor-pointer hover:underline hover:text-[#303a7f] transition-all"
+                                                    onClick={() => onOpenVWH && onOpenVWH(row.siteName, row.weekId)}
+                                                >
+                                                    {row.date}
+                                                </td>
                                                 <td className="p-5 text-center">
                                                     <span className="px-4 py-1.5 bg-[#303a7f]/5 rounded-xl text-xs font-black text-[#303a7f] tabular-nums">{(row.hours || 0).toFixed(2)}</span>
                                                 </td>
@@ -13389,6 +13395,32 @@ function App() {
                 stores={stores}
                 nominaHistoryData={nominaHistoryData}
                 filterWeek={upsFilterWeek}
+                onOpenVWH={(storeName, weekId) => {
+                    setSelectedHistoryStore(storeName);
+                    const hData = (nominaHistoryData || []).find(h => 
+                        String(h.nombre).trim().toLowerCase() === String(storeName).trim().toLowerCase() &&
+                        String(h.codigo) === String(weekId)
+                    );
+                    if (hData) {
+                        try {
+                            const payload = JSON.parse(hData.data_json);
+                            setSemanaTableData(payload.semanaTableData || []);
+                            setBiometricTableData(payload.biometricTableData || []);
+                            setEarningsTableData(payload.earningsTableData || []);
+                            setKbsBillingTableData(payload.kbsBillingTableData || []);
+                            setRawBiometricData(payload.rawBiometricData || []);
+                            setFechaDesde(hData.fecha_inicio);
+                            setFechaHasta(hData.fecha_fin);
+                            setPayrollStore(storeName);
+                            setVwhRecordId(weekId);
+                            setIsHistoricalDataLoaded(true);
+                            setIsUPSConsolidatedOpen(false);
+                            setIsVWHModalOpen(true);
+                        } catch (e) {
+                            console.error("[UPSConsolidated] Error navigating to VWH:", e);
+                        }
+                    }
+                }}
             />
 
             {/* Decorative Brand Gradients */}
