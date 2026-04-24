@@ -6880,7 +6880,7 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
     );
 };
 
-const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, onRegisterEmployee, employees, stores, placeholder }) => {
+const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, onRegisterEmployee, employees, stores, placeholder, readOnly = false }) => {
     const [searchTerm, setSearchTerm] = useState(value || '');
     const [isOpen, setIsOpen] = useState(false);
     const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
@@ -6969,16 +6969,18 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, onRegister
                 ref={inputRef}
                 type="text"
                 value={searchTerm}
+                readOnly={readOnly}
                 onChange={(e) => {
+                    if (readOnly) return;
                     setSearchTerm(e.target.value);
                     computePos();
                     setIsOpen(true);
                     setRegisterForm(null);
                     if (e.target.value === '') onChange('');
                 }}
-                onFocus={() => { computePos(); setIsOpen(true); }}
+                onFocus={() => { if (!readOnly) { computePos(); setIsOpen(true); } }}
                 placeholder={placeholder}
-                className="w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all"
+                className={`w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
             />
 
             {/* Dropdown de resultados de búsqueda */}
@@ -7117,7 +7119,7 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, onRegister
 
 
 // ─── Componente de Celda Editable con Estado Local (Optimización de Lag) ──────
-const EditableCell = ({ value, onChange, type = "text", className }) => {
+const EditableCell = ({ value, onChange, type = "text", className, readOnly = false }) => {
     const [localValue, setLocalValue] = useState(value || '');
     useEffect(() => { setLocalValue(value || ''); }, [value]);
 
@@ -7126,8 +7128,9 @@ const EditableCell = ({ value, onChange, type = "text", className }) => {
             type={type}
             value={localValue}
             onChange={(e) => setLocalValue(e.target.value)}
-            onBlur={() => onChange(localValue)}
-            className={className}
+            onBlur={() => !readOnly && onChange(localValue)}
+            readOnly={readOnly}
+            className={`${className} ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
         />
     );
 };
@@ -7343,6 +7346,7 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                                             employees={employees}
                                             stores={stores}
                                             placeholder="Buscar empleado..."
+                                            readOnly={isRegistered}
                                             onChange={(name) => updateRow(row.id, { employeeName: name })}
                                             onSelectEmployee={(emp) => handleSelectEmployee(row.id, emp)}
                                             onRegisterEmployee={onRegisterEmployee}
@@ -7352,6 +7356,7 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                                         <EditableCell
                                             value={row.hours}
                                             type="number"
+                                            readOnly={isRegistered}
                                             onChange={(val) => updateRow(row.id, { hours: val })}
                                             className="w-20 mx-auto block bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
                                         />
@@ -7362,6 +7367,7 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                                             <EditableCell
                                                 value={row.rateKBS}
                                                 type="number"
+                                                readOnly={isRegistered}
                                                 onChange={(val) => updateRow(row.id, { rateKBS: val })}
                                                 className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
                                             />
@@ -7373,18 +7379,21 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                                             <EditableCell
                                                 value={row.rateLogic}
                                                 type="number"
+                                                readOnly={isRegistered}
                                                 onChange={(val) => updateRow(row.id, { rateLogic: val })}
                                                 className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
                                             />
                                         </div>
                                     </td>
                                     <td className="p-3 text-center">
-                                        <button
-                                            onClick={() => removeEmp(row.id)}
-                                            className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
+                                        {!isRegistered && (
+                                            <button
+                                                onClick={() => removeEmp(row.id)}
+                                                className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))
