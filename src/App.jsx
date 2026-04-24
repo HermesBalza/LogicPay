@@ -6694,8 +6694,8 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                     </button>
                     <button
                         onClick={onOpenBilling}
-                        disabled={!selectedStore}
-                        className={`h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg ${selectedStore
+                        disabled={!selectedStore || selectedStore === CONSOLIDATED_STORE}
+                        className={`h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg ${selectedStore && selectedStore !== CONSOLIDATED_STORE
                             ? 'bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]'
                             : 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-50'
                             }`}
