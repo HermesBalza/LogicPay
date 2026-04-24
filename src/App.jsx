@@ -95,7 +95,7 @@ const NOMINA_DETAIL_CSV_URL = import.meta.env.VITE_SHEET_NOMINA_DETALLE_URL;
 const SPECIAL_PROJECTS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_PROYECTOS_ESPECIALES_URL;
 const WOS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_WOS_URL;
 const VARIABLES_CSV_URL = import.meta.env.VITE_SHEET_VARIABLES_URL;
-const CONSOLIDATED_STORE = "EMPLEADOS MULTI-SITIO (CONSOLIDADO)";
+const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
 
 // Parsea una fila CSV respetando campos entre comillas
 const parseCSVRow = (row) => {
@@ -6064,7 +6064,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 peEarnings: peTotalEarnings,
                 rate: rate,
                 cargo: cargo,
-                comments: savedCommentsMap[finalNombre.trim().toLowerCase()] || '',
+                comments: savedCommentsMap[finalNombre.trim().toLowerCase()] || (isConsolidatedView ? Array.from(empStoreMap[id] || []).join('\n').toUpperCase() : ''),
                 rowColor: isConsolidatedView ? 'bg-amber-50/30' : 'bg-white',
                 isMultiSite: empStoreMap[id].size > 1
             };
@@ -6134,15 +6134,15 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             tableContainer.style.maxWidth = 'none';
                         }
 
-                        const originalInputs = element.querySelectorAll('input');
-                        const clonedInputs = clonedRoot.querySelectorAll('input');
-                        originalInputs.forEach((input, i) => {
-                            if (clonedInputs[i]) {
-                                const parent = clonedInputs[i].parentNode;
+                        const originalFields = element.querySelectorAll('input, textarea');
+                        const clonedFields = clonedRoot.querySelectorAll('input, textarea');
+                        originalFields.forEach((field, i) => {
+                            if (clonedFields[i]) {
+                                const parent = clonedFields[i].parentNode;
                                 const textNode = document.createElement('div');
-                                textNode.className = `text-[9px] font-bold uppercase tracking-tight ${input.value ? 'text-amber-600' : 'text-gray-400'}`;
-                                textNode.innerText = input.value;
-                                parent.replaceChild(textNode, clonedInputs[i]);
+                                textNode.className = `text-[9px] font-bold uppercase tracking-tight whitespace-pre-line ${field.value ? 'text-amber-600' : 'text-gray-400'}`;
+                                textNode.innerText = field.value;
+                                parent.replaceChild(textNode, clonedFields[i]);
                             }
                         });
 
@@ -6249,16 +6249,16 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             tableContainer.style.maxWidth = 'none';
                         }
 
-                        // Sincronizar valores de inputs (comentarios) al clon para html2canvas
-                        const originalInputs = element.querySelectorAll('input');
-                        const clonedInputs = clonedRoot.querySelectorAll('input');
-                        originalInputs.forEach((input, i) => {
-                            if (clonedInputs[i]) {
-                                const parent = clonedInputs[i].parentNode;
+                        // Sincronizar valores de campos (comentarios) al clon para html2canvas
+                        const originalFields = element.querySelectorAll('input, textarea');
+                        const clonedFields = clonedRoot.querySelectorAll('input, textarea');
+                        originalFields.forEach((field, i) => {
+                            if (clonedFields[i]) {
+                                const parent = clonedFields[i].parentNode;
                                 const textNode = document.createElement('div');
-                                textNode.className = `text-[9px] font-bold uppercase tracking-tight ${input.value ? 'text-amber-600' : 'text-gray-400'}`;
-                                textNode.innerText = input.value;
-                                parent.replaceChild(textNode, clonedInputs[i]);
+                                textNode.className = `text-[9px] font-bold uppercase tracking-tight whitespace-pre-line ${field.value ? 'text-amber-600' : 'text-gray-400'}`;
+                                textNode.innerText = field.value;
+                                parent.replaceChild(textNode, clonedFields[i]);
                             }
                         });
 
@@ -6325,7 +6325,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         </div>
                         <div>
                             <h1 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">
-                                {period.store === CONSOLIDATED_STORE ? 'Nómina Consolidada Multi-Sitio' : 'Nómina Bisemanal'}
+                                {period.store === CONSOLIDATED_STORE ? 'Nómina Consolidada Multi-Tiendas' : 'Nómina Bisemanal'}
                             </h1>
                             <div className="flex items-center gap-2">
                                 <span className={`${period.store === CONSOLIDATED_STORE ? 'text-amber-500' : 'text-[#6bbdb7]'} text-[9px] font-black uppercase tracking-[0.2em] opacity-80`}>
@@ -6413,12 +6413,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                             {/* Campo de comentario — bloqueado en modo solo lectura una vez que la nómina ha sido confirmada.
                                                 Doble protección: readOnly bloquea el DOM y el guardia en onChange evita cualquier modificación de estado. */}
                                             <td className={`p-4 px-2 py-1 transition-colors ${emp.comments ? 'bg-amber-100' : 'bg-transparent'}`}>
-                                                <input
-                                                    type="text"
+                                                <textarea
                                                     value={emp.comments || ''}
                                                     onChange={(e) => !isAlreadyProcessed && handleCommentChange(idx, e.target.value)}
                                                     readOnly={isAlreadyProcessed}
-                                                    className={`w-full bg-transparent border-none text-[11px] font-bold outline-none ring-0 focus:ring-0 transition-colors ${isAlreadyProcessed ? 'cursor-not-allowed' : ''} ${emp.comments ? 'text-amber-600' : 'text-gray-500 placeholder-gray-200'}`}
+                                                    rows={(emp.comments || '').split('\n').length || 1}
+                                                    className={`w-full bg-transparent border-none text-[10px] font-bold outline-none ring-0 focus:ring-0 transition-colors resize-none overflow-hidden block leading-tight ${isAlreadyProcessed ? 'cursor-not-allowed' : ''} ${emp.comments ? 'text-amber-600' : 'text-gray-500 placeholder-gray-200'}`}
                                                     placeholder={isAlreadyProcessed ? '' : 'Añadir comentario...'}
                                                 />
                                             </td>
@@ -6647,7 +6647,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                         >
                             <option value="">Selecciona una Tienda</option>
                             <option value={CONSOLIDATED_STORE} style={{ fontWeight: 'black', color: '#6bbdb7' }}>
-                                [CONSOLIDADO] {CONSOLIDATED_STORE}
+                                ❇️ {CONSOLIDATED_STORE}
                             </option>
                             {stores.map((s, idx) => (
                                 <option key={s.codigo || `store-${idx}`} value={s.nombre}>{s.nombre}</option>
@@ -9491,6 +9491,7 @@ function App() {
                     return items.map((item, itemIndex) => ({
                         id: `${record.id_consolidacion || record.ID_Consolidacion || recordIndex}-${itemIndex}`,
                         id_consolidacion: record.id_consolidacion || record.ID_Consolidacion,
+                        tienda: record.tienda || record.Tienda || '',
                         invoice: normalizeInvoice(item.invoice),
                         fecha: item.fecha || fechaDesde,
                         nombre: item.proyecto || item.nombre || '',
