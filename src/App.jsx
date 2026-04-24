@@ -77,6 +77,7 @@ import {
     CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell,
     ComposedChart, Line
 } from 'recharts';
+import { CSGView } from './CSGModule.jsx';
 
 
 // ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
@@ -95,6 +96,7 @@ const NOMINA_DETAIL_CSV_URL = import.meta.env.VITE_SHEET_NOMINA_DETALLE_URL;
 const SPECIAL_PROJECTS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_PROYECTOS_ESPECIALES_URL;
 const WOS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_WOS_URL;
 const VARIABLES_CSV_URL = import.meta.env.VITE_SHEET_VARIABLES_URL;
+const CSG_SERVICES_CSV_URL = import.meta.env.VITE_SHEET_CSG_SERVICIOS_URL;
 const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
 
 // Parsea una fila CSV respetando campos entre comillas
@@ -320,6 +322,10 @@ const csvRowToStore = (flat) => ({
     max_horas: parseFloat(flat.max_horas) || 0,
     imagen: flat.imagen || '',
     employees: (() => { try { return JSON.parse(flat.employees || '[]'); } catch (e) { return []; } })(),
+    // ─── Campos CSG (fallback seguro: tiendas KBS sin estos campos siguen funcionando igual) ───
+    cliente: flat.cliente || flat.Cliente || 'KBS',
+    rate_csg: parseFloat(flat.rate_csg || flat['Rate CSG'] || flat['rate csg'] || 0) || 0,
+    rate_lgm_csg: parseFloat(flat.rate_lgm_csg || flat['Rate LGM CSG'] || flat['rate lgm'] || flat['Rate LGM'] || 0) || 0,
     tarifas: {
         janitorial: {
             kbs: parseFloat(flat.tarifas_janitorial_kbs) || 0,
@@ -9007,6 +9013,11 @@ function App() {
     const [peEmailsSent, setPeEmailsSent] = useState({});
     const [vwhRecordId, setVwhRecordId] = useState(null);
 
+    // ─── Estados Módulo CSG ───────────────────────────────────────────────────
+    const [csgServicesData, setCsgServicesData] = useState([]);
+    const [activeCSGTab, setActiveCSGTab] = useState('registro'); // 'registro' | 'historial' | 'nomina' | 'facturacion'
+    const [isCsgFormOpen, setIsCsgFormOpen] = useState(false);
+
     const [invalidCodes, setInvalidCodes] = useState([]);
     const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
     const [isBiometricIVRModalOpen, setIsBiometricIVRModalOpen] = useState(false);
@@ -11310,6 +11321,47 @@ function App() {
         }
     };
 
+    // \u2500\u2500\u2500 API: Cargar servicios CSG desde CSV p\u00fablico de Google Sheets \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    const fetchCSGServices = async () => {
+        if (!CSG_SERVICES_CSV_URL) return;
+        try {
+            const response = await fetch(`${CSG_SERVICES_CSV_URL}&t=${Date.now()}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const csvText = await response.text();
+            const lines = csvText.trim().split('\n').filter(l => l.trim());
+            if (lines.length < 2) { setCsgServicesData([]); return; }
+            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
+            const loaded = lines.slice(1).map(line => {
+                const values = parseCSVRow(line);
+                const obj = {};
+                headers.forEach((h, i) => { obj[h] = (values[i] || '').trim(); });
+                // Extraer fotos (foto_1 ... foto_10)
+                const fotos = [];
+                for (let f = 1; f <= 10; f++) {
+                    const key = `foto_${f}`;
+                    if (obj[key] && obj[key].length > 10) fotos.push(obj[key]);
+                }
+                return {
+                    correlativo: obj.correlativo || obj.Correlativo || '',
+                    fecha: obj.fecha || obj.Fecha || '',
+                    tienda: obj.tienda || obj.Tienda || '',
+                    codigo_tienda: obj.codigo_tienda || obj['Codigo Tienda'] || '',
+                    empleado: obj.empleado || obj.Empleado || '',
+                    codigo_empleado: obj.codigo_empleado || obj['Codigo Empleado'] || '',
+                    num_servicios: parseInt(obj.num_servicios || obj['Num Servicios'] || 1) || 1,
+                    monto_lgm: parseFloat(obj.monto_lgm || obj['Monto LGM'] || 0) || 0,
+                    monto_csg: parseFloat(obj.monto_csg || obj['Monto CSG'] || 0) || 0,
+                    notas: obj.notas || obj.Notas || '',
+                    estado: obj.estado || obj.Estado || 'registrado',
+                    fotos
+                };
+            }).filter(r => r.correlativo || r.fecha || r.empleado);
+            setCsgServicesData(loaded);
+        } catch (error) {
+            console.error('[CSG] Error cargando servicios CSG:', error);
+        }
+    };
+
     useEffect(() => {
         fetchStores();
         fetchEmployees();
@@ -11318,7 +11370,9 @@ function App() {
         fetchSpecialProjectsHistory();
         fetchWosHistory();
         fetchVariables();
+        fetchCSGServices();
     }, []);
+
 
     useEffect(() => {
         if (!variablesLoaded || !specialProjectsHistoryData || specialProjectsHistoryData.length === 0) return;
@@ -11479,6 +11533,7 @@ function App() {
         { id: 'employees', label: 'Personal', icon: Users },
         { id: 'payroll', label: 'Nómina', icon: CreditCard },
         { id: 'tax_center', label: '1099-NEC', icon: ShieldCheck },
+        { id: 'csg', label: 'CSG', icon: Sparkles },
         { id: 'settings', label: 'Ajustes', icon: Settings },
     ];
 
@@ -12743,8 +12798,26 @@ function App() {
                         <SettingsView />
                     )}
 
+                    {/* VISTA DEL MÓDULO CSG */}
+                    {activeTab === 'csg' && (
+                        <CSGView
+                            stores={stores}
+                            employees={employees}
+                            csgServicesData={csgServicesData}
+                            activeCSGTab={activeCSGTab}
+                            setActiveCSGTab={setActiveCSGTab}
+                            isCsgFormOpen={isCsgFormOpen}
+                            setIsCsgFormOpen={setIsCsgFormOpen}
+                            onServiceRegistered={() => {
+                                fetchCSGServices();
+                            }}
+                            syncToSheets={syncToSheets}
+                            onRefresh={fetchCSGServices}
+                        />
+                    )}
+
                     {/* VISTA DEL DASHBOARD */}
-                    {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'settings')) && (
+                    {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'csg' && activeTab !== 'settings')) && (
                         <DashboardView
                             nominaHistoryData={nominaHistoryData}
                             nominaDetailData={nominaDetailData}
