@@ -6741,10 +6741,10 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                                             return (
                                                 <button
                                                     key={idx}
-                                                    onClick={() => onSelectWeek(w.start, w.end)}
-                                                    className={`group/week transition-all duration-300 p-3.5 rounded-2xl border-2 text-left relative overflow-hidden active:scale-95 ${processed
+                                                    onClick={() => selectedStore !== CONSOLIDATED_STORE && onSelectWeek(w.start, w.end)}
+                                                    className={`group/week transition-all duration-300 p-3.5 rounded-2xl border-2 text-left relative overflow-hidden ${selectedStore !== CONSOLIDATED_STORE ? 'active:scale-95' : 'cursor-not-allowed opacity-40 grayscale-[0.5]'} ${processed
                                                         ? 'bg-[#6bbdb7] hover:bg-[#59aba5] border-[#59aba5] shadow-lg shadow-teal-900/20'
-                                                        : 'bg-gray-50/50 hover:bg-[#303a7f] border-transparent hover:border-[#303a7f]'
+                                                        : selectedStore !== CONSOLIDATED_STORE ? 'bg-gray-50/50 hover:bg-[#303a7f] border-transparent hover:border-[#303a7f]' : 'bg-gray-50/50 border-transparent'
                                                         }`}
                                                 >
                                                     <div className="relative z-10">
