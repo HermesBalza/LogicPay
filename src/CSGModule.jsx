@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon, CreditCard } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -52,8 +52,13 @@ const fmtCurrency = (v) => new Intl.NumberFormat('en-US', { style: 'currency', c
 const fmtDate = (d) => d || '--';
 
 // ─── CSGPhotoViewer: Modal para ver fotos de evidencia ───────────────────────
-const CSGPhotoViewer = ({ isOpen, onClose, fotos = [], title = 'Evidencia Fotográfica' }) => {
-    const [idx, setIdx] = useState(0);
+const CSGPhotoViewer = ({ isOpen, onClose, fotos = [], title = 'Evidencia Fotográfica', startIdx = 0 }) => {
+    const [idx, setIdx] = useState(startIdx);
+
+    // Sincronizar el índice cuando se abre el visor
+    useEffect(() => {
+        if (isOpen) setIdx(startIdx);
+    }, [isOpen, startIdx]);
     if (!isOpen || fotos.length === 0) return null;
     const prev = () => setIdx(i => (i - 1 + fotos.length) % fotos.length);
     const next = () => setIdx(i => (i + 1) % fotos.length);
@@ -104,6 +109,8 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
     const [notas, setNotas] = useState('');
     const [fotos, setFotos] = useState([]); // [{name, preview, base64}]
     const [compressing, setCompressing] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [viewerConfig, setViewerConfig] = useState({ isOpen: false, idx: 0 });
     const fileRef = useRef(null);
 
     const empFiltrados = useMemo(() => {
@@ -119,6 +126,8 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
     const handleFotos = async (files) => {
         if (!files || files.length === 0) return;
         const remaining = 10 - fotos.length;
+        if (remaining <= 0) return;
+        
         const toProcess = Array.from(files).slice(0, remaining);
         setCompressing(true);
         try {
@@ -128,7 +137,23 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
             }));
             setFotos(prev => [...prev, ...results]);
         } catch (e) { console.error('Error comprimiendo foto:', e); }
-        finally { setCompressing(false); }
+        finally { setCompressing(false); setIsDragging(false); }
+    };
+
+    const handleDrag = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === "dragenter" || e.type === "dragover") setIsDragging(true);
+        else if (e.type === "dragleave") setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFotos(e.dataTransfer.files);
+        }
     };
 
     const handleSubmit = () => {
@@ -167,24 +192,72 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
 
                 <div className="flex-1 overflow-y-auto p-10 space-y-6">
                     {/* Fotos */}
-                    <div>
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Fotos de Evidencia ({fotos.length}/10)</label>
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Fotos de Evidencia ({fotos.length}/10)</label>
+                            {fotos.length > 0 && (
+                                <button onClick={() => setFotos([])} className="text-[9px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors">Limpiar Todo</button>
+                            )}
+                        </div>
+                        
                         <input type="file" ref={fileRef} className="hidden" accept="image/*" multiple onChange={e => handleFotos(e.target.files)} />
+                        
                         {fotos.length < 10 && (
-                            <button onClick={() => fileRef.current?.click()} disabled={compressing} className="w-full border-2 border-dashed border-[#6bbdb7]/40 rounded-2xl py-6 flex flex-col items-center gap-2 hover:border-[#6bbdb7] hover:bg-[#6bbdb7]/5 transition-all group">
-                                {compressing ? <RefreshCw size={24} className="text-[#6bbdb7] animate-spin" /> : <Camera size={24} className="text-[#6bbdb7] group-hover:scale-110 transition-transform" />}
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{compressing ? 'Comprimiendo...' : 'Subir Fotos (máx. 10)'}</span>
-                                <span className="text-[9px] text-gray-300">Se comprimirán automáticamente a 600px</span>
-                            </button>
+                            <div 
+                                onDragEnter={handleDrag}
+                                onDragOver={handleDrag}
+                                onDragLeave={handleDrag}
+                                onDrop={handleDrop}
+                                onClick={() => fileRef.current?.click()}
+                                className={`
+                                    relative w-full border-2 border-dashed rounded-[2rem] py-10 flex flex-col items-center gap-3 transition-all cursor-pointer group
+                                    ${isDragging 
+                                        ? 'border-[#6bbdb7] bg-[#6bbdb7]/10 scale-[1.02] shadow-xl shadow-teal-900/5' 
+                                        : 'border-gray-100 bg-gray-50/50 hover:border-[#6bbdb7]/50 hover:bg-white hover:shadow-lg'}
+                                `}
+                            >
+                                <div className={`
+                                    w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500
+                                    ${isDragging ? 'bg-[#6bbdb7] text-white rotate-12' : 'bg-white text-[#6bbdb7] shadow-sm group-hover:scale-110 group-hover:-rotate-3'}
+                                `}>
+                                    {compressing ? <RefreshCw size={28} className="animate-spin" /> : <Camera size={28} />}
+                                </div>
+                                <div className="text-center">
+                                    <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest block mb-1">
+                                        {compressing ? 'Procesando Imágenes...' : isDragging ? '¡Suelta las fotos aquí!' : 'Subir fotos de evidencia'}
+                                    </span>
+                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                                        Arrastra archivos o haz clic para buscar (Máx. 10)
+                                    </span>
+                                </div>
+                                {isDragging && (
+                                    <div className="absolute inset-0 rounded-[2rem] border-4 border-[#6bbdb7] animate-pulse pointer-events-none" />
+                                )}
+                            </div>
                         )}
+
                         {fotos.length > 0 && (
-                            <div className="grid grid-cols-5 gap-2 mt-3">
+                            <div className="grid grid-cols-5 gap-3 pt-2">
                                 {fotos.map((f, i) => (
-                                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 group">
-                                        <img src={f.preview} alt="" className="w-full h-full object-cover" />
-                                        <button onClick={() => setFotos(prev => prev.filter((_, j) => j !== i))} className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                                            <Trash2 size={16} className="text-white" />
-                                        </button>
+                                    <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-gray-50 group shadow-sm hover:shadow-md transition-all">
+                                        <img src={f.preview} alt="" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                        <div className="absolute inset-0 bg-[#303a7f]/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-2 transition-all duration-300">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setViewerConfig({ isOpen: true, idx: i }); }}
+                                                className="w-8 h-8 bg-white text-[#303a7f] rounded-full flex items-center justify-center hover:scale-110 transition-transform active:scale-90 shadow-lg"
+                                            >
+                                                <Eye size={16} />
+                                            </button>
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setFotos(prev => prev.filter((_, j) => j !== i)); }}
+                                                className="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:scale-110 transition-transform active:scale-90 shadow-lg"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                        <div className="absolute bottom-1 right-1 bg-white/90 backdrop-blur-md px-1.5 py-0.5 rounded-lg text-[8px] font-black text-[#303a7f] shadow-sm">
+                                            #{i + 1}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -226,17 +299,6 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                         )}
                     </div>
 
-                    {/* Fecha y Num Servicios */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Fecha del Servicio</label>
-                            <input type="date" className={inputCls} onChange={e => { const [y, m, d] = e.target.value.split('-'); setFecha(`${m}/${d}/${y}`); }} />
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">N° de Servicios</label>
-                            <input type="number" min={1} max={99} className={inputCls} value={numServicios} onChange={e => setNumServicios(Math.max(1, parseInt(e.target.value) || 1))} />
-                        </div>
-                    </div>
 
                     {/* Cálculo en tiempo real */}
                     {tiendaSeleccionada && (
@@ -272,6 +334,14 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                     </button>
                 </div>
             </div>
+            {/* Visor de Fotos para Previsualización (Premium) */}
+            <CSGPhotoViewer 
+                isOpen={viewerConfig.isOpen}
+                onClose={() => setViewerConfig({ ...viewerConfig, isOpen: false })}
+                fotos={fotos.map(f => f.base64)}
+                title="Previsualización de Evidencia"
+                startIdx={viewerConfig.idx}
+            />
         </div>,
         document.body
     );
