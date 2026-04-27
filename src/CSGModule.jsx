@@ -57,7 +57,7 @@ const CSGPhotoViewer = ({ isOpen, onClose, fotos = [], title = 'Evidencia Fotogr
     if (!isOpen || fotos.length === 0) return null;
     const prev = () => setIdx(i => (i - 1 + fotos.length) % fotos.length);
     const next = () => setIdx(i => (i + 1) % fotos.length);
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[700] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-2xl rounded-[2rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
                 <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100">
@@ -88,7 +88,8 @@ const CSGPhotoViewer = ({ isOpen, onClose, fotos = [], title = 'Evidencia Fotogr
                     </div>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
@@ -106,8 +107,9 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
     const fileRef = useRef(null);
 
     const empFiltrados = useMemo(() => {
-        if (!empleadoSearch.trim()) return employees.slice(0, 10);
-        return employees.filter(e => e.nombre.toLowerCase().includes(empleadoSearch.toLowerCase())).slice(0, 10);
+        const csgOnly = (employees || []).filter(e => String(e.cliente || '').trim().toUpperCase() === 'CSG');
+        if (!empleadoSearch.trim()) return csgOnly.slice(0, 10);
+        return csgOnly.filter(e => e.nombre.toLowerCase().includes(empleadoSearch.toLowerCase())).slice(0, 10);
     }, [empleadoSearch, employees]);
 
     const montoLGM = tiendaSeleccionada ? (tiendaSeleccionada.rate_lgm || 0) * numServicios : 0;
@@ -152,9 +154,9 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
     const isValid = tiendaSeleccionada && empleadoSel && fecha && numServicios >= 1;
     const inputCls = "w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300";
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[600] bg-[#303a7f]/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+            <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
                 <div className="px-10 py-7 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-[#303a7f]/5 to-transparent">
                     <div>
                         <h2 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter leading-none">Registrar Servicio CSG</h2>
@@ -164,6 +166,31 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-10 space-y-6">
+                    {/* Fotos */}
+                    <div>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Fotos de Evidencia ({fotos.length}/10)</label>
+                        <input type="file" ref={fileRef} className="hidden" accept="image/*" multiple onChange={e => handleFotos(e.target.files)} />
+                        {fotos.length < 10 && (
+                            <button onClick={() => fileRef.current?.click()} disabled={compressing} className="w-full border-2 border-dashed border-[#6bbdb7]/40 rounded-2xl py-6 flex flex-col items-center gap-2 hover:border-[#6bbdb7] hover:bg-[#6bbdb7]/5 transition-all group">
+                                {compressing ? <RefreshCw size={24} className="text-[#6bbdb7] animate-spin" /> : <Camera size={24} className="text-[#6bbdb7] group-hover:scale-110 transition-transform" />}
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{compressing ? 'Comprimiendo...' : 'Subir Fotos (máx. 10)'}</span>
+                                <span className="text-[9px] text-gray-300">Se comprimirán automáticamente a 600px</span>
+                            </button>
+                        )}
+                        {fotos.length > 0 && (
+                            <div className="grid grid-cols-5 gap-2 mt-3">
+                                {fotos.map((f, i) => (
+                                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 group">
+                                        <img src={f.preview} alt="" className="w-full h-full object-cover" />
+                                        <button onClick={() => setFotos(prev => prev.filter((_, j) => j !== i))} className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                                            <Trash2 size={16} className="text-white" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                     {/* Tienda */}
                     <div>
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Tienda CSG</label>
@@ -235,31 +262,7 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                         <textarea className={inputCls + ' resize-none'} rows={2} placeholder="Observaciones opcionales..." value={notas} onChange={e => setNotas(e.target.value)} />
                     </div>
 
-                    {/* Fotos */}
-                    <div>
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Fotos de Evidencia ({fotos.length}/10)</label>
-                        <input type="file" ref={fileRef} className="hidden" accept="image/*" multiple onChange={e => handleFotos(e.target.files)} />
-                        {fotos.length < 10 && (
-                            <button onClick={() => fileRef.current?.click()} disabled={compressing} className="w-full border-2 border-dashed border-[#6bbdb7]/40 rounded-2xl py-6 flex flex-col items-center gap-2 hover:border-[#6bbdb7] hover:bg-[#6bbdb7]/5 transition-all group">
-                                {compressing ? <RefreshCw size={24} className="text-[#6bbdb7] animate-spin" /> : <Camera size={24} className="text-[#6bbdb7] group-hover:scale-110 transition-transform" />}
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{compressing ? 'Comprimiendo...' : 'Subir Fotos (máx. 10)'}</span>
-                                <span className="text-[9px] text-gray-300">Se comprimirán automáticamente a 600px</span>
-                            </button>
-                        )}
-                        {fotos.length > 0 && (
-                            <div className="grid grid-cols-5 gap-2 mt-3">
-                                {fotos.map((f, i) => (
-                                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 group">
-                                        <img src={f.preview} alt="" className="w-full h-full object-cover" />
-                                        <button onClick={() => setFotos(prev => prev.filter((_, j) => j !== i))} className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                                            <Trash2 size={16} className="text-white" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
                     </div>
-                </div>
 
                 <div className="px-10 py-6 border-t border-gray-100 flex gap-4">
                     <button onClick={onClose} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">Cancelar</button>
@@ -269,7 +272,8 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
@@ -536,7 +540,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos }) => {
 // ─── CSGStatusModal: Modal de notificación para el módulo CSG ────────────────
 const CSGStatusModal = ({ isOpen, onClose, title, message }) => {
     if (!isOpen) return null;
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[800] bg-[#303a7f]/20 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
             <div className="bg-white rounded-[2.5rem] p-10 shadow-2xl max-w-sm w-full text-center animate-in zoom-in-95 duration-300 border-2 border-gray-50">
                 <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -550,7 +554,8 @@ const CSGStatusModal = ({ isOpen, onClose, title, message }) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
