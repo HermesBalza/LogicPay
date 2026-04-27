@@ -325,7 +325,7 @@ const csvRowToStore = (flat) => ({
     // ─── Campos CSG (fallback seguro: tiendas KBS sin estos campos siguen funcionando igual) ───
     cliente: flat.cliente || flat.Cliente || 'KBS',
     rate_csg: parseFloat(flat.rate_csg || flat['Rate CSG'] || flat['rate csg'] || 0) || 0,
-    rate_lgm_csg: parseFloat(flat.rate_lgm_csg || flat['Rate LGM CSG'] || flat['rate lgm'] || flat['Rate LGM'] || 0) || 0,
+    rate_lgm: parseFloat(flat.rate_lgm || flat.rate_lgm_csg || flat['Rate LGM CSG'] || flat['rate lgm'] || flat['Rate LGM'] || 0) || 0,
     tarifas: {
         janitorial: {
             kbs: parseFloat(flat.tarifas_janitorial_kbs) || 0,
@@ -1789,11 +1789,15 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                                         <DollarSign className="text-white" size={20} />
                                     </div>
                                     <div>
-                                        <h3 className="text-2xl font-black text-[#333333] tracking-tighter">Matriz Salarial Dual</h3>
-                                        <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-1">Margen Operativo KBS vs Logic Solutions Group</p>
+                                        <h3 className="text-2xl font-black text-[#333333] tracking-tighter">
+                                            {store.cliente === 'CSG' ? 'Matriz Salarial CSG' : 'Matriz Salarial Dual'}
+                                        </h3>
+                                        <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-1">
+                                            {store.cliente === 'CSG' ? 'Tarifas de facturación y pago por servicio' : 'Margen Operativo KBS vs Logic Solutions Group'}
+                                        </p>
                                     </div>
                                 </div>
-                                {!isEditing && (
+                                {(!isEditing && store.cliente !== 'CSG') && (
                                     <button
                                         onClick={() => onProcessPayroll(store.nombre)}
                                         className="px-6 py-3 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-lg shadow-blue-900/10 active:scale-95 flex items-center gap-2"
@@ -1804,53 +1808,90 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                {[
-                                    { id: 'janitorial', label: 'Janitorial' },
-                                    { id: 'utility', label: 'Utility' },
-                                    { id: 'shift_lead', label: 'Shift Lead' }
-                                ].map(cargo => (
-                                    <div key={cargo.id} className="bg-gray-50/50 rounded-2xl p-5 border-2 border-brand-primary/10">
-                                        <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest block mb-4">{cargo.label}</span>
-                                        <div className="space-y-4">
-                                            <div className="relative">
-                                                <label className="text-[8px] text-gray-400 font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">KBS (Paga)</label>
-                                                <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-2 border-brand-primary/20'} rounded-xl px-4 py-2.5 shadow-sm`}>
-                                                    <span className={`${!isEditing ? 'text-gray-300' : 'text-[#6bbdb7]'} font-black mr-2`}>$</span>
-                                                    <input
-                                                        type="text"
-                                                        step="0.01"
-                                                        value={isEditing ? editedStore.tarifas[cargo.id].kbs : parseFloat(editedStore.tarifas[cargo.id].kbs).toFixed(2)}
-                                                        onChange={(e) => updateTarifa(cargo.id, 'kbs', e.target.value)}
-                                                        readOnly={!isEditing}
-                                                        className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
-                                                    />
-                                                </div>
+                            {store.cliente === 'CSG' ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="bg-[#303a7f]/5 rounded-2xl p-6 border-2 border-[#303a7f]/10">
+                                        <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest block mb-4">Rate CSG (Cobro al Cliente)</span>
+                                        <div className="relative">
+                                            <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-2 border-brand-primary/20'} rounded-xl px-5 py-4 shadow-sm`}>
+                                                <span className={`${!isEditing ? 'text-gray-300' : 'text-[#6bbdb7]'} font-black mr-3 text-lg`}>$</span>
+                                                <input 
+                                                    type="text" 
+                                                    value={isEditing ? editedStore.rate_csg : parseFloat(editedStore.rate_csg || 0).toFixed(2)} 
+                                                    onChange={(e) => updateField('rate_csg', e.target.value)} 
+                                                    readOnly={!isEditing}
+                                                    className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl" 
+                                                />
                                             </div>
-                                            <div className="relative">
-                                                <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">LGM (Paga)</label>
-                                                <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-2 border-brand-primary/20'} rounded-xl px-4 py-2.5 shadow-sm`}>
-                                                    <span className={`${!isEditing ? 'text-gray-300' : 'text-[#303a7f]'} font-black mr-2`}>$</span>
-                                                    <input
-                                                        type="text"
-                                                        step="0.01"
-                                                        value={isEditing ? editedStore.tarifas[cargo.id].lsg : parseFloat(editedStore.tarifas[cargo.id].lsg).toFixed(2)}
-                                                        onChange={(e) => updateTarifa(cargo.id, 'lsg', e.target.value)}
-                                                        readOnly={!isEditing}
-                                                        className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="pt-2 flex justify-between items-center">
-                                                <span className="text-[8px] font-black text-gray-300 uppercase">Margen Est.</span>
-                                                <span className="text-[10px] font-black text-[#6bbdb7]">
-                                                    +${(parseFloat(editedStore.tarifas[cargo.id].kbs) - parseFloat(editedStore.tarifas[cargo.id].lsg)).toFixed(2)}/hr
-                                                </span>
-                                            </div>
+                                            <p className="text-[10px] text-gray-400 font-bold mt-3 italic">Monto facturado a CSG por cada servicio realizado.</p>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+                                    <div className="bg-[#6bbdb7]/10 rounded-2xl p-6 border-2 border-[#6bbdb7]/20">
+                                        <span className="text-[11px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-4">Rate LGM (Pago al Empleado)</span>
+                                        <div className="relative">
+                                            <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-2 border-brand-primary/20'} rounded-xl px-5 py-4 shadow-sm`}>
+                                                <span className={`${!isEditing ? 'text-gray-300' : 'text-[#303a7f]'} font-black mr-3 text-lg`}>$</span>
+                                                <input 
+                                                    type="text" 
+                                                    value={isEditing ? editedStore.rate_lgm : parseFloat(editedStore.rate_lgm || 0).toFixed(2)} 
+                                                    onChange={(e) => updateField('rate_lgm', e.target.value)} 
+                                                    readOnly={!isEditing}
+                                                    className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl" 
+                                                />
+                                            </div>
+                                            <p className="text-[10px] text-gray-400 font-bold mt-3 italic">Monto pagado al personal por cada servicio realizado.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {[
+                                        { id: 'janitorial', label: 'Janitorial' },
+                                        { id: 'utility', label: 'Utility' },
+                                        { id: 'shift_lead', label: 'Shift Lead' }
+                                    ].map(cargo => (
+                                        <div key={cargo.id} className="bg-gray-50/50 rounded-2xl p-5 border-2 border-brand-primary/10">
+                                            <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest block mb-4">{cargo.label}</span>
+                                            <div className="space-y-4">
+                                                <div className="relative">
+                                                    <label className="text-[8px] text-gray-400 font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">KBS (Paga)</label>
+                                                    <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-2 border-brand-primary/20'} rounded-xl px-4 py-2.5 shadow-sm`}>
+                                                        <span className={`${!isEditing ? 'text-gray-300' : 'text-[#6bbdb7]'} font-black mr-2`}>$</span>
+                                                        <input
+                                                            type="text"
+                                                            step="0.01"
+                                                            value={isEditing ? editedStore.tarifas[cargo.id].kbs : parseFloat(editedStore.tarifas[cargo.id].kbs).toFixed(2)}
+                                                            onChange={(e) => updateTarifa(cargo.id, 'kbs', e.target.value)}
+                                                            readOnly={!isEditing}
+                                                            className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="relative">
+                                                    <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">LGM (Paga)</label>
+                                                    <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-2 border-brand-primary/20'} rounded-xl px-4 py-2.5 shadow-sm`}>
+                                                        <span className={`${!isEditing ? 'text-gray-300' : 'text-[#303a7f]'} font-black mr-2`}>$</span>
+                                                        <input
+                                                            type="text"
+                                                            step="0.01"
+                                                            value={isEditing ? editedStore.tarifas[cargo.id].lsg : parseFloat(editedStore.tarifas[cargo.id].lsg).toFixed(2)}
+                                                            onChange={(e) => updateTarifa(cargo.id, 'lsg', e.target.value)}
+                                                            readOnly={!isEditing}
+                                                            className="w-full bg-transparent font-black text-gray-700 outline-none text-sm"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="pt-2 flex justify-between items-center">
+                                                    <span className="text-[8px] font-black text-gray-300 uppercase">Margen Est.</span>
+                                                    <span className="text-[10px] font-black text-[#6bbdb7]">
+                                                        +${(parseFloat(editedStore.tarifas[cargo.id].kbs) - parseFloat(editedStore.tarifas[cargo.id].lsg)).toFixed(2)}/hr
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </section>
 
                         <section className={`bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>

@@ -109,7 +109,7 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
         return employees.filter(e => e.nombre.toLowerCase().includes(empleadoSearch.toLowerCase())).slice(0, 10);
     }, [empleadoSearch, employees]);
 
-    const montoLGM = tiendaSeleccionada ? (tiendaSeleccionada.rate_lgm_csg || 0) * numServicios : 0;
+    const montoLGM = tiendaSeleccionada ? (tiendaSeleccionada.rate_lgm || 0) * numServicios : 0;
     const montoCsg = tiendaSeleccionada ? (tiendaSeleccionada.rate_csg || 0) * numServicios : 0;
     const margen = montoCsg - montoLGM;
 
@@ -168,7 +168,7 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Tienda CSG</label>
                         <select className={inputCls} value={tiendaSeleccionada?.codigo || ''} onChange={e => setTiendaSeleccionada(csgStores.find(s => s.codigo === e.target.value) || null)}>
                             <option value="">Seleccione una tienda...</option>
-                            {csgStores.map(s => <option key={s.codigo} value={s.codigo}>{s.nombre} — LGM: {fmtCurrency(s.rate_lgm_csg)} | CSG: {fmtCurrency(s.rate_csg)}</option>)}
+                            {csgStores.map(s => <option key={s.codigo} value={s.codigo}>{s.nombre} — LGM: {fmtCurrency(s.rate_lgm)} | CSG: {fmtCurrency(s.rate_csg)}</option>)}
                         </select>
                     </div>
 
@@ -532,6 +532,27 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos }) => {
     );
 };
 
+// ─── CSGStatusModal: Modal de notificación para el módulo CSG ────────────────
+const CSGStatusModal = ({ isOpen, onClose, title, message }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-[800] bg-[#303a7f]/20 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white rounded-[2.5rem] p-10 shadow-2xl max-w-sm w-full text-center animate-in zoom-in-95 duration-300 border-2 border-gray-50">
+                <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <CheckCircle size={40} className="text-green-500 animate-bounce" />
+                </div>
+                <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter mb-2">{title}</h3>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest leading-relaxed">{message}</p>
+                <div className="mt-8">
+                    <button onClick={onClose} className="w-full py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 shadow-xl shadow-blue-900/20">
+                        Continuar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // ─── CSGStoreAddView: Pantalla exclusiva para agregar tiendas CSG ────────────
 const CSGStoreAddView = ({ onSave, onBack }) => {
     const [newStore, setNewStore] = useState({
@@ -544,7 +565,7 @@ const CSGStoreAddView = ({ onSave, onBack }) => {
         correo: '',
         max_horas: '',
         rate_csg: '',
-        rate_lgm_csg: '',
+        rate_lgm: '',
         cliente: 'CSG',
         tarifas: {
             janitorial: { kbs: 0, lsg: 0 },
@@ -578,7 +599,7 @@ const CSGStoreAddView = ({ onSave, onBack }) => {
         const payload = {
             ...newStore,
             rate_csg: parseFloat(newStore.rate_csg) || 0,
-            rate_lgm_csg: parseFloat(newStore.rate_lgm_csg) || 0
+            rate_lgm: parseFloat(newStore.rate_lgm) || 0
         };
         onSave(payload);
     };
@@ -696,7 +717,7 @@ const CSGStoreAddView = ({ onSave, onBack }) => {
                                     <div className="relative">
                                         <div className="flex items-center bg-white border-2 border-brand-primary/20 rounded-xl px-5 py-4 shadow-sm">
                                             <span className="text-[#303a7f] font-black mr-3 text-lg">$</span>
-                                            <input type="number" step="0.01" placeholder="0.00" value={newStore.rate_lgm_csg} onChange={(e) => updateField('rate_lgm_csg', e.target.value)} className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl" />
+                                            <input type="number" step="0.01" placeholder="0.00" value={newStore.rate_lgm} onChange={(e) => updateField('rate_lgm', e.target.value)} className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl" />
                                         </div>
                                         <p className="text-[10px] text-gray-400 font-bold mt-3 italic">Monto pagado al personal por cada servicio realizado.</p>
                                     </div>
@@ -732,6 +753,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
     const [isSaving, setIsSaving] = useState(false);
     const [isAddingCsgStore, setIsAddingCsgStore] = useState(false);
     const [photoModal, setPhotoModal] = useState({ open: false, fotos: [], title: '' });
+    const [statusModal, setStatusModal] = useState({ open: false, title: '', message: '' });
 
     const csgStores = useMemo(() => stores.filter(s => (s.cliente || '').toUpperCase() === 'CSG'), [stores]);
 
@@ -752,6 +774,11 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
         try {
             await onAddStore(newStore);
             setIsAddingCsgStore(false);
+            setStatusModal({ 
+                open: true, 
+                title: '¡Tienda Agregada!', 
+                message: `La tienda ${newStore.nombre} ha sido registrada con éxito en el sistema CSG.` 
+            });
             onRefresh();
         } catch (e) {
             console.error('[CSG] Error creando tienda:', e);
@@ -785,7 +812,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                                     <div className="w-2 h-2 bg-[#6bbdb7] rounded-full animate-pulse" />
                                     <div>
                                         <p className="text-[11px] font-black text-[#303a7f] uppercase tracking-wide">{s.nombre}</p>
-                                        <p className="text-[9px] font-bold text-gray-400">LGM: {fmtCurrency(s.rate_lgm_csg)} | CSG: {fmtCurrency(s.rate_csg)}</p>
+                                        <p className="text-[9px] font-bold text-gray-400">LGM: {fmtCurrency(s.rate_lgm)} | CSG: {fmtCurrency(s.rate_csg)}</p>
                                     </div>
                                 </div>
                             ))}
@@ -840,6 +867,14 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             {isAddingCsgStore && (
                 <CSGStoreAddView onSave={handleCreateCsgStore} onBack={() => setIsAddingCsgStore(false)} />
             )}
+
+            {/* CSG Status Modal */}
+            <CSGStatusModal 
+                isOpen={statusModal.open} 
+                onClose={() => setStatusModal({ open: false, title: '', message: '' })}
+                title={statusModal.title}
+                message={statusModal.message}
+            />
 
             {/* Photo Viewer */}
             <CSGPhotoViewer isOpen={photoModal.open} onClose={() => setPhotoModal({ open: false, fotos: [], title: '' })} fotos={photoModal.fotos} title={photoModal.title} />
