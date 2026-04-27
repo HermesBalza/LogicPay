@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle } from 'lucide-react';
+import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -22,6 +22,28 @@ const compressImageToBase64 = (file, maxWidth = 600, quality = 0.6) => {
         };
         reader.onerror = reject;
         reader.readAsDataURL(file);
+    });
+};
+
+const compressStoreImage = (base64Str, maxWidth = 300, quality = 0.7) => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            if (width > maxWidth) {
+                height = (maxWidth / width) * height;
+                width = maxWidth;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(base64Str);
     });
 };
 
@@ -510,9 +532,205 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos }) => {
     );
 };
 
+// ─── CSGStoreAddView: Pantalla exclusiva para agregar tiendas CSG ────────────
+const CSGStoreAddView = ({ onSave, onBack }) => {
+    const [newStore, setNewStore] = useState({
+        nombre: '',
+        codigo: '',
+        estado: '',
+        direccion: '',
+        supervisor_kbs: '',
+        supervisor_lsg: '',
+        correo: '',
+        max_horas: '',
+        rate_csg: '',
+        rate_lgm_csg: '',
+        cliente: 'CSG',
+        tarifas: {
+            janitorial: { kbs: 0, lsg: 0 },
+            utility: { kbs: 0, lsg: 0 },
+            shift_lead: { kbs: 0, lsg: 0 }
+        },
+        employees: []
+    });
+
+    const updateField = (field, value) => {
+        setNewStore(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const compressed = await compressStoreImage(reader.result);
+                updateField('imagen', compressed);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSave = () => {
+        if (!newStore.nombre.trim() || !newStore.codigo.trim()) {
+            alert("Por favor, asigne al menos un Nombre y un Código a la tienda.");
+            return;
+        }
+        const payload = {
+            ...newStore,
+            rate_csg: parseFloat(newStore.rate_csg) || 0,
+            rate_lgm_csg: parseFloat(newStore.rate_lgm_csg) || 0
+        };
+        onSave(payload);
+    };
+
+    const inputCls = "w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm";
+    const labelCls = "text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1";
+
+    return (
+        <div className="fixed inset-0 z-[600] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
+            <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-16">
+                {/* Top Navigation */}
+                <div className="flex items-center justify-between mb-8">
+                    <button
+                        onClick={onBack}
+                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border-2 border-brand-primary/20 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
+                    >
+                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                        Cancelar
+                    </button>
+
+                    <button
+                        onClick={handleSave}
+                        style={{ backgroundColor: '#303a7f' }}
+                        className="text-white font-black px-10 py-4 shadow-2xl shadow-blue-900/20 text-xs tracking-widest uppercase rounded-2xl active:scale-95 flex items-center gap-2 hover:bg-[#252a5e] transition-colors"
+                    >
+                        <Plus size={18} />
+                        Registrar Tienda CSG
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    {/* Left Panel: Store Identity */}
+                    <div className="lg:col-span-4 space-y-6">
+                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border-2 border-brand-primary/20">
+                            <div className="relative inline-block group mb-6">
+                                <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7] group-hover:shadow-inner relative">
+                                    {newStore.imagen ? (
+                                        <img src={newStore.imagen} alt="Preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <StoreIcon className="text-gray-200" size={40} />
+                                    )}
+                                </div>
+                                <label
+                                    style={{ backgroundColor: '#303a7f' }}
+                                    className="absolute -bottom-2 -right-2 p-3 rounded-xl shadow-xl shadow-blue-900/20 hover:scale-110 transition-all text-white border-2 border-white cursor-pointer"
+                                >
+                                    <Plus size={16} />
+                                    <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                                </label>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="group text-left">
+                                    <label className={labelCls}>Nombre de la Tienda</label>
+                                    <input autoFocus type="text" placeholder="Ej: CSG Miami North" value={newStore.nombre} onChange={(e) => updateField('nombre', e.target.value)} className={inputCls} />
+                                </div>
+                                <div className="group text-left">
+                                    <label className={labelCls}>Código de Tienda</label>
+                                    <input type="text" placeholder="Ej: CSG-101" value={newStore.codigo} onChange={(e) => updateField('codigo', e.target.value)} className={inputCls} />
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
+                            <h3 className="text-[#333333] font-black flex items-center gap-3 mb-6 text-base">
+                                <div className="bg-[#303a7f]/10 p-1.5 rounded-lg"><Settings size={18} className="text-[#303a7f]" /></div>
+                                Configuración Base
+                            </h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className={labelCls}>Estado (US)</label>
+                                    <input type="text" placeholder="Ej: Florida" value={newStore.estado} onChange={(e) => updateField('estado', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Horas Máximas / Mes</label>
+                                    <input type="number" placeholder="Ej: 160" value={newStore.max_horas} onChange={(e) => updateField('max_horas', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Dirección Oficial</label>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-200" size={16} />
+                                        <input type="text" placeholder="Dirección completa..." value={newStore.direccion} onChange={(e) => updateField('direccion', e.target.value)} className={inputCls + " pl-10"} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className={labelCls + " text-[#6bbdb7]"}>Correo Corporativo</label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-200" size={16} />
+                                        <input type="email" placeholder="tienda@csgroup.com" value={newStore.correo} onChange={(e) => updateField('correo', e.target.value)} className={inputCls + " pl-10"} />
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    {/* Right Panel: CSG Matrix */}
+                    <div className="lg:col-span-8 space-y-6">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
+                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
+                                <div className="bg-[#303a7f] p-2 rounded-lg"><DollarSign className="text-white" size={18} /></div>
+                                Matriz Salarial CSG
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="bg-[#303a7f]/5 rounded-2xl p-6 border-2 border-[#303a7f]/10">
+                                    <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest block mb-4">Rate CSG (Cobro al Cliente)</span>
+                                    <div className="relative">
+                                        <div className="flex items-center bg-white border-2 border-brand-primary/20 rounded-xl px-5 py-4 shadow-sm">
+                                            <span className="text-[#6bbdb7] font-black mr-3 text-lg">$</span>
+                                            <input type="number" step="0.01" placeholder="0.00" value={newStore.rate_csg} onChange={(e) => updateField('rate_csg', e.target.value)} className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl" />
+                                        </div>
+                                        <p className="text-[10px] text-gray-400 font-bold mt-3 italic">Monto facturado a CSG por cada servicio realizado.</p>
+                                    </div>
+                                </div>
+                                <div className="bg-[#6bbdb7]/10 rounded-2xl p-6 border-2 border-[#6bbdb7]/20">
+                                    <span className="text-[11px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-4">Rate LGM (Pago al Empleado)</span>
+                                    <div className="relative">
+                                        <div className="flex items-center bg-white border-2 border-brand-primary/20 rounded-xl px-5 py-4 shadow-sm">
+                                            <span className="text-[#303a7f] font-black mr-3 text-lg">$</span>
+                                            <input type="number" step="0.01" placeholder="0.00" value={newStore.rate_lgm_csg} onChange={(e) => updateField('rate_lgm_csg', e.target.value)} className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl" />
+                                        </div>
+                                        <p className="text-[10px] text-gray-400 font-bold mt-3 italic">Monto pagado al personal por cada servicio realizado.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
+                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
+                                <div className="bg-[#6bbdb7] p-2 rounded-lg"><Users className="text-white" size={18} /></div>
+                                Detalles Administrativos
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className={labelCls}>Supervisor KBS</label>
+                                    <input type="text" placeholder="Nombre del supervisor..." value={newStore.supervisor_kbs} onChange={(e) => updateField('supervisor_kbs', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Supervisor LGM</label>
+                                    <input type="text" placeholder="Nombre del supervisor..." value={newStore.supervisor_lsg} onChange={(e) => updateField('supervisor_lsg', e.target.value)} className={inputCls} />
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // ─── CSGView: Contenedor principal del módulo CSG ────────────────────────────
-const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, setIsAddingStore, setIsAddingEmployee }) => {
+const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, setIsAddingStore, setIsAddingEmployee, onAddStore }) => {
     const [isSaving, setIsSaving] = useState(false);
+    const [isAddingCsgStore, setIsAddingCsgStore] = useState(false);
     const [photoModal, setPhotoModal] = useState({ open: false, fotos: [], title: '' });
 
     const csgStores = useMemo(() => stores.filter(s => (s.cliente || '').toUpperCase() === 'CSG'), [stores]);
@@ -527,6 +745,16 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             console.error('[CSG] Error guardando servicio:', e);
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleCreateCsgStore = async (newStore) => {
+        try {
+            await onAddStore(newStore);
+            setIsAddingCsgStore(false);
+            onRefresh();
+        } catch (e) {
+            console.error('[CSG] Error creando tienda:', e);
         }
     };
 
@@ -569,7 +797,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                         <RefreshCw size={18} />
                     </button>
                     
-                    <button onClick={() => setIsAddingStore(true)} className="px-7 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-2xl shadow-blue-900/20">
+                    <button onClick={() => setIsAddingCsgStore(true)} className="px-7 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-2xl shadow-blue-900/20">
                         <Plus size={18} />
                         Agregar Tienda
                     </button>
@@ -606,6 +834,11 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             {/* Form Modal */}
             {isCsgFormOpen && (
                 <CSGServiceForm csgStores={csgStores} employees={employees} onClose={() => setIsCsgFormOpen(false)} onSave={handleSave} isSaving={isSaving} />
+            )}
+
+            {/* CSG Store Add Modal */}
+            {isAddingCsgStore && (
+                <CSGStoreAddView onSave={handleCreateCsgStore} onBack={() => setIsAddingCsgStore(false)} />
             )}
 
             {/* Photo Viewer */}

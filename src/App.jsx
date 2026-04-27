@@ -12815,6 +12815,7 @@ function App() {
                             onRefresh={fetchCSGServices}
                             setIsAddingStore={setIsAddingStore}
                             setIsAddingEmployee={setIsAddingEmployee}
+                            onAddStore={handleCreateStore}
                         />
                     )}
 
