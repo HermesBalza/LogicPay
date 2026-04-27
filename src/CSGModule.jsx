@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -511,7 +511,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos }) => {
 };
 
 // ─── CSGView: Contenedor principal del módulo CSG ────────────────────────────
-const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh }) => {
+const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, setIsAddingStore, setIsAddingEmployee }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [photoModal, setPhotoModal] = useState({ open: false, fotos: [], title: '' });
 
@@ -568,6 +568,17 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                     <button onClick={onRefresh} className="p-3 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl hover:text-[#6bbdb7] hover:border-[#6bbdb7]/20 transition-all shadow-sm" title="Actualizar datos">
                         <RefreshCw size={18} />
                     </button>
+                    
+                    <button onClick={() => setIsAddingStore(true)} className="px-7 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-2xl shadow-blue-900/20">
+                        <Plus size={18} />
+                        Agregar Tienda
+                    </button>
+
+                    <button onClick={() => setIsAddingEmployee(true)} className="px-7 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-2xl shadow-blue-900/20">
+                        <Plus size={18} />
+                        Agregar Personal
+                    </button>
+
                     <button onClick={() => setIsCsgFormOpen(true)} className="px-7 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-2xl shadow-blue-900/20">
                         <Plus size={18} className="group-hover:rotate-90 transition-transform" />
                         Registrar Servicio

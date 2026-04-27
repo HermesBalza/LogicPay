@@ -12813,6 +12813,8 @@ function App() {
                             }}
                             syncToSheets={syncToSheets}
                             onRefresh={fetchCSGServices}
+                            setIsAddingStore={setIsAddingStore}
+                            setIsAddingEmployee={setIsAddingEmployee}
                         />
                     )}
 
