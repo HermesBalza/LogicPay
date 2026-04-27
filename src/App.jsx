@@ -379,6 +379,8 @@ const csvRowToEmployee = (flat) => {
         // --- Rates Personales y Observaciones ---
         rateKBS: parseFloat(findValue(['Rate KBS', 'rate_kbs'])) || 0,
         rateLGM: parseFloat(findValue(['Rate LGM', 'rate_lgm'])) || 0,
+        rate_csg: parseFloat(findValue(['Rate CSG', 'rate_csg'])) || 0,
+        cliente: findValue(['Cliente', 'cliente']) || 'KBS',
         observaciones: findValue(['Observaciones', 'observaciones']) || '',
         locationHistory: (() => {
             try {
@@ -12857,6 +12859,7 @@ function App() {
                             setIsAddingStore={setIsAddingStore}
                             setIsAddingEmployee={setIsAddingEmployee}
                             onAddStore={handleCreateStore}
+                            onAddEmployee={handleCreateEmployee}
                         />
                     )}
 

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon, CreditCard } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -607,8 +608,11 @@ const CSGStoreAddView = ({ onSave, onBack }) => {
     const inputCls = "w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm";
     const labelCls = "text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1";
 
-    return (
-        <div className="fixed inset-0 z-[600] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
+    return createPortal(
+        <div 
+            className="fixed inset-0 z-[9999] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500 rounded-none"
+            style={{ top: '-1px', left: '-1px', right: '-1px', bottom: '-1px', borderRadius: '0px' }}
+        >
             <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-16">
                 {/* Top Navigation */}
                 <div className="flex items-center justify-between mb-8">
@@ -744,14 +748,230 @@ const CSGStoreAddView = ({ onSave, onBack }) => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
+    );
+};
+
+// ─── CSGEmployeeAddView: Pantalla exclusiva para agregar personal CSG ─────────
+const CSGEmployeeAddView = ({ onSave, onBack }) => {
+    const [newEmp, setNewEmp] = useState({
+        nombre: '',
+        first_name: '',
+        last_name: '',
+        codigo_empleado: '',
+        fecha_ingreso: new Date().toISOString().split('T')[0],
+        cargo: 'Cleaner',
+        cliente: 'CSG',
+        payer_type: 'Individual',
+        tin_type: 'SSN',
+        tin: '',
+        address_1: '',
+        city: '',
+        state: '',
+        zip: '',
+        country: 'EE. UU.',
+        email_tax: '',
+        cuenta_bancaria: '',
+        imagen: '',
+        rate_csg: '',
+        rate_lgm: '',
+        tienda: 'CSG'
+    });
+
+    const updateField = (field, value) => {
+        setNewEmp(prev => {
+            const updated = { ...prev, [field]: value };
+            if (field === 'first_name' || field === 'last_name') {
+                updated.nombre = `${updated.first_name} ${updated.last_name}`.trim();
+            }
+            return updated;
+        });
+    };
+
+    const handleImageChange = async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const compressed = await compressStoreImage(reader.result);
+                updateField('imagen', compressed);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSave = () => {
+        if (!newEmp.first_name || !newEmp.last_name || !newEmp.codigo_empleado) {
+            alert('Por favor complete los campos obligatorios: Nombre, Apellido e Identificador.');
+            return;
+        }
+        const payload = {
+            ...newEmp,
+            rate_csg: parseFloat(newEmp.rate_csg) || 0,
+            rate_lgm: parseFloat(newEmp.rate_lgm) || 0
+        };
+        onSave(payload);
+    };
+
+    const inputCls = "w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm text-[#333333]";
+    const labelCls = "text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 ml-1";
+
+    return createPortal(
+        <div 
+            className="fixed inset-0 z-[9999] bg-white flex flex-col animate-in slide-in-from-right duration-500 rounded-none"
+            style={{ top: '-1px', left: '-1px', right: '-1px', bottom: '-1px', borderRadius: '0px' }}
+        >
+            {/* Header */}
+            <div className="bg-white border-b-2 border-gray-100 px-10 py-8 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-6">
+                    <button onClick={onBack} className="p-3 bg-gray-50 text-[#303a7f] rounded-2xl hover:bg-gray-100 transition-all active:scale-90"><ArrowLeft size={24} /></button>
+                    <div>
+                        <h2 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase">Nuevo Personal CSG</h2>
+                        <p className="text-gray-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-1">Registro de colaboradores para pago por servicio</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-4">
+                    <button onClick={onBack} className="px-8 py-4 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600 transition-all">Cancelar</button>
+                    <button onClick={handleSave} className="px-10 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-xl shadow-blue-900/20 active:scale-95">Registrar Colaborador</button>
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto bg-[#fcfcfd] p-10">
+                <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
+                    {/* Left Column: ID & Photo */}
+                    <div className="lg:col-span-4 space-y-8">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-gray-50 flex flex-col items-center">
+                            <div className="relative group">
+                                <div className="w-48 h-48 rounded-[2.5rem] bg-gray-50 border-4 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7]/50">
+                                    {newEmp.imagen ? (
+                                        <img src={newEmp.imagen} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="text-center">
+                                            <div className="bg-gray-100 p-4 rounded-2xl inline-block mb-3 text-gray-300"><Users size={32} /></div>
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Foto Perfil</p>
+                                        </div>
+                                    )}
+                                    <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                </div>
+                                <div className="absolute -bottom-2 -right-2 bg-[#6bbdb7] text-white p-3 rounded-2xl shadow-lg border-4 border-white"><Settings size={18} /></div>
+                            </div>
+                            <div className="mt-8 w-full space-y-4">
+                                <div>
+                                    <label className={labelCls}>Identificador (SSN/ITIN/ID)</label>
+                                    <input type="text" placeholder="Ej: 453-14-7402" value={newEmp.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Cargo</label>
+                                    <input type="text" value={newEmp.cargo} readOnly className="w-full bg-gray-100 border-transparent rounded-xl p-3.5 font-bold text-sm text-gray-500 outline-none" />
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    {/* Right Column: Rates, 1099 Data & Payment */}
+                    <div className="lg:col-span-8 space-y-8">
+                        {/* CSG Rates */}
+                        <section className="bg-white rounded-[2rem] p-10 shadow-xl shadow-blue-900/5 border-2 border-[#6bbdb7]/20">
+                            <h3 className="text-xl font-black text-[#6bbdb7] tracking-tighter mb-8 flex items-center gap-3">
+                                <div className="bg-[#6bbdb7] p-2 rounded-lg"><DollarSign className="text-white" size={18} /></div>
+                                Tarifas por Servicio (Personalizado)
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="bg-[#303a7f]/5 rounded-2xl p-6 border-2 border-[#303a7f]/10">
+                                    <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest block mb-4">Rate CSG (Cobro Especial)</span>
+                                    <div className="flex items-center bg-white border-2 border-brand-primary/20 rounded-xl px-5 py-4 shadow-sm">
+                                        <span className="text-[#303a7f] font-black mr-3 text-lg">$</span>
+                                        <input type="number" step="0.01" placeholder="0.00" value={newEmp.rate_csg} onChange={(e) => updateField('rate_csg', e.target.value)} className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl" />
+                                    </div>
+                                </div>
+                                <div className="bg-[#6bbdb7]/10 rounded-2xl p-6 border-2 border-[#6bbdb7]/20">
+                                    <span className="text-[11px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-4">Rate LGM (Pago Especial)</span>
+                                    <div className="flex items-center bg-white border-2 border-brand-primary/20 rounded-xl px-5 py-4 shadow-sm">
+                                        <span className="text-[#303a7f] font-black mr-3 text-lg">$</span>
+                                        <input type="number" step="0.01" placeholder="0.00" value={newEmp.rate_lgm} onChange={(e) => updateField('rate_lgm', e.target.value)} className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl" />
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Personal Data (1099 Critical) */}
+                        <section className="bg-white rounded-[2rem] p-10 shadow-xl shadow-blue-900/5 border-2 border-gray-50">
+                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
+                                <div className="bg-[#303a7f] p-2 rounded-lg"><Users className="text-white" size={18} /></div>
+                                Información Fiscal 1099
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className={labelCls}>Nombre(s)</label>
+                                    <input type="text" placeholder="Ej: Mariana" value={newEmp.first_name} onChange={(e) => updateField('first_name', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Apellido(s)</label>
+                                    <input type="text" placeholder="Ej: Pepper" value={newEmp.last_name} onChange={(e) => updateField('last_name', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Payer Type</label>
+                                    <select value={newEmp.payer_type} onChange={(e) => updateField('payer_type', e.target.value)} className={inputCls}>
+                                        <option value="Individual">Individual</option>
+                                        <option value="Business">Business</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className={labelCls}>TIN Type</label>
+                                    <select value={newEmp.tin_type} onChange={(e) => updateField('tin_type', e.target.value)} className={inputCls}>
+                                        <option value="SSN">SSN</option>
+                                        <option value="ITIN">ITIN</option>
+                                        <option value="EIN">EIN</option>
+                                    </select>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className={labelCls}>Dirección Fiscal</label>
+                                    <input type="text" placeholder="Calle, Número, Apto..." value={newEmp.address_1} onChange={(e) => updateField('address_1', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Ciudad</label>
+                                    <input type="text" placeholder="Ej: Orlando" value={newEmp.city} onChange={(e) => updateField('city', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Estado</label>
+                                    <input type="text" placeholder="Ej: Florida" value={newEmp.state} onChange={(e) => updateField('state', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>ZIP Code</label>
+                                    <input type="text" placeholder="Ej: 32803" value={newEmp.zip} onChange={(e) => updateField('zip', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Correo Fiscal</label>
+                                    <input type="email" placeholder="email@ejemplo.com" value={newEmp.email_tax} onChange={(e) => updateField('email_tax', e.target.value)} className={inputCls} />
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Banking Info */}
+                        <section className="bg-white rounded-[2rem] p-10 shadow-xl shadow-blue-900/5 border-2 border-gray-50">
+                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
+                                <div className="bg-gray-100 p-2 rounded-lg"><CreditCard className="text-[#303a7f]" size={18} /></div>
+                                Datos de Pago
+                            </h3>
+                            <div>
+                                <label className={labelCls}>Cuenta Bancaria / Información de Depósito</label>
+                                <textarea rows="3" placeholder="Número de cuenta, Routing, Zelle..." value={newEmp.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className={inputCls + " resize-none"}></textarea>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>,
+        document.body
     );
 };
 
 // ─── CSGView: Contenedor principal del módulo CSG ────────────────────────────
-const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, setIsAddingStore, setIsAddingEmployee, onAddStore }) => {
+const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, setIsAddingStore, setIsAddingEmployee, onAddStore, onAddEmployee }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [isAddingCsgStore, setIsAddingCsgStore] = useState(false);
+    const [isAddingCsgEmployee, setIsAddingCsgEmployee] = useState(false);
     const [photoModal, setPhotoModal] = useState({ open: false, fotos: [], title: '' });
     const [statusModal, setStatusModal] = useState({ open: false, title: '', message: '' });
 
@@ -782,6 +1002,21 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             onRefresh();
         } catch (e) {
             console.error('[CSG] Error creando tienda:', e);
+        }
+    };
+
+    const handleCreateCsgEmployee = async (newEmp) => {
+        try {
+            await onAddEmployee(newEmp);
+            setIsAddingCsgEmployee(false);
+            setStatusModal({ 
+                open: true, 
+                title: '¡Personal Agregado!', 
+                message: `El colaborador ${newEmp.nombre} ha sido registrado con éxito en el sistema CSG.` 
+            });
+            onRefresh();
+        } catch (e) {
+            console.error('[CSG] Error creando empleado:', e);
         }
     };
 
@@ -829,8 +1064,11 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                         Agregar Tienda
                     </button>
 
-                    <button onClick={() => setIsAddingEmployee(true)} className="px-7 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-2xl shadow-blue-900/20">
-                        <Plus size={18} />
+                    <button
+                        onClick={() => setIsAddingCsgEmployee(true)}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-[#303a7f] text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-xl shadow-blue-900/20 active:scale-95 group"
+                    >
+                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
                         Agregar Personal
                     </button>
 
@@ -863,9 +1101,14 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 <CSGServiceForm csgStores={csgStores} employees={employees} onClose={() => setIsCsgFormOpen(false)} onSave={handleSave} isSaving={isSaving} />
             )}
 
-            {/* CSG Store Add Modal */}
+            {/* CSG Store Add View */}
             {isAddingCsgStore && (
                 <CSGStoreAddView onSave={handleCreateCsgStore} onBack={() => setIsAddingCsgStore(false)} />
+            )}
+
+            {/* CSG Employee Add View */}
+            {isAddingCsgEmployee && (
+                <CSGEmployeeAddView onSave={handleCreateCsgEmployee} onBack={() => setIsAddingCsgEmployee(false)} />
             )}
 
             {/* CSG Status Modal */}
