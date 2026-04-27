@@ -1193,17 +1193,25 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
         setReviewModal({ open: false, payload: null });
         setIsSaving(true);
         try {
-            // Aquí definiremos el guardado real en el siguiente paso
-            console.log("[CSG] Guardando servicio:", payload);
+            // Guardar en la hoja CSG_Servicios de Google Sheets
+            await syncToSheets('upsert', payload, 'CSG_Servicios', true, ['correlativo']);
+            
             setIsCsgFormOpen(false);
             setStatusModal({
                 open: true,
-                title: '¡Simulación de Éxito!',
-                message: 'Los datos han sido validados y empaquetados correctamente. En el siguiente paso activaremos el guardado real en Google Sheets.'
+                title: '¡Servicio Registrado!',
+                message: `El servicio con correlativo ${payload.correlativo} ha sido guardado exitosamente en la base de datos.`
             });
-            setTimeout(() => { onRefresh(); }, 2000);
+            
+            // Actualizar la vista para reflejar el nuevo registro
+            onRefresh();
         } catch (e) {
             console.error('[CSG] Error guardando servicio:', e);
+            setStatusModal({
+                open: true,
+                title: 'Error de Guardado',
+                message: 'Ocurrió un error al intentar guardar el servicio en Google Sheets. Por favor, intente de nuevo.'
+            });
         } finally {
             setIsSaving(false);
         }
