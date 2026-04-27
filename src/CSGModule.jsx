@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon, CreditCard } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -98,13 +99,97 @@ const CSGPhotoViewer = ({ isOpen, onClose, fotos = [], title = 'Evidencia Fotogr
     );
 };
 
+// ─── CSGReviewModal: Resumen de datos antes del envío ────────────────────────
+const CSGReviewModal = ({ isOpen, onClose, onConfirm, payload }) => {
+    if (!isOpen || !payload) return null;
+    
+    const fotosCount = Object.keys(payload).filter(k => k.startsWith('foto_')).length;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[800] bg-[#303a7f]/40 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="px-10 py-7 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-green-50 to-transparent">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <CheckCircle size={18} className="text-green-500" />
+                            <h2 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter leading-none">Revisión de Registro</h2>
+                        </div>
+                        <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest opacity-80">Verifica los datos detectados por la IA</p>
+                    </div>
+                    <button onClick={onClose} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={20} /></button>
+                </div>
+
+                <div className="p-10 space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="bg-gray-50 rounded-2xl p-4">
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Fecha Detectada (IA)</span>
+                            <span className="text-sm font-black text-[#303a7f] flex items-center gap-2">
+                                <Calendar size={14} className="text-[#6bbdb7]" />
+                                {payload.fecha}
+                            </span>
+                        </div>
+                        <div className="bg-gray-50 rounded-2xl p-4">
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Correlativo</span>
+                            <span className="text-sm font-black text-[#303a7f]">{payload.correlativo}</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between border-b border-gray-50 pb-4">
+                            <div>
+                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Tienda</span>
+                                <span className="text-sm font-black text-[#303a7f]">{payload.tienda}</span>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Empleado</span>
+                                <span className="text-sm font-black text-[#303a7f]">{payload.empleado}</span>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="text-center">
+                                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-1">Pago LGM</span>
+                                <span className="text-sm font-black text-[#6bbdb7]">{fmtCurrency(payload.monto_lgm)}</span>
+                            </div>
+                            <div className="text-center">
+                                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-1">Cobro CSG</span>
+                                <span className="text-sm font-black text-[#303a7f]">{fmtCurrency(payload.monto_csg)}</span>
+                            </div>
+                            <div className="text-center">
+                                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-1">Evidencia</span>
+                                <span className="text-sm font-black text-orange-400">{fotosCount} fotos</span>
+                            </div>
+                        </div>
+
+                        {payload.notas && (
+                            <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100/50">
+                                <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest block mb-1">Notas</span>
+                                <p className="text-xs font-bold text-[#303a7f]/70 italic">"{payload.notas}"</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="px-10 py-8 bg-gray-50/50 border-t border-gray-100">
+                    <button onClick={() => onConfirm(payload)} className="w-full py-5 bg-green-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-green-600 shadow-lg shadow-green-900/20 transition-all active:scale-95 flex items-center justify-center gap-3">
+                        <Check size={20} />
+                        Confirmar y Registrar Servicio
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
 // ─── CSGServiceForm: Formulario de registro de servicio ──────────────────────
-const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSaving = false }) => {
+const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSaving = false, geminiApiKey, setStatusModal }) => {
     const [tiendaSeleccionada, setTiendaSeleccionada] = useState(null);
     const [empleadoSearch, setEmpleadoSearch] = useState('');
     const [empleadoSel, setEmpleadoSel] = useState(null);
     const [showEmpList, setShowEmpList] = useState(false);
     const [fecha, setFecha] = useState(new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }));
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [numServicios, setNumServicios] = useState(1);
     const [notas, setNotas] = useState('');
     const [fotos, setFotos] = useState([]); // [{name, preview, base64}]
@@ -156,12 +241,59 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
         }
     };
 
-    const handleSubmit = () => {
-        if (!tiendaSeleccionada || !empleadoSel || !fecha) return;
+    const handleSubmit = async () => {
+        if (!tiendaSeleccionada || !empleadoSel) return;
+        
+        if (fotos.length === 0) {
+            setStatusModal({
+                open: true,
+                title: 'Fotos Obligatorias',
+                message: 'Para registrar un servicio debe subir al menos una foto de evidencia con marca de tiempo (timestamp) para que la IA pueda detectar la fecha automáticamente.'
+            });
+            return;
+        }
+
+        let detectedDate = null;
+        setIsAnalyzing(true);
+        
+        // --- Inteligencia Artificial: Detección de Fecha ---
+        try {
+            const genAI = new GoogleGenerativeAI(geminiApiKey);
+            const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+
+            const imageParts = fotos.slice(0, 3).map(f => ({
+                inlineData: { data: f.base64, mimeType: "image/jpeg" }
+            }));
+
+            const prompt = "Analiza estas fotos de evidencia de un servicio de limpieza y extrae la fecha en que se realizó el servicio basándote EXCLUSIVAMENTE en los timestamps o marcas de tiempo (fecha/hora) visibles en las imágenes. Responde ÚNICAMENTE con la fecha en formato MM/DD/YYYY. Si no detectas ninguna fecha clara o marca de tiempo legible, responde 'ERROR'.";
+
+            const result = await model.generateContent([prompt, ...imageParts]);
+            const text = result.response.text().trim();
+            
+            if (text && text !== 'ERROR' && text.includes('/')) {
+                detectedDate = text;
+                console.log("[Gemini AI] Fecha detectada:", detectedDate);
+            }
+        } catch (error) {
+            console.error("[Gemini AI] Error analizando fotos:", error);
+        } finally {
+            setIsAnalyzing(false);
+        }
+
+        // Si la IA falló o no detectó fecha, cancelamos el proceso
+        if (!detectedDate) {
+            setStatusModal({
+                open: true,
+                title: 'Error de Detección IA',
+                message: 'La IA no pudo detectar una fecha válida en las fotos proporcionadas. El proceso ha sido cancelado. Por favor, asegúrese de que las imágenes tengan marcas de tiempo legibles e intente de nuevo.'
+            });
+            return;
+        }
+
         const correlativo = `CSG-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
         const payload = {
             correlativo,
-            fecha,
+            fecha: detectedDate,
             tienda: tiendaSeleccionada.nombre,
             codigo_tienda: tiendaSeleccionada.codigo,
             empleado: empleadoSel.nombre,
@@ -328,9 +460,9 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
 
                 <div className="px-10 py-6 border-t border-gray-100 flex gap-4">
                     <button onClick={onClose} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">Cancelar</button>
-                    <button onClick={handleSubmit} disabled={!isValid || isSaving} className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 ${isValid && !isSaving ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/20 hover:bg-[#252a5e]' : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}>
-                        {isSaving ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
-                        {isSaving ? 'Registrando...' : 'Registrar Servicio'}
+                    <button onClick={handleSubmit} disabled={!isValid || isSaving || isAnalyzing} className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 ${isValid && !isSaving && !isAnalyzing ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/20 hover:bg-[#252a5e]' : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}>
+                        {isSaving || isAnalyzing ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
+                        {isAnalyzing ? 'Analizando con IA...' : isSaving ? 'Registrando...' : 'Registrar Servicio'}
                     </button>
                 </div>
             </div>
@@ -1043,21 +1175,33 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
 };
 
 // ─── CSGView: Contenedor principal del módulo CSG ────────────────────────────
-const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, setIsAddingStore, setIsAddingEmployee, onAddStore, onAddEmployee }) => {
+const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, setIsAddingStore, setIsAddingEmployee, onAddStore, onAddEmployee, geminiApiKey }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [isAddingCsgStore, setIsAddingCsgStore] = useState(false);
     const [isAddingCsgEmployee, setIsAddingCsgEmployee] = useState(false);
+    const [reviewModal, setReviewModal] = useState({ open: false, payload: null });
     const [photoModal, setPhotoModal] = useState({ open: false, fotos: [], title: '' });
     const [statusModal, setStatusModal] = useState({ open: false, title: '', message: '' });
 
     const csgStores = useMemo(() => stores.filter(s => (s.cliente || '').toUpperCase() === 'CSG'), [stores]);
 
     const handleSave = async (payload) => {
+        setReviewModal({ open: true, payload });
+    };
+
+    const confirmFinalSave = async (payload) => {
+        setReviewModal({ open: false, payload: null });
         setIsSaving(true);
         try {
-            await syncToSheets('upsert', payload, 'CSG_Servicios', true, ['correlativo']);
+            // Aquí definiremos el guardado real en el siguiente paso
+            console.log("[CSG] Guardando servicio:", payload);
             setIsCsgFormOpen(false);
-            setTimeout(() => { onServiceRegistered(); }, 2500);
+            setStatusModal({
+                open: true,
+                title: '¡Simulación de Éxito!',
+                message: 'Los datos han sido validados y empaquetados correctamente. En el siguiente paso activaremos el guardado real en Google Sheets.'
+            });
+            setTimeout(() => { onRefresh(); }, 2000);
         } catch (e) {
             console.error('[CSG] Error guardando servicio:', e);
         } finally {
@@ -1173,7 +1317,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
 
             {/* Form Modal */}
             {isCsgFormOpen && (
-                <CSGServiceForm csgStores={csgStores} employees={employees} onClose={() => setIsCsgFormOpen(false)} onSave={handleSave} isSaving={isSaving} />
+                <CSGServiceForm csgStores={csgStores} employees={employees} onClose={() => setIsCsgFormOpen(false)} onSave={handleSave} isSaving={isSaving} geminiApiKey={geminiApiKey} setStatusModal={setStatusModal} />
             )}
 
             {/* CSG Store Add View */}
@@ -1192,6 +1336,14 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 onClose={() => setStatusModal({ open: false, title: '', message: '' })}
                 title={statusModal.title}
                 message={statusModal.message}
+            />
+
+            {/* Review Modal */}
+            <CSGReviewModal 
+                isOpen={reviewModal.open} 
+                onClose={() => setReviewModal({ open: false, payload: null })} 
+                onConfirm={confirmFinalSave}
+                payload={reviewModal.payload}
             />
 
             {/* Photo Viewer */}

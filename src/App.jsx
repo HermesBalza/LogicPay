@@ -12866,6 +12866,7 @@ function App() {
                             setIsAddingEmployee={setIsAddingEmployee}
                             onAddStore={handleCreateStore}
                             onAddEmployee={handleCreateEmployee}
+                            geminiApiKey={geminiApiKey}
                         />
                     )}
 
