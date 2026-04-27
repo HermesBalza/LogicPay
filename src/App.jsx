@@ -11554,14 +11554,20 @@ function App() {
             zip: newEmp.zip ? `'${newEmp.zip.toString().replace(/^'/, '')}` : '',
             site_code: newEmp.site_code ? `'${newEmp.site_code.toString().replace(/^'/, '')}` : '',
             cuenta_bancaria: newEmp.cuenta_bancaria ? `'${newEmp.cuenta_bancaria.toString().replace(/^'/, '')}` : '',
-            'Rate KBS': newEmp.rateKBS || 0,
-            'Rate LGM': newEmp.rateLGM || 0,
+            'Rate KBS': newEmp.rateKBS || newEmp.rate_kbs || 0,
+            'Rate LGM': newEmp.rateLGM || newEmp.rate_lgm || 0,
+            'Rate CSG': newEmp.rate_csg || 0,
+            'Cliente': newEmp.cliente || 'KBS',
             'Observaciones': newEmp.observaciones || ''
         };
 
-        // Limpieza de llaves internas
+        // Limpieza de llaves internas para evitar duplicidad de columnas en Sheets
         delete payload.rateKBS;
         delete payload.rateLGM;
+        delete payload.rate_kbs;
+        delete payload.rate_lgm;
+        delete payload.rate_csg;
+        delete payload.cliente;
         delete payload.observaciones;
 
         syncToSheets('upsert', payload, 'Personal');
