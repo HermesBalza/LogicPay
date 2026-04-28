@@ -479,40 +479,10 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
     );
 };
 
-// ─── CSGNominaView: Nómina agrupada por empleado ─────────────────────────────
-const CSGNominaView = ({ csgServicesData = [] }) => {
+// ─── CSGBiweekDetailsModal: Ventana emergente con detalles de la bisemana ──────
+const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency }) => {
     const reportRef = useRef(null);
-    const [filterFrom, setFilterFrom] = useState('');
-    const [filterTo, setFilterTo] = useState('');
-
-    const filtered = useMemo(() => {
-        if (!filterFrom && !filterTo) return csgServicesData;
-        return csgServicesData.filter(s => {
-            if (!s.fecha) return true;
-            const parts = s.fecha.split('/');
-            if (parts.length < 3) return true;
-            const d = new Date(parts[2], parts[0] - 1, parts[1]);
-            const from = filterFrom ? new Date(filterFrom) : null;
-            const to = filterTo ? new Date(filterTo) : null;
-            if (from && d < from) return false;
-            if (to && d > to) return false;
-            return true;
-        });
-    }, [csgServicesData, filterFrom, filterTo]);
-
-    const byEmployee = useMemo(() => {
-        const map = {};
-        filtered.forEach(s => {
-            const key = s.empleado || 'Sin Nombre';
-            if (!map[key]) map[key] = { empleado: key, codigo: s.codigo_empleado, servicios: 0, total: 0, items: [] };
-            map[key].servicios += s.num_servicios || 1;
-            map[key].total += s.monto_lgm || 0;
-            map[key].items.push(s);
-        });
-        return Object.values(map).sort((a, b) => a.empleado.localeCompare(b.empleado));
-    }, [filtered]);
-
-    const totalPago = byEmployee.reduce((acc, e) => acc + e.total, 0);
+    if (!isOpen || !biweek) return null;
 
     const handleExportPDF = async () => {
         if (!reportRef.current) return;
@@ -521,66 +491,206 @@ const CSGNominaView = ({ csgServicesData = [] }) => {
         const img = canvas.toDataURL('image/png');
         const w = 210; const h = (canvas.height * w) / canvas.width;
         pdf.addImage(img, 'PNG', 0, 0, w, h);
-        pdf.save(`Nomina_CSG_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
+        pdf.save(`Nomina_CSG_BW_${biweek.id}_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
+    };
+
+    return createPortal(
+        <div className="fixed inset-0 z-[1000] bg-[#303a7f]/40 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-6xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+                <div className="px-10 py-8 bg-gradient-to-r from-[#303a7f]/5 to-transparent border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-2xl font-black text-[#303a7f] uppercase tracking-tighter leading-none">Detalle de Nómina CSG</h2>
+                        <p className="text-[#6bbdb7] text-xs font-black uppercase tracking-widest mt-1.5 opacity-80">{biweek.label}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button className="h-14 px-6 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-900/20">
+                            <Mail size={18} /> Enviar Correo
+                        </button>
+                        <button onClick={handleExportPDF} className="h-14 px-6 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-900/20">
+                            <Download size={18} /> Exportar PDF
+                        </button>
+                        <button onClick={onClose} className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all">
+                            <X size={24} />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-10" ref={reportRef}>
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr className="bg-[#f9f9f9]/50 border-b border-gray-100">
+                                {['Correlativo', 'Fecha', 'Tienda', 'Empleado', 'Servicios', 'Pago LGM', 'Comentarios'].map(h => (
+                                    <th key={h} className="px-5 py-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-left">{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {[...biweek.services].sort((a,b) => new Date(a.fecha) - new Date(b.fecha)).map((s, i) => (
+                                <tr key={i} className="hover:bg-[#6bbdb7]/[0.03] transition-all">
+                                    <td className="px-5 py-4 text-[11px] font-black text-[#303a7f] whitespace-nowrap">{s.correlativo}</td>
+                                    <td className="px-5 py-4 text-[11px] font-bold text-[#303a7f] whitespace-nowrap">{s.fecha}</td>
+                                    <td className="px-5 py-4 font-black text-[11px] text-[#303a7f]">{s.tienda}</td>
+                                    <td className="px-5 py-4 font-bold text-[11px] text-[#303a7f]">{s.empleado}</td>
+                                    <td className="px-5 py-4 text-center">
+                                        <span className="px-2.5 py-1 bg-[#303a7f]/10 text-[#303a7f] rounded-full text-[11px] font-black">{s.num_servicios}</span>
+                                    </td>
+                                    <td className="px-5 py-4 font-black text-xs text-[#303a7f]">{fmtCurrency(s.monto_lgm)}</td>
+                                    <td className="px-5 py-4">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Nota..."
+                                            className="w-full bg-transparent border-b border-dashed border-gray-200 py-1 text-[11px] font-medium text-gray-500 outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300"
+                                            defaultValue={s.notas || ''}
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                        <tfoot>
+                            <tr className="bg-[#303a7f]/5 border-t-2 border-gray-100">
+                                <td colSpan={4} className="px-5 py-6 text-[11px] font-black text-[#303a7f] uppercase tracking-widest text-right">Total Bisemana</td>
+                                <td className="px-5 py-6 text-center">
+                                    <span className="px-4 py-1.5 bg-[#303a7f] text-white rounded-full text-[11px] font-black">
+                                        {biweek.services.reduce((acc, s) => acc + (s.num_servicios || 1), 0)}
+                                    </span>
+                                </td>
+                                <td colSpan={2} className="px-5 py-6 font-black text-2xl text-[#6bbdb7]">{fmtCurrency(biweek.totalLGM)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+const CSGNominaView = ({ csgServicesData = [] }) => {
+    const reportRef = useRef(null);
+    const [selectedBiweekId, setSelectedBiweekId] = useState(null);
+
+    const biweeks = useMemo(() => {
+        const groups = {};
+        const anchor = new Date(2025, 11, 28); // 12/28/2025
+        anchor.setHours(0, 0, 0, 0);
+
+        csgServicesData.forEach(s => {
+            if (!s.fecha) return;
+            const [m, d, y] = s.fecha.split('/').map(Number);
+            const date = new Date(y, m - 1, d);
+            date.setHours(0, 0, 0, 0);
+
+            const diffTime = date.getTime() - anchor.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            const biweekIdx = Math.floor(diffDays / 14);
+
+            if (!groups[biweekIdx]) {
+                const start = new Date(anchor);
+                start.setDate(start.getDate() + biweekIdx * 14);
+                const end = new Date(start);
+                end.setDate(end.getDate() + 13);
+                
+                const fmt = (dt) => `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}/${dt.getFullYear()}`;
+                
+                groups[biweekIdx] = {
+                    id: biweekIdx,
+                    start: fmt(start),
+                    end: fmt(end),
+                    label: `${fmt(start)} - ${fmt(end)}`,
+                    services: [],
+                    totalLGM: 0
+                };
+            }
+            groups[biweekIdx].services.push(s);
+            groups[biweekIdx].totalLGM += (s.monto_lgm || 0);
+        });
+
+        return Object.values(groups).sort((a, b) => b.id - a.id);
+    }, [csgServicesData]);
+
+    const selectedBiweekData = useMemo(() => {
+        if (selectedBiweekId === null) return null;
+        return biweeks.find(b => b.id === selectedBiweekId);
+    }, [biweeks, selectedBiweekId]);
+
+    const handleExportPDF = async () => {
+        if (!reportRef.current) return;
+        const canvas = await html2canvas(reportRef.current, { scale: 1.5, backgroundColor: '#ffffff' });
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const img = canvas.toDataURL('image/png');
+        const w = 210; const h = (canvas.height * w) / canvas.width;
+        pdf.addImage(img, 'PNG', 0, 0, w, h);
+        pdf.save(`Historial_Bisemanas_CSG_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-3 flex-1">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div ref={reportRef} className="bg-white rounded-[2.5rem] border-2 border-gray-50 overflow-hidden shadow-2xl shadow-blue-900/5">
+                <div className="px-10 py-8 bg-gradient-to-r from-[#303a7f]/5 to-transparent border-b border-gray-100 flex items-center justify-between">
                     <div>
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Desde</label>
-                        <input type="date" onChange={e => setFilterFrom(e.target.value)} className="bg-white border-2 border-gray-100 rounded-xl px-4 py-2.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" />
+                        <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter">Historial de Bisemanas</h3>
+                        <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest mt-1 opacity-80">
+                            Cleaning Services Group — Pago por Servicio
+                        </p>
                     </div>
-                    <div>
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Hasta</label>
-                        <input type="date" onChange={e => setFilterTo(e.target.value)} className="bg-white border-2 border-gray-100 rounded-xl px-4 py-2.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" />
-                    </div>
+                    <button onClick={handleExportPDF} className="px-6 py-3 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-teal-900/10">
+                        <Download size={15} /> Exportar Historial
+                    </button>
                 </div>
-                <button onClick={handleExportPDF} className="px-6 py-3 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-teal-900/10 self-end">
-                    <Download size={15} /> Exportar PDF
-                </button>
-            </div>
 
-            <div ref={reportRef} className="bg-white rounded-[2rem] border-2 border-gray-50 overflow-hidden shadow-sm">
-                <div className="px-8 py-6 bg-gradient-to-r from-[#303a7f]/5 to-transparent border-b border-gray-100">
-                    <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Nómina CSG por Empleado</h3>
-                    <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest mt-0.5 opacity-80">Cleaning Services Group — Pago por Servicio</p>
-                </div>
                 <table className="w-full border-collapse">
                     <thead>
-                        <tr className="bg-[#f9f9f9] border-b border-gray-100">
-                            {['Empleado', 'Cód.', 'Servicios', 'Total a Pagar'].map(h => (
-                                <th key={h} className="px-6 py-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest text-left">{h}</th>
+                        <tr className="bg-[#f9f9f9]/50 border-b border-gray-100">
+                            {['Rango de Bisemana', 'Servicios Totales', 'Total a Pagar', ''].map(h => (
+                                <th key={h} className="px-10 py-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-left">{h}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                        {byEmployee.length === 0 ? (
-                            <tr><td colSpan={4} className="py-16 text-center text-gray-300 font-bold text-xs uppercase tracking-widest">No hay registros para este período</td></tr>
-                        ) : byEmployee.map((e, i) => (
-                            <tr key={i} className="hover:bg-[#f9fffe] transition-colors">
-                                <td className="px-6 py-4 font-black text-sm text-[#303a7f]">{e.empleado}</td>
-                                <td className="px-6 py-4 text-[11px] font-bold text-gray-400">{e.codigo || '---'}</td>
-                                <td className="px-6 py-4">
-                                    <span className="px-3 py-1 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-full text-[11px] font-black">{e.servicios}</span>
+                        {biweeks.length === 0 ? (
+                            <tr><td colSpan={4} className="py-24 text-center text-gray-300 font-bold text-sm uppercase tracking-widest italic opacity-50">No hay servicios registrados</td></tr>
+                        ) : biweeks.map((bw, i) => (
+                            <tr key={i} className="hover:bg-[#303a7f]/[0.02] transition-all group">
+                                <td className="px-10 py-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-[#303a7f]/5 rounded-xl text-[#303a7f] group-hover:bg-[#303a7f] group-hover:text-white transition-all">
+                                            <Calendar size={18} />
+                                        </div>
+                                        <span className="font-black text-sm text-[#303a7f] tracking-tight">{bw.label}</span>
+                                    </div>
                                 </td>
-                                <td className="px-6 py-4 font-black text-sm text-[#303a7f]">{fmtCurrency(e.total)}</td>
+                                <td className="px-10 py-6">
+                                    <span className="px-4 py-1.5 bg-gray-100 text-gray-500 rounded-full text-[11px] font-black group-hover:bg-[#6bbdb7]/10 group-hover:text-[#6bbdb7] transition-all">
+                                        {bw.services.reduce((acc, s) => acc + (s.num_servicios || 1), 0)} Servicios
+                                    </span>
+                                </td>
+                                <td className="px-10 py-6 font-black text-base text-[#303a7f]">{fmtCurrency(bw.totalLGM)}</td>
+                                <td className="px-10 py-6 text-right">
+                                    <button 
+                                        onClick={() => setSelectedBiweekId(bw.id)}
+                                        className="px-6 py-2.5 bg-[#303a7f] text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all hover:bg-[#252a5e] shadow-lg shadow-blue-900/10 active:scale-95"
+                                    >
+                                        Ver Detalles
+                                    </button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
-                    <tfoot>
-                        <tr className="bg-[#303a7f]/5 border-t-2 border-gray-100">
-                            <td colSpan={2} className="px-6 py-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest">Total General</td>
-                            <td className="px-6 py-4"><span className="px-3 py-1 bg-[#303a7f] text-white rounded-full text-[11px] font-black">{byEmployee.reduce((a, e) => a + e.servicios, 0)}</span></td>
-                            <td className="px-6 py-4 font-black text-base text-[#6bbdb7]">{fmtCurrency(totalPago)}</td>
-                        </tr>
-                    </tfoot>
                 </table>
             </div>
+
+            {/* Ventana Emergente de Detalles */}
+            <CSGBiweekDetailsModal 
+                isOpen={selectedBiweekId !== null}
+                onClose={() => setSelectedBiweekId(null)}
+                biweek={selectedBiweekData}
+                fmtCurrency={fmtCurrency}
+            />
         </div>
     );
 };
+
+
 
 // ─── CSGBillingView: Facturación agrupada por tienda ─────────────────────────
 const CSGBillingView = ({ csgServicesData = [] }) => {
