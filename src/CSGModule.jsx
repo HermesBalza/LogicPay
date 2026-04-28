@@ -701,7 +701,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos }) => {
                 <table className="w-full border-collapse text-sm">
                     <thead>
                         <tr className="bg-[#f9f9f9] border-b border-gray-100">
-                            {['Correlativo', 'Fecha', 'Tienda', 'Empleado', 'Servicios', 'Pago LGM', 'Cobro CSG', 'Fotos', ''].map(h => (
+                            {['Correlativo', 'Fecha', 'Tienda', 'Empleado', 'Servicios', 'Cobro CSG', 'Pago LGM', 'Utilidad', 'Fotos', ''].map(h => (
                                 <th key={h} className="px-5 py-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest text-left whitespace-nowrap">{h}</th>
                             ))}
                         </tr>
@@ -711,13 +711,20 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos }) => {
                             <tr><td colSpan={9} className="py-16 text-center text-gray-300 font-bold text-xs uppercase tracking-widest">No hay registros</td></tr>
                         ) : filtered.map((s, i) => (
                             <tr key={i} className="hover:bg-[#f9fffe] transition-colors group">
-                                <td className="px-5 py-3 text-[11px] font-black text-[#6bbdb7] whitespace-nowrap">{s.correlativo}</td>
-                                <td className="px-5 py-3 text-[11px] font-bold text-gray-500 whitespace-nowrap">{fmtDate(s.fecha)}</td>
+                                <td className="px-5 py-3 text-[11px] font-black text-[#303a7f] whitespace-nowrap">{s.correlativo}</td>
+                                <td className="px-5 py-3 text-[11px] font-bold text-[#303a7f] whitespace-nowrap">{fmtDate(s.fecha)}</td>
                                 <td className="px-5 py-3 font-black text-xs text-[#303a7f] whitespace-nowrap">{s.tienda}</td>
-                                <td className="px-5 py-3 font-bold text-xs text-gray-700">{s.empleado}</td>
-                                <td className="px-5 py-3 text-center"><span className="px-2.5 py-1 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-full text-[11px] font-black">{s.num_servicios}</span></td>
-                                <td className="px-5 py-3 font-black text-xs text-[#303a7f] whitespace-nowrap">{fmtCurrency(s.monto_lgm)}</td>
+                                <td className="px-5 py-3 font-bold text-xs text-[#303a7f]">{s.empleado}</td>
+                                <td className="px-5 py-3 text-center"><span className="px-2.5 py-1 bg-[#303a7f]/10 text-[#303a7f] rounded-full text-[11px] font-black">{s.num_servicios}</span></td>
                                 <td className="px-5 py-3 font-black text-xs text-[#303a7f] whitespace-nowrap">{fmtCurrency(s.monto_csg)}</td>
+                                <td className="px-5 py-3 font-black text-xs text-red-500 whitespace-nowrap">{fmtCurrency(s.monto_lgm)}</td>
+                                <td className="px-5 py-3">
+                                    <div className="bg-teal-50/50 px-3 py-1.5 rounded-xl border border-teal-100/50 flex items-center justify-center min-w-[80px]">
+                                        <span className="text-[11px] font-black text-teal-600 drop-shadow-[0_0_8px_rgba(20,184,166,0.3)]">
+                                            {fmtCurrency((s.monto_csg || 0) - (s.monto_lgm || 0))}
+                                        </span>
+                                    </div>
+                                </td>
                                 <td className="px-5 py-3 text-center">
                                     <span className={`px-2.5 py-1 rounded-full text-[11px] font-black ${s.fotos && s.fotos.length > 0 ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-300'}`}>
                                         {s.fotos ? s.fotos.length : 0}
