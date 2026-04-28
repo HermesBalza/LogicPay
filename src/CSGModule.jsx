@@ -453,7 +453,7 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                     {/* Notas */}
                     <div>
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Notas</label>
-                        <textarea className={inputCls + ' resize-none'} rows={2} placeholder="Observaciones opcionales..." value={notas} onChange={e => setNotas(e.target.value)} />
+                        <textarea className={inputCls + ' resize-none'} rows={2} placeholder="Comentarios aquí..." value={notas} onChange={e => setNotas(e.target.value)} />
                     </div>
 
                     </div>
@@ -556,6 +556,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
     const [isSending, setIsSending] = useState(false);
     const [pdfBase64, setPdfBase64] = useState(null);
     const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
+    const [isConfirmed, setIsConfirmed] = useState(false);
 
     if (!isOpen || !biweek) return null;
 
@@ -635,6 +636,11 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
         }
     };
 
+    const handleConfirm = () => {
+        setIsConfirmed(true);
+        setTimeout(() => { onClose(); }, 1200);
+    };
+
     return createPortal(
         <div className="fixed inset-0 z-[1000] bg-[#303a7f]/40 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300 font-sans">
             <div className="bg-white w-full max-w-6xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
@@ -693,8 +699,12 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                                             </td>
                                             <td className="px-5 py-4 text-[10px] font-black text-[#303a7f] whitespace-nowrap">{fmtCurrency(s.monto_lgm)}</td>
                                             <td className="px-5 py-4">
-                                                <div className="text-[9px] font-medium text-gray-500 italic whitespace-nowrap uppercase">
-                                                    {s.notas || 'Sin notas'}
+                                                <div 
+                                                    contentEditable={true}
+                                                    suppressContentEditableWarning={true}
+                                                    className="w-full bg-transparent border-none text-[9px] font-medium text-gray-500 italic uppercase outline-none focus:text-[#303a7f] transition-all empty:before:content-['Comentarios_aquí...'] empty:before:text-gray-200 min-h-[14px]"
+                                                >
+                                                    {s.notas && s.notas !== 'Aquí van las notas u observaciones del servicio.' ? s.notas : ''}
                                                 </div>
                                             </td>
                                         </tr>
@@ -715,19 +725,19 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                                 </tfoot>
                             </table>
                         </div>
-
-                        {/* Footer informativo */}
-                        <div className="mt-8 pt-8 border-t border-gray-100 flex justify-between items-end opacity-40 pb-10">
-                            <div>
-                                <p className="text-[8px] font-black text-[#303a7f] uppercase tracking-[0.3em] mb-1">Documento Oficial Generado por</p>
-                                <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-tighter">LogicPay System — Cleaning Services Group Module</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1">Fecha de Emisión</p>
-                                <p className="text-[10px] font-black text-[#303a7f]">{new Date().toLocaleDateString()}</p>
-                            </div>
-                        </div>
                     </div>
+
+                        {/* Acción de Confirmación con Transición de Color */}
+                        <div className="mt-10 mb-6 flex justify-end px-12">
+                            <button 
+                                onClick={handleConfirm}
+                                disabled={isConfirmed}
+                                className={`h-12 px-8 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg flex items-center gap-2 group ${isConfirmed ? 'bg-[#10a345] shadow-green-900/20' : 'bg-[#303a7f] hover:bg-[#252a5e] shadow-blue-900/20'}`}
+                            >
+                                <CheckCircle size={18} className={isConfirmed ? 'scale-110' : 'group-hover:scale-110 transition-transform'} />
+                                {isConfirmed ? 'Nómina Confirmada' : 'Confirmar Nómina'}
+                            </button>
+                        </div>
                 </div>
             </div>
 
