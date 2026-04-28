@@ -11372,18 +11372,44 @@ function App() {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const csvText = await response.text();
             const lines = csvText.trim().split('\n').filter(l => l.trim());
-            if (lines.length < 2) { setCsgServicesData([]); return; }
+            
+            if (lines.length < 2) { 
+                setCsgServicesData([]); 
+                return; 
+            }
+
             const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
+            
             const loaded = lines.slice(1).map(line => {
                 const values = parseCSVRow(line);
-                const obj = {};
-                headers.forEach((h, i) => { obj[h] = (values[i] || '').trim(); });
-                // Extraer fotos (foto_1 ... foto_10)
+                const obj = createCSVRowObject(headers, values);
+                
+                // Extraer fotos (foto_1 ... foto_10) con búsqueda flexible
                 const fotos = [];
                 for (let f = 1; f <= 10; f++) {
                     const key = `foto_${f}`;
-                    if (obj[key] && obj[key].length > 10) fotos.push(obj[key]);
+                    // Intentar encontrar la foto por su llave normalizada o variaciones
+                    const photoVal = obj[key] || obj[`Foto ${f}`] || obj[`Foto_${f}`];
+                    if (photoVal && photoVal.length > 10) {
+                        fotos.push(photoVal);
+                    }
                 }
+
+                // Helper para encontrar valores numéricos
+                const getFloat = (keys, fallback = 0) => {
+                    for (let k of keys) {
+                        if (obj[k] !== undefined && obj[k] !== '') return parseFloat(obj[k]);
+                    }
+                    return fallback;
+                };
+
+                const getInt = (keys, fallback = 1) => {
+                    for (let k of keys) {
+                        if (obj[k] !== undefined && obj[k] !== '') return parseInt(obj[k]);
+                    }
+                    return fallback;
+                };
+
                 return {
                     correlativo: obj.correlativo || obj.Correlativo || '',
                     fecha: obj.fecha || obj.Fecha || '',
@@ -11391,14 +11417,16 @@ function App() {
                     codigo_tienda: obj.codigo_tienda || obj['Codigo Tienda'] || '',
                     empleado: obj.empleado || obj.Empleado || '',
                     codigo_empleado: obj.codigo_empleado || obj['Codigo Empleado'] || '',
-                    num_servicios: parseInt(obj.num_servicios || obj['Num Servicios'] || 1) || 1,
-                    monto_lgm: parseFloat(obj.monto_lgm || obj['Monto LGM'] || 0) || 0,
-                    monto_csg: parseFloat(obj.monto_csg || obj['Monto CSG'] || 0) || 0,
-                    notas: obj.notas || obj.Notas || '',
+                    num_servicios: getInt(['num_servicios', 'Num Servicios', 'servicios', 'Servicios'], 1),
+                    monto_lgm: getFloat(['monto_lgm', 'Monto LGM', 'pago_lgm', 'Pago LGM', 'rate_lgm']),
+                    monto_csg: getFloat(['monto_csg', 'Monto CSG', 'cobro_csg', 'Cobro CSG', 'rate_csg']),
+                    notas: obj.notas || obj.Notas || obj.observaciones || '',
                     estado: obj.estado || obj.Estado || 'registrado',
                     fotos
                 };
             }).filter(r => r.correlativo || r.fecha || r.empleado);
+
+            console.log(`[CSG] ${loaded.length} servicios cargados exitosamente.`);
             setCsgServicesData(loaded);
         } catch (error) {
             console.error('[CSG] Error cargando servicios CSG:', error);
