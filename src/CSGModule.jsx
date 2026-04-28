@@ -585,7 +585,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
             console.error('[CSG] Error capturando PDF para correo:', e);
             setNotificationModal({
                 isOpen: true,
-                type: 'success', // En este componente success se usa para mostrar mensaje final (aunque sea error en este caso, sigo patrón de App.jsx)
+                type: 'success',
                 message: "Error al preparar el documento para el envío."
             });
         } finally {
@@ -636,7 +636,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
     };
 
     return createPortal(
-        <div className="fixed inset-0 z-[1000] bg-[#303a7f]/40 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[1000] bg-[#303a7f]/40 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300 font-sans">
             <div className="bg-white w-full max-w-6xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
                 <div className="px-10 py-8 bg-gradient-to-r from-[#303a7f]/5 to-transparent border-b border-gray-100 flex items-center justify-between">
                     <div>
@@ -661,49 +661,73 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-10" ref={reportRef}>
-                    <table className="w-full border-collapse">
-                        <thead>
-                            <tr className="bg-[#f9f9f9]/50 border-b border-gray-100">
-                                {['Correlativo', 'Fecha', 'Tienda', 'Empleado', 'Servicios', 'Pago LGM', 'Comentarios'].map(h => (
-                                    <th key={h} className="px-5 py-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-left">{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {[...biweek.services].sort((a,b) => new Date(a.fecha) - new Date(b.fecha)).map((s, i) => (
-                                <tr key={i} className="hover:bg-[#6bbdb7]/[0.03] transition-all">
-                                    <td className="px-5 py-4 text-[11px] font-black text-[#303a7f] whitespace-nowrap">{s.correlativo}</td>
-                                    <td className="px-5 py-4 text-[11px] font-bold text-[#303a7f] whitespace-nowrap">{s.fecha}</td>
-                                    <td className="px-5 py-4 font-black text-[11px] text-[#303a7f]">{s.tienda}</td>
-                                    <td className="px-5 py-4 font-bold text-[11px] text-[#303a7f]">{s.empleado}</td>
-                                    <td className="px-5 py-4 text-center">
-                                        <span className="px-2.5 py-1 bg-[#303a7f]/10 text-[#303a7f] rounded-full text-[11px] font-black">{s.num_servicios}</span>
-                                    </td>
-                                    <td className="px-5 py-4 font-black text-xs text-[#303a7f]">{fmtCurrency(s.monto_lgm)}</td>
-                                    <td className="px-5 py-4">
-                                        <input 
-                                            type="text" 
-                                            placeholder="Nota..."
-                                            className="w-full bg-transparent border-b border-dashed border-gray-200 py-1 text-[11px] font-medium text-gray-500 outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300"
-                                            defaultValue={s.notas || ''}
-                                        />
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                        <tfoot>
-                            <tr className="bg-[#303a7f]/5 border-t-2 border-gray-100">
-                                <td colSpan={4} className="px-5 py-6 text-[11px] font-black text-[#303a7f] uppercase tracking-widest text-right">Total Bisemana</td>
-                                <td className="px-5 py-6 text-center">
-                                    <span className="px-4 py-1.5 bg-[#303a7f] text-white rounded-full text-[11px] font-black">
-                                        {biweek.services.reduce((acc, s) => acc + (s.num_servicios || 1), 0)}
-                                    </span>
-                                </td>
-                                <td colSpan={2} className="px-5 py-6 font-black text-2xl text-[#6bbdb7]">{fmtCurrency(biweek.totalLGM)}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
+                    <div ref={reportRef} className="p-12">
+                        {/* Encabezado Optimizado (Fiel a la nueva solicitud) */}
+                        <div className="flex items-center gap-6 mb-12 border-b-2 border-gray-50 pb-8">
+                            <img src="/Logo Logic Group Management.png" alt="Logo LGM" className="h-14 object-contain" />
+                            <div>
+                                <h1 className="text-2xl font-black text-[#303a7f] uppercase tracking-tighter leading-none mb-1">Nómina Bisemanal</h1>
+                                <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-90">Cleaning Services Group — {biweek.label}</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-[2rem] border-2 border-gray-50 shadow-sm overflow-hidden mb-12">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="bg-[#303a7f]">
+                                        {['Correlativo', 'Fecha', 'Tienda', 'Empleado', 'Servicios', 'Pago LGM', 'Comentarios'].map(h => (
+                                            <th key={h} className="px-5 py-4 text-[9px] font-black text-white uppercase tracking-[0.15em] text-left whitespace-nowrap">{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {[...biweek.services].sort((a,b) => new Date(a.fecha) - new Date(b.fecha)).map((s, i) => (
+                                        <tr key={i} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-[#6bbdb7]/[0.03] transition-all`}>
+                                            <td className="px-5 py-4 text-[10px] font-black text-[#303a7f] whitespace-nowrap uppercase">{s.correlativo}</td>
+                                            <td className="px-5 py-4 text-[10px] font-bold text-[#303a7f] whitespace-nowrap uppercase">{s.fecha}</td>
+                                            <td className="px-5 py-4 text-[10px] font-black text-[#303a7f] whitespace-nowrap uppercase">{s.tienda}</td>
+                                            <td className="px-5 py-4 text-[10px] font-bold text-[#303a7f] whitespace-nowrap uppercase">{s.empleado}</td>
+                                            <td className="px-5 py-4 text-center">
+                                                <span className="inline-flex w-7 h-7 items-center justify-center bg-white text-[#303a7f] rounded-lg text-[9px] font-black border border-gray-100 shadow-sm">{s.num_servicios}</span>
+                                            </td>
+                                            <td className="px-5 py-4 text-[10px] font-black text-[#303a7f] whitespace-nowrap">{fmtCurrency(s.monto_lgm)}</td>
+                                            <td className="px-5 py-4">
+                                                <div className="text-[9px] font-medium text-gray-500 italic whitespace-nowrap uppercase">
+                                                    {s.notas || 'Sin notas'}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot>
+                                    <tr className="bg-[#303a7f]/5 border-t-4 border-[#303a7f]/10">
+                                        <td colSpan={4} className="px-5 py-10 text-[10px] font-black text-[#303a7f] uppercase tracking-[0.3em] text-right whitespace-nowrap">Consolidado Final</td>
+                                        <td className="px-5 py-10 text-center">
+                                            <span className="w-10 h-10 inline-flex items-center justify-center bg-[#303a7f] text-white rounded-xl text-xs font-black shadow-lg shadow-blue-900/20">
+                                                {biweek.services.reduce((acc, s) => acc + (s.num_servicios || 1), 0)}
+                                            </span>
+                                        </td>
+                                        <td colSpan={2} className="px-5 py-10">
+                                            <span className="text-3xl font-black text-[#6bbdb7] tracking-tighter drop-shadow-sm whitespace-nowrap">{fmtCurrency(biweek.totalLGM)}</span>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        {/* Footer informativo */}
+                        <div className="mt-8 pt-8 border-t border-gray-100 flex justify-between items-end opacity-40 pb-10">
+                            <div>
+                                <p className="text-[8px] font-black text-[#303a7f] uppercase tracking-[0.3em] mb-1">Documento Oficial Generado por</p>
+                                <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-tighter">LogicPay System — Cleaning Services Group Module</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1">Fecha de Emisión</p>
+                                <p className="text-[10px] font-black text-[#303a7f]">{new Date().toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
