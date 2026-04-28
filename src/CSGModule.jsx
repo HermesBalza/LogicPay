@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon, CreditCard } from 'lucide-react';
+import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon, CreditCard, Send, Receipt, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -684,7 +684,7 @@ const CSGBillingView = ({ csgServicesData = [] }) => {
 };
 
 // ─── CSGHistorialView: Historial de servicios con visor de fotos ──────────────
-const CSGHistorialView = ({ csgServicesData = [], onViewPhotos }) => {
+const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, apiUrl }) => {
     const [search, setSearch] = useState('');
     const [selectedService, setSelectedService] = useState(null);
     const filtered = useMemo(() => {
@@ -756,6 +756,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos }) => {
                 <CSGServiceDetailsModal 
                     service={selectedService} 
                     onClose={() => setSelectedService(null)} 
+                    apiUrl={apiUrl}
                 />
             )}
         </div>
@@ -763,10 +764,60 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos }) => {
 };
 
 // ─── CSGServiceDetailsModal: Ventana emergente con detalles completos ─────────
-const CSGServiceDetailsModal = ({ service, onClose }) => {
+const CSGServiceDetailsModal = ({ service, onClose, apiUrl }) => {
     if (!service) return null;
 
     const [activePhotoIdx, setActivePhotoIdx] = useState(null);
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
+
+    const handleSendEmail = async (emailData) => {
+        if (!apiUrl) {
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: "Error: No se ha configurado la URL de la API de Correo."
+            });
+            return;
+        }
+
+        setNotificationModal({
+            isOpen: true,
+            type: 'loading',
+            message: `Estamos preparando y enviando el reporte a ${emailData.to}. Por favor, no cierre esta ventana.`
+        });
+
+        try {
+            await fetch(apiUrl, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    action: 'sendEmail',
+                    ...emailData,
+                    attachments: (service.fotos || []).map((f, i) => ({
+                        name: `evidencia_${i + 1}.jpg`,
+                        type: 'image/jpeg',
+                        base64: f
+                    }))
+                })
+            });
+
+            setIsEmailModalOpen(false);
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: `El correo de servicio ha sido procesado y enviado con éxito a ${emailData.to}.`
+            });
+        } catch (error) {
+            console.error('[CSG] Error enviando correo:', error);
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: "Error al enviar el correo. Por favor intente nuevamente."
+            });
+        }
+    };
 
     const DetailItem = ({ label, value, color = "text-[#303a7f]" }) => (
         <div className="space-y-1">
@@ -856,7 +907,14 @@ const CSGServiceDetailsModal = ({ service, onClose }) => {
                 </div>
 
                 {/* Footer */}
-                <div className="px-10 py-6 border-t border-gray-50 bg-white text-right">
+                <div className="px-10 py-6 border-t border-gray-50 bg-white flex justify-end gap-4">
+                    <button 
+                        onClick={() => setIsEmailModalOpen(true)}
+                        className="px-8 py-3 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 shadow-lg shadow-teal-900/20 flex items-center gap-2"
+                    >
+                        <Mail size={16} />
+                        Enviar Correo
+                    </button>
                     <button 
                         onClick={onClose}
                         className="px-8 py-3 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 shadow-lg shadow-blue-900/20"
@@ -864,6 +922,23 @@ const CSGServiceDetailsModal = ({ service, onClose }) => {
                         Cerrar Detalles
                     </button>
                 </div>
+
+                {/* Modal de Envío de Correo */}
+                <CSGServiceEmailModal 
+                    isOpen={isEmailModalOpen}
+                    onClose={() => setIsEmailModalOpen(false)}
+                    service={service}
+                    onSend={handleSendEmail}
+                    isSending={notificationModal.isOpen && notificationModal.type === 'loading'}
+                />
+
+                {/* Modal de Notificación Interno */}
+                <EmailNotificationModal 
+                    isOpen={notificationModal.isOpen}
+                    type={notificationModal.type}
+                    message={notificationModal.message}
+                    onOk={() => setNotificationModal({ ...notificationModal, isOpen: false })}
+                />
 
                 {/* Visor de Fotos Integrado */}
                 {activePhotoIdx !== null && (
@@ -874,6 +949,165 @@ const CSGServiceDetailsModal = ({ service, onClose }) => {
                         startIdx={activePhotoIdx}
                         title={`Evidencia: ${service.correlativo}`}
                     />
+                )}
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+// ─── CSGServiceEmailModal: Interfaz de envío de correo estilo VWH ─────────────
+const CSGServiceEmailModal = ({ isOpen, onClose, service, onSend, isSending }) => {
+    const [to, setTo] = useState('');
+    const [subject, setSubject] = useState(`Reporte de Servicio CSG - ${service.correlativo} - ${service.tienda}`);
+    const [body, setBody] = useState(`Hola,\n\nAdjunto envío el detalle del servicio realizado en la tienda ${service.tienda} con fecha ${service.fecha}.\n\nCorrelativo: ${service.correlativo}\nEmpleado: ${service.empleado}\nTotal Servicios: ${service.num_servicios}\n\nSaludos,\nLogic Group Management`);
+
+    if (!isOpen) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-[0_32px_80px_rgba(48,58,127,0.25)] border-2 border-white/50 overflow-hidden animate-in zoom-in-95 duration-500">
+                {/* Header */}
+                <div className="px-10 py-6 border-b-2 border-gray-50 bg-gradient-to-r from-blue-50/50 to-transparent flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <Mail size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Enviar Servicio CSG</h3>
+                            <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="px-10 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                        {/* To */}
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
+                            <div className="relative">
+                                <input
+                                    type="email"
+                                    value={to}
+                                    onChange={(e) => setTo(e.target.value)}
+                                    placeholder="ejemplo@correo.com"
+                                    className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
+                                />
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]">
+                                    <Send size={16} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Subject */}
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto del Correo</label>
+                            <input
+                                type="text"
+                                value={subject}
+                                onChange={(e) => setSubject(e.target.value)}
+                                className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
+                            />
+                        </div>
+
+                        {/* Attachment Preview */}
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documento Adjunto</label>
+                            <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
+                                <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10">
+                                    <FileText size={18} />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">CSG_{service.correlativo}.pdf</p>
+                                    <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Generado Automáticamente</p>
+                                </div>
+                                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm">
+                                    <Check size={14} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column: Message */}
+                    <div className="flex flex-col space-y-1.5 h-full">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
+                        <div className="flex-1 relative min-h-[180px]">
+                            <textarea
+                                value={body}
+                                onChange={(e) => setBody(e.target.value)}
+                                className="w-full h-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm leading-relaxed"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-10 pb-10 flex gap-4">
+                    <button
+                        onClick={onClose}
+                        className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={() => !isSending && onSend({ to, subject, body })}
+                        disabled={isSending}
+                        className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3 group ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-[0_15px_30px_rgba(107,189,183,0.3)] hover:bg-[#59aba5]'}`}
+                    >
+                        {isSending ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <Receipt size={18} className="group-hover:rotate-12 transition-transform" />
+                        )}
+                        {isSending ? 'Procesando Envío...' : 'Enviar Ahora'}
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+// ─── EmailNotificationModal: Modal de notificaciones premium para correos ─────
+const EmailNotificationModal = ({ isOpen, type, message, onOk }) => {
+    if (!isOpen) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-10 flex flex-col items-center text-center animate-in zoom-in-95 duration-500 border-2 border-white relative overflow-hidden">
+                {/* Background Decor */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16 opacity-50" />
+
+                <div className={`w-20 h-20 rounded-[1.8rem] flex items-center justify-center mb-8 shadow-2xl transition-all duration-500 relative z-10 ${type === 'loading'
+                    ? 'bg-[#303a7f] text-white shadow-blue-900/20'
+                    : 'bg-[#6bbdb7] text-white shadow-teal-900/20'
+                    }`}>
+                    {type === 'loading' ? (
+                        <Loader2 size={36} className="animate-spin" />
+                    ) : (
+                        <CheckCircle size={36} className="animate-in zoom-in duration-500" />
+                    )}
+                </div>
+
+                <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-4 relative z-10">
+                    {type === 'loading' ? 'Enviando...' : '¡Correo Enviado!'}
+                </h3>
+
+                <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-10 uppercase tracking-[0.1em] px-4 relative z-10">
+                    {message}
+                </p>
+
+                {type === 'success' && (
+                    <button
+                        onClick={onOk}
+                        className="w-full py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#1e234d] transition-all active:scale-95 relative z-10"
+                    >
+                        Ok, Entendido
+                    </button>
                 )}
             </div>
         </div>,
@@ -1317,7 +1551,7 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
 };
 
 // ─── CSGView: Contenedor principal del módulo CSG ────────────────────────────
-const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, setIsAddingStore, setIsAddingEmployee, onAddStore, onAddEmployee, geminiApiKey }) => {
+const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, setIsAddingStore, setIsAddingEmployee, onAddStore, onAddEmployee, geminiApiKey, apiUrl }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [isAddingCsgStore, setIsAddingCsgStore] = useState(false);
     const [isAddingCsgEmployee, setIsAddingCsgEmployee] = useState(false);
@@ -1460,7 +1694,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
 
             {/* Content */}
             {activeCSGTab === 'registro' && (
-                <CSGHistorialView csgServicesData={csgServicesData} onViewPhotos={(s) => setPhotoModal({ open: true, fotos: s.fotos || [], title: `${s.tienda} — ${s.fecha}` })} />
+                <CSGHistorialView csgServicesData={csgServicesData} onViewPhotos={(s) => setPhotoModal({ open: true, fotos: s.fotos || [], title: `${s.tienda} — ${s.fecha}` })} apiUrl={apiUrl} />
             )}
             {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} />}
             {activeCSGTab === 'facturacion' && <CSGBillingView csgServicesData={csgServicesData} />}

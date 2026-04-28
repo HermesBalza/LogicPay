@@ -12895,6 +12895,7 @@ function App() {
                             onAddStore={handleCreateStore}
                             onAddEmployee={handleCreateEmployee}
                             geminiApiKey={geminiApiKey}
+                            apiUrl={API_URL}
                         />
                     )}
 
