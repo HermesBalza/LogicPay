@@ -684,7 +684,7 @@ const CSGBillingView = ({ csgServicesData = [] }) => {
 };
 
 // ─── CSGHistorialView: Historial de servicios con visor de fotos ──────────────
-const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl }) => {
+const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, emailsSent = {}, onEmailSent }) => {
     const [search, setSearch] = useState('');
     const [selectedService, setSelectedService] = useState(null);
     const filtered = useMemo(() => {
@@ -714,12 +714,19 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl }) =>
                             <tr key={i} className="hover:bg-[#f9fffe] transition-colors group">
                                 <td className="px-5 py-3 text-[11px] font-black text-[#303a7f] whitespace-nowrap">{s.correlativo}</td>
                                 <td className="px-5 py-3 text-[11px] font-bold text-[#303a7f] whitespace-nowrap">
-                                    <button 
-                                        onClick={() => setSelectedService(s)}
-                                        className="hover:text-[#6bbdb7] border-b-2 border-dashed border-[#303a7f]/20 transition-all pb-0.5"
-                                    >
-                                        {fmtDate(s.fecha)}
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={() => setSelectedService(s)}
+                                            className="hover:text-[#6bbdb7] border-b-2 border-dashed border-[#303a7f]/20 transition-all pb-0.5"
+                                        >
+                                            {fmtDate(s.fecha)}
+                                        </button>
+                                        {emailsSent[s.correlativo] && (
+                                            <div className="text-[#6bbdb7] animate-in zoom-in duration-300">
+                                                <Send size={12} />
+                                            </div>
+                                        )}
+                                    </div>
                                 </td>
                                 <td className="px-5 py-3 font-black text-xs text-[#303a7f] whitespace-nowrap">{s.tienda}</td>
                                 <td className="px-5 py-3 font-bold text-xs text-[#303a7f]">{s.empleado}</td>
@@ -757,6 +764,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl }) =>
                     service={selectedService} 
                     onClose={() => setSelectedService(null)} 
                     mailApiUrl={mailApiUrl}
+                    onEmailSent={onEmailSent}
                 />
             )}
         </div>
@@ -764,7 +772,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl }) =>
 };
 
 // ─── CSGServiceDetailsModal: Ventana emergente con detalles completos ─────────
-const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl }) => {
+const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, onEmailSent }) => {
     if (!service) return null;
 
     const [activePhotoIdx, setActivePhotoIdx] = useState(null);
@@ -805,6 +813,7 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl }) => {
             });
 
             setIsEmailModalOpen(false);
+            if (onEmailSent) onEmailSent(service.correlativo);
             setNotificationModal({
                 isOpen: true,
                 type: 'success',
@@ -1559,6 +1568,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
     const [reviewModal, setReviewModal] = useState({ open: false, payload: null });
     const [photoModal, setPhotoModal] = useState({ open: false, fotos: [], title: '' });
     const [statusModal, setStatusModal] = useState({ open: false, title: '', message: '' });
+    const [emailsSent, setEmailsSent] = useState({});
 
     const csgStores = useMemo(() => stores.filter(s => (s.cliente || '').toUpperCase() === 'CSG'), [stores]);
 
@@ -1695,7 +1705,13 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
 
             {/* Content */}
             {activeCSGTab === 'registro' && (
-                <CSGHistorialView csgServicesData={csgServicesData} onViewPhotos={(s) => setPhotoModal({ open: true, fotos: s.fotos || [], title: `${s.tienda} — ${s.fecha}` })} mailApiUrl={mailApiUrl} />
+                <CSGHistorialView 
+                    csgServicesData={csgServicesData} 
+                    onViewPhotos={(s) => setPhotoModal({ open: true, fotos: s.fotos || [], title: `${s.tienda} — ${s.fecha}` })} 
+                    mailApiUrl={mailApiUrl}
+                    emailsSent={emailsSent}
+                    onEmailSent={(id) => setEmailsSent(prev => ({ ...prev, [id]: true }))}
+                />
             )}
             {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} />}
             {activeCSGTab === 'facturacion' && <CSGBillingView csgServicesData={csgServicesData} />}
