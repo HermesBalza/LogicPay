@@ -684,7 +684,7 @@ const CSGBillingView = ({ csgServicesData = [] }) => {
 };
 
 // ─── CSGHistorialView: Historial de servicios con visor de fotos ──────────────
-const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, emailsSent = {}, onEmailSent }) => {
+const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, syncToSheets }) => {
     const [search, setSearch] = useState('');
     const [selectedService, setSelectedService] = useState(null);
     const filtered = useMemo(() => {
@@ -721,7 +721,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, emai
                                         >
                                             {fmtDate(s.fecha)}
                                         </button>
-                                        {emailsSent[s.correlativo] && (
+                                        {s.correo_enviado === 'Enviado' && (
                                             <div className="text-[#6bbdb7] animate-in zoom-in duration-300">
                                                 <Send size={12} />
                                             </div>
@@ -764,7 +764,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, emai
                     service={selectedService} 
                     onClose={() => setSelectedService(null)} 
                     mailApiUrl={mailApiUrl}
-                    onEmailSent={onEmailSent}
+                    syncToSheets={syncToSheets}
                 />
             )}
         </div>
@@ -772,12 +772,14 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, emai
 };
 
 // ─── CSGServiceDetailsModal: Ventana emergente con detalles completos ─────────
-const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, onEmailSent }) => {
+const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) => {
     if (!service) return null;
 
     const [activePhotoIdx, setActivePhotoIdx] = useState(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
+
+    const isAlreadySent = service.correo_enviado === 'Enviado';
 
     const handleSendEmail = async (emailData) => {
         if (!mailApiUrl) {
@@ -812,8 +814,35 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, onEmailSent }) =
                 })
             });
 
+            // Sincronizar con la base de datos
+            if (syncToSheets) {
+                const syncData = { 
+                    ...service, 
+                    correo_enviado: 'Enviado' 
+                };
+                
+                // Reconstruir columnas de fotos individuales para que el Sheet las mantenga
+                if (service.fotos && Array.isArray(service.fotos)) {
+                    service.fotos.forEach((fotoBase64, idx) => {
+                        if (idx < 10) {
+                            syncData[`foto_${idx + 1}`] = fotoBase64;
+                        }
+                    });
+                }
+                
+                // Eliminamos la propiedad 'fotos' (array) para evitar conflictos con las columnas individuales del Sheet
+                delete syncData.fotos;
+
+                await syncToSheets(
+                    'upsert', 
+                    syncData, 
+                    'CSG_Servicios', 
+                    false, 
+                    ['correlativo']
+                );
+            }
+
             setIsEmailModalOpen(false);
-            if (onEmailSent) onEmailSent(service.correlativo);
             setNotificationModal({
                 isOpen: true,
                 type: 'success',
@@ -919,11 +948,12 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, onEmailSent }) =
                 {/* Footer */}
                 <div className="px-10 py-6 border-t border-gray-50 bg-white flex justify-end gap-4">
                     <button 
-                        onClick={() => setIsEmailModalOpen(true)}
-                        className="px-8 py-3 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 shadow-lg shadow-teal-900/20 flex items-center gap-2"
+                        onClick={() => !isAlreadySent && setIsEmailModalOpen(true)}
+                        disabled={isAlreadySent}
+                        className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg flex items-center gap-2 ${isAlreadySent ? 'bg-gray-400 cursor-not-allowed opacity-60 text-white' : 'bg-[#6bbdb7] text-white hover:bg-[#59aba5] shadow-teal-900/20'}`}
                     >
                         <Mail size={16} />
-                        Enviar Correo
+                        {isAlreadySent ? 'CORREO ENVIADO' : 'ENVIAR CORREO'}
                     </button>
                     <button 
                         onClick={onClose}
@@ -1568,7 +1598,6 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
     const [reviewModal, setReviewModal] = useState({ open: false, payload: null });
     const [photoModal, setPhotoModal] = useState({ open: false, fotos: [], title: '' });
     const [statusModal, setStatusModal] = useState({ open: false, title: '', message: '' });
-    const [emailsSent, setEmailsSent] = useState({});
 
     const csgStores = useMemo(() => stores.filter(s => (s.cliente || '').toUpperCase() === 'CSG'), [stores]);
 
@@ -1709,8 +1738,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                     csgServicesData={csgServicesData} 
                     onViewPhotos={(s) => setPhotoModal({ open: true, fotos: s.fotos || [], title: `${s.tienda} — ${s.fecha}` })} 
                     mailApiUrl={mailApiUrl}
-                    emailsSent={emailsSent}
-                    onEmailSent={(id) => setEmailsSent(prev => ({ ...prev, [id]: true }))}
+                    syncToSheets={syncToSheets}
                 />
             )}
             {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} />}

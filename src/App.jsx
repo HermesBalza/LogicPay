@@ -11422,6 +11422,7 @@ function App() {
                     monto_csg: getFloat(['monto_csg', 'Monto CSG', 'cobro_csg', 'Cobro CSG', 'rate_csg']),
                     notas: obj.notas || obj.Notas || obj.observaciones || '',
                     estado: obj.estado || obj.Estado || 'registrado',
+                    correo_enviado: obj.correo_enviado || obj['Correo Enviado'] || '',
                     fotos
                 };
             }).filter(r => r.correlativo || r.fecha || r.empleado);
@@ -11479,6 +11480,7 @@ function App() {
                     setTimeout(() => {
                         fetchStores();
                         if (sheetName === 'Personal') fetchEmployees();
+                        if (sheetName === 'CSG_Servicios') fetchCSGServices();
                     }, 2000);
                 }
             })
