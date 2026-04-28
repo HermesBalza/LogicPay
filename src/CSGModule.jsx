@@ -684,7 +684,7 @@ const CSGBillingView = ({ csgServicesData = [] }) => {
 };
 
 // ─── CSGHistorialView: Historial de servicios con visor de fotos ──────────────
-const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, apiUrl }) => {
+const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl }) => {
     const [search, setSearch] = useState('');
     const [selectedService, setSelectedService] = useState(null);
     const filtered = useMemo(() => {
@@ -756,7 +756,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, apiUrl }) => {
                 <CSGServiceDetailsModal 
                     service={selectedService} 
                     onClose={() => setSelectedService(null)} 
-                    apiUrl={apiUrl}
+                    mailApiUrl={mailApiUrl}
                 />
             )}
         </div>
@@ -764,7 +764,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, apiUrl }) => {
 };
 
 // ─── CSGServiceDetailsModal: Ventana emergente con detalles completos ─────────
-const CSGServiceDetailsModal = ({ service, onClose, apiUrl }) => {
+const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl }) => {
     if (!service) return null;
 
     const [activePhotoIdx, setActivePhotoIdx] = useState(null);
@@ -772,11 +772,11 @@ const CSGServiceDetailsModal = ({ service, onClose, apiUrl }) => {
     const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
 
     const handleSendEmail = async (emailData) => {
-        if (!apiUrl) {
+        if (!mailApiUrl) {
             setNotificationModal({
                 isOpen: true,
                 type: 'success',
-                message: "Error: No se ha configurado la URL de la API de Correo."
+                message: "Error: No se ha configurado la URL de la API de Correo (MAIL_API_URL)."
             });
             return;
         }
@@ -788,13 +788,14 @@ const CSGServiceDetailsModal = ({ service, onClose, apiUrl }) => {
         });
 
         try {
-            await fetch(apiUrl, {
+            await fetch(mailApiUrl, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify({
-                    action: 'sendEmail',
-                    ...emailData,
+                    to: emailData.to,
+                    subject: emailData.subject,
+                    body: emailData.body,
                     attachments: (service.fotos || []).map((f, i) => ({
                         name: `evidencia_${i + 1}.jpg`,
                         type: 'image/jpeg',
@@ -1551,7 +1552,7 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
 };
 
 // ─── CSGView: Contenedor principal del módulo CSG ────────────────────────────
-const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, setIsAddingStore, setIsAddingEmployee, onAddStore, onAddEmployee, geminiApiKey, apiUrl }) => {
+const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, setIsAddingStore, setIsAddingEmployee, onAddStore, onAddEmployee, geminiApiKey, apiUrl, mailApiUrl }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [isAddingCsgStore, setIsAddingCsgStore] = useState(false);
     const [isAddingCsgEmployee, setIsAddingCsgEmployee] = useState(false);
@@ -1694,7 +1695,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
 
             {/* Content */}
             {activeCSGTab === 'registro' && (
-                <CSGHistorialView csgServicesData={csgServicesData} onViewPhotos={(s) => setPhotoModal({ open: true, fotos: s.fotos || [], title: `${s.tienda} — ${s.fecha}` })} apiUrl={apiUrl} />
+                <CSGHistorialView csgServicesData={csgServicesData} onViewPhotos={(s) => setPhotoModal({ open: true, fotos: s.fotos || [], title: `${s.tienda} — ${s.fecha}` })} mailApiUrl={mailApiUrl} />
             )}
             {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} />}
             {activeCSGTab === 'facturacion' && <CSGBillingView csgServicesData={csgServicesData} />}

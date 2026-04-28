@@ -12896,6 +12896,7 @@ function App() {
                             onAddEmployee={handleCreateEmployee}
                             geminiApiKey={geminiApiKey}
                             apiUrl={API_URL}
+                            mailApiUrl={MAIL_API_URL}
                         />
                     )}
 
