@@ -64,7 +64,7 @@ const CSGPhotoViewer = ({ isOpen, onClose, fotos = [], title = 'Evidencia Fotogr
     const prev = () => setIdx(i => (i - 1 + fotos.length) % fotos.length);
     const next = () => setIdx(i => (i + 1) % fotos.length);
     return createPortal(
-        <div className="fixed inset-0 z-[700] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-2xl rounded-[2rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
                 <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100">
                     <div>
@@ -686,6 +686,7 @@ const CSGBillingView = ({ csgServicesData = [] }) => {
 // ─── CSGHistorialView: Historial de servicios con visor de fotos ──────────────
 const CSGHistorialView = ({ csgServicesData = [], onViewPhotos }) => {
     const [search, setSearch] = useState('');
+    const [selectedService, setSelectedService] = useState(null);
     const filtered = useMemo(() => {
         const q = search.toLowerCase();
         if (!q) return csgServicesData;
@@ -712,7 +713,14 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos }) => {
                         ) : filtered.map((s, i) => (
                             <tr key={i} className="hover:bg-[#f9fffe] transition-colors group">
                                 <td className="px-5 py-3 text-[11px] font-black text-[#303a7f] whitespace-nowrap">{s.correlativo}</td>
-                                <td className="px-5 py-3 text-[11px] font-bold text-[#303a7f] whitespace-nowrap">{fmtDate(s.fecha)}</td>
+                                <td className="px-5 py-3 text-[11px] font-bold text-[#303a7f] whitespace-nowrap">
+                                    <button 
+                                        onClick={() => setSelectedService(s)}
+                                        className="hover:text-[#6bbdb7] border-b-2 border-dashed border-[#303a7f]/20 transition-all pb-0.5"
+                                    >
+                                        {fmtDate(s.fecha)}
+                                    </button>
+                                </td>
                                 <td className="px-5 py-3 font-black text-xs text-[#303a7f] whitespace-nowrap">{s.tienda}</td>
                                 <td className="px-5 py-3 font-bold text-xs text-[#303a7f]">{s.empleado}</td>
                                 <td className="px-5 py-3 text-center"><span className="px-2.5 py-1 bg-[#303a7f]/10 text-[#303a7f] rounded-full text-[11px] font-black">{s.num_servicios}</span></td>
@@ -742,7 +750,134 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos }) => {
                     </tbody>
                 </table>
             </div>
+
+            {/* Modal de Detalles del Servicio */}
+            {selectedService && (
+                <CSGServiceDetailsModal 
+                    service={selectedService} 
+                    onClose={() => setSelectedService(null)} 
+                />
+            )}
         </div>
+    );
+};
+
+// ─── CSGServiceDetailsModal: Ventana emergente con detalles completos ─────────
+const CSGServiceDetailsModal = ({ service, onClose }) => {
+    if (!service) return null;
+
+    const [activePhotoIdx, setActivePhotoIdx] = useState(null);
+
+    const DetailItem = ({ label, value, color = "text-[#303a7f]" }) => (
+        <div className="space-y-1">
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">{label}</span>
+            <span className={`text-xs font-bold ${color} block`}>{value}</span>
+        </div>
+    );
+
+    return createPortal(
+        <div className="fixed inset-0 z-[850] bg-[#303a7f]/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+                {/* Header */}
+                <div className="px-10 py-8 border-b border-gray-50 flex items-center justify-between bg-white sticky top-0 z-10">
+                    <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 bg-[#303a7f]/5 rounded-2xl flex items-center justify-center">
+                            <FileText size={24} className="text-[#303a7f]" />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter leading-none">
+                                Detalle de Servicio
+                            </h3>
+                            <div className="flex items-center gap-2 mt-2">
+                                <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest">{service.correlativo}</span>
+                                <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{service.estado}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-3 hover:bg-red-50 text-gray-300 hover:text-red-500 rounded-2xl transition-all active:scale-95">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-10 custom-scrollbar space-y-10">
+                    {/* Grid de Información Principal */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                        <DetailItem label="Fecha del Servicio" value={fmtDate(service.fecha)} />
+                        <DetailItem label="Tienda" value={service.tienda} />
+                        <DetailItem label="Código Tienda" value={service.codigo_tienda || 'N/A'} />
+                        <DetailItem label="Empleado" value={service.empleado} />
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                        <DetailItem label="Servicios Realizados" value={service.num_servicios} />
+                        <DetailItem label="Cobro CSG" value={fmtCurrency(service.monto_csg)} />
+                        <DetailItem label="Pago LGM" value={fmtCurrency(service.monto_lgm)} color="text-red-500" />
+                        <DetailItem 
+                            label="Utilidad Neta" 
+                            value={fmtCurrency((service.monto_csg || 0) - (service.monto_lgm || 0))} 
+                            color="text-teal-600 font-black"
+                        />
+                    </div>
+
+                    {/* Notas */}
+                    {service.notas && (
+                        <div className="p-6 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
+                            <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-2">Notas del Servicio</span>
+                            <p className="text-xs font-bold text-gray-500 leading-relaxed italic">"{service.notas}"</p>
+                        </div>
+                    )}
+
+                    {/* Galería de Fotos */}
+                    {service.fotos && service.fotos.length > 0 && (
+                        <div className="space-y-4">
+                            <span className="text-[9px] font-black text-[#303a7f] uppercase tracking-widest block">Evidencia Fotográfica ({service.fotos.length})</span>
+                            <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
+                                {service.fotos.map((foto, idx) => (
+                                    <button 
+                                        key={idx} 
+                                        onClick={() => setActivePhotoIdx(idx)}
+                                        className="aspect-square rounded-2xl overflow-hidden border-2 border-gray-100 hover:border-[#6bbdb7] transition-all group relative"
+                                    >
+                                        <img 
+                                            src={`data:image/jpeg;base64,${foto}`} 
+                                            alt={`Evidencia ${idx + 1}`} 
+                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                        />
+                                        <div className="absolute inset-0 bg-[#303a7f]/0 group-hover:bg-[#303a7f]/20 flex items-center justify-center transition-all">
+                                            <Eye size={20} className="text-white opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all" />
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-10 py-6 border-t border-gray-50 bg-white text-right">
+                    <button 
+                        onClick={onClose}
+                        className="px-8 py-3 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 shadow-lg shadow-blue-900/20"
+                    >
+                        Cerrar Detalles
+                    </button>
+                </div>
+
+                {/* Visor de Fotos Integrado */}
+                {activePhotoIdx !== null && (
+                    <CSGPhotoViewer 
+                        isOpen={true} 
+                        onClose={() => setActivePhotoIdx(null)} 
+                        fotos={service.fotos} 
+                        startIdx={activePhotoIdx}
+                        title={`Evidencia: ${service.correlativo}`}
+                    />
+                )}
+            </div>
+        </div>,
+        document.body
     );
 };
 
