@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon, CreditCard, Send, Receipt, Loader2 } from 'lucide-react';
+import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon, CreditCard, Send, Receipt, Loader2, ShieldCheck } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -51,6 +51,27 @@ const compressStoreImage = (base64Str, maxWidth = 300, quality = 0.7) => {
 
 const fmtCurrency = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
 const fmtDate = (d) => d || '--';
+
+const CSG_NOMINA_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=1084319831&single=true&output=csv";
+
+const parseCSVRowSimple = (row) => {
+    const values = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            values.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    values.push(current.trim());
+    return values;
+};
 
 // ─── CSGPhotoViewer: Modal para ver fotos de evidencia ───────────────────────
 const CSGPhotoViewer = ({ isOpen, onClose, fotos = [], title = 'Evidencia Fotográfica', startIdx = 0 }) => {
@@ -550,13 +571,51 @@ const CSGBiweekEmailModal = ({ isOpen, onClose, biweek, onSend, isSending }) => 
 };
 
 // ─── CSGBiweekDetailsModal: Ventana emergente con detalles de la bisemana ──────
-const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUrl }) => {
+const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUrl, syncToSheets }) => {
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [pdfBase64, setPdfBase64] = useState(null);
     const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
     const [isConfirmed, setIsConfirmed] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [isValidating, setIsValidating] = useState(false);
+
+    // FASE: Verificación de persistencia (Solicitado por Hermes)
+    useEffect(() => {
+        const checkExistingNomina = async () => {
+            if (!isOpen || !biweek) return;
+            setIsValidating(true);
+            try {
+                // Añadimos un timestamp para evitar cache del navegador
+                const response = await fetch(`${CSG_NOMINA_CSV_URL}&t=${new Date().getTime()}`, { cache: 'no-store' });
+                if (!response.ok) return;
+                
+                const csvText = await response.text();
+                const lines = csvText.split('\n').filter(l => l.trim());
+                if (lines.length < 2) return;
+                
+                const currentId = String(biweek.id).trim();
+                
+                // Buscamos en la primera columna (id_nomina)
+                const exists = lines.some((line, idx) => {
+                    if (idx === 0) return false; // Saltar encabezados
+                    const cols = parseCSVRowSimple(line);
+                    return cols[0] && String(cols[0]).replace(/"/g, '').trim() === currentId;
+                });
+                
+                if (exists) {
+                    setIsConfirmed(true);
+                }
+            } catch (e) {
+                console.error('[CSG] Error verificando existencia de nómina:', e);
+            } finally {
+                setIsValidating(false);
+            }
+        };
+
+        checkExistingNomina();
+    }, [isOpen, biweek]);
 
     if (!isOpen || !biweek) return null;
 
@@ -636,9 +695,55 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
         }
     };
 
-    const handleConfirm = () => {
-        setIsConfirmed(true);
-        setTimeout(() => { onClose(); }, 1200);
+    const handleConfirm = async () => {
+        if (!biweek || isSyncing || isConfirmed) return;
+        
+        setIsSyncing(true);
+        setNotificationModal({
+            isOpen: true,
+            type: 'loading',
+            message: 'Estamos procesando el guardado de los datos de la nómina en la base de datos. Por favor espere.'
+        });
+
+        try {
+            if (syncToSheets) {
+                const totalCSG = biweek.services.reduce((acc, s) => acc + (s.monto_csg || 0), 0);
+                
+                const syncData = {
+                    id_nomina: biweek.id,
+                    periodo: biweek.label,
+                    total_lgm: biweek.totalLGM,
+                    total_csg: totalCSG,
+                    fecha_confirmacion: new Date().toLocaleString(),
+                    correo_enviado: 'Pendiente',
+                    servicios_json: JSON.stringify(biweek.services)
+                };
+
+                await syncToSheets(
+                    'upsert', 
+                    syncData, 
+                    'CSG_Nomina', 
+                    false, 
+                    ['id_nomina']
+                );
+            }
+            
+            setIsConfirmed(true);
+            setIsSyncing(false);
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: '¡El proceso de guardado de la nómina ha finalizado con éxito!'
+            });
+        } catch (e) {
+            console.error('[CSG] Error al sincronizar nómina:', e);
+            setIsSyncing(false);
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: 'Error al procesar la nómina en la base de datos.'
+            });
+        }
     };
 
     return createPortal(
@@ -669,7 +774,6 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
                     <div ref={reportRef} className="p-12">
-                        {/* Encabezado Optimizado (Fiel a la nueva solicitud) */}
                         <div className="flex items-center gap-6 mb-12 border-b-2 border-gray-50 pb-8">
                             <img src="/Logo Logic Group Management.png" alt="Logo LGM" className="h-14 object-contain" />
                             <div>
@@ -727,15 +831,33 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                         </div>
                     </div>
 
-                        {/* Acción de Confirmación con Transición de Color */}
                         <div className="mt-10 mb-6 flex justify-end px-12">
                             <button 
                                 onClick={handleConfirm}
-                                disabled={isConfirmed}
+                                disabled={isConfirmed || isSyncing || isValidating}
                                 className={`h-12 px-8 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg flex items-center gap-2 group ${isConfirmed ? 'bg-[#10a345] shadow-green-900/20' : 'bg-[#303a7f] hover:bg-[#252a5e] shadow-blue-900/20'}`}
                             >
-                                <CheckCircle size={18} className={isConfirmed ? 'scale-110' : 'group-hover:scale-110 transition-transform'} />
-                                {isConfirmed ? 'Nómina Confirmada' : 'Confirmar Nómina'}
+                                {isValidating ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Validando...
+                                    </>
+                                ) : isSyncing ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Sincronizando...
+                                    </>
+                                ) : isConfirmed ? (
+                                    <>
+                                        <CheckCircle size={18} className="scale-110" />
+                                        Nómina Confirmada
+                                    </>
+                                ) : (
+                                    <>
+                                        <ShieldCheck size={18} className="group-hover:scale-110 transition-transform" />
+                                        Confirmar Nómina
+                                    </>
+                                )}
                             </button>
                         </div>
                 </div>
@@ -753,20 +875,24 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                 isOpen={notificationModal.isOpen}
                 type={notificationModal.type}
                 message={notificationModal.message}
-                onOk={() => setNotificationModal({ ...notificationModal, isOpen: false })}
+                onOk={() => {
+                    setNotificationModal({ ...notificationModal, isOpen: false });
+                    // Si la nómina acaba de ser confirmada, cerramos el modal de detalles
+                    if (isConfirmed) onClose();
+                }}
             />
         </div>,
         document.body
     );
 };
 
-const CSGNominaView = ({ csgServicesData = [], mailApiUrl }) => {
+const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets }) => {
     const reportRef = useRef(null);
     const [selectedBiweekId, setSelectedBiweekId] = useState(null);
 
     const biweeks = useMemo(() => {
         const groups = {};
-        const anchor = new Date(2025, 11, 28); // 12/28/2025
+        const anchor = new Date(2025, 11, 28);
         anchor.setHours(0, 0, 0, 0);
 
         csgServicesData.forEach(s => {
@@ -874,13 +1000,13 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl }) => {
                 </table>
             </div>
 
-            {/* Ventana Emergente de Detalles */}
             <CSGBiweekDetailsModal 
                 isOpen={selectedBiweekId !== null}
                 onClose={() => setSelectedBiweekId(null)}
                 biweek={selectedBiweekData}
                 fmtCurrency={fmtCurrency}
                 mailApiUrl={mailApiUrl}
+                syncToSheets={syncToSheets}
             />
         </div>
     );
@@ -1440,7 +1566,7 @@ const EmailNotificationModal = ({ isOpen, type, message, onOk }) => {
                 </div>
 
                 <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-4 relative z-10">
-                    {type === 'loading' ? 'Enviando...' : '¡Correo Enviado!'}
+                    {type === 'loading' ? 'Procesando...' : '¡Proceso Finalizado!'}
                 </h3>
 
                 <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-10 uppercase tracking-[0.1em] px-4 relative z-10">
@@ -1452,7 +1578,7 @@ const EmailNotificationModal = ({ isOpen, type, message, onOk }) => {
                         onClick={onOk}
                         className="w-full py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#1e234d] transition-all active:scale-95 relative z-10"
                     >
-                        Ok, Entendido
+                        Ok
                     </button>
                 )}
             </div>
@@ -2047,7 +2173,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                     syncToSheets={syncToSheets}
                 />
             )}
-            {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} mailApiUrl={mailApiUrl} />}
+            {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} mailApiUrl={mailApiUrl} syncToSheets={syncToSheets} />}
             {activeCSGTab === 'facturacion' && <CSGBillingView csgServicesData={csgServicesData} />}
 
             {/* Form Modal */}
