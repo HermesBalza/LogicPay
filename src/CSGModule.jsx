@@ -479,9 +479,84 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
     );
 };
 
+// ─── CSGBiweekEmailModal: Interfaz de envío de correo estilo VWH ──────────────
+const CSGBiweekEmailModal = ({ isOpen, onClose, biweek, onSend, isSending }) => {
+    const [to, setTo] = useState('');
+    const [subject, setSubject] = useState(`Reporte de Nómina CSG - Periodo: ${biweek?.label}`);
+    const [body, setBody] = useState(`Hola,\n\nAdjunto envío el reporte de nómina correspondiente a la bisemana del ${biweek?.label}.\n\nSaludos,\nLogic Group Management`);
+
+    if (!isOpen) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-[0_32px_80px_rgba(48,58,127,0.25)] border-2 border-white/50 overflow-hidden animate-in zoom-in-95 duration-500">
+                <div className="px-10 py-6 border-b-2 border-gray-50 bg-gradient-to-r from-blue-50/50 to-transparent flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <Mail size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Enviar Nómina CSG</h3>
+                            <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="px-10 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
+                            <div className="relative">
+                                <input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="ejemplo@correo.com" className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]"><Send size={16} /></div>
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto del Correo</label>
+                            <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documento Adjunto</label>
+                            <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
+                                <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10"><FileText size={18} /></div>
+                                <div className="flex-1">
+                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">Nomina_CSG_{biweek?.id}.pdf</p>
+                                    <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
+                                </div>
+                                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm"><Check size={14} /></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex flex-col space-y-1.5 h-full">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
+                        <textarea value={body} onChange={(e) => setBody(e.target.value)} className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]" />
+                    </div>
+                </div>
+
+                <div className="px-10 pb-10 flex gap-4">
+                    <button onClick={onClose} className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all border-2 border-transparent">Cancelar</button>
+                    <button onClick={() => !isSending && onSend({ to, subject, body })} disabled={isSending} className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}>
+                        {isSending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={18} />}
+                        {isSending ? 'Enviando...' : 'Enviar Ahora'}
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
 // ─── CSGBiweekDetailsModal: Ventana emergente con detalles de la bisemana ──────
-const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency }) => {
+const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUrl }) => {
     const reportRef = useRef(null);
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [isSending, setIsSending] = useState(false);
+    const [pdfBase64, setPdfBase64] = useState(null);
+    const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
+
     if (!isOpen || !biweek) return null;
 
     const handleExportPDF = async () => {
@@ -494,6 +569,72 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency }) => {
         pdf.save(`Nomina_CSG_BW_${biweek.id}_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
     };
 
+    const handleOpenEmail = async () => {
+        if (!reportRef.current) return;
+        setIsSending(true);
+        try {
+            const canvas = await html2canvas(reportRef.current, { scale: 1.5, backgroundColor: '#ffffff' });
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const img = canvas.toDataURL('image/png');
+            const w = 210; const h = (canvas.height * w) / canvas.width;
+            pdf.addImage(img, 'PNG', 0, 0, w, h);
+            const base64 = pdf.output('datauristring').split(',')[1];
+            setPdfBase64(base64);
+            setIsEmailModalOpen(true);
+        } catch (e) {
+            console.error('[CSG] Error capturando PDF para correo:', e);
+            setNotificationModal({
+                isOpen: true,
+                type: 'success', // En este componente success se usa para mostrar mensaje final (aunque sea error en este caso, sigo patrón de App.jsx)
+                message: "Error al preparar el documento para el envío."
+            });
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    const handleSendEmail = async (emailData) => {
+        if (!mailApiUrl || !pdfBase64) return;
+        
+        setNotificationModal({
+            isOpen: true,
+            type: 'loading',
+            message: `Estamos enviando el reporte de nómina a ${emailData.to}. Por favor espere.`
+        });
+
+        try {
+            await fetch(mailApiUrl, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    to: emailData.to,
+                    subject: emailData.subject,
+                    body: emailData.body,
+                    attachments: [{
+                        name: `Nomina_CSG_BW_${biweek.id}.pdf`,
+                        type: 'application/pdf',
+                        base64: pdfBase64
+                    }]
+                })
+            });
+            
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: `Nómina enviada con éxito a ${emailData.to}`
+            });
+            setIsEmailModalOpen(false);
+        } catch (e) {
+            console.error('[CSG] Error enviando correo:', e);
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: "Error crítico al enviar el correo. Verifique la conexión."
+            });
+        }
+    };
+
     return createPortal(
         <div className="fixed inset-0 z-[1000] bg-[#303a7f]/40 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-6xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
@@ -503,8 +644,13 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency }) => {
                         <p className="text-[#6bbdb7] text-xs font-black uppercase tracking-widest mt-1.5 opacity-80">{biweek.label}</p>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button className="h-14 px-6 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-900/20">
-                            <Mail size={18} /> Enviar Correo
+                        <button 
+                            onClick={handleOpenEmail} 
+                            disabled={isSending}
+                            className={`h-14 px-6 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-900/20 ${isSending ? 'bg-gray-400' : 'bg-[#303a7f] hover:bg-[#252a5e]'}`}
+                        >
+                            {isSending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Mail size={18} />}
+                            {isSending ? 'Procesando...' : 'Enviar Correo'}
                         </button>
                         <button onClick={handleExportPDF} className="h-14 px-6 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-900/20">
                             <Download size={18} /> Exportar PDF
@@ -560,12 +706,27 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency }) => {
                     </table>
                 </div>
             </div>
+
+            <CSGBiweekEmailModal 
+                isOpen={isEmailModalOpen}
+                onClose={() => setIsEmailModalOpen(false)}
+                biweek={biweek}
+                onSend={handleSendEmail}
+                isSending={notificationModal.isOpen && notificationModal.type === 'loading'}
+            />
+
+            <EmailNotificationModal 
+                isOpen={notificationModal.isOpen}
+                type={notificationModal.type}
+                message={notificationModal.message}
+                onOk={() => setNotificationModal({ ...notificationModal, isOpen: false })}
+            />
         </div>,
         document.body
     );
 };
 
-const CSGNominaView = ({ csgServicesData = [] }) => {
+const CSGNominaView = ({ csgServicesData = [], mailApiUrl }) => {
     const reportRef = useRef(null);
     const [selectedBiweekId, setSelectedBiweekId] = useState(null);
 
@@ -685,6 +846,7 @@ const CSGNominaView = ({ csgServicesData = [] }) => {
                 onClose={() => setSelectedBiweekId(null)}
                 biweek={selectedBiweekData}
                 fmtCurrency={fmtCurrency}
+                mailApiUrl={mailApiUrl}
             />
         </div>
     );
@@ -1851,7 +2013,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                     syncToSheets={syncToSheets}
                 />
             )}
-            {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} />}
+            {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} mailApiUrl={mailApiUrl} />}
             {activeCSGTab === 'facturacion' && <CSGBillingView csgServicesData={csgServicesData} />}
 
             {/* Form Modal */}
