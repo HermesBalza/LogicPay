@@ -52,7 +52,7 @@ const compressStoreImage = (base64Str, maxWidth = 300, quality = 0.7) => {
 const fmtCurrency = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
 const fmtDate = (d) => d || '--';
 
-const CSG_NOMINA_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRmguU2NSjx_0AYEm-ii6-okYMAI0-6GduSKkFZwgiluFUXASsjtnwMpUkuWEFPoAwX7STMTBMfBUtg/pub?gid=1084319831&single=true&output=csv";
+const CSG_NOMINA_CSV_URL = import.meta.env.VITE_SHEET_CSG_NOMINA_URL;
 
 const parseCSVRowSimple = (row) => {
     const values = [];
@@ -949,36 +949,96 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
     );
 };
 
-const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets }) => {
+// ─── CSGBillingReportModal: Procesador de reportes externos CSG ──────────────
+const CSGBillingReportModal = ({ isOpen, onClose, onProcess }) => {
+    const [reportText, setReportText] = useState('');
+
+    const handleProcess = () => {
+        if (!reportText.trim()) return;
+        
+        const lines = reportText.split('\n').filter(l => l.trim());
+        const results = [];
+        
+        lines.forEach(line => {
+            // Estructura compartida por Hermes:
+            // Date | Document Number | Sage ID | Name | Name | Equipment Customer | Memo | Memo | Amount | Email | Date Closed
+            // Usamos un split inteligente (tabs o múltiples espacios)
+            const parts = line.split(/\t| {2,}/).map(p => p.trim());
+            if (parts.length >= 9) {
+                results.push({
+                    fecha_pago: parts[0],
+                    documento: parts[1],
+                    tienda_reporte: parts[5] || parts[4], // Equipment Customer
+                    monto_pago: parseFloat(parts[8].replace(/[^0-9.-]+/g,"")) || 0,
+                    memo: parts[6] || parts[7],
+                    fecha_cierre: parts[10] || parts[0],
+                    wos: parts[1] // Usamos Document Number como WOS inicial
+                });
+            }
+        });
+        
+        onProcess(results);
+        setReportText('');
+        onClose();
+    };
+
+    if (!isOpen) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[1000] bg-[#303a7f]/40 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="px-10 py-7 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-[#303a7f]/5 to-transparent">
+                    <div>
+                        <h2 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter leading-none">Procesar Reporte CSG</h2>
+                        <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest mt-1 opacity-80">Pega aquí el contenido del reporte de facturas</p>
+                    </div>
+                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all">
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                <div className="p-10">
+                    <textarea 
+                        className="w-full h-64 bg-gray-50 border-2 border-gray-100 rounded-2xl p-6 text-xs font-mono text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all resize-none"
+                        placeholder="Pega las líneas del reporte aquí..."
+                        value={reportText}
+                        onChange={e => setReportText(e.target.value)}
+                    />
+                    
+                    <div className="bg-blue-50/50 p-4 rounded-xl mt-4 border border-blue-100">
+                        <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest leading-relaxed">
+                            <Sparkles size={12} className="inline mr-2 mb-1" />
+                            El sistema intentará emparejar automáticamente los servicios por tienda y fecha de memo.
+                        </p>
+                    </div>
+
+                    <div className="mt-8 flex gap-4">
+                        <button onClick={onClose} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">
+                            Cancelar
+                        </button>
+                        <button onClick={handleProcess} className="flex-1 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 shadow-lg shadow-blue-900/20">
+                            Procesar y Conciliar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets, csgNominaHistory = [] }) => {
     const reportRef = useRef(null);
     const [selectedBiweekId, setSelectedBiweekId] = useState(null);
-    const [nominaStatus, setNominaStatus] = useState({});
 
-    // Cargar estado de los correos desde la base de datos (Solicitado por Hermes)
-    useEffect(() => {
-        const fetchNominaStatus = async () => {
-            try {
-                const response = await fetch(`${CSG_NOMINA_CSV_URL}&t=${new Date().getTime()}`, { cache: 'no-store' });
-                if (!response.ok) return;
-                const csvText = await response.text();
-                const lines = csvText.split('\n').filter(l => l.trim());
-                if (lines.length < 2) return;
-
-                const statusMap = {};
-                lines.forEach((line, idx) => {
-                    if (idx === 0) return;
-                    const cols = parseCSVRowSimple(line);
-                    const id = String(cols[0]).replace(/"/g, '').trim();
-                    const status = String(cols[5]).replace(/"/g, '').trim();
-                    statusMap[id] = status;
-                });
-                setNominaStatus(statusMap);
-            } catch (error) {
-                console.error("[CSG] Error fetching nomina status:", error);
-            }
-        };
-        fetchNominaStatus();
-    }, []);
+    const nominaStatus = useMemo(() => {
+        const statusMap = {};
+        csgNominaHistory.forEach(h => {
+            const id = h.id_nomina || h.id;
+            if (id) statusMap[id] = h.correo_enviado || h.status;
+        });
+        return statusMap;
+    }, [csgNominaHistory]);
 
     const biweeks = useMemo(() => {
         const groups = {};
@@ -1109,103 +1169,187 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets }) => {
 
 
 
-// ─── CSGBillingView: Facturación agrupada por tienda ─────────────────────────
+// ─── CSGBillingView: Control de Conciliación de Pagos CSG ─────────────────────
 const CSGBillingView = ({ csgServicesData = [] }) => {
     const [filterFrom, setFilterFrom] = useState('');
     const [filterTo, setFilterTo] = useState('');
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [search, setSearch] = useState('');
 
-    const filtered = useMemo(() => {
-        if (!filterFrom && !filterTo) return csgServicesData;
-        return csgServicesData.filter(s => {
-            if (!s.fecha) return true;
-            const parts = s.fecha.split('/');
-            if (parts.length < 3) return true;
-            const d = new Date(parts[2], parts[0] - 1, parts[1]);
-            const from = filterFrom ? new Date(filterFrom) : null;
-            const to = filterTo ? new Date(filterTo) : null;
-            if (from && d < from) return false;
-            if (to && d > to) return false;
-            return true;
+    // Usamos directamente csgServicesData (Sin conexión a BD por instrucción del Director)
+    const reconciledData = useMemo(() => {
+        let filtered = csgServicesData;
+        
+        if (filterFrom || filterTo) {
+            filtered = filtered.filter(s => {
+                if (!s.fecha) return true;
+                const parts = s.fecha.split('/');
+                if (parts.length < 3) return true;
+                const d = new Date(parts[2], parts[0] - 1, parts[1]);
+                const from = filterFrom ? new Date(filterFrom) : null;
+                const to = filterTo ? new Date(filterTo) : null;
+                if (from && d < from) return false;
+                if (to && d > to) return false;
+                return true;
+            });
+        }
+        
+        if (search) {
+            const q = search.toLowerCase();
+            filtered = filtered.filter(s => 
+                (s.tienda || '').toLowerCase().includes(q) || 
+                (s.empleado || '').toLowerCase().includes(q) ||
+                (s.wos || '').toLowerCase().includes(q) ||
+                (s.correlativo || '').toLowerCase().includes(q)
+            );
+        }
+
+        return filtered.sort((a, b) => {
+            const dateA = new Date(a.fecha?.split('/').reverse().join('-'));
+            const dateB = new Date(b.fecha?.split('/').reverse().join('-'));
+            return dateB - dateA;
         });
-    }, [csgServicesData, filterFrom, filterTo]);
+    }, [csgServicesData, filterFrom, filterTo, search]);
 
-    const byStore = useMemo(() => {
-        const map = {};
-        filtered.forEach(s => {
-            const key = s.tienda || 'Sin Tienda';
-            if (!map[key]) map[key] = { tienda: key, servicios: 0, cobro_csg: 0, costo_lgm: 0 };
-            map[key].servicios += s.num_servicios || 1;
-            map[key].cobro_csg += s.monto_csg || 0;
-            map[key].costo_lgm += s.monto_lgm || 0;
-        });
-        return Object.values(map).sort((a, b) => a.tienda.localeCompare(b.tienda));
-    }, [filtered]);
+    const handleUpdateField = (correlativo, field, value) => {
+        console.log("Cambio local solicitado (Sin persistencia):", { correlativo, field, value });
+        // Conexión eliminada por instrucción del Director
+    };
 
-    const totales = byStore.reduce((acc, s) => ({ servicios: acc.servicios + s.servicios, cobro: acc.cobro + s.cobro_csg, costo: acc.costo + s.costo_lgm }), { servicios: 0, cobro: 0, costo: 0 });
+    const handleProcessReport = (reportResults) => {
+        console.log("Reporte procesado localmente (Sin persistencia):", reportResults);
+        // Conexión eliminada por instrucción del Director
+    };
+
+    const totals = useMemo(() => {
+        return reconciledData.reduce((acc, s) => ({
+            facturado: acc.facturado + (parseFloat(s.monto_csg) || 0),
+            costos: acc.costos + (parseFloat(s.monto_lgm) || 0),
+            pagado: acc.pagado + (parseFloat(s.pago) || 0)
+        }), { facturado: 0, costos: 0, pagado: 0 });
+    }, [reconciledData]);
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-3 flex-wrap">
-                <div>
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Desde</label>
-                    <input type="date" onChange={e => setFilterFrom(e.target.value)} className="bg-white border-2 border-gray-100 rounded-xl px-4 py-2.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" />
-                </div>
-                <div>
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Hasta</label>
-                    <input type="date" onChange={e => setFilterTo(e.target.value)} className="bg-white border-2 border-gray-100 rounded-xl px-4 py-2.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" />
-                </div>
-            </div>
-
-            {/* KPI Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                    { label: 'Total Servicios', value: totales.servicios, isCurrency: false, color: '#6bbdb7' },
-                    { label: 'Facturado a CSG', value: totales.cobro, isCurrency: true, color: '#303a7f' },
-                    { label: 'Costo LGM', value: totales.costo, isCurrency: true, color: '#f59e0b' },
-                    { label: 'Margen Total', value: totales.cobro - totales.costo, isCurrency: true, color: '#10b981' },
-                ].map((kpi, i) => (
-                    <div key={i} className="bg-white rounded-2xl p-6 border-2 border-gray-50 shadow-sm">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">{kpi.label}</p>
-                        <p className="text-xl font-black" style={{ color: kpi.color }}>
-                            {kpi.isCurrency ? fmtCurrency(kpi.value) : kpi.value}
-                        </p>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                    <div>
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Desde</label>
+                        <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} className="bg-white border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" />
                     </div>
-                ))}
+                    <div>
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Hasta</label>
+                        <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} className="bg-white border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" />
+                    </div>
+                    <div className="flex-1 min-w-[200px]">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Buscar</label>
+                        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Tienda, empleado, WOS..." className="w-full bg-white border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" />
+                    </div>
+                </div>
+                
+                <button 
+                    onClick={() => setIsReportModalOpen(true)}
+                    className="px-6 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/10"
+                >
+                    <Sparkles size={16} />
+                    Conciliar con Reporte CSG
+                </button>
             </div>
 
-            <div className="bg-white rounded-[2rem] border-2 border-gray-50 overflow-hidden shadow-sm">
-                <table className="w-full border-collapse">
-                    <thead>
-                        <tr className="bg-[#f9f9f9] border-b border-gray-100">
-                            {['Tienda', 'Servicios', 'Facturado a CSG', 'Costo LGM', 'Margen'].map(h => (
-                                <th key={h} className="px-6 py-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest text-left">{h}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {byStore.length === 0 ? (
-                            <tr><td colSpan={5} className="py-16 text-center text-gray-300 font-bold text-xs uppercase tracking-widest">No hay datos para este período</td></tr>
-                        ) : byStore.map((s, i) => (
-                            <tr key={i} className="hover:bg-[#f9fffe] transition-colors">
-                                <td className="px-6 py-4 font-black text-sm text-[#303a7f]">{s.tienda}</td>
-                                <td className="px-6 py-4"><span className="px-3 py-1 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-full text-[11px] font-black">{s.servicios}</span></td>
-                                <td className="px-6 py-4 font-black text-sm text-[#303a7f]">{fmtCurrency(s.cobro_csg)}</td>
-                                <td className="px-6 py-4 font-bold text-sm text-amber-500">{fmtCurrency(s.costo_lgm)}</td>
-                                <td className="px-6 py-4 font-black text-sm text-green-600">{fmtCurrency(s.cobro_csg - s.costo_lgm)}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                    <tfoot>
-                        <tr className="bg-[#303a7f]/5 border-t-2 border-gray-100">
-                            <td className="px-6 py-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest">Total</td>
-                            <td className="px-6 py-4"><span className="px-3 py-1 bg-[#303a7f] text-white rounded-full text-[11px] font-black">{totales.servicios}</span></td>
-                            <td className="px-6 py-4 font-black text-sm text-[#303a7f]">{fmtCurrency(totales.cobro)}</td>
-                            <td className="px-6 py-4 font-black text-sm text-amber-500">{fmtCurrency(totales.costo)}</td>
-                            <td className="px-6 py-4 font-black text-base text-green-600">{fmtCurrency(totales.cobro - totales.costo)}</td>
-                        </tr>
-                    </tfoot>
-                </table>
+            {/* KPI Row */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white p-5 rounded-2xl border-2 border-gray-50 shadow-sm border-l-4 border-l-[#303a7f]">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Facturado Total</p>
+                    <p className="text-xl font-black text-[#303a7f]">{fmtCurrency(totals.facturado)}</p>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border-2 border-gray-50 shadow-sm border-l-4 border-l-[#10a345]">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Pagado por CSG</p>
+                    <p className="text-xl font-black text-[#10a345]">{fmtCurrency(totals.pagado)}</p>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border-2 border-gray-50 shadow-sm border-l-4 border-l-amber-500">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Pendiente</p>
+                    <p className="text-xl font-black text-amber-500">{fmtCurrency(totals.facturado - totals.pagado)}</p>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border-2 border-gray-50 shadow-sm border-l-4 border-l-[#6bbdb7]">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Utilidad (LGM)</p>
+                    <p className="text-xl font-black text-[#6bbdb7]">{fmtCurrency(totals.facturado - totals.costos)}</p>
+                </div>
             </div>
+
+            <div className="bg-white rounded-[2rem] border-2 border-gray-50 overflow-hidden shadow-xl shadow-blue-900/5 relative min-h-[400px]">
+                <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr className="bg-[#303a7f] text-white">
+                                {['Fecha Rad.', 'Fecha Serv.', 'Facturación (CSG)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Status'].map(h => (
+                                    <th key={h} className="px-5 py-4 text-[9px] font-black uppercase tracking-widest text-left whitespace-nowrap">{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {reconciledData.length === 0 ? (
+                                <tr><td colSpan={9} className="py-20 text-center text-gray-300 font-bold text-xs uppercase tracking-widest italic opacity-50">No hay servicios registrados para mostrar</td></tr>
+                            ) : reconciledData.map((s, i) => {
+                                const utilidad = (parseFloat(s.monto_csg) || 0) - (parseFloat(s.monto_lgm) || 0);
+                                const isPaid = s.status === 'Paid';
+                                
+                                return (
+                                    <tr key={s.correlativo} className="hover:bg-gray-50/50 transition-colors group">
+                                        <td className="px-5 py-3 text-[10px] font-bold text-gray-400 whitespace-nowrap">--/--/--</td>
+                                        <td className="px-5 py-3 text-[10px] font-black text-[#303a7f] whitespace-nowrap">{s.fecha}</td>
+                                        <td className="px-5 py-3 text-[11px] font-black text-[#303a7f]">{fmtCurrency(s.monto_csg)}</td>
+                                        <td className="px-5 py-3 text-[11px] font-bold text-amber-600">{fmtCurrency(s.monto_lgm)}</td>
+                                        <td className="px-5 py-3 text-[11px] font-black text-teal-600">{fmtCurrency(utilidad)}</td>
+                                        
+                                        {/* Campos Editables */}
+                                        <td className="px-5 py-3">
+                                            <input 
+                                                type="text" 
+                                                className="w-20 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 text-[10px] font-black text-[#303a7f] outline-none focus:border-[#6bbdb7]"
+                                                value={s.pago || ''}
+                                                placeholder="0.00"
+                                                onChange={e => handleUpdateField(s.correlativo, 'pago', e.target.value)}
+                                            />
+                                        </td>
+                                        <td className="px-5 py-3">
+                                            <input 
+                                                type="text" 
+                                                className="w-24 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 text-[10px] font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7]"
+                                                value={s.fecha_pago || ''}
+                                                placeholder="MM/DD/YYYY"
+                                                onChange={e => handleUpdateField(s.correlativo, 'fecha_pago', e.target.value)}
+                                            />
+                                        </td>
+                                        <td className="px-5 py-3">
+                                            <input 
+                                                type="text" 
+                                                className="w-24 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 text-[10px] font-black text-[#303a7f] outline-none focus:border-[#6bbdb7]"
+                                                value={s.wos || ''}
+                                                placeholder="REF#"
+                                                onChange={e => handleUpdateField(s.correlativo, 'wos', e.target.value)}
+                                            />
+                                        </td>
+                                        <td className="px-5 py-3">
+                                            <button 
+                                                onClick={() => handleUpdateField(s.correlativo, 'status', isPaid ? 'Due' : 'Paid')}
+                                                className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${isPaid ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}
+                                            >
+                                                {isPaid ? 'Paid' : 'Due'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <CSGBillingReportModal 
+                isOpen={isReportModalOpen} 
+                onClose={() => setIsReportModalOpen(false)} 
+                onProcess={handleProcessReport} 
+            />
         </div>
     );
 };
@@ -2125,6 +2269,46 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
     const [reviewModal, setReviewModal] = useState({ open: false, payload: null });
     const [photoModal, setPhotoModal] = useState({ open: false, fotos: [], title: '' });
     const [statusModal, setStatusModal] = useState({ open: false, title: '', message: '' });
+    
+    // Historial de nóminas radicadas para conciliación (Solicitado por Hermes)
+    const [csgNominaHistory, setCsgNominaHistory] = useState([]);
+    const [isLoadingNomina, setIsLoadingNomina] = useState(false);
+
+    const fetchNominaHistory = async () => {
+        setIsLoadingNomina(true);
+        try {
+            const url = import.meta.env.VITE_SHEET_CSG_NOMINA_URL;
+            if (!url) return;
+            const response = await fetch(`${url}&t=${new Date().getTime()}`, { cache: 'no-store' });
+            if (!response.ok) return;
+            const csvText = await response.text();
+            const lines = csvText.split('\n').filter(l => l.trim());
+            if (lines.length < 2) {
+                setCsgNominaHistory([]);
+                return;
+            }
+
+            const headers = parseCSVRowSimple(lines[0]);
+            const data = lines.slice(1).map(line => {
+                const cols = parseCSVRowSimple(line);
+                const obj = {};
+                headers.forEach((h, i) => {
+                    const key = h.trim();
+                    obj[key] = cols[i] ? String(cols[i]).replace(/"/g, '').trim() : '';
+                });
+                return obj;
+            });
+            setCsgNominaHistory(data);
+        } catch (error) {
+            console.error("[CSG] Error fetching nomina history:", error);
+        } finally {
+            setIsLoadingNomina(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchNominaHistory();
+    }, []);
 
     const csgStores = useMemo(() => stores.filter(s => (s.cliente || '').toUpperCase() === 'CSG'), [stores]);
 
@@ -2268,7 +2452,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                     syncToSheets={syncToSheets}
                 />
             )}
-            {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} mailApiUrl={mailApiUrl} syncToSheets={syncToSheets} />}
+            {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} mailApiUrl={mailApiUrl} syncToSheets={syncToSheets} csgNominaHistory={csgNominaHistory} onRefreshNomina={fetchNominaHistory} />}
             {activeCSGTab === 'facturacion' && <CSGBillingView csgServicesData={csgServicesData} />}
 
             {/* Form Modal */}
