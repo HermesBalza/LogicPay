@@ -1028,7 +1028,7 @@ const CSGBillingReportModal = ({ isOpen, onClose, onProcess }) => {
 };
 
 // ─── CSGWosView: Ventana a pantalla completa para el procesamiento de WOS CSG ───
-const CSGWosView = ({ isOpen, onClose }) => {
+const CSGWosView = ({ isOpen, onClose, geminiApiKey }) => {
     const [wosData, setWosData] = useState({
         wosNumber: '',
         subcontractor: '',
@@ -1040,7 +1040,95 @@ const CSGWosView = ({ isOpen, onClose }) => {
     });
     const [isUploading, setIsUploading] = useState(false);
     const [wosServices, setWosServices] = useState([]);
+    const [isWosDetailOpen, setIsWosDetailOpen] = useState(false);
     const fileInputRef = useRef(null);
+
+    const handleUploadWOS = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (!geminiApiKey) {
+            alert("Por favor, configure su API Key de Gemini en Ajustes.");
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            const reader = new FileReader();
+            const fileContent = await new Promise((resolve, reject) => {
+                reader.onload = (event) => resolve(event.target.result);
+                reader.onerror = (error) => reject(error);
+                reader.readAsText(file);
+            });
+
+            const genAI = new GoogleGenerativeAI(geminiApiKey);
+            const model = genAI.getGenerativeModel({
+                model: "gemini-3-flash-preview",
+                generationConfig: { responseMimeType: "application/json" }
+            });
+
+            const prompt = `
+                Eres un experto en procesamiento de reportes de facturación CSV para el módulo CSG.
+                Tienes un contenido de texto que representa un reporte de facturas con la siguiente estructura de columnas:
+                Date | Document Number | Sage ID | Name | Name | Equipment Customer | Memo | Memo | Amount | Email | Date Closed
+
+                TAREA: Extrae la información del contenido proporcionado y devuélvela en formato JSON estricto.
+
+                REGLAS CRÍTICAS:
+                1. El JSON debe tener esta estructura exacta:
+                {
+                    "metadata": {
+                        "wosNumber": "string",
+                        "subcontractor": "string",
+                        "wosDate": "string",
+                        "signByDate": "string",
+                        "period": "string",
+                        "servicesThrough": "string",
+                        "paymentDueDate": "string"
+                    },
+                    "services": [
+                        {
+                            "customer": "string",
+                            "locationId": "string",
+                            "salesOrder": "string",
+                            "purchaseOrder": "string",
+                            "reference": "string",
+                            "serviceDates": "string",
+                            "cityState": "string",
+                            "vendorCreditReason": "string",
+                            "serviceDescription": "string",
+                            "amount": number
+                        }
+                    ]
+                }
+                2. Adapta los campos del CSV a los campos del JSON de la siguiente manera:
+                   - metadata.wosNumber: Usa el Document Number más frecuente.
+                   - metadata.subcontractor: Usa el Name principal (Logic Group Management LLC).
+                   - metadata.period: Infiere el rango de fechas (ej: Mar 21 - Mar 28, 2026).
+                   - services.customer: Usa Equipment Customer. Si está vacío, usa el nombre de la tienda del Memo.
+                   - services.locationId: Extrae el ID de la tienda (ej: T153) si está disponible.
+                   - services.serviceDescription: Usa el Memo.
+                   - services.amount: El valor numérico de Amount.
+                3. NO incluyas la fila de "Total" como un servicio.
+                4. Si una línea no tiene monto o es 0, procésala solo si tiene información de tienda relevante.
+
+                CONTENIDO DEL ARCHIVO:
+                ${fileContent}
+            `;
+
+            const result = await model.generateContent(prompt);
+            const responseText = result.response.text();
+            const cleanJson = JSON.parse(responseText);
+
+            setWosData(cleanJson.metadata);
+            setWosServices(cleanJson.services);
+        } catch (error) {
+            console.error('[WOS CSG Extraction Error]:', error);
+            alert("Error al extraer datos del CSV. Verifique el formato.");
+        } finally {
+            setIsUploading(false);
+            if (e.target) e.target.value = null;
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -1061,7 +1149,7 @@ const CSGWosView = ({ isOpen, onClose }) => {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <input type="file" ref={fileInputRef} className="hidden" accept=".pdf" />
+                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleUploadWOS} />
                     
                     <button className="h-[48px] px-8 bg-white border-2 border-[#303a7f]/20 text-[#303a7f] rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-gray-50 active:scale-95 flex items-center gap-3 shadow-xl">
                         <History size={16} />
@@ -1070,9 +1158,17 @@ const CSGWosView = ({ isOpen, onClose }) => {
 
                     <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="h-[48px] px-8 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e]"
+                        disabled={isUploading}
+                        className={`h-[48px] px-8 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isUploading
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-[#303a7f] text-white shadow-blue-900/20 hover:bg-[#252a5e]'
+                            }`}
                     >
-                        <Upload size={16} />
+                        {isUploading ? (
+                            <div className="w-4 h-4 border-2 border-gray-300 border-t-[#303a7f] rounded-full animate-spin" />
+                        ) : (
+                            <Upload size={16} />
+                        )}
                         Cargar WOS
                     </button>
 
@@ -1125,7 +1221,14 @@ const CSGWosView = ({ isOpen, onClose }) => {
                             <button className="px-6 py-2.5 rounded-xl bg-gray-50 text-gray-300 cursor-not-allowed border-gray-100 text-[10px] font-black uppercase tracking-widest border">
                                 Discrepancias
                             </button>
-                            <button className="px-6 py-2.5 rounded-xl bg-gray-50 text-gray-300 cursor-not-allowed border-gray-100 text-[10px] font-black uppercase tracking-widest border">
+                            <button 
+                                onClick={() => setIsWosDetailOpen(true)}
+                                disabled={wosServices.length === 0}
+                                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg border ${wosServices.length > 0
+                                    ? 'bg-[#6bbdb7] text-white shadow-teal-900/10 border-teal-200/20 hover:bg-[#59aba5]'
+                                    : 'bg-gray-100 text-gray-300 cursor-not-allowed border-transparent'
+                                    }`}
+                            >
                                 Detalles
                             </button>
                             <button className="px-6 py-2.5 rounded-xl bg-gray-50 text-gray-300 cursor-not-allowed border-gray-100 text-[10px] font-black uppercase tracking-widest border flex items-center gap-2">
@@ -1138,17 +1241,127 @@ const CSGWosView = ({ isOpen, onClose }) => {
             </div>
 
             <main className="flex-1 bg-[#f9fafc]/50 overflow-y-auto custom-scrollbar">
-                <div className="h-full flex flex-col items-center justify-center p-12">
-                    <div className="max-w-[1800px] w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-[3rem] bg-white/50 backdrop-blur-sm">
-                        <div className="p-8 bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 mb-8">
-                            <FileText size={64} className="text-gray-200" />
+                {isUploading ? (
+                    <div className="h-full flex flex-col items-center gap-6 animate-pulse justify-center p-12">
+                        <div className="w-20 h-20 bg-white rounded-3xl shadow-xl flex items-center justify-center">
+                            <Cpu size={40} className="text-[#303a7f] animate-spin-slow" />
                         </div>
-                        <p className="text-gray-400 font-black uppercase tracking-[0.4em] text-xs max-w-sm text-center leading-loose">
-                            Cargue un archivo WOS para iniciar el procesamiento con Inteligencia Artificial
-                        </p>
+                        <div className="text-center">
+                            <p className="text-[#303a7f] font-black uppercase tracking-widest text-sm mb-2">Procesando WOS CSG</p>
+                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-[0.3em]">Analizando documento CSV</p>
+                        </div>
+                    </div>
+                ) : wosServices.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center p-12">
+                        <div className="max-w-[1800px] w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-[3rem] bg-white/50 backdrop-blur-sm">
+                            <div className="p-8 bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 mb-8">
+                                <FileText size={64} className="text-gray-200" />
+                            </div>
+                            <p className="text-gray-400 font-black uppercase tracking-[0.4em] text-xs max-w-sm text-center leading-loose">
+                                Cargue un archivo WOS para iniciar el procesamiento con Inteligencia Artificial
+                            </p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="h-full flex flex-col items-center justify-center p-12">
+                        <div className="max-w-md bg-white rounded-[2rem] p-10 shadow-2xl shadow-blue-900/5 border border-gray-100 text-center">
+                            <div className="w-20 h-20 bg-green-50 text-green-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                                <Check size={40} />
+                            </div>
+                            <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter mb-2">¡WOS Cargado!</h3>
+                            <p className="text-gray-400 text-xs font-bold leading-relaxed mb-8">
+                                Se han procesado <span className="text-[#303a7f]">{wosServices.length} servicios</span>. Pulsa el botón <strong>Detalles</strong> para ver el desglose o inicia la auditoría.
+                            </p>
+                            <button 
+                                onClick={() => setIsWosDetailOpen(true)}
+                                className="w-full py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-xl shadow-blue-900/20 active:scale-95"
+                            >
+                                Ver Detalles
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </main>
+
+            {/* Modal de Detalles a Pantalla Completa */}
+            {isWosDetailOpen && (
+                <div className="fixed inset-0 z-[150] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
+                    <header className="px-12 py-6 border-b-2 border-gray-50 flex items-center justify-between sticky top-0 bg-white z-20">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10">
+                                <FileText size={20} />
+                            </div>
+                            <div className="flex flex-col">
+                                <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Detalles de WOS CSG</h2>
+                                <p className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-[0.2em]">WOS Number: {wosData.wosNumber || "---"}</p>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 flex items-center gap-10 ml-12 border-l-2 border-gray-50 pl-12 overflow-x-auto no-scrollbar">
+                            {[
+                                { label: 'Subcontractor', value: wosData.subcontractor },
+                                { label: 'WOS Date', value: wosData.wosDate },
+                                { label: 'Period', value: wosData.period },
+                                { label: 'Payment Due', value: wosData.paymentDueDate }
+                            ].map((item, idx) => (
+                                <div key={idx} className="flex flex-col min-w-fit">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{item.label}</span>
+                                    <span className="text-[11px] font-black text-[#303a7f] uppercase whitespace-nowrap">{item.value || "---"}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setIsWosDetailOpen(false)}
+                            className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent"
+                        >
+                            <ArrowLeft size={24} />
+                        </button>
+                    </header>
+
+                    <div className="flex-1 overflow-auto p-12 bg-[#f9fafc]">
+                        <div className="max-w-[1300px] mx-auto bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 overflow-hidden border border-gray-100">
+                            <table className="w-full text-left border-collapse table-fixed">
+                                <thead>
+                                    <tr className="bg-[#303a7f] text-white">
+                                        <th className="w-[300px] px-8 py-6 text-[10px] font-black uppercase tracking-widest">Tienda / Cliente</th>
+                                        <th className="w-[150px] px-4 py-6 text-[10px] font-black uppercase tracking-widest text-center">ID</th>
+                                        <th className="px-4 py-6 text-[10px] font-black uppercase tracking-widest text-left">Descripción / Memo</th>
+                                        <th className="w-[180px] px-8 py-6 text-[10px] font-black uppercase tracking-widest text-right">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {wosServices.map((svc, i) => (
+                                        <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+                                            <td className="px-8 py-6">
+                                                <span className="text-xs font-black text-[#303a7f] uppercase block truncate">{svc.customer || '---'}</span>
+                                            </td>
+                                            <td className="px-4 py-6 text-center">
+                                                <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest">{svc.locationId || '---'}</span>
+                                            </td>
+                                            <td className="px-4 py-6">
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase italic leading-relaxed line-clamp-2">{svc.serviceDescription || '---'}</span>
+                                            </td>
+                                            <td className="px-8 py-6 text-right">
+                                                <span className="text-xs font-black text-[#303a7f] tabular-nums">
+                                                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(svc.amount || 0)}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot className="bg-gray-50 border-t-2 border-gray-100">
+                                    <tr>
+                                        <td colSpan={3} className="px-8 py-6 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Reportado</td>
+                                        <td className="px-8 py-6 text-right text-sm font-black text-[#303a7f] tabular-nums">
+                                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(wosServices.reduce((acc, s) => acc + (s.amount || 0), 0))}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
                     </div>
                 </div>
-            </main>
+            )}
         </div>,
         document.body
     );
@@ -2588,6 +2801,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             <CSGWosView 
                 isOpen={isWosOpen} 
                 onClose={() => setIsWosOpen(false)} 
+                geminiApiKey={geminiApiKey}
             />
         </div>
     );
