@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon, CreditCard, Send, Receipt, Loader2, ShieldCheck, LayoutGrid } from 'lucide-react';
+import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon, CreditCard, Send, Receipt, Loader2, ShieldCheck, LayoutGrid, History, Clock, Zap, Cpu, ArrowLeftRight } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -1027,6 +1027,133 @@ const CSGBillingReportModal = ({ isOpen, onClose, onProcess }) => {
     );
 };
 
+// ─── CSGWosView: Ventana a pantalla completa para el procesamiento de WOS CSG ───
+const CSGWosView = ({ isOpen, onClose }) => {
+    const [wosData, setWosData] = useState({
+        wosNumber: '',
+        subcontractor: '',
+        wosDate: '',
+        signByDate: '',
+        period: '',
+        servicesThrough: '',
+        paymentDueDate: ''
+    });
+    const [isUploading, setIsUploading] = useState(false);
+    const [wosServices, setWosServices] = useState([]);
+    const fileInputRef = useRef(null);
+
+    if (!isOpen) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[1000] bg-[#fdfdfe] flex flex-col overflow-hidden animate-in fade-in duration-500 rounded-none">
+            <header className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
+                        <LayoutGrid size={20} />
+                    </div>
+                    <div className="flex flex-col">
+                        <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">WOS CSG</h2>
+                        <div className="flex items-center gap-2">
+                            <div className="h-0.5 w-6 bg-[#6bbdb7] rounded-full" />
+                            <span className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-[0.2em]">Work Order Summary</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <input type="file" ref={fileInputRef} className="hidden" accept=".pdf" />
+                    
+                    <button className="h-[48px] px-8 bg-white border-2 border-[#303a7f]/20 text-[#303a7f] rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-gray-50 active:scale-95 flex items-center gap-3 shadow-xl">
+                        <History size={16} />
+                        Historial
+                    </button>
+
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="h-[48px] px-8 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e]"
+                    >
+                        <Upload size={16} />
+                        Cargar WOS
+                    </button>
+
+                    <button
+                        onClick={onClose}
+                        className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-transparent"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+            </header>
+
+            {/* Information Bar */}
+            <div className="bg-white border-b-2 border-brand-primary/5 px-12 py-5 shadow-sm relative z-20">
+                <div className="max-w-[1800px] mx-auto flex flex-wrap items-center gap-x-12 gap-y-4">
+                    <div className="flex items-center gap-4 pr-10 border-r-2 border-gray-50">
+                        <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-[0.2em] leading-none mb-1">WOS Number</span>
+                            <span className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none">{wosData.wosNumber || "VBS-------"}</span>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-1 flex-wrap items-center gap-x-10 gap-y-4">
+                        <div className="flex flex-col min-w-[200px]">
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Subcontractor</span>
+                            <span className="text-[11px] font-black text-[#303a7f] uppercase truncate max-w-[300px]">{wosData.subcontractor || "No asignado"}</span>
+                        </div>
+
+                        <div className="h-8 w-px bg-gray-100 hidden md:block" />
+
+                        <div className="flex items-center gap-8">
+                            {[
+                                { label: 'WOS Date', value: wosData.wosDate, icon: Calendar },
+                                { label: 'Sign By', value: wosData.signByDate, icon: CheckCircle },
+                                { label: 'Period', value: wosData.period, icon: LayoutGrid },
+                                { label: 'Services', value: wosData.servicesThrough, icon: Clock },
+                                { label: 'Payment Due', value: wosData.paymentDueDate, icon: DollarSign }
+                            ].map((item, idx) => (
+                                <div key={idx} className="flex flex-col">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <item.icon size={12} className="text-gray-300" />
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">{item.label}</span>
+                                    </div>
+                                    <span className="text-[11px] font-black text-[#303a7f] uppercase tabular-nums">{item.value || "---"}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="ml-auto flex items-center gap-3">
+                            <button className="px-6 py-2.5 rounded-xl bg-gray-50 text-gray-300 cursor-not-allowed border-gray-100 text-[10px] font-black uppercase tracking-widest border">
+                                Discrepancias
+                            </button>
+                            <button className="px-6 py-2.5 rounded-xl bg-gray-50 text-gray-300 cursor-not-allowed border-gray-100 text-[10px] font-black uppercase tracking-widest border">
+                                Detalles
+                            </button>
+                            <button className="px-6 py-2.5 rounded-xl bg-gray-50 text-gray-300 cursor-not-allowed border-gray-100 text-[10px] font-black uppercase tracking-widest border flex items-center gap-2">
+                                <Zap size={14} />
+                                Auditar WOS
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <main className="flex-1 bg-[#f9fafc]/50 overflow-y-auto custom-scrollbar">
+                <div className="h-full flex flex-col items-center justify-center p-12">
+                    <div className="max-w-[1800px] w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-[3rem] bg-white/50 backdrop-blur-sm">
+                        <div className="p-8 bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 mb-8">
+                            <FileText size={64} className="text-gray-200" />
+                        </div>
+                        <p className="text-gray-400 font-black uppercase tracking-[0.4em] text-xs max-w-sm text-center leading-loose">
+                            Cargue un archivo WOS para iniciar el procesamiento con Inteligencia Artificial
+                        </p>
+                    </div>
+                </div>
+            </main>
+        </div>,
+        document.body
+    );
+};
+
 const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets, csgNominaHistory = [] }) => {
     const reportRef = useRef(null);
     const [selectedBiweekId, setSelectedBiweekId] = useState(null);
@@ -1170,7 +1297,7 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets, csgNomi
 
 
 // ─── CSGBillingView: Control de Conciliación de Pagos CSG ─────────────────────
-const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus, isReportModalOpen, setIsReportModalOpen }) => {
+const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus }) => {
     const [filterFrom, setFilterFrom] = useState('');
     const [filterTo, setFilterTo] = useState('');
     const [search, setSearch] = useState('');
@@ -2235,7 +2362,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
     const [reviewModal, setReviewModal] = useState({ open: false, payload: null });
     const [photoModal, setPhotoModal] = useState({ open: false, fotos: [], title: '' });
     const [statusModal, setStatusModal] = useState({ open: false, title: '', message: '' });
-    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [isWosOpen, setIsWosOpen] = useState(false);
     
     // Historial de nóminas radicadas para conciliación (Solicitado por Hermes)
     const [csgNominaHistory, setCsgNominaHistory] = useState([]);
@@ -2377,7 +2504,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 {/* Action Buttons - Lado Derecho */}
                 <div className="flex gap-3">
                     <button 
-                        onClick={() => setIsReportModalOpen(true)}
+                        onClick={() => setIsWosOpen(true)}
                         className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
                     >
                         <LayoutGrid size={18} className="group-hover:rotate-12 transition-transform duration-500" />
@@ -2420,8 +2547,6 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 <CSGBillingView 
                     csgServicesData={csgServicesData} 
                     onUpdateCSGStatus={onUpdateCSGStatus} 
-                    isReportModalOpen={isReportModalOpen}
-                    setIsReportModalOpen={setIsReportModalOpen}
                 />
             )}
 
@@ -2459,11 +2584,10 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             {/* Photo Viewer */}
             <CSGPhotoViewer isOpen={photoModal.open} onClose={() => setPhotoModal({ open: false, fotos: [], title: '' })} fotos={photoModal.fotos} title={photoModal.title} />
 
-            {/* WOS Global Modal */}
-            <CSGBillingReportModal 
-                isOpen={isReportModalOpen} 
-                onClose={() => setIsReportModalOpen(false)} 
-                onProcess={handleProcessReport} 
+            {/* WOS CSG Global View (Full Screen) */}
+            <CSGWosView 
+                isOpen={isWosOpen} 
+                onClose={() => setIsWosOpen(false)} 
             />
         </div>
     );
