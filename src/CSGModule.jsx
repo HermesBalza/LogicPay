@@ -2320,6 +2320,10 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
         setReviewModal({ open: false, payload: null });
         setIsSaving(true);
         try {
+            // Agregar fecha de radicación actual (MM/DD/AAAA)
+            const autoDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+            payload['Fecha Rad.'] = autoDate;
+
             // Guardar en la hoja CSG_Servicios de Google Sheets
             await syncToSheets('upsert', payload, 'CSG_Servicios', true, ['correlativo']);
             
