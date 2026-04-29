@@ -1028,7 +1028,7 @@ const CSGBillingReportModal = ({ isOpen, onClose, onProcess }) => {
 };
 
 // ─── CSGWosView: Ventana a pantalla completa para el procesamiento de WOS CSG ───
-const CSGWosView = ({ isOpen, onClose, geminiApiKey }) => {
+const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncToSheets }) => {
     const [wosData, setWosData] = useState({
         wosNumber: '',
         subcontractor: '',
@@ -1039,9 +1039,95 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey }) => {
         paymentDueDate: ''
     });
     const [isUploading, setIsUploading] = useState(false);
+    const [isCrossing, setIsCrossing] = useState(false);
     const [wosServices, setWosServices] = useState([]);
     const [isWosDetailOpen, setIsWosDetailOpen] = useState(false);
     const fileInputRef = useRef(null);
+
+    const handleAutoSaveWOS = async (currentMetadata, currentServices) => {
+        try {
+            const payload = {
+                "WOS_Number": currentMetadata.wosNumber || 'S/N',
+                "Subcontractor": currentMetadata.subcontractor || 'Unknown',
+                "Date": currentMetadata.wosDate || '',
+                "Data_JSON": JSON.stringify({
+                    metadata: currentMetadata,
+                    services: currentServices,
+                    auditDate: new Date().toLocaleString()
+                })
+            };
+
+            // Guardar en la nueva hoja WOS_CSG
+            if (syncToSheets) {
+                await syncToSheets('upsert', payload, 'WOS_CSG', false, ['WOS_Number']);
+                console.log("[WOS CSG] Auto-guardado exitoso en WOS_CSG:", payload.WOS_Number);
+            }
+        } catch (error) {
+            console.error("[WOS CSG] Error en auto-guardado:", error);
+        }
+    };
+
+    const handleAICrossMatch = async () => {
+        if (!wosServices.length || !geminiApiKey) return;
+
+        setIsCrossing(true);
+        try {
+            // Filtrar servicios de CSG que no están pagados (Status != 'Paid')
+            const pendingLgmServices = csgServicesData.filter(s => 
+                (s.status || s.Status || '').toLowerCase() !== 'paid'
+            ).map(s => ({
+                correlativo: s.correlativo,
+                tienda: s.tienda,
+                fecha: s.fecha,
+                monto_csg: s.monto_csg,
+                wos: s.wos
+            }));
+
+            const genAI = new GoogleGenerativeAI(geminiApiKey);
+            const model = genAI.getGenerativeModel({
+                model: "gemini-3-flash-preview",
+                generationConfig: { responseMimeType: "application/json" }
+            });
+
+            const prompt = `
+                Eres un auditor financiero experto para el módulo CSG (Cleaning Services Group). 
+                Tu tarea es realizar el cruce entre los servicios reportados en un WOS (Work Order Summary) de KBS/CSG y los servicios registrados en la base de datos de LGM que están pendientes de pago (Status != 'Paid').
+
+                DATOS DE ENTRADA:
+                1. WOS Services (Lo que KBS/CSG anuncia que pagará): ${JSON.stringify(wosServices)}
+                2. LGM Pending Services (Lo que LGM tiene registrado como pendiente): ${JSON.stringify(pendingLgmServices)}
+
+                INSTRUCCIONES DE CRUCE:
+                - Analiza cada servicio del WOS y busca su pareja en los servicios pendientes de LGM.
+                - Utiliza el ID de la tienda (locationId), el nombre de la tienda, el monto (amount vs monto_csg) y las fechas de servicio para encontrar la coincidencia más probable.
+                - Es posible que un servicio en el WOS corresponda a un registro en LGM aunque los nombres no sean idénticos (ej. variaciones en el nombre de la tienda).
+                - Devuelve el array original de servicios del WOS añadiendo exactamente la propiedad "matchedLgmId" con el valor del "correlativo" de LGM o null si no encuentras coincidencia.
+
+                FORMATO DE SALIDA (JSON Puro):
+                {
+                    "matchedServices": [
+                        { ...campos_originales_del_wos, "matchedLgmId": "CORRELATIVO_O_NULL" }
+                    ]
+                }
+            `;
+
+            const result = await model.generateContent(prompt);
+            const responseText = result.response.text();
+            const resultData = JSON.parse(responseText);
+
+            if (resultData.matchedServices) {
+                setWosServices(resultData.matchedServices);
+                // AUTO-SAVE: Guardar automáticamente tras el cruce exitoso
+                await handleAutoSaveWOS(wosData, resultData.matchedServices);
+                alert("Auditoría completada y guardada en WOS_CSG.");
+            }
+        } catch (error) {
+            console.error('[WOS CSG Cross-Match Error]:', error);
+            alert("Error durante la auditoría inteligente con IA.");
+        } finally {
+            setIsCrossing(false);
+        }
+    };
 
     const handleUploadWOS = async (e) => {
         const file = e.target.files[0];
@@ -1231,9 +1317,16 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey }) => {
                             >
                                 Detalles
                             </button>
-                            <button className="px-6 py-2.5 rounded-xl bg-gray-50 text-gray-300 cursor-not-allowed border-gray-100 text-[10px] font-black uppercase tracking-widest border flex items-center gap-2">
-                                <Zap size={14} />
-                                Auditar WOS
+                            <button 
+                                onClick={handleAICrossMatch}
+                                disabled={wosServices.length === 0 || isCrossing}
+                                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border flex items-center gap-2 transition-all active:scale-95 shadow-lg ${wosServices.length > 0 && !isCrossing
+                                    ? 'bg-orange-500 text-white shadow-orange-900/20 border-orange-400/20 hover:bg-orange-600 animate-pulse-subtle'
+                                    : 'bg-gray-100 text-gray-300 cursor-not-allowed border-transparent'
+                                    }`}
+                            >
+                                <Zap size={14} className={isCrossing ? 'animate-spin' : ''} />
+                                {isCrossing ? 'Auditando...' : 'Auditar WOS'}
                             </button>
                         </div>
                     </div>
@@ -2802,6 +2895,8 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 isOpen={isWosOpen} 
                 onClose={() => setIsWosOpen(false)} 
                 geminiApiKey={geminiApiKey}
+                csgServicesData={csgServicesData}
+                syncToSheets={syncToSheets}
             />
         </div>
     );
