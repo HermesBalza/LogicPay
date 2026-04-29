@@ -814,11 +814,17 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                     <div className="flex items-center gap-4">
                         <button 
                             onClick={handleOpenEmail} 
-                            disabled={isSending}
-                            className={`h-14 px-6 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-900/20 ${isSending ? 'bg-gray-400' : 'bg-[#303a7f] hover:bg-[#252a5e]'}`}
+                            disabled={isSending || existingRecord?.correo_enviado === 'Enviado'}
+                            className={`h-14 px-6 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-lg ${isSending ? 'bg-gray-400 shadow-gray-900/10' : existingRecord?.correo_enviado === 'Enviado' ? 'bg-[#10a345] shadow-green-900/20' : 'bg-[#303a7f] hover:bg-[#252a5e] shadow-blue-900/20'}`}
                         >
-                            {isSending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Mail size={18} />}
-                            {isSending ? 'Procesando...' : 'Enviar Correo'}
+                            {isSending ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : existingRecord?.correo_enviado === 'Enviado' ? (
+                                <CheckCircle size={18} />
+                            ) : (
+                                <Mail size={18} />
+                            )}
+                            {isSending ? 'Procesando...' : existingRecord?.correo_enviado === 'Enviado' ? 'Correo Enviado' : 'Enviar Correo'}
                         </button>
                         <button onClick={handleExportPDF} className="h-14 px-6 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-900/20">
                             <Download size={18} /> Exportar PDF
@@ -946,6 +952,33 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
 const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets }) => {
     const reportRef = useRef(null);
     const [selectedBiweekId, setSelectedBiweekId] = useState(null);
+    const [nominaStatus, setNominaStatus] = useState({});
+
+    // Cargar estado de los correos desde la base de datos (Solicitado por Hermes)
+    useEffect(() => {
+        const fetchNominaStatus = async () => {
+            try {
+                const response = await fetch(`${CSG_NOMINA_CSV_URL}&t=${new Date().getTime()}`, { cache: 'no-store' });
+                if (!response.ok) return;
+                const csvText = await response.text();
+                const lines = csvText.split('\n').filter(l => l.trim());
+                if (lines.length < 2) return;
+
+                const statusMap = {};
+                lines.forEach((line, idx) => {
+                    if (idx === 0) return;
+                    const cols = parseCSVRowSimple(line);
+                    const id = String(cols[0]).replace(/"/g, '').trim();
+                    const status = String(cols[5]).replace(/"/g, '').trim();
+                    statusMap[id] = status;
+                });
+                setNominaStatus(statusMap);
+            } catch (error) {
+                console.error("[CSG] Error fetching nomina status:", error);
+            }
+        };
+        fetchNominaStatus();
+    }, []);
 
     const biweeks = useMemo(() => {
         const groups = {};
@@ -1035,6 +1068,11 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets }) => {
                                             <Calendar size={18} />
                                         </div>
                                         <span className="font-black text-sm text-[#303a7f] tracking-tight">{bw.label}</span>
+                                        {nominaStatus[bw.id] === 'Enviado' && (
+                                            <div className="text-[#6bbdb7] animate-in zoom-in duration-300" title="Correo Enviado">
+                                                <Send size={14} />
+                                            </div>
+                                        )}
                                     </div>
                                 </td>
                                 <td className="px-10 py-6">
