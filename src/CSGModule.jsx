@@ -1218,10 +1218,7 @@ const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus, isReportModal
         }
     };
 
-    const handleProcessReport = (reportResults) => {
-        console.log("Reporte procesado localmente (Sin persistencia):", reportResults);
-        // Conexión eliminada por instrucción del Director
-    };
+
 
     const totals = useMemo(() => {
         return reconciledData.reduce((acc, s) => ({
@@ -1318,11 +1315,7 @@ const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus, isReportModal
                 </div>
             </div>
 
-            <CSGBillingReportModal 
-                isOpen={isReportModalOpen} 
-                onClose={() => setIsReportModalOpen(false)} 
-                onProcess={handleProcessReport} 
-            />
+
         </div>
     );
 };
@@ -2352,6 +2345,11 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
         }
     };
 
+    const handleProcessReport = (reportResults) => {
+        console.log("Reporte procesado localmente (Sin persistencia):", reportResults);
+        // Conexión eliminada por instrucción del Director
+    };
+
     const TABS = [
         { id: 'registro', label: 'Historial', icon: FileText },
         { id: 'nomina', label: 'Nómina CSG', icon: Users },
@@ -2460,6 +2458,13 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
 
             {/* Photo Viewer */}
             <CSGPhotoViewer isOpen={photoModal.open} onClose={() => setPhotoModal({ open: false, fotos: [], title: '' })} fotos={photoModal.fotos} title={photoModal.title} />
+
+            {/* WOS Global Modal */}
+            <CSGBillingReportModal 
+                isOpen={isReportModalOpen} 
+                onClose={() => setIsReportModalOpen(false)} 
+                onProcess={handleProcessReport} 
+            />
         </div>
     );
 };
