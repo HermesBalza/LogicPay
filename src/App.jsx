@@ -11423,6 +11423,11 @@ function App() {
                     notas: obj.notas || obj.Notas || obj.observaciones || '',
                     estado: obj.estado || obj.Estado || 'registrado',
                     correo_enviado: obj.correo_enviado || obj['Correo Enviado'] || '',
+                    'Fecha Rad.': obj['Fecha Rad.'] || obj['fecha rad.'] || '',
+                    pago: obj.pago || obj.Pago || '',
+                    fecha_pago: obj['Fecha de Pago'] || obj['fecha de pago'] || obj['Fecha Pago'] || '',
+                    wos: obj.wos || obj.WOS || '',
+                    status: obj.status || obj.Status || 'Due',
                     fotos
                 };
             }).filter(r => r.correlativo || r.fecha || r.empleado);

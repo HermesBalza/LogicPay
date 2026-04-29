@@ -1282,64 +1282,58 @@ const CSGBillingView = ({ csgServicesData = [] }) => {
                         <thead>
                             <tr className="bg-[#303a7f] text-white">
                                 {['Fecha Rad.', 'Fecha Serv.', 'Facturación (CSG)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Status'].map(h => (
-                                    <th key={h} className="px-5 py-4 text-[9px] font-black uppercase tracking-widest text-left whitespace-nowrap">{h}</th>
+                                    <th key={h} className="px-5 py-4 text-[9px] font-black uppercase tracking-widest text-center whitespace-nowrap">{h}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {reconciledData.length === 0 ? (
                                 <tr><td colSpan={9} className="py-20 text-center text-gray-300 font-bold text-xs uppercase tracking-widest italic opacity-50">No hay servicios registrados para mostrar</td></tr>
-                            ) : reconciledData.map((s, i) => {
-                                const utilidad = (parseFloat(s.monto_csg) || 0) - (parseFloat(s.monto_lgm) || 0);
-                                const isPaid = s.status === 'Paid';
-                                
-                                return (
-                                    <tr key={s.correlativo} className="hover:bg-gray-50/50 transition-colors group">
-                                        <td className="px-5 py-3 text-[10px] font-bold text-gray-400 whitespace-nowrap">--/--/--</td>
-                                        <td className="px-5 py-3 text-[10px] font-black text-[#303a7f] whitespace-nowrap">{s.fecha}</td>
-                                        <td className="px-5 py-3 text-[11px] font-black text-[#303a7f]">{fmtCurrency(s.monto_csg)}</td>
-                                        <td className="px-5 py-3 text-[11px] font-bold text-amber-600">{fmtCurrency(s.monto_lgm)}</td>
-                                        <td className="px-5 py-3 text-[11px] font-black text-teal-600">{fmtCurrency(utilidad)}</td>
-                                        
-                                        {/* Campos Editables */}
-                                        <td className="px-5 py-3">
-                                            <input 
-                                                type="text" 
-                                                className="w-20 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 text-[10px] font-black text-[#303a7f] outline-none focus:border-[#6bbdb7]"
-                                                value={s.pago || ''}
-                                                placeholder="0.00"
-                                                onChange={e => handleUpdateField(s.correlativo, 'pago', e.target.value)}
-                                            />
-                                        </td>
-                                        <td className="px-5 py-3">
-                                            <input 
-                                                type="text" 
-                                                className="w-24 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 text-[10px] font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7]"
-                                                value={s.fecha_pago || ''}
-                                                placeholder="MM/DD/YYYY"
-                                                onChange={e => handleUpdateField(s.correlativo, 'fecha_pago', e.target.value)}
-                                            />
-                                        </td>
-                                        <td className="px-5 py-3">
-                                            <input 
-                                                type="text" 
-                                                className="w-24 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 text-[10px] font-black text-[#303a7f] outline-none focus:border-[#6bbdb7]"
-                                                value={s.wos || ''}
-                                                placeholder="REF#"
-                                                onChange={e => handleUpdateField(s.correlativo, 'wos', e.target.value)}
-                                            />
-                                        </td>
-                                        <td className="px-5 py-3">
-                                            <button 
-                                                onClick={() => handleUpdateField(s.correlativo, 'status', isPaid ? 'Due' : 'Paid')}
-                                                className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${isPaid ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}
-                                            >
-                                                {isPaid ? 'Paid' : 'Due'}
-                                            </button>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
+                                ) : reconciledData.map((s, i) => {
+                                    const utilidad = (parseFloat(s.monto_csg) || 0) - (parseFloat(s.monto_lgm) || 0);
+                                    const isPaid = (s.status === 'Paid' || s.Status === 'Paid');
+                                    
+                                    return (
+                                        <tr key={s.correlativo} className="hover:bg-gray-50/50 transition-colors group border-b border-gray-50">
+                                            <td className="px-5 py-4 text-center">
+                                                <span className={`text-[10px] font-bold uppercase tracking-wider ${s['Fecha Rad.'] ? 'text-[#303a7f]' : 'text-gray-300'}`}>
+                                                    {s['Fecha Rad.'] || '--/--/--'}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-4 text-center text-[10px] font-black text-[#303a7f] whitespace-nowrap">
+                                                {s.fecha}
+                                            </td>
+                                            <td className="px-5 py-4 text-center text-[11px] font-black text-[#303a7f]">
+                                                {fmtCurrency(s.monto_csg)}
+                                            </td>
+                                            <td className="px-5 py-4 text-center text-[11px] font-bold text-amber-600">
+                                                {fmtCurrency(s.monto_lgm)}
+                                            </td>
+                                            <td className="px-5 py-4 text-center">
+                                                <div className={`px-2 py-0.5 rounded-md inline-block ${utilidad >= 0 ? 'bg-teal-50' : 'bg-red-50'}`}>
+                                                    <span className={`text-[10px] font-black ${utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>{fmtCurrency(utilidad)}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-4 text-center text-[11px] font-black text-[#303a7f]">
+                                                {fmtCurrency(s.pago)}
+                                            </td>
+                                            <td className="px-5 py-4 text-center text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">
+                                                {s.fecha_pago || '--/--/--'}
+                                            </td>
+                                            <td className="px-5 py-4 text-center">
+                                                <span className={`text-[10px] font-black ${s.wos ? 'text-orange-500' : 'text-gray-300'}`}>{s.wos || '---'}</span>
+                                            </td>
+                                            <td className="px-5 py-4 text-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isPaid}
+                                                    onChange={(e) => handleUpdateField(s.correlativo, 'status', e.target.checked ? 'Paid' : 'Due')}
+                                                    className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all"
+                                                />
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                         </tbody>
                     </table>
                 </div>
