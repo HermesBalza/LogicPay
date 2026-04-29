@@ -580,6 +580,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
     const [isConfirmed, setIsConfirmed] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isValidating, setIsValidating] = useState(false);
+    const [existingRecord, setExistingRecord] = useState(null);
 
     // FASE: Verificación de persistencia (Solicitado por Hermes)
     useEffect(() => {
@@ -598,14 +599,25 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                 const currentId = String(biweek.id).trim();
                 
                 // Buscamos en la primera columna (id_nomina)
-                const exists = lines.some((line, idx) => {
+                const foundLine = lines.find((line, idx) => {
                     if (idx === 0) return false; // Saltar encabezados
                     const cols = parseCSVRowSimple(line);
                     return cols[0] && String(cols[0]).replace(/"/g, '').trim() === currentId;
                 });
                 
-                if (exists) {
+                if (foundLine) {
                     setIsConfirmed(true);
+                    const cols = parseCSVRowSimple(foundLine);
+                    // Mapear los datos existentes para no perderlos en futuras actualizaciones
+                    setExistingRecord({
+                        id_nomina: String(cols[0]).replace(/"/g, '').trim(),
+                        periodo: String(cols[1]).replace(/"/g, '').trim(),
+                        total_lgm: String(cols[2]).replace(/"/g, '').trim(),
+                        total_csg: String(cols[3]).replace(/"/g, '').trim(),
+                        fecha_confirmacion: String(cols[4]).replace(/"/g, '').trim(),
+                        correo_enviado: String(cols[5]).replace(/"/g, '').trim(),
+                        servicios_json: String(cols[6]).replace(/"/g, '').trim()
+                    });
                 }
             } catch (e) {
                 console.error('[CSG] Error verificando existencia de nómina:', e);
@@ -679,6 +691,42 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                 })
             });
             
+            // Actualizar estado de envío en la base de datos (Solicitado por Hermes)
+            if (syncToSheets) {
+                const totalCSG = biweek.services.reduce((acc, s) => acc + (s.monto_csg || 0), 0);
+                
+                // Limpiar fotos base64 de los servicios para no saturar la BD (Solicitado por Hermes)
+                const cleanedServices = biweek.services.map(s => {
+                    const clean = { ...s };
+                    Object.keys(clean).forEach(k => { 
+                        if (k.startsWith('foto_') || k === 'fotos') delete clean[k]; 
+                    });
+                    return clean;
+                });
+
+                // Construimos el objeto completo para no perder información (Fix solicitado por Hermes)
+                const syncData = {
+                    id_nomina: biweek.id,
+                    periodo: biweek.label,
+                    total_lgm: biweek.totalLGM,
+                    total_csg: totalCSG,
+                    fecha_confirmacion: existingRecord?.fecha_confirmacion || new Date().toLocaleString(),
+                    correo_enviado: 'Enviado',
+                    servicios_json: existingRecord?.servicios_json || JSON.stringify(cleanedServices)
+                };
+
+                await syncToSheets(
+                    'upsert',
+                    syncData,
+                    'CSG_Nomina',
+                    false,
+                    ['id_nomina']
+                );
+
+                // Actualizar estado local
+                setExistingRecord(syncData);
+            }
+            
             setNotificationModal({
                 isOpen: true,
                 type: 'success',
@@ -707,8 +755,17 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
 
         try {
             if (syncToSheets) {
+                // Limpiar fotos base64 de los servicios para no saturar la BD (Solicitado por Hermes)
+                const cleanedServices = biweek.services.map(s => {
+                    const clean = { ...s };
+                    Object.keys(clean).forEach(k => { 
+                        if (k.startsWith('foto_') || k === 'fotos') delete clean[k]; 
+                    });
+                    return clean;
+                });
+
                 const totalCSG = biweek.services.reduce((acc, s) => acc + (s.monto_csg || 0), 0);
-                
+
                 const syncData = {
                     id_nomina: biweek.id,
                     periodo: biweek.label,
@@ -716,7 +773,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                     total_csg: totalCSG,
                     fecha_confirmacion: new Date().toLocaleString(),
                     correo_enviado: 'Pendiente',
-                    servicios_json: JSON.stringify(biweek.services)
+                    servicios_json: JSON.stringify(cleanedServices)
                 };
 
                 await syncToSheets(
@@ -914,7 +971,7 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets }) => {
                 const fmt = (dt) => `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}/${dt.getFullYear()}`;
                 
                 groups[biweekIdx] = {
-                    id: biweekIdx,
+                    id: `${biweekIdx}-${start.getFullYear()}`,
                     start: fmt(start),
                     end: fmt(end),
                     label: `${fmt(start)} - ${fmt(end)}`,
