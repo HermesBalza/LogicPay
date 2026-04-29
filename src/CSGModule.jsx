@@ -1170,7 +1170,7 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets, csgNomi
 
 
 // ─── CSGBillingView: Control de Conciliación de Pagos CSG ─────────────────────
-const CSGBillingView = ({ csgServicesData = [] }) => {
+const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus }) => {
     const [filterFrom, setFilterFrom] = useState('');
     const [filterTo, setFilterTo] = useState('');
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -1212,8 +1212,11 @@ const CSGBillingView = ({ csgServicesData = [] }) => {
     }, [csgServicesData, filterFrom, filterTo, search]);
 
     const handleUpdateField = (correlativo, field, value) => {
-        console.log("Cambio local solicitado (Sin persistencia):", { correlativo, field, value });
-        // Conexión eliminada por instrucción del Director
+        if (onUpdateCSGStatus) {
+            onUpdateCSGStatus(correlativo, field, value);
+        } else {
+            console.log("onUpdateCSGStatus no definido. Cambio local:", { correlativo, field, value });
+        }
     };
 
     const handleProcessReport = (reportResults) => {
@@ -1327,7 +1330,7 @@ const CSGBillingView = ({ csgServicesData = [] }) => {
                                                 <input
                                                     type="checkbox"
                                                     checked={isPaid}
-                                                    onChange={(e) => handleUpdateField(s.correlativo, 'status', e.target.checked ? 'Paid' : 'Due')}
+                                                    onChange={(e) => handleUpdateField(s.correlativo, 'status', e.target.checked)}
                                                     className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all"
                                                 />
                                             </td>
@@ -2256,7 +2259,7 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
 };
 
 // ─── CSGView: Contenedor principal del módulo CSG ────────────────────────────
-const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, setIsAddingStore, setIsAddingEmployee, onAddStore, onAddEmployee, geminiApiKey, apiUrl, mailApiUrl }) => {
+const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, onUpdateCSGStatus, setIsAddingStore, setIsAddingEmployee, onAddStore, onAddEmployee, geminiApiKey, apiUrl, mailApiUrl }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [isAddingCsgStore, setIsAddingCsgStore] = useState(false);
     const [isAddingCsgEmployee, setIsAddingCsgEmployee] = useState(false);
@@ -2451,7 +2454,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 />
             )}
             {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} mailApiUrl={mailApiUrl} syncToSheets={syncToSheets} csgNominaHistory={csgNominaHistory} onRefreshNomina={fetchNominaHistory} />}
-            {activeCSGTab === 'facturacion' && <CSGBillingView csgServicesData={csgServicesData} />}
+            {activeCSGTab === 'facturacion' && <CSGBillingView csgServicesData={csgServicesData} onUpdateCSGStatus={onUpdateCSGStatus} />}
 
             {/* Form Modal */}
             {isCsgFormOpen && (
