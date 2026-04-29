@@ -9336,11 +9336,63 @@ function App() {
         return () => { if (billingSaveTimeoutRef.current) clearTimeout(billingSaveTimeoutRef.current); };
     }, [nominaHistoryData, selectedHistoryStore]);
 
+    // --- OBSERVADOR DE SINCRONIZACIÓN: CSG Servicios (Debounced con Cola) ---
+    useEffect(() => {
+        if (csgPendingSaveRef.current.length === 0) return;
+        if (csgSaveTimeoutRef.current) clearTimeout(csgSaveTimeoutRef.current);
+
+        csgSaveTimeoutRef.current = setTimeout(async () => {
+            const queue = [...csgPendingSaveRef.current];
+            if (queue.length === 0) return;
+
+            // Limpiamos la cola local para procesar
+            csgPendingSaveRef.current = [];
+
+            try {
+                for (const task of queue) {
+                    const { correlativo, field, val } = task;
+                    
+                    // Buscar el registro actual en el estado para preservar los demás campos
+                    const existing = csgServicesData.find(s => String(s.correlativo) === String(correlativo)) || {};
+                    
+                    // Construir el payload completo para el upsert en CSG_Servicios
+                    // El campo 'correlativo' es la llave primaria.
+                    const payload = {
+                        ...existing,
+                        correlativo: correlativo,
+                        [field === 'status' ? 'Status' : field]: field === 'status' ? (val ? 'Paid' : 'Due') : val
+                    };
+
+                    await fetch(API_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify({
+                            action: 'upsert',
+                            sheetName: 'CSG_Servicios',
+                            data: payload,
+                            matchKeys: ['correlativo']
+                        })
+                    });
+                    console.log('[LogicPay] Sincronización Exitosa CSG (Cola):', correlativo);
+                }
+            } catch (e) {
+                console.error('[LogicPay] Error en Sincronización CSG (Batch):', e);
+            } finally {
+                setIsSyncing(false); // Usamos el estado global de sync o uno específico si se requiere
+            }
+        }, 1500);
+
+        return () => { if (csgSaveTimeoutRef.current) clearTimeout(csgSaveTimeoutRef.current); };
+    }, [csgServicesData]);
+
     const pePendingSaveRef = useRef([]);
     const billingPendingSaveRef = useRef([]);
+    const csgPendingSaveRef = useRef([]); // Nueva cola para CSG
     const peSaveTimeoutRef = useRef(null);
     const vwhSaveTimeoutRef = useRef(null);
     const billingSaveTimeoutRef = useRef(null);
+    const csgSaveTimeoutRef = useRef(null); // Nuevo timeout para CSG
     const massImportFileInputRef = useRef(null);
     const storeMassImportFileInputRef = useRef(null);
 
@@ -11912,7 +11964,7 @@ function App() {
                             {navItems.find(i => i.id === activeTab)?.icon && React.createElement(navItems.find(i => i.id === activeTab).icon, { size: 14 })}
                         </div>
                         <h2 className="text-xs font-black text-[#303a7f] tracking-tighter uppercase leading-none m-0">
-                            {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : activeTab === 'tax_center' ? 'Centro 1099-NEC' : activeTab === 'billing' ? 'Gestión de Facturación' : activeTab === 'settings' ? 'Configuración' : 'Dashboard'}
+                            {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : activeTab === 'tax_center' ? 'Centro 1099-NEC' : activeTab === 'billing' ? 'Gestión de Facturación' : activeTab === 'settings' ? 'Configuración' : activeTab === 'csg' ? 'Módulo Cleaning Services Group' : 'Dashboard'}
                         </h2>
                     </div>
 
@@ -12896,7 +12948,24 @@ function App() {
                                 fetchCSGServices();
                             }}
                             syncToSheets={syncToSheets}
-                            onRefresh={fetchCSGServices}
+                            onRefresh={() => {
+                                fetchCSGServices();
+                                fetchNominaHistory();
+                            }}
+                            onUpdateCSGStatus={(correlativo, field, val) => {
+                                // 1. Actualización Local Inmediata (UI reactiva)
+                                setCsgServicesData(prev => prev.map(s => {
+                                    if (String(s.correlativo) === String(correlativo)) {
+                                        const finalVal = field === 'status' ? (val ? 'Paid' : 'Due') : val;
+                                        return { ...s, [field]: finalVal };
+                                    }
+                                    return s;
+                                }));
+
+                                // 2. Encolar para Persistencia (Debounced)
+                                csgPendingSaveRef.current.push({ correlativo, field, val });
+                                setIsSyncing(true); // Activa el spinner global
+                            }}
                             setIsAddingStore={setIsAddingStore}
                             setIsAddingEmployee={setIsAddingEmployee}
                             onAddStore={handleCreateStore}

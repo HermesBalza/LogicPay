@@ -1170,10 +1170,9 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets, csgNomi
 
 
 // ─── CSGBillingView: Control de Conciliación de Pagos CSG ─────────────────────
-const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus }) => {
+const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus, isReportModalOpen, setIsReportModalOpen }) => {
     const [filterFrom, setFilterFrom] = useState('');
     const [filterTo, setFilterTo] = useState('');
-    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [search, setSearch] = useState('');
 
     // Usamos directamente csgServicesData (Sin conexión a BD por instrucción del Director)
@@ -1234,30 +1233,7 @@ const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus }) => {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-3">
-                    <div>
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Desde</label>
-                        <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} className="bg-white border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" />
-                    </div>
-                    <div>
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Hasta</label>
-                        <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} className="bg-white border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" />
-                    </div>
-                    <div className="flex-1 min-w-[200px]">
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Buscar</label>
-                        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Tienda, empleado, WOS..." className="w-full bg-white border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" />
-                    </div>
-                </div>
-                
-                <button 
-                    onClick={() => setIsReportModalOpen(true)}
-                    className="px-6 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/10"
-                >
-                    <Sparkles size={16} />
-                    Conciliar con Reporte CSG
-                </button>
-            </div>
+            {/* Filtros y botón movidos o eliminados por instrucción del Director para simplificar la interfaz */}
 
             {/* KPI Row */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -2266,6 +2242,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
     const [reviewModal, setReviewModal] = useState({ open: false, payload: null });
     const [photoModal, setPhotoModal] = useState({ open: false, fotos: [], title: '' });
     const [statusModal, setStatusModal] = useState({ open: false, title: '', message: '' });
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     
     // Historial de nóminas radicadas para conciliación (Solicitado por Hermes)
     const [csgNominaHistory, setCsgNominaHistory] = useState([]);
@@ -2383,66 +2360,53 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-8">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center gap-6">
-                <div className="flex-1">
-                    <div className="flex items-center gap-4 mb-2">
-                        <div className="p-3 bg-gradient-to-br from-[#6bbdb7] to-[#4a9e98] rounded-2xl shadow-lg shadow-teal-900/20">
-                            <Sparkles size={22} className="text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-black text-[#303a7f] uppercase tracking-tighter leading-none">Módulo Cleaning Services Group</h1>
-                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest mt-1 opacity-80">Cleaning Services Group — Pago por Servicio</p>
-                        </div>
-                    </div>
-                    {csgStores.length > 0 && (
-                        <div className="flex gap-3 flex-wrap mt-4">
-                            {csgStores.map(s => (
-                                <div key={s.codigo} className="bg-white border-2 border-gray-100 rounded-2xl px-5 py-3 flex items-center gap-3 shadow-sm">
-                                    <div className="w-2 h-2 bg-[#6bbdb7] rounded-full animate-pulse" />
-                                    <div>
-                                        <p className="text-[11px] font-black text-[#303a7f] uppercase tracking-wide">{s.nombre}</p>
-                                        <p className="text-[9px] font-bold text-gray-400">LGM: {fmtCurrency(s.rate_lgm)} | CSG: {fmtCurrency(s.rate_csg)}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+            {/* Header / Tabs & Actions Row */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                {/* Navigation Tabs - Lado Izquierdo */}
+                <div className="bg-white rounded-2xl border-2 border-gray-100 p-1.5 inline-flex gap-1 shadow-sm">
+                    {TABS.map(t => (
+                        <button 
+                            key={t.id} 
+                            onClick={() => setActiveCSGTab(t.id)} 
+                            className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeCSGTab === t.id ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}
+                        >
+                            <t.icon size={14} />
+                            {t.label}
+                        </button>
+                    ))}
                 </div>
+
+                {/* Action Buttons - Lado Derecho */}
                 <div className="flex gap-3">
-                    <button onClick={onRefresh} className="p-3 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl hover:text-[#6bbdb7] hover:border-[#6bbdb7]/20 transition-all shadow-sm" title="Actualizar datos">
-                        <RefreshCw size={18} />
+                    <button 
+                        onClick={() => setIsReportModalOpen(true)}
+                        className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
+                    >
+                        <LayoutGrid size={18} className="group-hover:rotate-12 transition-transform duration-500" />
+                        <span className="tracking-widest uppercase text-[10px]">WOS</span>
                     </button>
-                    
-                    <button onClick={() => setIsAddingCsgStore(true)} className="px-7 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-2xl shadow-blue-900/20">
-                        <Plus size={18} />
-                        Agregar Tienda
+
+                    <button onClick={() => setIsAddingCsgStore(true)} className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap">
+                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
+                        <span className="tracking-widest uppercase text-[10px]">Agregar Tienda</span>
                     </button>
 
                     <button
                         onClick={() => setIsAddingCsgEmployee(true)}
-                        className="flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-[#303a7f] text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-xl shadow-blue-900/20 active:scale-95 group"
+                        className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
                     >
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
-                        Agregar Personal
+                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
+                        <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
                     </button>
 
-                    <button onClick={() => setIsCsgFormOpen(true)} className="px-7 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-2xl shadow-blue-900/20">
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform" />
-                        Registrar Servicio
+                    <button onClick={() => setIsCsgFormOpen(true)} className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap">
+                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
+                        <span className="tracking-widest uppercase text-[10px]">Registrar Servicio</span>
                     </button>
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="bg-white rounded-2xl border-2 border-gray-100 p-1.5 inline-flex gap-1 shadow-sm">
-                {TABS.map(t => (
-                    <button key={t.id} onClick={() => setActiveCSGTab(t.id)} className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeCSGTab === t.id ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}>
-                        <t.icon size={14} />
-                        {t.label}
-                    </button>
-                ))}
-            </div>
+
 
             {/* Content */}
             {activeCSGTab === 'registro' && (
@@ -2454,7 +2418,14 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 />
             )}
             {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} mailApiUrl={mailApiUrl} syncToSheets={syncToSheets} csgNominaHistory={csgNominaHistory} onRefreshNomina={fetchNominaHistory} />}
-            {activeCSGTab === 'facturacion' && <CSGBillingView csgServicesData={csgServicesData} onUpdateCSGStatus={onUpdateCSGStatus} />}
+            {activeCSGTab === 'facturacion' && (
+                <CSGBillingView 
+                    csgServicesData={csgServicesData} 
+                    onUpdateCSGStatus={onUpdateCSGStatus} 
+                    isReportModalOpen={isReportModalOpen}
+                    setIsReportModalOpen={setIsReportModalOpen}
+                />
+            )}
 
             {/* Form Modal */}
             {isCsgFormOpen && (
