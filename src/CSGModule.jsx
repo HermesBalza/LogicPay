@@ -2044,10 +2044,12 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets, csgNomi
 
 
 // ─── CSGBillingView: Control de Conciliación de Pagos CSG ─────────────────────
-const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus }) => {
+const CSGBillingView = ({ csgServicesData = [], syncToSheets, onRefresh }) => {
     const [filterFrom, setFilterFrom] = useState('');
     const [filterTo, setFilterTo] = useState('');
     const [search, setSearch] = useState('');
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [localStatuses, setLocalStatuses] = useState({});
 
     // Usamos directamente csgServicesData (Sin conexión a BD por instrucción del Director)
     const reconciledData = useMemo(() => {
@@ -2084,11 +2086,59 @@ const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus }) => {
         });
     }, [csgServicesData, filterFrom, filterTo, search]);
 
-    const handleUpdateField = (correlativo, field, value) => {
-        if (onUpdateCSGStatus) {
-            onUpdateCSGStatus(correlativo, field, value);
-        } else {
-            console.log("onUpdateCSGStatus no definido. Cambio local:", { correlativo, field, value });
+    const handleUpdateField = async (correlativo, field, value) => {
+        if (!syncToSheets) return;
+        setIsUpdating(true);
+        try {
+            const service = reconciledData.find(s => s.correlativo === correlativo);
+            if (!service) return;
+
+            const newStatus = value ? 'Paid' : 'Due';
+            setLocalStatuses(prev => ({ ...prev, [correlativo]: newStatus }));
+
+            const dbPayload = {
+                correlativo: service.correlativo || '',
+                fecha: service.fecha || '',
+                tienda: service.tienda || '',
+                codigo_tienda: service.codigo_tienda || '',
+                empleado: service.empleado || '',
+                codigo_empleado: service.codigo_empleado || '',
+                num_servicios: service.num_servicios || '',
+                monto_lgm: service.monto_lgm || '',
+                monto_csg: service.monto_csg || '',
+                notas: service.notas || '',
+                estado: service.estado || '',
+                correo_enviado: service.correo_enviado || '',
+                foto_1: service.foto_1 || (service.fotos && service.fotos[0]) || '',
+                foto_2: service.foto_2 || (service.fotos && service.fotos[1]) || '',
+                foto_3: service.foto_3 || (service.fotos && service.fotos[2]) || '',
+                foto_4: service.foto_4 || (service.fotos && service.fotos[3]) || '',
+                foto_5: service.foto_5 || (service.fotos && service.fotos[4]) || '',
+                foto_6: service.foto_6 || (service.fotos && service.fotos[5]) || '',
+                foto_7: service.foto_7 || (service.fotos && service.fotos[6]) || '',
+                foto_8: service.foto_8 || (service.fotos && service.fotos[7]) || '',
+                foto_9: service.foto_9 || (service.fotos && service.fotos[8]) || '',
+                foto_10: service.foto_10 || (service.fotos && service.fotos[9]) || '',
+                'Fecha Rad.': service['Fecha Rad.'] || '',
+                Pago: service.Pago || service.pago || '',
+                'Fecha de Pago': service['Fecha de Pago'] || service.fecha_pago || '',
+                WOS: service.WOS || service.wos || '',
+                Status: newStatus
+            };
+
+            await syncToSheets('upsert', dbPayload, 'CSG_Servicios', true, ['correlativo']);
+            
+            if (onRefresh) onRefresh();
+        } catch (error) {
+            console.error('[CSGBillingView] Error actualizando status:', error);
+            alert('Error al actualizar el estado en la base de datos.');
+            setLocalStatuses(prev => {
+                const updated = { ...prev };
+                delete updated[correlativo];
+                return updated;
+            });
+        } finally {
+            setIsUpdating(false);
         }
     };
 
@@ -2141,7 +2191,8 @@ const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus }) => {
                                 <tr><td colSpan={9} className="py-20 text-center text-gray-300 font-bold text-xs uppercase tracking-widest italic opacity-50">No hay servicios registrados para mostrar</td></tr>
                             ) : reconciledData.map((s, i) => {
                                 const utilidad = (parseFloat(s.monto_csg) || 0) - (parseFloat(s.monto_lgm) || 0);
-                                const isPaid = (s.status === 'Paid' || s.Status === 'Paid');
+                                const currentStatus = localStatuses[s.correlativo] || s.Status || s.status;
+                                const isPaid = currentStatus === 'Paid';
 
                                 return (
                                     <tr key={s.correlativo} className="hover:bg-gray-50/50 transition-colors group border-b border-gray-50">
@@ -2177,8 +2228,9 @@ const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus }) => {
                                             <input
                                                 type="checkbox"
                                                 checked={isPaid}
+                                                disabled={isUpdating}
                                                 onChange={(e) => handleUpdateField(s.correlativo, 'status', e.target.checked)}
-                                                className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all"
+                                                className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all disabled:opacity-50"
                                             />
                                         </td>
                                     </tr>
@@ -3331,7 +3383,8 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             {activeCSGTab === 'facturacion' && (
                 <CSGBillingView
                     csgServicesData={csgServicesData}
-                    onUpdateCSGStatus={onUpdateCSGStatus}
+                    syncToSheets={syncToSheets}
+                    onRefresh={onRefresh}
                 />
             )}
 

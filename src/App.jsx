@@ -9360,8 +9360,17 @@ function App() {
                     const payload = {
                         ...existing,
                         correlativo: correlativo,
-                        [field === 'status' ? 'Status' : field]: field === 'status' ? (val ? 'Paid' : 'Due') : val
+                        [field === 'status' ? 'Status' : (field === 'fecha_pago' ? 'Fecha de Pago' : field)]: field === 'status' ? (val ? 'Paid' : 'Due') : val
                     };
+                    
+                    // Re-inyección de fotos para evitar que el upsert borre las columnas foto_1..foto_10
+                    if (existing.fotos && Array.isArray(existing.fotos)) {
+                        existing.fotos.forEach((fotoBase64, idx) => {
+                            if (idx < 10) {
+                                payload[`foto_${idx + 1}`] = fotoBase64;
+                            }
+                        });
+                    }
 
                     // Limpieza de claves redundantes (minúsculas) para evitar inyectar columnas nuevas (Fix Hermes)
                     const garbageKeys = ['pago', 'fecha_pago', 'wos', 'status', 'fotos'];
