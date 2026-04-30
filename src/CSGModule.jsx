@@ -596,7 +596,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                 const lines = csvText.split('\n').filter(l => l.trim());
                 if (lines.length < 2) return;
                 
-                const currentId = String(biweek.id).trim();
+                const currentId = "CSG-" + String(biweek.id).trim();
                 
                 // Buscamos en la primera columna (id_nomina)
                 const foundLine = lines.find((line, idx) => {
@@ -706,7 +706,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
 
                 // Construimos el objeto completo para no perder información (Fix solicitado por Hermes)
                 const syncData = {
-                    id_nomina: biweek.id,
+                    id_nomina: "CSG-" + biweek.id,
                     periodo: biweek.label,
                     total_lgm: biweek.totalLGM,
                     total_csg: totalCSG,
@@ -767,7 +767,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                 const totalCSG = biweek.services.reduce((acc, s) => acc + (s.monto_csg || 0), 0);
 
                 const syncData = {
-                    id_nomina: biweek.id,
+                    id_nomina: "CSG-" + biweek.id,
                     periodo: biweek.label,
                     total_lgm: biweek.totalLGM,
                     total_csg: totalCSG,
