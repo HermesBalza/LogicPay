@@ -54,23 +54,30 @@ const fmtDate = (d) => d || '--';
 
 const CSG_NOMINA_CSV_URL = import.meta.env.VITE_SHEET_CSG_NOMINA_URL;
 
-const parseCSVRowSimple = (row) => {
-    const values = [];
+// Parsea una fila CSV respetando campos entre comillas y comillas escapadas (indispensable para Data_JSON)
+const parseCSVRow = (row) => {
+    const result = [];
     let current = '';
     let inQuotes = false;
     for (let i = 0; i < row.length; i++) {
-        const char = row[i];
-        if (char === '"') {
-            inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-            values.push(current.trim());
+        const c = row[i];
+        if (c === '"') {
+            // Manejo de comillas escapadas ("")
+            if (inQuotes && row[i + 1] === '"') { 
+                current += '"'; 
+                i++; 
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (c === ',' && !inQuotes) {
+            result.push(current.trim());
             current = '';
         } else {
-            current += char;
+            current += c;
         }
     }
-    values.push(current.trim());
-    return values;
+    result.push(current.trim());
+    return result;
 };
 
 // ─── CSGPhotoViewer: Modal para ver fotos de evidencia ───────────────────────
@@ -1028,7 +1035,7 @@ const CSGBillingReportModal = ({ isOpen, onClose, onProcess }) => {
 };
 
 // ─── CSGWosView: Ventana a pantalla completa para el procesamiento de WOS CSG ───
-const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncToSheets }) => {
+const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncToSheets, wosHistoryData = [], onRefreshHistory }) => {
     const [wosData, setWosData] = useState({
         wosNumber: '',
         subcontractor: '',
@@ -1044,6 +1051,8 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
     const [isWosDetailOpen, setIsWosDetailOpen] = useState(false);
     const [selectedWosGroup, setSelectedWosGroup] = useState(null);
     const [isWOSBugOpen, setIsWOSBugOpen] = useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [notification, setNotification] = useState({ open: false, type: 'success', message: '' });
     const fileInputRef = useRef(null);
 
     const crossMatchResults = useMemo(() => {
@@ -1125,6 +1134,7 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
             if (syncToSheets) {
                 await syncToSheets('upsert', payload, 'WOS_CSG', false, ['WOS_Number']);
                 console.log("[WOS CSG] Auto-guardado exitoso en WOS_CSG:", payload.WOS_Number);
+                if (onRefreshHistory) onRefreshHistory();
             }
         } catch (error) {
             console.error("[WOS CSG] Error en auto-guardado:", error);
@@ -1184,11 +1194,11 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                 setWosServices(resultData.matchedServices);
                 // AUTO-SAVE: Guardar automáticamente tras el cruce exitoso
                 await handleAutoSaveWOS(wosData, resultData.matchedServices);
-                alert("Auditoría completada y guardada en WOS_CSG.");
+                setNotification({ open: true, type: 'success', message: 'Auditoría Completada' });
             }
         } catch (error) {
             console.error('[WOS CSG Cross-Match Error]:', error);
-            alert("Error durante la auditoría inteligente con IA.");
+            setNotification({ open: true, type: 'error', message: 'Error durante la auditoría inteligente con IA.' });
         } finally {
             setIsCrossing(false);
         }
@@ -1198,7 +1208,7 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
         const file = e.target.files[0];
         if (!file) return;
         if (!geminiApiKey) {
-            alert("Por favor, configure su API Key de Gemini en Ajustes.");
+            setNotification({ open: true, type: 'error', message: 'Por favor, configure su API Key de Gemini en Ajustes.' });
             return;
         }
 
@@ -1302,7 +1312,10 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                 <div className="flex items-center gap-4">
                     <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleUploadWOS} />
 
-                    <button className="h-[48px] px-8 bg-white border-2 border-[#303a7f]/20 text-[#303a7f] rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-gray-50 active:scale-95 flex items-center gap-3 shadow-xl">
+                    <button
+                        onClick={() => setIsHistoryOpen(true)}
+                        className="h-[48px] px-8 bg-white border-2 border-[#303a7f]/20 text-[#303a7f] rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-gray-50 active:scale-95 flex items-center gap-3 shadow-xl"
+                    >
                         <History size={16} />
                         Historial
                     </button>
@@ -1369,22 +1382,27 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                         </div>
 
                         <div className="ml-auto flex items-center gap-3">
-                            <button
-                                onClick={() => setIsWOSBugOpen(true)}
-                                disabled={wosServices.length === 0}
-                                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg border flex items-center gap-2 relative ${wosServices.length > 0
-                                    ? 'bg-white text-orange-500 border-orange-100 hover:bg-orange-50'
-                                    : 'bg-gray-100 text-gray-300 cursor-not-allowed border-transparent'
-                                    }`}
-                            >
-                                <Bug size={14} className={wosDiscrepancies.lgmOrphans.length > 0 || wosDiscrepancies.wosOrphans.length > 0 ? 'animate-pulse' : ''} />
-                                Discrepancias
-                                {(wosDiscrepancies.lgmOrphans.length > 0 || wosDiscrepancies.wosOrphans.length > 0) && (
-                                    <span className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-lg animate-bounce">
-                                        {wosDiscrepancies.lgmOrphans.length + wosDiscrepancies.wosOrphans.length}
-                                    </span>
-                                )}
-                            </button>
+                            {(() => {
+                                const hasBeenAudited = wosServices.some(s => s.hasOwnProperty('matchedLgmId'));
+                                return (
+                                    <button
+                                        onClick={() => setIsWOSBugOpen(true)}
+                                        disabled={!hasBeenAudited}
+                                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg border flex items-center gap-2 relative ${hasBeenAudited
+                                            ? 'bg-white text-orange-500 border-orange-100 hover:bg-orange-50'
+                                            : 'bg-gray-100 text-gray-300 cursor-not-allowed border-transparent'
+                                            }`}
+                                    >
+                                        <Bug size={14} className={hasBeenAudited && (wosDiscrepancies.lgmOrphans.length > 0 || wosDiscrepancies.wosOrphans.length > 0) ? 'animate-pulse' : ''} />
+                                        Discrepancias
+                                        {hasBeenAudited && (wosDiscrepancies.lgmOrphans.length > 0 || wosDiscrepancies.wosOrphans.length > 0) && (
+                                            <span className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-lg animate-bounce">
+                                                {wosDiscrepancies.lgmOrphans.length + wosDiscrepancies.wosOrphans.length}
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })()}
                             <button
                                 onClick={() => setIsWosDetailOpen(true)}
                                 disabled={wosServices.length === 0}
@@ -1759,6 +1777,125 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                     </div>
                 </div>
             )}
+
+            {/* VENTANA EMERGENTE: HISTORIAL DE WOS CSG */}
+            {isHistoryOpen && (
+                <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-[1200px] h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+                        {/* Header del Modal */}
+                        <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 bg-orange-500 text-white rounded-2xl shadow-lg shadow-orange-900/10">
+                                    <History size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Historial WOS CSG</h3>
+                                    <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Registro de auditorías almacenadas en Base de Datos (WOS_CSG)</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setIsHistoryOpen(false)}
+                                className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {/* Contenido con registros reales */}
+                        <div className="flex-1 overflow-y-auto p-8 bg-[#fcfdfe] custom-scrollbar">
+                            {wosHistoryData.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
+                                    <div className="w-24 h-24 bg-gray-50 rounded-[2rem] flex items-center justify-center mb-6 text-gray-200 border-2 border-dashed border-gray-100">
+                                        <History size={40} />
+                                    </div>
+                                    <h4 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter mb-2">Sin registros detectados</h4>
+                                    <p className="text-gray-400 font-bold text-sm max-w-md uppercase tracking-tight">Cargue y procese un WOS de CSG para iniciar el historial automático.</p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-4">
+                                    {[...wosHistoryData].reverse().map((record, idx) => {
+                                        let details = { metadata: {} };
+                                        const rawJSON = record.Data_JSON || record.data_json || record.datajson || '{}';
+                                        if (typeof rawJSON === 'object' && rawJSON !== null) {
+                                            details = rawJSON;
+                                        } else if (typeof rawJSON === 'string') {
+                                            try { details = JSON.parse(rawJSON); } catch (e) { console.error("Error al parsear WOS JSON:", e); }
+                                        }
+
+                                        const wosNum = record.WOS_Number || record.wos_number || record.wosnumber || 'S/N';
+                                        const subName = record.Subcontractor || record.subcontractor || 'Unknown Sub';
+                                        const dateVal = record.Date || record.date || '--/--/--';
+
+                                        return (
+                                            <div key={idx} className="bg-white border-2 border-gray-50 rounded-2xl p-5 hover:border-orange-200/30 transition-all shadow-sm group hover:shadow-xl hover:shadow-orange-900/5 flex items-center gap-6 justify-between">
+                                                <div className="flex-1 flex flex-col md:flex-row md:items-center gap-6">
+                                                    <div className="w-32 flex flex-col">
+                                                        <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-0.5">Cód WOS</span>
+                                                        <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider">{wosNum}</span>
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0">
+                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Subcontractor</span>
+                                                        <h4 className="text-sm font-black text-[#303a7f] uppercase tracking-tight leading-tight truncate">{subName}</h4>
+                                                    </div>
+
+                                                    <div className="w-32 flex flex-col">
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-0.5">Fecha WOS</span>
+                                                        <span className="text-[11px] font-black text-[#303a7f]">{dateVal}</span>
+                                                    </div>
+
+                                                    <div className="w-40 flex flex-col">
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-0.5">Periodo</span>
+                                                        <span className="text-[11px] font-black text-[#303a7f] truncate">{details.metadata?.paymentDueDate || details.metadata?.period || 'N/A'}</span>
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => {
+                                                        // Extraer metadatos con respaldo de las columnas de la fila para máxima robustez
+                                                        const mData = {
+                                                            wosNumber: details.metadata?.wosNumber || record.WOS_Number || record.wos_number || 'S/N',
+                                                            subcontractor: details.metadata?.subcontractor || record.Subcontractor || record.subcontractor || 'Unknown',
+                                                            wosDate: details.metadata?.wosDate || record.Date || record.date || '',
+                                                            period: details.metadata?.period || record.Period || record.period || 'N/A',
+                                                            signByDate: details.metadata?.signByDate || '',
+                                                            servicesThrough: details.metadata?.servicesThrough || '',
+                                                            paymentDueDate: details.metadata?.paymentDueDate || ''
+                                                        };
+
+                                                        // Extraer servicios soportando formato de objeto {services:[]} o array directo
+                                                        const sData = details.services || (Array.isArray(details) ? details : details.crossMatchResults || []);
+
+                                                        setWosData(mData);
+                                                        setWosServices(sData);
+                                                        setIsHistoryOpen(false);
+                                                    }}
+                                                    className="w-32 py-2.5 bg-gray-50 hover:bg-orange-500 text-orange-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 border border-transparent shadow-sm whitespace-nowrap"
+                                                >
+                                                    Cargar Registro
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer del Modal */}
+                        <div className="p-6 border-t font-black text-[10px] text-gray-400 text-center uppercase tracking-[0.2em] bg-white">
+                            LogicPay Automated CSG WOS Ledger V1.2
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Notificaciones del Sistema */}
+            <EmailNotificationModal
+                isOpen={notification.open}
+                type={notification.type}
+                message={notification.message}
+                onOk={() => setNotification({ ...notification, open: false })}
+            />
         </div>,
         document.body
     );
@@ -2980,6 +3117,40 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
     // Historial de nóminas radicadas para conciliación (Solicitado por Hermes)
     const [csgNominaHistory, setCsgNominaHistory] = useState([]);
     const [isLoadingNomina, setIsLoadingNomina] = useState(false);
+    const [csgWosHistoryData, setCsgWosHistoryData] = useState([]);
+    const [isLoadingWosHistory, setIsLoadingWosHistory] = useState(false);
+
+    const fetchCSGWosHistory = async () => {
+        setIsLoadingWosHistory(true);
+        try {
+            const url = import.meta.env.VITE_SHEET_WOS_CSG_URL;
+            if (!url) return;
+            const response = await fetch(`${url}&t=${new Date().getTime()}`, { cache: 'no-store' });
+            if (!response.ok) return;
+            const csvText = await response.text();
+            const lines = csvText.split('\n').filter(l => l.trim());
+            if (lines.length < 2) {
+                setCsgWosHistoryData([]);
+                return;
+            }
+
+            const headers = parseCSVRow(lines[0]);
+            const data = lines.slice(1).map(line => {
+                const cols = parseCSVRow(line);
+                const obj = {};
+                headers.forEach((h, i) => {
+                    const key = h.trim();
+                    obj[key] = cols[i] ? String(cols[i]).trim() : '';
+                });
+                return obj;
+            });
+            setCsgWosHistoryData(data);
+        } catch (error) {
+            console.error("[CSG] Error fetching WOS history:", error);
+        } finally {
+            setIsLoadingWosHistory(false);
+        }
+    };
 
     const fetchNominaHistory = async () => {
         setIsLoadingNomina(true);
@@ -2995,9 +3166,9 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 return;
             }
 
-            const headers = parseCSVRowSimple(lines[0]);
+            const headers = parseCSVRow(lines[0]);
             const data = lines.slice(1).map(line => {
-                const cols = parseCSVRowSimple(line);
+                const cols = parseCSVRow(line);
                 const obj = {};
                 headers.forEach((h, i) => {
                     const key = h.trim();
@@ -3015,6 +3186,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
 
     useEffect(() => {
         fetchNominaHistory();
+        fetchCSGWosHistory();
     }, []);
 
     const csgStores = useMemo(() => stores.filter(s => (s.cliente || '').toUpperCase() === 'CSG'), [stores]);
@@ -3204,6 +3376,8 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 geminiApiKey={geminiApiKey}
                 csgServicesData={csgServicesData}
                 syncToSheets={syncToSheets}
+                wosHistoryData={csgWosHistoryData}
+                onRefreshHistory={fetchCSGWosHistory}
             />
         </div>
     );
