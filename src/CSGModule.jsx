@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon, CreditCard, Send, Receipt, Loader2, ShieldCheck, LayoutGrid, History, Clock, Zap, Cpu, ArrowLeftRight } from 'lucide-react';
+import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon, CreditCard, Send, Receipt, Loader2, ShieldCheck, LayoutGrid, History, Clock, Zap, Cpu, ArrowLeftRight, Bug } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -123,7 +123,7 @@ const CSGPhotoViewer = ({ isOpen, onClose, fotos = [], title = 'Evidencia Fotogr
 // ─── CSGReviewModal: Resumen de datos antes del envío ────────────────────────
 const CSGReviewModal = ({ isOpen, onClose, onConfirm, payload }) => {
     if (!isOpen || !payload) return null;
-    
+
     const fotosCount = Object.keys(payload).filter(k => k.startsWith('foto_')).length;
 
     return createPortal(
@@ -233,7 +233,7 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
         if (!files || files.length === 0) return;
         const remaining = 10 - fotos.length;
         if (remaining <= 0) return;
-        
+
         const toProcess = Array.from(files).slice(0, remaining);
         setCompressing(true);
         try {
@@ -264,7 +264,7 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
 
     const handleSubmit = async () => {
         if (!tiendaSeleccionada || !empleadoSel) return;
-        
+
         if (fotos.length === 0) {
             setStatusModal({
                 open: true,
@@ -276,7 +276,7 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
 
         let detectedDate = null;
         setIsAnalyzing(true);
-        
+
         // --- Inteligencia Artificial: Detección de Fecha ---
         try {
             const genAI = new GoogleGenerativeAI(geminiApiKey);
@@ -290,7 +290,7 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
 
             const result = await model.generateContent([prompt, ...imageParts]);
             const text = result.response.text().trim();
-            
+
             if (text && text !== 'ERROR' && text.includes('/')) {
                 detectedDate = text;
                 console.log("[Gemini AI] Fecha detectada:", detectedDate);
@@ -352,11 +352,11 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                                 <button onClick={() => setFotos([])} className="text-[9px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors">Limpiar Todo</button>
                             )}
                         </div>
-                        
+
                         <input type="file" ref={fileRef} className="hidden" accept="image/*" multiple onChange={e => handleFotos(e.target.files)} />
-                        
+
                         {fotos.length < 10 && (
-                            <div 
+                            <div
                                 onDragEnter={handleDrag}
                                 onDragOver={handleDrag}
                                 onDragLeave={handleDrag}
@@ -364,8 +364,8 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                                 onClick={() => fileRef.current?.click()}
                                 className={`
                                     relative w-full border-2 border-dashed rounded-[2rem] py-10 flex flex-col items-center gap-3 transition-all cursor-pointer group
-                                    ${isDragging 
-                                        ? 'border-[#6bbdb7] bg-[#6bbdb7]/10 scale-[1.02] shadow-xl shadow-teal-900/5' 
+                                    ${isDragging
+                                        ? 'border-[#6bbdb7] bg-[#6bbdb7]/10 scale-[1.02] shadow-xl shadow-teal-900/5'
                                         : 'border-gray-100 bg-gray-50/50 hover:border-[#6bbdb7]/50 hover:bg-white hover:shadow-lg'}
                                 `}
                             >
@@ -395,13 +395,13 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                                     <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-gray-50 group shadow-sm hover:shadow-md transition-all">
                                         <img src={f.preview} alt="" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                                         <div className="absolute inset-0 bg-[#303a7f]/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-2 transition-all duration-300">
-                                            <button 
+                                            <button
                                                 onClick={(e) => { e.stopPropagation(); setViewerConfig({ isOpen: true, idx: i }); }}
                                                 className="w-8 h-8 bg-white text-[#303a7f] rounded-full flex items-center justify-center hover:scale-110 transition-transform active:scale-90 shadow-lg"
                                             >
                                                 <Eye size={16} />
                                             </button>
-                                            <button 
+                                            <button
                                                 onClick={(e) => { e.stopPropagation(); setFotos(prev => prev.filter((_, j) => j !== i)); }}
                                                 className="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:scale-110 transition-transform active:scale-90 shadow-lg"
                                             >
@@ -477,7 +477,7 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                         <textarea className={inputCls + ' resize-none'} rows={2} placeholder="Comentarios aquí..." value={notas} onChange={e => setNotas(e.target.value)} />
                     </div>
 
-                    </div>
+                </div>
 
                 <div className="px-10 py-6 border-t border-gray-100 flex gap-4">
                     <button onClick={onClose} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">Cancelar</button>
@@ -488,7 +488,7 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                 </div>
             </div>
             {/* Visor de Fotos para Previsualización (Premium) */}
-            <CSGPhotoViewer 
+            <CSGPhotoViewer
                 isOpen={viewerConfig.isOpen}
                 onClose={() => setViewerConfig({ ...viewerConfig, isOpen: false })}
                 fotos={fotos.map(f => f.base64)}
@@ -591,20 +591,20 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                 // Añadimos un timestamp para evitar cache del navegador
                 const response = await fetch(`${CSG_NOMINA_CSV_URL}&t=${new Date().getTime()}`, { cache: 'no-store' });
                 if (!response.ok) return;
-                
+
                 const csvText = await response.text();
                 const lines = csvText.split('\n').filter(l => l.trim());
                 if (lines.length < 2) return;
-                
+
                 const currentId = String(biweek.id).trim();
-                
+
                 // Buscamos en la primera columna (id_nomina)
                 const foundLine = lines.find((line, idx) => {
                     if (idx === 0) return false; // Saltar encabezados
                     const cols = parseCSVRowSimple(line);
                     return cols[0] && String(cols[0]).replace(/"/g, '').trim() === currentId;
                 });
-                
+
                 if (foundLine) {
                     setIsConfirmed(true);
                     const cols = parseCSVRowSimple(foundLine);
@@ -667,7 +667,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
 
     const handleSendEmail = async (emailData) => {
         if (!mailApiUrl || !pdfBase64) return;
-        
+
         setNotificationModal({
             isOpen: true,
             type: 'loading',
@@ -690,16 +690,16 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                     }]
                 })
             });
-            
+
             // Actualizar estado de envío en la base de datos (Solicitado por Hermes)
             if (syncToSheets) {
                 const totalCSG = biweek.services.reduce((acc, s) => acc + (s.monto_csg || 0), 0);
-                
+
                 // Limpiar fotos base64 de los servicios para no saturar la BD (Solicitado por Hermes)
                 const cleanedServices = biweek.services.map(s => {
                     const clean = { ...s };
-                    Object.keys(clean).forEach(k => { 
-                        if (k.startsWith('foto_') || k === 'fotos') delete clean[k]; 
+                    Object.keys(clean).forEach(k => {
+                        if (k.startsWith('foto_') || k === 'fotos') delete clean[k];
                     });
                     return clean;
                 });
@@ -726,7 +726,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                 // Actualizar estado local
                 setExistingRecord(syncData);
             }
-            
+
             setNotificationModal({
                 isOpen: true,
                 type: 'success',
@@ -745,7 +745,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
 
     const handleConfirm = async () => {
         if (!biweek || isSyncing || isConfirmed) return;
-        
+
         setIsSyncing(true);
         setNotificationModal({
             isOpen: true,
@@ -758,8 +758,8 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                 // Limpiar fotos base64 de los servicios para no saturar la BD (Solicitado por Hermes)
                 const cleanedServices = biweek.services.map(s => {
                     const clean = { ...s };
-                    Object.keys(clean).forEach(k => { 
-                        if (k.startsWith('foto_') || k === 'fotos') delete clean[k]; 
+                    Object.keys(clean).forEach(k => {
+                        if (k.startsWith('foto_') || k === 'fotos') delete clean[k];
                     });
                     return clean;
                 });
@@ -777,14 +777,14 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                 };
 
                 await syncToSheets(
-                    'upsert', 
-                    syncData, 
-                    'CSG_Nomina', 
-                    false, 
+                    'upsert',
+                    syncData,
+                    'CSG_Nomina',
+                    false,
                     ['id_nomina']
                 );
             }
-            
+
             setIsConfirmed(true);
             setIsSyncing(false);
             setNotificationModal({
@@ -812,8 +812,8 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                         <p className="text-[#6bbdb7] text-xs font-black uppercase tracking-widest mt-1.5 opacity-80">{biweek.label}</p>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button 
-                            onClick={handleOpenEmail} 
+                        <button
+                            onClick={handleOpenEmail}
                             disabled={isSending || existingRecord?.correo_enviado === 'Enviado'}
                             className={`h-14 px-6 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-lg ${isSending ? 'bg-gray-400 shadow-gray-900/10' : existingRecord?.correo_enviado === 'Enviado' ? 'bg-[#10a345] shadow-green-900/20' : 'bg-[#303a7f] hover:bg-[#252a5e] shadow-blue-900/20'}`}
                         >
@@ -855,7 +855,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {[...biweek.services].sort((a,b) => new Date(a.fecha) - new Date(b.fecha)).map((s, i) => (
+                                    {[...biweek.services].sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).map((s, i) => (
                                         <tr key={i} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-[#6bbdb7]/[0.03] transition-all`}>
                                             <td className="px-5 py-4 text-[10px] font-black text-[#303a7f] whitespace-nowrap uppercase">{s.correlativo}</td>
                                             <td className="px-5 py-4 text-[10px] font-bold text-[#303a7f] whitespace-nowrap uppercase">{s.fecha}</td>
@@ -866,7 +866,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                                             </td>
                                             <td className="px-5 py-4 text-[10px] font-black text-[#303a7f] whitespace-nowrap">{fmtCurrency(s.monto_lgm)}</td>
                                             <td className="px-5 py-4">
-                                                <div 
+                                                <div
                                                     contentEditable={true}
                                                     suppressContentEditableWarning={true}
                                                     className="w-full bg-transparent border-none text-[9px] font-medium text-gray-500 italic uppercase outline-none focus:text-[#303a7f] transition-all empty:before:content-['Comentarios_aquí...'] empty:before:text-gray-200 min-h-[14px]"
@@ -894,39 +894,39 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                         </div>
                     </div>
 
-                        <div className="mt-10 mb-6 flex justify-end px-12">
-                            <button 
-                                onClick={handleConfirm}
-                                disabled={isConfirmed || isSyncing || isValidating}
-                                className={`h-12 px-8 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg flex items-center gap-2 group ${isConfirmed ? 'bg-[#10a345] shadow-green-900/20' : 'bg-[#303a7f] hover:bg-[#252a5e] shadow-blue-900/20'}`}
-                            >
-                                {isValidating ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Validando...
-                                    </>
-                                ) : isSyncing ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Sincronizando...
-                                    </>
-                                ) : isConfirmed ? (
-                                    <>
-                                        <CheckCircle size={18} className="scale-110" />
-                                        Nómina Confirmada
-                                    </>
-                                ) : (
-                                    <>
-                                        <ShieldCheck size={18} className="group-hover:scale-110 transition-transform" />
-                                        Confirmar Nómina
-                                    </>
-                                )}
-                            </button>
-                        </div>
+                    <div className="mt-10 mb-6 flex justify-end px-12">
+                        <button
+                            onClick={handleConfirm}
+                            disabled={isConfirmed || isSyncing || isValidating}
+                            className={`h-12 px-8 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg flex items-center gap-2 group ${isConfirmed ? 'bg-[#10a345] shadow-green-900/20' : 'bg-[#303a7f] hover:bg-[#252a5e] shadow-blue-900/20'}`}
+                        >
+                            {isValidating ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Validando...
+                                </>
+                            ) : isSyncing ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Sincronizando...
+                                </>
+                            ) : isConfirmed ? (
+                                <>
+                                    <CheckCircle size={18} className="scale-110" />
+                                    Nómina Confirmada
+                                </>
+                            ) : (
+                                <>
+                                    <ShieldCheck size={18} className="group-hover:scale-110 transition-transform" />
+                                    Confirmar Nómina
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <CSGBiweekEmailModal 
+            <CSGBiweekEmailModal
                 isOpen={isEmailModalOpen}
                 onClose={() => setIsEmailModalOpen(false)}
                 biweek={biweek}
@@ -934,7 +934,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                 isSending={notificationModal.isOpen && notificationModal.type === 'loading'}
             />
 
-            <EmailNotificationModal 
+            <EmailNotificationModal
                 isOpen={notificationModal.isOpen}
                 type={notificationModal.type}
                 message={notificationModal.message}
@@ -955,10 +955,10 @@ const CSGBillingReportModal = ({ isOpen, onClose, onProcess }) => {
 
     const handleProcess = () => {
         if (!reportText.trim()) return;
-        
+
         const lines = reportText.split('\n').filter(l => l.trim());
         const results = [];
-        
+
         lines.forEach(line => {
             // Estructura compartida por Hermes:
             // Date | Document Number | Sage ID | Name | Name | Equipment Customer | Memo | Memo | Amount | Email | Date Closed
@@ -969,14 +969,14 @@ const CSGBillingReportModal = ({ isOpen, onClose, onProcess }) => {
                     fecha_pago: parts[0],
                     documento: parts[1],
                     tienda_reporte: parts[5] || parts[4], // Equipment Customer
-                    monto_pago: parseFloat(parts[8].replace(/[^0-9.-]+/g,"")) || 0,
+                    monto_pago: parseFloat(parts[8].replace(/[^0-9.-]+/g, "")) || 0,
                     memo: parts[6] || parts[7],
                     fecha_cierre: parts[10] || parts[0],
                     wos: parts[1] // Usamos Document Number como WOS inicial
                 });
             }
         });
-        
+
         onProcess(results);
         setReportText('');
         onClose();
@@ -996,15 +996,15 @@ const CSGBillingReportModal = ({ isOpen, onClose, onProcess }) => {
                         <X size={20} />
                     </button>
                 </div>
-                
+
                 <div className="p-10">
-                    <textarea 
+                    <textarea
                         className="w-full h-64 bg-gray-50 border-2 border-gray-100 rounded-2xl p-6 text-xs font-mono text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all resize-none"
                         placeholder="Pega las líneas del reporte aquí..."
                         value={reportText}
                         onChange={e => setReportText(e.target.value)}
                     />
-                    
+
                     <div className="bg-blue-50/50 p-4 rounded-xl mt-4 border border-blue-100">
                         <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest leading-relaxed">
                             <Sparkles size={12} className="inline mr-2 mb-1" />
@@ -1042,7 +1042,71 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
     const [isCrossing, setIsCrossing] = useState(false);
     const [wosServices, setWosServices] = useState([]);
     const [isWosDetailOpen, setIsWosDetailOpen] = useState(false);
+    const [selectedWosGroup, setSelectedWosGroup] = useState(null);
+    const [isWOSBugOpen, setIsWOSBugOpen] = useState(false);
     const fileInputRef = useRef(null);
+
+    const crossMatchResults = useMemo(() => {
+        if (!wosServices.length) return [];
+        const groups = {};
+        wosServices.forEach((svc, idx) => {
+            const matchId = svc.matchedLgmId || `orphan-${idx}`;
+            if (!groups[matchId]) {
+                groups[matchId] = {
+                    matchedLgmId: svc.matchedLgmId,
+                    wosRows: [],
+                    totalPaidByCSG: 0
+                };
+            }
+            groups[matchId].wosRows.push(svc);
+            groups[matchId].totalPaidByCSG += (parseFloat(svc.amount) || 0);
+        });
+
+        return Object.values(groups).map(group => {
+            let matchedServiceRecord = null;
+            let type = 'Sin Registro';
+            let lgmBilled = 0;
+            let storeCode = group.wosRows[0].locationId || '';
+            let storeName = group.wosRows[0].customer || '---';
+            let period = group.wosRows[0].serviceDates || '---';
+
+            if (group.matchedLgmId) {
+                matchedServiceRecord = csgServicesData.find(s => String(s.correlativo) === String(group.matchedLgmId));
+                if (matchedServiceRecord) {
+                    type = 'CSG Service';
+                    lgmBilled = parseFloat(matchedServiceRecord.monto_csg) || 0;
+                    storeName = matchedServiceRecord.tienda;
+                    period = matchedServiceRecord.fecha;
+                }
+            }
+
+            const diff = group.totalPaidByCSG - lgmBilled;
+            return {
+                key: group.matchedLgmId || `orphan-${Math.random()}`,
+                storeCode,
+                storeName,
+                serviceDates: period,
+                descriptions: group.wosRows.map(r => r.serviceDescription),
+                type,
+                lgmBilled,
+                csgAnnounced: group.totalPaidByCSG,
+                diff,
+                matchedServiceRecord,
+                rawServices: group.wosRows
+            };
+        });
+    }, [wosServices, csgServicesData]);
+
+    const wosDiscrepancies = useMemo(() => {
+        if (!wosServices.length) return { lgmOrphans: [], wosOrphans: [] };
+        const wosOrphans = crossMatchResults.filter(r => r.type === 'Sin Registro');
+        const matchedLgmIds = new Set(crossMatchResults.map(r => r.matchedLgmId).filter(Boolean));
+        const lgmOrphans = csgServicesData.filter(s =>
+            (s.status || s.Status || '').toLowerCase() !== 'paid' &&
+            !matchedLgmIds.has(s.correlativo)
+        );
+        return { lgmOrphans, wosOrphans };
+    }, [crossMatchResults, csgServicesData, wosServices]);
 
     const handleAutoSaveWOS = async (currentMetadata, currentServices) => {
         try {
@@ -1073,7 +1137,7 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
         setIsCrossing(true);
         try {
             // Filtrar servicios de CSG que no están pagados (Status != 'Paid')
-            const pendingLgmServices = csgServicesData.filter(s => 
+            const pendingLgmServices = csgServicesData.filter(s =>
                 (s.status || s.Status || '').toLowerCase() !== 'paid'
             ).map(s => ({
                 correlativo: s.correlativo,
@@ -1090,21 +1154,22 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
             });
 
             const prompt = `
-                Eres un auditor financiero experto para el módulo CSG (Cleaning Services Group). 
-                Tu tarea es realizar el cruce entre los servicios reportados en un WOS (Work Order Summary) de KBS/CSG y los servicios registrados en la base de datos de LGM que están pendientes de pago (Status != 'Paid').
+                Eres un auditor financiero corporativo experto y humano. Tu tarea es realizar el cruce entre los servicios facturados en un WOS (Work Order Summary) de CSG (Cleaning Services Group) y las facturas pendientes de cobro en LGM (Cleaning Services). 
+                Quiero que uses tu razonamiento analítico y tu capacidad de interpretación profunda.
 
                 DATOS DE ENTRADA:
-                1. WOS Services (Lo que KBS/CSG anuncia que pagará): ${JSON.stringify(wosServices)}
-                2. LGM Pending Services (Lo que LGM tiene registrado como pendiente): ${JSON.stringify(pendingLgmServices)}
+                1. WOS Services (Lo que CSG anuncia que pagará): ${JSON.stringify(wosServices)}
+                2. LGM Pending Services (Lo que LGM tiene registrado como pendiente de pago): ${JSON.stringify(pendingLgmServices)}
 
-                INSTRUCCIONES DE CRUCE:
-                - Analiza cada servicio del WOS y busca su pareja en los servicios pendientes de LGM.
-                - Utiliza el ID de la tienda (locationId), el nombre de la tienda, el monto (amount vs monto_csg) y las fechas de servicio para encontrar la coincidencia más probable.
-                - Es posible que un servicio en el WOS corresponda a un registro en LGM aunque los nombres no sean idénticos (ej. variaciones en el nombre de la tienda).
-                - Devuelve el array original de servicios del WOS añadiendo exactamente la propiedad "matchedLgmId" con el valor del "correlativo" de LGM o null si no encuentras coincidencia.
+                INSTRUCCIONES DE CRUCE (Razonamiento Humano):
+                - Compórtate como un humano: analiza las ambigüedades, asocia nombres similares de tiendas aunque estén truncados o varíen ligeramente.
+                - Evalúa los MONTOS Y FECHAS: Un auditor humano cruzaría las facturas guiándose fuertemente por la similitud entre el 'amount' del WOS y el 'monto_csg' de LGM. Utiliza el monto para desempatar tiendas o asociar de forma contundente.
+                - Si varios servicios del WOS suman el monto exacto o muy cercano a una factura de LGM, corresponden al mismo registro. Agrúpalos lógicamente en tu mente.
+                - Devuelve el array original de servicios del WOS añadiendo exactamente la propiedad "matchedLgmId" con el "correlativo" correspondiente o null si está huérfano.
 
-                FORMATO DE SALIDA (JSON Puro):
+                FORMATO DE SALIDA (JSON Puro, sin markdown):
                 {
+                    "auditoria_mental_paso_a_paso": "Describe brevemente tu razonamiento humano para llegar a estas conclusiones",
                     "matchedServices": [
                         { ...campos_originales_del_wos, "matchedLgmId": "CORRELATIVO_O_NULL" }
                     ]
@@ -1195,7 +1260,7 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                    - services.serviceDescription: Usa el Memo.
                    - services.amount: El valor numérico de Amount.
                 3. NO incluyas la fila de "Total" como un servicio.
-                4. Si una línea no tiene monto o es 0, procésala solo si tiene información de tienda relevante.
+                4. Incluye TODAS las transacciones que aparezcan en el reporte, sin importar si el monto es cero o negativo. No omitas ninguna línea que represente un servicio o ajuste.
 
                 CONTENIDO DEL ARCHIVO:
                 ${fileContent}
@@ -1236,7 +1301,7 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
 
                 <div className="flex items-center gap-4">
                     <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleUploadWOS} />
-                    
+
                     <button className="h-[48px] px-8 bg-white border-2 border-[#303a7f]/20 text-[#303a7f] rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-gray-50 active:scale-95 flex items-center gap-3 shadow-xl">
                         <History size={16} />
                         Historial
@@ -1304,10 +1369,23 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                         </div>
 
                         <div className="ml-auto flex items-center gap-3">
-                            <button className="px-6 py-2.5 rounded-xl bg-gray-50 text-gray-300 cursor-not-allowed border-gray-100 text-[10px] font-black uppercase tracking-widest border">
+                            <button
+                                onClick={() => setIsWOSBugOpen(true)}
+                                disabled={wosServices.length === 0}
+                                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg border flex items-center gap-2 relative ${wosServices.length > 0
+                                    ? 'bg-white text-orange-500 border-orange-100 hover:bg-orange-50'
+                                    : 'bg-gray-100 text-gray-300 cursor-not-allowed border-transparent'
+                                    }`}
+                            >
+                                <Bug size={14} className={wosDiscrepancies.lgmOrphans.length > 0 || wosDiscrepancies.wosOrphans.length > 0 ? 'animate-pulse' : ''} />
                                 Discrepancias
+                                {(wosDiscrepancies.lgmOrphans.length > 0 || wosDiscrepancies.wosOrphans.length > 0) && (
+                                    <span className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-lg animate-bounce">
+                                        {wosDiscrepancies.lgmOrphans.length + wosDiscrepancies.wosOrphans.length}
+                                    </span>
+                                )}
                             </button>
-                            <button 
+                            <button
                                 onClick={() => setIsWosDetailOpen(true)}
                                 disabled={wosServices.length === 0}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg border ${wosServices.length > 0
@@ -1317,7 +1395,7 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                             >
                                 Detalles
                             </button>
-                            <button 
+                            <button
                                 onClick={handleAICrossMatch}
                                 disabled={wosServices.length === 0 || isCrossing}
                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border flex items-center gap-2 transition-all active:scale-95 shadow-lg ${wosServices.length > 0 && !isCrossing
@@ -1351,11 +1429,11 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                                 <FileText size={64} className="text-gray-200" />
                             </div>
                             <p className="text-gray-400 font-black uppercase tracking-[0.4em] text-xs max-w-sm text-center leading-loose">
-                                Cargue un archivo WOS para iniciar el procesamiento con Inteligencia Artificial
+                                Cargue un archivo WOS de CSG
                             </p>
                         </div>
                     </div>
-                ) : (
+                ) : !wosServices.some(s => s.hasOwnProperty('matchedLgmId')) ? (
                     <div className="h-full flex flex-col items-center justify-center p-12">
                         <div className="max-w-md bg-white rounded-[2rem] p-10 shadow-2xl shadow-blue-900/5 border border-gray-100 text-center">
                             <div className="w-20 h-20 bg-green-50 text-green-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
@@ -1365,12 +1443,100 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                             <p className="text-gray-400 text-xs font-bold leading-relaxed mb-8">
                                 Se han procesado <span className="text-[#303a7f]">{wosServices.length} servicios</span>. Pulsa el botón <strong>Detalles</strong> para ver el desglose o inicia la auditoría.
                             </p>
-                            <button 
-                                onClick={() => setIsWosDetailOpen(true)}
-                                className="w-full py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-xl shadow-blue-900/20 active:scale-95"
-                            >
-                                Ver Detalles
-                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    /* ─── Tabla de Auditoría CSG (Cruce) ─── */
+                    <div className="p-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                        <div className="flex items-center justify-between mb-8 px-2">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-lg shadow-orange-900/20">
+                                    <ArrowLeftRight size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Resultados de Auditoría</h3>
+                                    <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-[0.2em]">
+                                        {crossMatchResults.filter(r => r.type !== 'Sin Registro').length} Emparejamientos Detectados
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-8">
+                                {[{ color: 'bg-teal-400', label: 'Exacto' }, { color: 'bg-red-400', label: 'CSG paga menos' }, { color: 'bg-yellow-400', label: 'CSG paga más' }].map(l => (
+                                    <div key={l.label} className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${l.color}`} />
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{l.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/[0.04] border border-gray-100 overflow-hidden">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="bg-[#303a7f] text-white">
+                                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-left">Tienda</th>
+                                        <th className="px-4 py-6 text-[10px] font-black uppercase tracking-widest text-center">Fecha Serv.</th>
+                                        <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-right">LGM Facturó</th>
+                                        <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-right">CSG Paga</th>
+                                        <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-center">Diferencia</th>
+                                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {crossMatchResults.filter(r => r.type !== 'Sin Registro').map((row, i) => {
+                                        const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
+                                        const absDiff = Math.abs(row.diff);
+                                        let diffColor = 'text-gray-400';
+                                        let dotColor = 'bg-gray-300';
+
+                                        if (absDiff < 0.01) {
+                                            dotColor = 'bg-teal-400';
+                                            diffColor = 'text-teal-500';
+                                        } else if (row.diff < 0) {
+                                            dotColor = 'bg-red-400';
+                                            diffColor = 'text-red-500';
+                                        } else {
+                                            dotColor = 'bg-yellow-400';
+                                            diffColor = 'text-yellow-600';
+                                        }
+
+                                        return (
+                                            <tr key={i} className="hover:bg-gray-50/50 transition-colors group">
+                                                <td className="px-8 py-6">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-black text-[#303a7f] uppercase group-hover:text-blue-600 transition-colors">{row.storeName}</span>
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase mt-1">ID: {row.storeCode || '---'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-6 text-center">
+                                                    <span className="text-[10px] font-black text-gray-400 uppercase">{row.serviceDates}</span>
+                                                </td>
+                                                <td className="px-6 py-6 text-right">
+                                                    <span className="text-[11px] font-black text-[#303a7f] tabular-nums">{fmt(row.lgmBilled)}</span>
+                                                </td>
+                                                <td className="px-6 py-6 text-right">
+                                                    <span className="text-[11px] font-black text-[#6bbdb7] tabular-nums">{fmt(row.csgAnnounced)}</span>
+                                                </td>
+                                                <td className="px-6 py-6">
+                                                    <div className="flex items-center justify-end gap-3">
+                                                        <span className={`text-[11px] font-black tabular-nums ${diffColor}`}>{fmt(row.diff)}</span>
+                                                        <div className={`w-2 h-2 rounded-full ${dotColor}`} />
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6 text-center">
+                                                    <button
+                                                        onClick={() => setSelectedWosGroup(row)}
+                                                        className="px-4 py-2 bg-gray-50 text-gray-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#303a7f] hover:text-white transition-all active:scale-95"
+                                                    >
+                                                        Detalles
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 )}
@@ -1455,6 +1621,144 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                     </div>
                 </div>
             )}
+
+            {/* VENTANA EMERGENTE: DESGLOSE DE DATOS WOS (CROSS-MATCH) CSG */}
+            {selectedWosGroup && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/10 animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
+                        <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                                    <Eye size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Evidencia Documental CSG</h3>
+                                    <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">{selectedWosGroup.storeName} · {selectedWosGroup.serviceDates}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setSelectedWosGroup(null)} className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-8 bg-[#fcfdfe] custom-scrollbar max-h-[60vh]">
+                            <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm overflow-hidden">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-50 text-gray-400">
+                                            <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest">Descripción del Servicio</th>
+                                            <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-right">Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {(selectedWosGroup.rawServices || []).map((s, idx) => (
+                                            <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                                                <td className="px-6 py-5 text-[10px] font-black text-[#303a7f] uppercase">{s.serviceDescription}</td>
+                                                <td className="px-6 py-5 text-[11px] font-black text-[#6bbdb7] text-right tabular-nums">
+                                                    ${parseFloat(s.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot className="bg-[#303a7f]/5">
+                                        <tr>
+                                            <td className="px-6 py-4 text-right text-[10px] font-black text-[#303a7f] uppercase tracking-widest">Total Anunciado CSG</td>
+                                            <td className="px-6 py-4 text-lg font-black text-[#303a7f] text-right tabular-nums">
+                                                ${parseFloat(selectedWosGroup.csgAnnounced || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Discrepancias (Bicho 🐞) CSG */}
+            {isWOSBugOpen && (
+                <div className="fixed inset-0 z-[200] bg-white flex flex-col animate-in slide-in-from-bottom duration-700">
+                    <div className="px-12 py-6 border-b-4 border-orange-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
+                        <div className="flex items-center gap-6">
+                            <div className="p-4 bg-orange-500 text-white rounded-2xl shadow-xl shadow-orange-200 animate-pulse">
+                                <Bug size={28} />
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-black text-[#303a7f] tracking-tight uppercase leading-tight">Auditoría de Discrepancias CSG</h2>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Detección Automática de Descalces LGM vs CSG</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setIsWOSBugOpen(false)} className="p-4 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90">
+                            <X size={32} />
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row divide-x-2 divide-gray-100">
+                        <div className="flex-1 flex flex-col bg-[#fdfdfe]">
+                            <div className="p-8 border-b border-gray-100 bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-xs font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
+                                        <History size={16} /> Pendientes LGM no en WOS
+                                    </h3>
+                                    <span className="px-3 py-1 bg-orange-100 text-orange-600 text-[10px] font-black rounded-full uppercase tracking-tighter">
+                                        {wosDiscrepancies.lgmOrphans.length} Registros
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-8 space-y-4 custom-scrollbar">
+                                {wosDiscrepancies.lgmOrphans.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-64 text-gray-300">
+                                        <CheckCircle size={48} strokeWidth={1} className="mb-4 text-teal-200" />
+                                        <p className="text-[10px] font-black uppercase tracking-widest">Sin Pendientes Huérfanos</p>
+                                    </div>
+                                ) : (
+                                    wosDiscrepancies.lgmOrphans.map((item, idx) => (
+                                        <div key={idx} className="bg-white border-2 border-gray-100 rounded-2xl p-5 hover:border-orange-200 transition-all shadow-sm group">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[11px] font-black text-[#303a7f] uppercase group-hover:text-orange-600 transition-colors">{item.tienda}</span>
+                                                    <span className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-widest">{item.fecha}</span>
+                                                </div>
+                                                <span className="text-xs font-black text-[#303a7f] tabular-nums">${parseFloat(item.monto_csg || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex-1 flex flex-col bg-[#f8fafb]">
+                            <div className="p-8 border-b border-gray-100 bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                                        <FileText size={16} /> Anuncios CSG no en LGM
+                                    </h3>
+                                    <span className="px-3 py-1 bg-blue-100 text-blue-600 text-[10px] font-black rounded-full uppercase tracking-tighter">
+                                        {wosDiscrepancies.wosOrphans.length} Registros
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-8 space-y-4 custom-scrollbar">
+                                {wosDiscrepancies.wosOrphans.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-64 text-gray-300">
+                                        <CheckCircle size={48} strokeWidth={1} className="mb-4 text-blue-200" />
+                                        <p className="text-[10px] font-black uppercase tracking-widest">Sin Anuncios Huérfanos</p>
+                                    </div>
+                                ) : (
+                                    wosDiscrepancies.wosOrphans.map((item, idx) => (
+                                        <div key={idx} className="bg-white border-2 border-gray-100 rounded-2xl p-5 hover:border-blue-200 transition-all shadow-sm group">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[11px] font-black text-[#303a7f] uppercase group-hover:text-blue-600 transition-colors">{item.storeName}</span>
+                                                    <span className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-widest">{item.serviceDates}</span>
+                                                </div>
+                                                <span className="text-xs font-black text-[#303a7f] tabular-nums">${parseFloat(item.csgAnnounced || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>,
         document.body
     );
@@ -1493,9 +1797,9 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets, csgNomi
                 start.setDate(start.getDate() + biweekIdx * 14);
                 const end = new Date(start);
                 end.setDate(end.getDate() + 13);
-                
+
                 const fmt = (dt) => `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}/${dt.getFullYear()}`;
-                
+
                 groups[biweekIdx] = {
                     id: `CSG-${biweekIdx}-${start.getFullYear()}`,
                     start: fmt(start),
@@ -1575,7 +1879,7 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets, csgNomi
                                 </td>
                                 <td className="px-10 py-6 font-black text-base text-[#303a7f]">{fmtCurrency(bw.totalLGM)}</td>
                                 <td className="px-10 py-6 text-right">
-                                    <button 
+                                    <button
                                         onClick={() => setSelectedBiweekId(bw.id)}
                                         className="px-6 py-2.5 bg-[#303a7f] text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all hover:bg-[#252a5e] shadow-lg shadow-blue-900/10 active:scale-95"
                                     >
@@ -1588,7 +1892,7 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets, csgNomi
                 </table>
             </div>
 
-            <CSGBiweekDetailsModal 
+            <CSGBiweekDetailsModal
                 isOpen={selectedBiweekId !== null}
                 onClose={() => setSelectedBiweekId(null)}
                 biweek={selectedBiweekData}
@@ -1611,7 +1915,7 @@ const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus }) => {
     // Usamos directamente csgServicesData (Sin conexión a BD por instrucción del Director)
     const reconciledData = useMemo(() => {
         let filtered = csgServicesData;
-        
+
         if (filterFrom || filterTo) {
             filtered = filtered.filter(s => {
                 if (!s.fecha) return true;
@@ -1625,11 +1929,11 @@ const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus }) => {
                 return true;
             });
         }
-        
+
         if (search) {
             const q = search.toLowerCase();
-            filtered = filtered.filter(s => 
-                (s.tienda || '').toLowerCase().includes(q) || 
+            filtered = filtered.filter(s =>
+                (s.tienda || '').toLowerCase().includes(q) ||
                 (s.empleado || '').toLowerCase().includes(q) ||
                 (s.wos || '').toLowerCase().includes(q) ||
                 (s.correlativo || '').toLowerCase().includes(q)
@@ -1698,51 +2002,51 @@ const CSGBillingView = ({ csgServicesData = [], onUpdateCSGStatus }) => {
                         <tbody className="divide-y divide-gray-100">
                             {reconciledData.length === 0 ? (
                                 <tr><td colSpan={9} className="py-20 text-center text-gray-300 font-bold text-xs uppercase tracking-widest italic opacity-50">No hay servicios registrados para mostrar</td></tr>
-                                ) : reconciledData.map((s, i) => {
-                                    const utilidad = (parseFloat(s.monto_csg) || 0) - (parseFloat(s.monto_lgm) || 0);
-                                    const isPaid = (s.status === 'Paid' || s.Status === 'Paid');
-                                    
-                                    return (
-                                        <tr key={s.correlativo} className="hover:bg-gray-50/50 transition-colors group border-b border-gray-50">
-                                            <td className="px-5 py-4 text-center">
-                                                <span className={`text-[10px] font-bold uppercase tracking-wider ${s['Fecha Rad.'] ? 'text-[#303a7f]' : 'text-gray-300'}`}>
-                                                    {s['Fecha Rad.'] || '--/--/--'}
-                                                </span>
-                                            </td>
-                                            <td className="px-5 py-4 text-center text-[10px] font-black text-[#303a7f] whitespace-nowrap">
-                                                {s.fecha}
-                                            </td>
-                                            <td className="px-5 py-4 text-center text-[11px] font-black text-[#303a7f]">
-                                                {fmtCurrency(s.monto_csg)}
-                                            </td>
-                                            <td className="px-5 py-4 text-center text-[11px] font-bold text-amber-600">
-                                                {fmtCurrency(s.monto_lgm)}
-                                            </td>
-                                            <td className="px-5 py-4 text-center">
-                                                <div className={`px-2 py-0.5 rounded-md inline-block ${utilidad >= 0 ? 'bg-teal-50' : 'bg-red-50'}`}>
-                                                    <span className={`text-[10px] font-black ${utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>{fmtCurrency(utilidad)}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-5 py-4 text-center text-[11px] font-black text-[#303a7f]">
-                                                {fmtCurrency(s.pago)}
-                                            </td>
-                                            <td className="px-5 py-4 text-center text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">
-                                                {s.fecha_pago || '--/--/--'}
-                                            </td>
-                                            <td className="px-5 py-4 text-center">
-                                                <span className={`text-[10px] font-black ${s.wos ? 'text-orange-500' : 'text-gray-300'}`}>{s.wos || '---'}</span>
-                                            </td>
-                                            <td className="px-5 py-4 text-center">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isPaid}
-                                                    onChange={(e) => handleUpdateField(s.correlativo, 'status', e.target.checked)}
-                                                    className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all"
-                                                />
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                            ) : reconciledData.map((s, i) => {
+                                const utilidad = (parseFloat(s.monto_csg) || 0) - (parseFloat(s.monto_lgm) || 0);
+                                const isPaid = (s.status === 'Paid' || s.Status === 'Paid');
+
+                                return (
+                                    <tr key={s.correlativo} className="hover:bg-gray-50/50 transition-colors group border-b border-gray-50">
+                                        <td className="px-5 py-4 text-center">
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${s['Fecha Rad.'] ? 'text-[#303a7f]' : 'text-gray-300'}`}>
+                                                {s['Fecha Rad.'] || '--/--/--'}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-4 text-center text-[10px] font-black text-[#303a7f] whitespace-nowrap">
+                                            {s.fecha}
+                                        </td>
+                                        <td className="px-5 py-4 text-center text-[11px] font-black text-[#303a7f]">
+                                            {fmtCurrency(s.monto_csg)}
+                                        </td>
+                                        <td className="px-5 py-4 text-center text-[11px] font-bold text-amber-600">
+                                            {fmtCurrency(s.monto_lgm)}
+                                        </td>
+                                        <td className="px-5 py-4 text-center">
+                                            <div className={`px-2 py-0.5 rounded-md inline-block ${utilidad >= 0 ? 'bg-teal-50' : 'bg-red-50'}`}>
+                                                <span className={`text-[10px] font-black ${utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>{fmtCurrency(utilidad)}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4 text-center text-[11px] font-black text-[#303a7f]">
+                                            {fmtCurrency(s.pago)}
+                                        </td>
+                                        <td className="px-5 py-4 text-center text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">
+                                            {s.fecha_pago || '--/--/--'}
+                                        </td>
+                                        <td className="px-5 py-4 text-center">
+                                            <span className={`text-[10px] font-black ${s.wos ? 'text-orange-500' : 'text-gray-300'}`}>{s.wos || '---'}</span>
+                                        </td>
+                                        <td className="px-5 py-4 text-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={isPaid}
+                                                onChange={(e) => handleUpdateField(s.correlativo, 'status', e.target.checked)}
+                                                className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all"
+                                            />
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -1785,7 +2089,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, sync
                                 <td className="px-5 py-3 text-[11px] font-black text-[#303a7f] whitespace-nowrap">{s.correlativo}</td>
                                 <td className="px-5 py-3 text-[11px] font-bold text-[#303a7f] whitespace-nowrap">
                                     <div className="flex items-center gap-2">
-                                        <button 
+                                        <button
                                             onClick={() => setSelectedService(s)}
                                             className="hover:text-[#6bbdb7] border-b-2 border-dashed border-[#303a7f]/20 transition-all pb-0.5"
                                         >
@@ -1830,9 +2134,9 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, sync
 
             {/* Modal de Detalles del Servicio */}
             {selectedService && (
-                <CSGServiceDetailsModal 
-                    service={selectedService} 
-                    onClose={() => setSelectedService(null)} 
+                <CSGServiceDetailsModal
+                    service={selectedService}
+                    onClose={() => setSelectedService(null)}
                     mailApiUrl={mailApiUrl}
                     syncToSheets={syncToSheets}
                 />
@@ -1888,15 +2192,15 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
             if (syncToSheets) {
                 // Restauramos el objeto completo para evitar la pérdida de datos en el Sheet,
                 // pero filtramos las claves en minúsculas que inyectan columnas duplicadas.
-                const syncData = { 
-                    ...service, 
-                    correo_enviado: 'Enviado' 
+                const syncData = {
+                    ...service,
+                    correo_enviado: 'Enviado'
                 };
 
                 // Limpieza de claves duplicadas (minúsculas) y la propiedad 'fotos' original
                 const garbageKeys = ['pago', 'fecha_pago', 'wos', 'status', 'fotos'];
                 garbageKeys.forEach(key => delete syncData[key]);
-                
+
                 // Reconstruir columnas de fotos individuales para que el Sheet las mantenga
                 if (service.fotos && Array.isArray(service.fotos)) {
                     service.fotos.forEach((fotoBase64, idx) => {
@@ -1907,10 +2211,10 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
                 }
 
                 await syncToSheets(
-                    'upsert', 
-                    syncData, 
-                    'CSG_Servicios', 
-                    false, 
+                    'upsert',
+                    syncData,
+                    'CSG_Servicios',
+                    false,
                     ['correlativo']
                 );
             }
@@ -1977,9 +2281,9 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
                         <DetailItem label="Servicios Realizados" value={service.num_servicios} />
                         <DetailItem label="Cobro CSG" value={fmtCurrency(service.monto_csg)} />
                         <DetailItem label="Pago LGM" value={fmtCurrency(service.monto_lgm)} color="text-red-500" />
-                        <DetailItem 
-                            label="Utilidad Neta" 
-                            value={fmtCurrency((service.monto_csg || 0) - (service.monto_lgm || 0))} 
+                        <DetailItem
+                            label="Utilidad Neta"
+                            value={fmtCurrency((service.monto_csg || 0) - (service.monto_lgm || 0))}
                             color="text-teal-600 font-black"
                         />
                     </div>
@@ -1998,14 +2302,14 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
                             <span className="text-[9px] font-black text-[#303a7f] uppercase tracking-widest block">Evidencia Fotográfica ({service.fotos.length})</span>
                             <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
                                 {service.fotos.map((foto, idx) => (
-                                    <button 
-                                        key={idx} 
+                                    <button
+                                        key={idx}
                                         onClick={() => setActivePhotoIdx(idx)}
                                         className="aspect-square rounded-2xl overflow-hidden border-2 border-gray-100 hover:border-[#6bbdb7] transition-all group relative"
                                     >
-                                        <img 
-                                            src={`data:image/jpeg;base64,${foto}`} 
-                                            alt={`Evidencia ${idx + 1}`} 
+                                        <img
+                                            src={`data:image/jpeg;base64,${foto}`}
+                                            alt={`Evidencia ${idx + 1}`}
                                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                         />
                                         <div className="absolute inset-0 bg-[#303a7f]/0 group-hover:bg-[#303a7f]/20 flex items-center justify-center transition-all">
@@ -2020,7 +2324,7 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
 
                 {/* Footer */}
                 <div className="px-10 py-6 border-t border-gray-50 bg-white flex justify-end gap-4">
-                    <button 
+                    <button
                         onClick={() => !isAlreadySent && setIsEmailModalOpen(true)}
                         disabled={isAlreadySent}
                         className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg flex items-center gap-2 ${isAlreadySent ? 'bg-gray-400 cursor-not-allowed opacity-60 text-white' : 'bg-[#6bbdb7] text-white hover:bg-[#59aba5] shadow-teal-900/20'}`}
@@ -2028,7 +2332,7 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
                         <Mail size={16} />
                         {isAlreadySent ? 'CORREO ENVIADO' : 'ENVIAR CORREO'}
                     </button>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="px-8 py-3 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 shadow-lg shadow-blue-900/20"
                     >
@@ -2037,7 +2341,7 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
                 </div>
 
                 {/* Modal de Envío de Correo */}
-                <CSGServiceEmailModal 
+                <CSGServiceEmailModal
                     isOpen={isEmailModalOpen}
                     onClose={() => setIsEmailModalOpen(false)}
                     service={service}
@@ -2046,7 +2350,7 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
                 />
 
                 {/* Modal de Notificación Interno */}
-                <EmailNotificationModal 
+                <EmailNotificationModal
                     isOpen={notificationModal.isOpen}
                     type={notificationModal.type}
                     message={notificationModal.message}
@@ -2055,10 +2359,10 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
 
                 {/* Visor de Fotos Integrado */}
                 {activePhotoIdx !== null && (
-                    <CSGPhotoViewer 
-                        isOpen={true} 
-                        onClose={() => setActivePhotoIdx(null)} 
-                        fotos={service.fotos} 
+                    <CSGPhotoViewer
+                        isOpen={true}
+                        onClose={() => setActivePhotoIdx(null)}
+                        fotos={service.fotos}
                         startIdx={activePhotoIdx}
                         title={`Evidencia: ${service.correlativo}`}
                     />
@@ -2305,7 +2609,7 @@ const CSGStoreAddView = ({ onSave, onBack }) => {
     const labelCls = "text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1";
 
     return createPortal(
-        <div 
+        <div
             className="fixed inset-0 z-[9999] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500 rounded-none"
             style={{ top: '-1px', left: '-1px', right: '-1px', bottom: '-1px', borderRadius: '0px' }}
         >
@@ -2514,7 +2818,7 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
     const labelCls = "text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 ml-1";
 
     return createPortal(
-        <div 
+        <div
             className="fixed inset-0 z-[9999] bg-white flex flex-col animate-in slide-in-from-right duration-500 rounded-none"
             style={{ top: '-1px', left: '-1px', right: '-1px', bottom: '-1px', borderRadius: '0px' }}
         >
@@ -2672,7 +2976,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
     const [photoModal, setPhotoModal] = useState({ open: false, fotos: [], title: '' });
     const [statusModal, setStatusModal] = useState({ open: false, title: '', message: '' });
     const [isWosOpen, setIsWosOpen] = useState(false);
-    
+
     // Historial de nóminas radicadas para conciliación (Solicitado por Hermes)
     const [csgNominaHistory, setCsgNominaHistory] = useState([]);
     const [isLoadingNomina, setIsLoadingNomina] = useState(false);
@@ -2729,14 +3033,14 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
 
             // Guardar en la hoja CSG_Servicios de Google Sheets
             await syncToSheets('upsert', payload, 'CSG_Servicios', true, ['correlativo']);
-            
+
             setIsCsgFormOpen(false);
             setStatusModal({
                 open: true,
                 title: '¡Servicio Registrado!',
                 message: `El servicio con correlativo ${payload.correlativo} ha sido guardado exitosamente en la base de datos.`
             });
-            
+
             // Actualizar la vista para reflejar el nuevo registro
             onRefresh();
         } catch (e) {
@@ -2755,10 +3059,10 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
         try {
             await onAddStore(newStore);
             setIsAddingCsgStore(false);
-            setStatusModal({ 
-                open: true, 
-                title: '¡Tienda Agregada!', 
-                message: `La tienda ${newStore.nombre} ha sido registrada con éxito en el sistema CSG.` 
+            setStatusModal({
+                open: true,
+                title: '¡Tienda Agregada!',
+                message: `La tienda ${newStore.nombre} ha sido registrada con éxito en el sistema CSG.`
             });
             onRefresh();
         } catch (e) {
@@ -2770,10 +3074,10 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
         try {
             await onAddEmployee(newEmp);
             setIsAddingCsgEmployee(false);
-            setStatusModal({ 
-                open: true, 
-                title: '¡Personal Agregado!', 
-                message: `El colaborador ${newEmp.nombre} ha sido registrado con éxito en el sistema CSG.` 
+            setStatusModal({
+                open: true,
+                title: '¡Personal Agregado!',
+                message: `El colaborador ${newEmp.nombre} ha sido registrado con éxito en el sistema CSG.`
             });
             onRefresh();
         } catch (e) {
@@ -2799,9 +3103,9 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 {/* Navigation Tabs - Lado Izquierdo */}
                 <div className="bg-white rounded-2xl border-2 border-gray-100 p-1.5 inline-flex gap-1 shadow-sm">
                     {TABS.map(t => (
-                        <button 
-                            key={t.id} 
-                            onClick={() => setActiveCSGTab(t.id)} 
+                        <button
+                            key={t.id}
+                            onClick={() => setActiveCSGTab(t.id)}
                             className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeCSGTab === t.id ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}
                         >
                             <t.icon size={14} />
@@ -2812,7 +3116,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
 
                 {/* Action Buttons - Lado Derecho */}
                 <div className="flex gap-3">
-                    <button 
+                    <button
                         onClick={() => setIsWosOpen(true)}
                         className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
                     >
@@ -2844,18 +3148,18 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
 
             {/* Content */}
             {activeCSGTab === 'registro' && (
-                <CSGHistorialView 
-                    csgServicesData={csgServicesData} 
-                    onViewPhotos={(s) => setPhotoModal({ open: true, fotos: s.fotos || [], title: `${s.tienda} — ${s.fecha}` })} 
+                <CSGHistorialView
+                    csgServicesData={csgServicesData}
+                    onViewPhotos={(s) => setPhotoModal({ open: true, fotos: s.fotos || [], title: `${s.tienda} — ${s.fecha}` })}
                     mailApiUrl={mailApiUrl}
                     syncToSheets={syncToSheets}
                 />
             )}
             {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} mailApiUrl={mailApiUrl} syncToSheets={syncToSheets} csgNominaHistory={csgNominaHistory} onRefreshNomina={fetchNominaHistory} />}
             {activeCSGTab === 'facturacion' && (
-                <CSGBillingView 
-                    csgServicesData={csgServicesData} 
-                    onUpdateCSGStatus={onUpdateCSGStatus} 
+                <CSGBillingView
+                    csgServicesData={csgServicesData}
+                    onUpdateCSGStatus={onUpdateCSGStatus}
                 />
             )}
 
@@ -2875,17 +3179,17 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             )}
 
             {/* CSG Status Modal */}
-            <CSGStatusModal 
-                isOpen={statusModal.open} 
+            <CSGStatusModal
+                isOpen={statusModal.open}
                 onClose={() => setStatusModal({ open: false, title: '', message: '' })}
                 title={statusModal.title}
                 message={statusModal.message}
             />
 
             {/* Review Modal */}
-            <CSGReviewModal 
-                isOpen={reviewModal.open} 
-                onClose={() => setReviewModal({ open: false, payload: null })} 
+            <CSGReviewModal
+                isOpen={reviewModal.open}
+                onClose={() => setReviewModal({ open: false, payload: null })}
                 onConfirm={confirmFinalSave}
                 payload={reviewModal.payload}
             />
@@ -2894,9 +3198,9 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             <CSGPhotoViewer isOpen={photoModal.open} onClose={() => setPhotoModal({ open: false, fotos: [], title: '' })} fotos={photoModal.fotos} title={photoModal.title} />
 
             {/* WOS CSG Global View (Full Screen) */}
-            <CSGWosView 
-                isOpen={isWosOpen} 
-                onClose={() => setIsWosOpen(false)} 
+            <CSGWosView
+                isOpen={isWosOpen}
+                onClose={() => setIsWosOpen(false)}
                 geminiApiKey={geminiApiKey}
                 csgServicesData={csgServicesData}
                 syncToSheets={syncToSheets}
