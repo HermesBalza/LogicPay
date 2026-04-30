@@ -1886,10 +1886,16 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
 
             // Sincronizar con la base de datos
             if (syncToSheets) {
+                // Restauramos el objeto completo para evitar la pérdida de datos en el Sheet,
+                // pero filtramos las claves en minúsculas que inyectan columnas duplicadas.
                 const syncData = { 
                     ...service, 
                     correo_enviado: 'Enviado' 
                 };
+
+                // Limpieza de claves duplicadas (minúsculas) y la propiedad 'fotos' original
+                const garbageKeys = ['pago', 'fecha_pago', 'wos', 'status', 'fotos'];
+                garbageKeys.forEach(key => delete syncData[key]);
                 
                 // Reconstruir columnas de fotos individuales para que el Sheet las mantenga
                 if (service.fotos && Array.isArray(service.fotos)) {
@@ -1899,9 +1905,6 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
                         }
                     });
                 }
-                
-                // Eliminamos la propiedad 'fotos' (array) para evitar conflictos con las columnas individuales del Sheet
-                delete syncData.fotos;
 
                 await syncToSheets(
                     'upsert', 
