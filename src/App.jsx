@@ -9363,6 +9363,10 @@ function App() {
                         [field === 'status' ? 'Status' : field]: field === 'status' ? (val ? 'Paid' : 'Due') : val
                     };
 
+                    // Limpieza de claves redundantes (minúsculas) para evitar inyectar columnas nuevas (Fix Hermes)
+                    const garbageKeys = ['pago', 'fecha_pago', 'wos', 'status', 'fotos'];
+                    garbageKeys.forEach(key => delete payload[key]);
+
                     await fetch(API_URL, {
                         method: 'POST',
                         mode: 'no-cors',
