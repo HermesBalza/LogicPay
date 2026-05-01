@@ -2093,8 +2093,21 @@ const CSGBillingView = ({ csgServicesData = [], syncToSheets, onRefresh }) => {
             const service = reconciledData.find(s => s.correlativo === correlativo);
             if (!service) return;
 
-            const newStatus = value ? 'Paid' : 'Due';
-            setLocalStatuses(prev => ({ ...prev, [correlativo]: newStatus }));
+            // Mapeo de campos según requerimiento del Director
+            const fieldMap = {
+                'pago': 'Pago',
+                'fecha_pago': 'Fecha de Pago',
+                'wos': 'WOS',
+                'status': 'Status'
+            };
+
+            const dbField = fieldMap[field] || field;
+            const finalValue = field === 'status' ? (value ? 'Paid' : 'Due') : value;
+
+            // Actualización de estado local para el checkbox si aplica
+            if (field === 'status') {
+                setLocalStatuses(prev => ({ ...prev, [correlativo]: finalValue }));
+            }
 
             const dbPayload = {
                 correlativo: service.correlativo || '',
@@ -2120,23 +2133,18 @@ const CSGBillingView = ({ csgServicesData = [], syncToSheets, onRefresh }) => {
                 foto_9: service.foto_9 || (service.fotos && service.fotos[8]) || '',
                 foto_10: service.foto_10 || (service.fotos && service.fotos[9]) || '',
                 'Fecha Rad.': service['Fecha Rad.'] || '',
-                Pago: service.Pago || service.pago || '',
-                'Fecha de Pago': service['Fecha de Pago'] || service.fecha_pago || '',
-                WOS: service.WOS || service.wos || '',
-                Status: newStatus
+                Pago: field === 'pago' ? finalValue : (service.Pago || service.pago || ''),
+                'Fecha de Pago': field === 'fecha_pago' ? finalValue : (service['Fecha de Pago'] || service.fecha_pago || ''),
+                WOS: field === 'wos' ? finalValue : (service.WOS || service.wos || ''),
+                Status: field === 'status' ? finalValue : (localStatuses[correlativo] || service.Status || service.status || 'Due')
             };
 
             await syncToSheets('upsert', dbPayload, 'CSG_Servicios', true, ['correlativo']);
             
             if (onRefresh) onRefresh();
         } catch (error) {
-            console.error('[CSGBillingView] Error actualizando status:', error);
-            alert('Error al actualizar el estado en la base de datos.');
-            setLocalStatuses(prev => {
-                const updated = { ...prev };
-                delete updated[correlativo];
-                return updated;
-            });
+            console.error('[CSGBillingView] Error actualizando campo:', error);
+            alert('Error al actualizar el dato en la base de datos.');
         } finally {
             setIsUpdating(false);
         }
@@ -2215,14 +2223,47 @@ const CSGBillingView = ({ csgServicesData = [], syncToSheets, onRefresh }) => {
                                                 <span className={`text-[10px] font-black ${utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>{fmtCurrency(utilidad)}</span>
                                             </div>
                                         </td>
-                                        <td className="px-5 py-4 text-center text-[11px] font-black text-[#303a7f]">
-                                            {fmtCurrency(s.pago)}
-                                        </td>
-                                        <td className="px-5 py-4 text-center text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">
-                                            {s.fecha_pago || '--/--/--'}
+                                        <td className="px-5 py-4 text-center">
+                                            <input
+                                                type="text"
+                                                defaultValue={s.Pago || s.pago || ''}
+                                                onBlur={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val !== String(s.Pago || s.pago || '')) {
+                                                        handleUpdateField(s.correlativo, 'pago', val);
+                                                    }
+                                                }}
+                                                placeholder="$0.00"
+                                                className="w-24 text-center bg-transparent border-b border-dashed border-gray-200 focus:border-[#303a7f] focus:outline-none text-[11px] font-black text-[#303a7f] transition-all hover:bg-gray-50/50 rounded-sm"
+                                            />
                                         </td>
                                         <td className="px-5 py-4 text-center">
-                                            <span className={`text-[10px] font-black ${s.wos ? 'text-orange-500' : 'text-gray-300'}`}>{s.wos || '---'}</span>
+                                            <input
+                                                type="text"
+                                                defaultValue={s['Fecha de Pago'] || s.fecha_pago || ''}
+                                                onBlur={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val !== String(s['Fecha de Pago'] || s.fecha_pago || '')) {
+                                                        handleUpdateField(s.correlativo, 'fecha_pago', val);
+                                                    }
+                                                }}
+                                                placeholder="MM/DD/YYYY"
+                                                className="w-28 text-center bg-transparent border-b border-dashed border-gray-200 focus:border-[#303a7f] focus:outline-none text-[10px] font-bold text-gray-500 uppercase transition-all hover:bg-gray-50/50 rounded-sm"
+                                            />
+                                        </td>
+                                        <td className="px-5 py-4 text-center">
+                                            <input
+                                                type="text"
+                                                defaultValue={s.WOS || s.wos || ''}
+                                                onBlur={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val !== String(s.WOS || s.wos || '')) {
+                                                        handleUpdateField(s.correlativo, 'wos', val);
+                                                    }
+                                                }}
+                                                placeholder="---"
+                                                className={`w-20 text-center bg-transparent border-b border-dashed border-gray-200 focus:border-[#303a7f] focus:outline-none text-[10px] font-black transition-all hover:bg-gray-50/50 rounded-sm ${s.WOS || s.wos ? 'text-orange-500' : 'text-gray-300'}`}
+                                            />
                                         </td>
                                         <td className="px-5 py-4 text-center">
                                             <input
