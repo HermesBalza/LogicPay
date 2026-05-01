@@ -1297,7 +1297,7 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
         <div className="fixed inset-0 z-[1000] bg-[#fdfdfe] flex flex-col overflow-hidden animate-in fade-in duration-500 rounded-none">
             <header className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
+                    <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform rotate-0 hover:-rotate-3 transition-transform duration-500">
                         <LayoutGrid size={20} />
                     </div>
                     <div className="flex flex-col">
@@ -2158,21 +2158,21 @@ const CSGBillingView = ({ csgServicesData = [], syncToSheets, onRefresh }) => {
 
             {/* KPI Row */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-2xl border-2 border-gray-50 shadow-sm border-l-4 border-l-[#303a7f]">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Facturado Total</p>
-                    <p className="text-xl font-black text-[#303a7f]">{fmtCurrency(totals.facturado)}</p>
+                <div className="bg-white px-6 py-3 rounded-2xl border-2 border-gray-50 shadow-sm border-l-4 border-l-[#303a7f] flex items-center justify-between h-[52px]">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Facturado Total</p>
+                    <p className="text-sm font-black text-[#303a7f]">{fmtCurrency(totals.facturado)}</p>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border-2 border-gray-50 shadow-sm border-l-4 border-l-[#10a345]">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Pagado por CSG</p>
-                    <p className="text-xl font-black text-[#10a345]">{fmtCurrency(totals.pagado)}</p>
+                <div className="bg-white px-6 py-3 rounded-2xl border-2 border-gray-50 shadow-sm border-l-4 border-l-[#10a345] flex items-center justify-between h-[52px]">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Pagado por CSG</p>
+                    <p className="text-sm font-black text-[#10a345]">{fmtCurrency(totals.pagado)}</p>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border-2 border-gray-50 shadow-sm border-l-4 border-l-amber-500">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Pendiente</p>
-                    <p className="text-xl font-black text-amber-500">{fmtCurrency(totals.facturado - totals.pagado)}</p>
+                <div className="bg-white px-6 py-3 rounded-2xl border-2 border-gray-50 shadow-sm border-l-4 border-l-amber-500 flex items-center justify-between h-[52px]">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Pendiente</p>
+                    <p className="text-sm font-black text-amber-500">{fmtCurrency(totals.facturado - totals.pagado)}</p>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border-2 border-gray-50 shadow-sm border-l-4 border-l-[#6bbdb7]">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Utilidad (LGM)</p>
-                    <p className="text-xl font-black text-[#6bbdb7]">{fmtCurrency(totals.facturado - totals.costos)}</p>
+                <div className="bg-white px-6 py-3 rounded-2xl border-2 border-gray-50 shadow-sm border-l-4 border-l-[#6bbdb7] flex items-center justify-between h-[52px]">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Utilidad (LGM)</p>
+                    <p className="text-sm font-black text-[#6bbdb7]">{fmtCurrency(totals.facturado - totals.costos)}</p>
                 </div>
             </div>
 
