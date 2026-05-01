@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
+    MessageSquare,
+    Headset,
     Users,
     Store as StoreIcon,
     CreditCard,
@@ -516,6 +518,80 @@ const LoginView = ({ onLogin }) => {
     );
 };
 
+const SupportChat = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [message, setMessage] = useState('');
+
+    return (
+        <div className="fixed right-0 bottom-[66px] z-[9999] font-sans flex flex-col items-end">
+            {!isOpen ? (
+                /* PESTAÑA DEL CHAT (VERTICAL A LA DERECHA) */
+                <button
+                    onClick={() => setIsOpen(true)}
+                    className="bg-[#f9f9f9] text-[#fc6410] py-8 px-3 rounded-l-2xl shadow-2xl flex flex-col items-center hover:bg-[#3a2c22] hover:text-white transition-colors group border-l border-y border-[#3a2c22]/10"
+                >
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] [writing-mode:vertical-lr] rotate-180">Soporte</span>
+                </button>
+            ) : (
+                /* VENTANA DE CHAT */
+                <div className="mr-4 w-80 h-[450px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-[#3a2c22]/10 flex flex-col animate-in zoom-in-95 slide-in-from-right-10 duration-300 overflow-hidden">
+                    {/* Header */}
+                    <div 
+                        style={{ background: 'linear-gradient(135deg, #3a2c22 0%, #2a1f18 100%)' }}
+                        className="p-4 flex items-center justify-between shadow-lg border-b border-[#fc6410]/20"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center border border-white/10">
+                                <Headset size={16} className="text-[#fc6410]" />
+                            </div>
+                            <div>
+                                <h3 className="text-white text-[11px] font-black uppercase tracking-wider">Soporte Técnico</h3>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 bg-[#fc6410] rounded-full animate-pulse"></span>
+                                    <span className="text-white/60 text-[9px] font-bold uppercase tracking-tighter">En línea</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => setIsOpen(false)}
+                            className="text-white/50 hover:text-[#fc6410] transition-colors p-1 bg-white/5 rounded-lg"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    {/* Body */}
+                    <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-[#3a2c22]/[0.02]">
+                        <div className="flex flex-col gap-1 max-w-[85%]">
+                            <div className="bg-white p-3 rounded-2xl rounded-tl-none text-[11px] font-medium text-gray-700 shadow-sm border border-[#3a2c22]/5">
+                                Hola! 👋 ¿En qué podemos ayudarte hoy?
+                            </div>
+                            <span className="text-[8px] text-[#3a2c22]/40 font-bold uppercase ml-1">Soporte • 12:05 PM</span>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="p-4 bg-white border-t border-gray-100">
+                        <div className="relative group">
+                            <input
+                                type="text"
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                placeholder="Escribe un mensaje..."
+                                className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl py-3 px-4 pr-12 text-[11px] font-bold outline-none focus:border-[#fc6410]/20 focus:ring-4 focus:ring-[#fc6410]/5 transition-all placeholder:text-gray-300"
+                            />
+                            <button className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#fc6410] text-white rounded-xl flex items-center justify-center hover:bg-[#e85a0d] transition-all active:scale-90 shadow-lg shadow-[#fc6410]/20">
+                                <Send size={14} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
 // --- Full Screen Dashboard View ---
 const DashboardView = ({
     nominaHistoryData = [],
@@ -672,7 +748,7 @@ const DashboardView = ({
         return passDate && passStore;
     }), [wosHistoryData, dateFrom, dateTo, selectedStore]);
 
-    const filteredCSG = useMemo(() => csgServicesData.filter(s => {
+    const filteredCSG = useMemo(() => (csgServicesData || []).filter(s => {
         const passDate = isDateInRange(s.fecha || s['Fecha Rad.'] || s.Timestamp);
         const passStore = selectedStore === 'Todas' || s.tienda === selectedStore;
         return passDate && passStore;
@@ -685,8 +761,8 @@ const DashboardView = ({
     const totalKBS_PE = filteredPE.reduce((acc, curr) => acc + (parseFloat(curr.pago_kbs || curr.Pago_KBS) || 0), 0);
     const totalLGM_PE = filteredPE.reduce((acc, curr) => acc + (parseFloat(curr.pago_lgm || curr.Pago_LGM) || 0), 0);
 
-    const totalCSG_Ingresos = filteredCSG.reduce((acc, curr) => acc + (parseFloat(curr.monto_csg) || 0), 0);
-    const totalCSG_Costos = filteredCSG.reduce((acc, curr) => acc + (parseFloat(curr.monto_lgm) || 0), 0);
+    const totalCSG_Ingresos = (filteredCSG || []).reduce((acc, curr) => acc + (parseFloat(curr.monto_csg) || 0), 0);
+    const totalCSG_Costos = (filteredCSG || []).reduce((acc, curr) => acc + (parseFloat(curr.monto_lgm) || 0), 0);
 
     const totalIngresos = totalKBS_Nomina + totalKBS_PE + totalCSG_Ingresos;
     const totalCostos = totalLGM_Nomina + totalLGM_PE + totalCSG_Costos;
@@ -706,10 +782,10 @@ const DashboardView = ({
 
         const kStore = nStore.reduce((acc, n) => acc + (parseFloat(n.Pago_KBS) || 0), 0) +
             peStore.reduce((acc, pe) => acc + (parseFloat(pe.pago_kbs || pe.Pago_KBS) || 0), 0) +
-            filteredCSG.filter(s => s.tienda === store.nombre).reduce((acc, s) => acc + (parseFloat(s.monto_csg) || 0), 0);
+            filteredCSG.filter(s => s && s.tienda === store.nombre).reduce((acc, s) => acc + (parseFloat(s.monto_csg) || 0), 0);
         const lStore = nStore.reduce((acc, n) => acc + (parseFloat(n.Pago_LGM) || 0), 0) +
             peStore.reduce((acc, pe) => acc + (parseFloat(pe.pago_lgm || pe.Pago_LGM) || 0), 0) +
-            filteredCSG.filter(s => s.tienda === store.nombre).reduce((acc, s) => acc + (parseFloat(s.monto_lgm) || 0), 0);
+            filteredCSG.filter(s => s && s.tienda === store.nombre).reduce((acc, s) => acc + (parseFloat(s.monto_lgm) || 0), 0);
 
         const margen = kStore - lStore;
         const dStore = filteredDetail.filter(d => d.Tienda === store.nombre);
@@ -13703,6 +13779,9 @@ function App() {
                 style={{ backgroundColor: 'rgba(107,189,183,0.05)' }}
                 className="fixed bottom-[-10%] left-[-20%] w-[600px] h-[600px] blur-[180px] rounded-full -z-20 pointer-events-none"
             />
+
+            {/* Soporte Técnico - Ventana de Chat */}
+            <SupportChat />
         </div>
     );
 }
