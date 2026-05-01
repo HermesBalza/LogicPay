@@ -536,23 +536,25 @@ const SupportChat = () => {
                 /* VENTANA DE CHAT */
                 <div className="mr-4 w-80 h-[450px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-[#3a2c22]/10 flex flex-col animate-in zoom-in-95 slide-in-from-right-10 duration-300 overflow-hidden">
                     {/* Header */}
-                    <div 
+                    <div
                         style={{ background: 'linear-gradient(135deg, #3a2c22 0%, #2a1f18 100%)' }}
                         className="p-4 flex items-center justify-between shadow-lg border-b border-[#fc6410]/20"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center border border-white/10">
-                                <Headset size={16} className="text-[#fc6410]" />
-                            </div>
+                            <img 
+                                src="/AdWis.jpg" 
+                                alt="AdWis AI" 
+                                className="w-10 h-10 rounded-full object-cover border-2 border-[#fc6410]/30 shadow-lg"
+                            />
                             <div>
-                                <h3 className="text-white text-[11px] font-black uppercase tracking-wider">Soporte Técnico</h3>
+                                <h3 className="text-white text-[11px] font-black uppercase tracking-wider">AdWis AI</h3>
                                 <div className="flex items-center gap-1.5">
                                     <span className="w-1.5 h-1.5 bg-[#fc6410] rounded-full animate-pulse"></span>
-                                    <span className="text-white/60 text-[9px] font-bold uppercase tracking-tighter">En línea</span>
+                                    <span className="text-white/60 text-[9px] font-bold uppercase tracking-tighter">Soporte Técnico</span>
                                 </div>
                             </div>
                         </div>
-                        <button 
+                        <button
                             onClick={() => setIsOpen(false)}
                             className="text-white/50 hover:text-[#fc6410] transition-colors p-1 bg-white/5 rounded-lg"
                         >
@@ -1908,12 +1910,12 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                                         <div className="relative">
                                             <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-2 border-brand-primary/20'} rounded-xl px-5 py-4 shadow-sm`}>
                                                 <span className={`${!isEditing ? 'text-gray-300' : 'text-[#6bbdb7]'} font-black mr-3 text-lg`}>$</span>
-                                                <input 
-                                                    type="text" 
-                                                    value={isEditing ? editedStore.rate_csg : parseFloat(editedStore.rate_csg || 0).toFixed(2)} 
-                                                    onChange={(e) => updateField('rate_csg', e.target.value)} 
+                                                <input
+                                                    type="text"
+                                                    value={isEditing ? editedStore.rate_csg : parseFloat(editedStore.rate_csg || 0).toFixed(2)}
+                                                    onChange={(e) => updateField('rate_csg', e.target.value)}
                                                     readOnly={!isEditing}
-                                                    className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl" 
+                                                    className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl"
                                                 />
                                             </div>
                                             <p className="text-[10px] text-gray-400 font-bold mt-3 italic">Monto facturado a CSG por cada servicio realizado.</p>
@@ -1924,12 +1926,12 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                                         <div className="relative">
                                             <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-2 border-brand-primary/20'} rounded-xl px-5 py-4 shadow-sm`}>
                                                 <span className={`${!isEditing ? 'text-gray-300' : 'text-[#303a7f]'} font-black mr-3 text-lg`}>$</span>
-                                                <input 
-                                                    type="text" 
-                                                    value={isEditing ? editedStore.rate_lgm : parseFloat(editedStore.rate_lgm || 0).toFixed(2)} 
-                                                    onChange={(e) => updateField('rate_lgm', e.target.value)} 
+                                                <input
+                                                    type="text"
+                                                    value={isEditing ? editedStore.rate_lgm : parseFloat(editedStore.rate_lgm || 0).toFixed(2)}
+                                                    onChange={(e) => updateField('rate_lgm', e.target.value)}
                                                     readOnly={!isEditing}
-                                                    className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl" 
+                                                    className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl"
                                                 />
                                             </div>
                                             <p className="text-[10px] text-gray-400 font-bold mt-3 italic">Monto pagado al personal por cada servicio realizado.</p>
@@ -8975,7 +8977,7 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
                                                 <td className="p-5 text-[11px] font-black text-[#303a7f] uppercase pl-8 tracking-tight">{row.siteName}</td>
                                                 <td className="p-5 text-[11px] font-bold text-gray-500 text-center tabular-nums bg-gray-50/30">{row.kbsId || '---'}</td>
                                                 <td className="p-5 text-[10px] font-black text-gray-400 uppercase opacity-40">{row.vendorName}</td>
-                                                <td 
+                                                <td
                                                     className="p-5 text-[11px] font-bold text-[#6bbdb7] text-center whitespace-nowrap tabular-nums cursor-pointer hover:underline hover:text-[#303a7f] transition-all"
                                                     onClick={() => onOpenVWH && onOpenVWH(row.siteName, row.weekId)}
                                                 >
@@ -9442,10 +9444,10 @@ function App() {
             try {
                 for (const task of queue) {
                     const { correlativo, field, val } = task;
-                    
+
                     // Buscar el registro actual en el estado para preservar los demás campos
                     const existing = csgServicesData.find(s => String(s.correlativo) === String(correlativo)) || {};
-                    
+
                     // Construir el payload completo para el upsert en CSG_Servicios
                     // El campo 'correlativo' es la llave primaria.
                     const payload = {
@@ -9453,7 +9455,7 @@ function App() {
                         correlativo: correlativo,
                         [field === 'status' ? 'Status' : (field === 'fecha_pago' ? 'Fecha de Pago' : field)]: field === 'status' ? (val ? 'Paid' : 'Due') : val
                     };
-                    
+
                     // Re-inyección de fotos para evitar que el upsert borre las columnas foto_1..foto_10
                     if (existing.fotos && Array.isArray(existing.fotos)) {
                         existing.fotos.forEach((fotoBase64, idx) => {
@@ -11528,18 +11530,18 @@ function App() {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const csvText = await response.text();
             const lines = csvText.trim().split('\n').filter(l => l.trim());
-            
-            if (lines.length < 2) { 
-                setCsgServicesData([]); 
-                return; 
+
+            if (lines.length < 2) {
+                setCsgServicesData([]);
+                return;
             }
 
             const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
-            
+
             const loaded = lines.slice(1).map(line => {
                 const values = parseCSVRow(line);
                 const obj = createCSVRowObject(headers, values);
-                
+
                 // Extraer fotos (foto_1 ... foto_10) con búsqueda flexible
                 const fotos = [];
                 for (let f = 1; f <= 10; f++) {
@@ -13744,7 +13746,7 @@ function App() {
                 filterWeek={upsFilterWeek}
                 onOpenVWH={(storeName, weekId) => {
                     setSelectedHistoryStore(storeName);
-                    const hData = (nominaHistoryData || []).find(h => 
+                    const hData = (nominaHistoryData || []).find(h =>
                         String(h.nombre).trim().toLowerCase() === String(storeName).trim().toLowerCase() &&
                         String(h.codigo) === String(weekId)
                     );
