@@ -505,6 +505,7 @@ const LoginView = ({ onLogin }) => {
                         <span className="tracking-[0.3em] uppercase text-xs">Iniciar Sesión</span>
                     </button>
 
+                    {error && (
                         <p className="text-red-500 text-[10px] font-black uppercase tracking-widest text-center mt-4 animate-in fade-in slide-in-from-top-2">Acceso Denegado: Verifique Credenciales</p>
                     )}
                 </form>
@@ -517,14 +518,31 @@ const LoginView = ({ onLogin }) => {
     );
 };
 
-const SupportChat = ({ geminiApiKey }) => {
+const SupportChat = ({ geminiApiKey, userName }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [message, setMessage] = useState('');
+    const [systemContext, setSystemContext] = useState('');
     const [chatHistory, setChatHistory] = useState([
-        { role: 'model', text: 'Hola! 👋 Soy AdWis AI. Estoy aquí para ayudarte con cualquier duda sobre los procedimientos de Logic Group Management. ¿En qué puedo apoyarte hoy?' }
+        { role: 'model', text: 'Hola! 👋 Soy AdWis AI. Estoy aquí para ayudarte con cualquier duda sobre los procedimientos en LogicPay. ¿En qué puedo apoyarte?' }
     ]);
     const [isTyping, setIsTyping] = useState(false);
     const scrollRef = useRef(null);
+
+    // Cargar el conocimiento maestro (Código fuente de LogicPay)
+    useEffect(() => {
+        const loadContext = async () => {
+            try {
+                const response = await fetch('/Codigo_LogicPay.txt');
+                if (response.ok) {
+                    const text = await response.text();
+                    setSystemContext(text);
+                }
+            } catch (error) {
+                console.error("Error cargando contexto de soporte:", error);
+            }
+        };
+        loadContext();
+    }, []);
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -546,37 +564,35 @@ const SupportChat = ({ geminiApiKey }) => {
 
         try {
             const genAI = new GoogleGenerativeAI(geminiApiKey);
-            const model = genAI.getGenerativeModel({ 
-                model: "gemini-3-flash-preview" 
+            const model = genAI.getGenerativeModel({
+                model: "gemini-3-flash-preview"
             });
 
             // Contexto Maestro del Sistema para Gemini
             const systemPrompt = `
-Eres AdWis AI, el experto de soporte técnico de Logic Group Management (LogicPay). 
-Tu conocimiento proviene directamente del código fuente del sistema. 
-GUÍA AL USUARIO EN CUALQUIER PROCEDIMIENTO BASÁNDOTE EN ESTA INFORMACIÓN TÉCNICA:
+Eres AdWis AI, el experto de soporte técnico omnisciente de Logic Group Management (LogicPay). 
+El usuario actual con el que hablas se llama **${userName || "Usuario"}**. Salúdalo por su nombre de forma cordial al inicio de tu respuesta.
 
-1. DASHBOARD: Muestra KPIs como Total Facturado KBS, Costo Nómina LGM, ROI y Tendencias. Se pueden filtrar por fecha, tienda y supervisor.
-2. NÓMINA: El proceso implica cargar archivos de asistencia, validar biométricos y generar reportes. Existe el concepto de "EMPLEADOS MULTI-TIENDAS" (CONSOLIDATED_STORE).
-3. PROYECTOS ESPECIALES (PE): Se registran con correlativos únicos, clientes (KBS/LGM), y requieren aprobación/pago.
-4. WOS (Work Order Summary): Se procesan PDFs de órdenes de trabajo mediante IA para convertirlos en datos estructurados (JSON).
-5. SERVICIOS CSG: Servicios específicos con tarifas JANITORIAL, UTILITY y SHIFT LEAD.
-6. AJUSTES: Aquí se configura la API Key de Gemini y el nombre del asistente.
-7. EXPORTACIÓN: El sistema permite exportar datos a Excel y PDF usando XLSX y jsPDF.
+Tu conocimiento proviene ÚNICAMENTE del código fuente del sistema que te proporciono a continuación.
 
-INSTRUCCIONES:
-- Responde de forma ejecutiva, amable y precisa.
-- Si el usuario pregunta cómo hacer algo, dile los pasos exactos basándote en los componentes que ves en el código (modales, inputs, botones).
-- Tu tono debe ser el de un asistente corporativo de alto nivel.
+REGLAS DE ORO (ESTRICTAS):
+1. SOLO RESPONDE PREGUNTAS SOBRE LOGICPAY. Si el usuario pregunta sobre cualquier otro tema ajeno al sistema (clima, política, ciencia, ocio, etc.), debes negarte amablemente diciendo que tu función es únicamente brindar soporte sobre LogicPay.
+2. USA EL CÓDIGO FUENTE ADJUNTO PARA TUS RESPUESTAS. Analiza las funciones, modales y lógica para guiar al usuario con 100% de certeza.
+3. TONO EJECUTIVO Y PROFESIONAL. Responde de forma clara y paso a paso.
+
+CÓDIGO FUENTE DEL SISTEMA (BASE DE CONOCIMIENTO):
+${systemContext || "Contexto cargando... (usa la información general si aún no termina de cargar)"}
 `;
 
             const chat = model.startChat({
-                history: chatHistory.map(msg => ({
-                    role: msg.role === 'user' ? 'user' : 'model',
-                    parts: [{ text: msg.text }],
-                })),
+                history: chatHistory
+                    .filter((msg, index) => index > 0) // Saltamos el saludo inicial del modelo
+                    .map(msg => ({
+                        role: msg.role === 'user' ? 'user' : 'model',
+                        parts: [{ text: msg.text }],
+                    })),
                 generationConfig: {
-                    maxOutputTokens: 1000,
+                    maxOutputTokens: 4000,
                 },
             });
 
@@ -608,14 +624,14 @@ INSTRUCCIONES:
                 /* VENTANA DE CHAT */
                 <div className="mr-4 w-80 h-[500px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-[#3a2c22]/10 flex flex-col animate-in zoom-in-95 slide-in-from-right-10 duration-300 overflow-hidden">
                     {/* Header */}
-                    <div 
+                    <div
                         style={{ background: 'linear-gradient(135deg, #3a2c22 0%, #2a1f18 100%)' }}
                         className="p-4 flex items-center justify-between shadow-lg border-b border-[#fc6410]/20"
                     >
                         <div className="flex items-center gap-3">
-                            <img 
-                                src="/AdWis.jpg" 
-                                alt="AdWis AI" 
+                            <img
+                                src="/AdWis.jpg"
+                                alt="AdWis AI"
                                 className="w-10 h-10 rounded-full object-cover border-2 border-[#fc6410]/30 shadow-lg"
                             />
                             <div>
@@ -626,7 +642,7 @@ INSTRUCCIONES:
                                 </div>
                             </div>
                         </div>
-                        <button 
+                        <button
                             onClick={() => setIsOpen(false)}
                             className="text-white/50 hover:text-[#fc6410] transition-colors p-1 bg-white/5 rounded-lg"
                         >
@@ -638,13 +654,15 @@ INSTRUCCIONES:
                     <div ref={scrollRef} className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-[#3a2c22]/[0.02]">
                         {chatHistory.map((msg, i) => (
                             <div key={i} className={`flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'} max-w-[90%] ${msg.role === 'user' ? 'ml-auto' : ''}`}>
-                                <div className={`p-3 rounded-2xl text-[11px] font-medium shadow-sm border ${
-                                    msg.role === 'user' 
-                                    ? 'bg-[#3a2c22] text-white rounded-tr-none border-[#3a2c22]' 
-                                    : 'bg-white text-gray-700 rounded-tl-none border-[#3a2c22]/5'
-                                }`}>
-                                    {msg.text}
-                                </div>
+                                <div
+                                    className={`p-3 rounded-2xl text-[11px] font-medium shadow-sm border whitespace-pre-wrap leading-relaxed ${msg.role === 'user'
+                                            ? 'bg-[#3a2c22] text-white rounded-tr-none border-[#3a2c22]'
+                                            : 'bg-white text-gray-700 rounded-tl-none border-[#3a2c22]/5'
+                                        }`}
+                                    dangerouslySetInnerHTML={{
+                                        __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                                    }}
+                                />
                                 <span className="text-[8px] text-[#3a2c22]/40 font-bold uppercase ml-1">
                                     {msg.role === 'user' ? 'Tú' : 'AdWis AI'} • {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
@@ -672,7 +690,7 @@ INSTRUCCIONES:
                                 placeholder="Escribe un mensaje..."
                                 className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl py-3 px-4 pr-12 text-[11px] font-bold outline-none focus:border-[#fc6410]/20 focus:ring-4 focus:ring-[#fc6410]/5 transition-all placeholder:text-gray-300"
                             />
-                            <button 
+                            <button
                                 onClick={handleSendMessage}
                                 disabled={isTyping}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#fc6410] text-white rounded-xl flex items-center justify-center hover:bg-[#e85a0d] transition-all active:scale-90 shadow-lg shadow-[#fc6410]/20 disabled:opacity-50"
@@ -13876,7 +13894,7 @@ function App() {
             />
 
             {/* Soporte Técnico - Ventana de Chat vinculada con Gemini AI */}
-            <SupportChat geminiApiKey={geminiApiKey} />
+            <SupportChat geminiApiKey={geminiApiKey} userName={user?.name} />
         </div>
     );
 }
