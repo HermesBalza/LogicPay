@@ -505,7 +505,6 @@ const LoginView = ({ onLogin }) => {
                         <span className="tracking-[0.3em] uppercase text-xs">Iniciar Sesión</span>
                     </button>
 
-                    {error && (
                         <p className="text-red-500 text-[10px] font-black uppercase tracking-widest text-center mt-4 animate-in fade-in slide-in-from-top-2">Acceso Denegado: Verifique Credenciales</p>
                     )}
                 </form>
@@ -518,9 +517,82 @@ const LoginView = ({ onLogin }) => {
     );
 };
 
-const SupportChat = () => {
+const SupportChat = ({ geminiApiKey }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [message, setMessage] = useState('');
+    const [chatHistory, setChatHistory] = useState([
+        { role: 'model', text: 'Hola! 👋 Soy AdWis AI. Estoy aquí para ayudarte con cualquier duda sobre los procedimientos de Logic Group Management. ¿En qué puedo apoyarte hoy?' }
+    ]);
+    const [isTyping, setIsTyping] = useState(false);
+    const scrollRef = useRef(null);
+
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [chatHistory, isTyping]);
+
+    const handleSendMessage = async () => {
+        if (!message.trim() || isTyping) return;
+        if (!geminiApiKey) {
+            alert("Por favor, configure su API Key de Gemini en la sección de Ajustes para usar el soporte con IA.");
+            return;
+        }
+
+        const userMsg = message.trim();
+        setMessage('');
+        setChatHistory(prev => [...prev, { role: 'user', text: userMsg }]);
+        setIsTyping(true);
+
+        try {
+            const genAI = new GoogleGenerativeAI(geminiApiKey);
+            const model = genAI.getGenerativeModel({ 
+                model: "gemini-3-flash-preview" 
+            });
+
+            // Contexto Maestro del Sistema para Gemini
+            const systemPrompt = `
+Eres AdWis AI, el experto de soporte técnico de Logic Group Management (LogicPay). 
+Tu conocimiento proviene directamente del código fuente del sistema. 
+GUÍA AL USUARIO EN CUALQUIER PROCEDIMIENTO BASÁNDOTE EN ESTA INFORMACIÓN TÉCNICA:
+
+1. DASHBOARD: Muestra KPIs como Total Facturado KBS, Costo Nómina LGM, ROI y Tendencias. Se pueden filtrar por fecha, tienda y supervisor.
+2. NÓMINA: El proceso implica cargar archivos de asistencia, validar biométricos y generar reportes. Existe el concepto de "EMPLEADOS MULTI-TIENDAS" (CONSOLIDATED_STORE).
+3. PROYECTOS ESPECIALES (PE): Se registran con correlativos únicos, clientes (KBS/LGM), y requieren aprobación/pago.
+4. WOS (Work Order Summary): Se procesan PDFs de órdenes de trabajo mediante IA para convertirlos en datos estructurados (JSON).
+5. SERVICIOS CSG: Servicios específicos con tarifas JANITORIAL, UTILITY y SHIFT LEAD.
+6. AJUSTES: Aquí se configura la API Key de Gemini y el nombre del asistente.
+7. EXPORTACIÓN: El sistema permite exportar datos a Excel y PDF usando XLSX y jsPDF.
+
+INSTRUCCIONES:
+- Responde de forma ejecutiva, amable y precisa.
+- Si el usuario pregunta cómo hacer algo, dile los pasos exactos basándote en los componentes que ves en el código (modales, inputs, botones).
+- Tu tono debe ser el de un asistente corporativo de alto nivel.
+`;
+
+            const chat = model.startChat({
+                history: chatHistory.map(msg => ({
+                    role: msg.role === 'user' ? 'user' : 'model',
+                    parts: [{ text: msg.text }],
+                })),
+                generationConfig: {
+                    maxOutputTokens: 1000,
+                },
+            });
+
+            const prompt = `${systemPrompt}\n\nPregunta del usuario: ${userMsg}`;
+            const result = await chat.sendMessage(prompt);
+            const response = await result.response;
+            const text = response.text();
+
+            setChatHistory(prev => [...prev, { role: 'model', text }]);
+        } catch (error) {
+            console.error("Error en Soporte IA:", error);
+            setChatHistory(prev => [...prev, { role: 'model', text: "Lo siento, he tenido un problema al procesar tu solicitud. Por favor, verifica tu conexión o la API Key." }]);
+        } finally {
+            setIsTyping(false);
+        }
+    };
 
     return (
         <div className="fixed right-0 bottom-[66px] z-[9999] font-sans flex flex-col items-end">
@@ -534,9 +606,9 @@ const SupportChat = () => {
                 </button>
             ) : (
                 /* VENTANA DE CHAT */
-                <div className="mr-4 w-80 h-[450px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-[#3a2c22]/10 flex flex-col animate-in zoom-in-95 slide-in-from-right-10 duration-300 overflow-hidden">
+                <div className="mr-4 w-80 h-[500px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-[#3a2c22]/10 flex flex-col animate-in zoom-in-95 slide-in-from-right-10 duration-300 overflow-hidden">
                     {/* Header */}
-                    <div
+                    <div 
                         style={{ background: 'linear-gradient(135deg, #3a2c22 0%, #2a1f18 100%)' }}
                         className="p-4 flex items-center justify-between shadow-lg border-b border-[#fc6410]/20"
                     >
@@ -554,7 +626,7 @@ const SupportChat = () => {
                                 </div>
                             </div>
                         </div>
-                        <button
+                        <button 
                             onClick={() => setIsOpen(false)}
                             className="text-white/50 hover:text-[#fc6410] transition-colors p-1 bg-white/5 rounded-lg"
                         >
@@ -563,13 +635,30 @@ const SupportChat = () => {
                     </div>
 
                     {/* Body */}
-                    <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-[#3a2c22]/[0.02]">
-                        <div className="flex flex-col gap-1 max-w-[85%]">
-                            <div className="bg-white p-3 rounded-2xl rounded-tl-none text-[11px] font-medium text-gray-700 shadow-sm border border-[#3a2c22]/5">
-                                Hola! 👋 ¿En qué podemos ayudarte hoy?
+                    <div ref={scrollRef} className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-[#3a2c22]/[0.02]">
+                        {chatHistory.map((msg, i) => (
+                            <div key={i} className={`flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'} max-w-[90%] ${msg.role === 'user' ? 'ml-auto' : ''}`}>
+                                <div className={`p-3 rounded-2xl text-[11px] font-medium shadow-sm border ${
+                                    msg.role === 'user' 
+                                    ? 'bg-[#3a2c22] text-white rounded-tr-none border-[#3a2c22]' 
+                                    : 'bg-white text-gray-700 rounded-tl-none border-[#3a2c22]/5'
+                                }`}>
+                                    {msg.text}
+                                </div>
+                                <span className="text-[8px] text-[#3a2c22]/40 font-bold uppercase ml-1">
+                                    {msg.role === 'user' ? 'Tú' : 'AdWis AI'} • {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
                             </div>
-                            <span className="text-[8px] text-[#3a2c22]/40 font-bold uppercase ml-1">Soporte • 12:05 PM</span>
-                        </div>
+                        ))}
+                        {isTyping && (
+                            <div className="flex flex-col gap-1 items-start max-w-[85%]">
+                                <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-[#3a2c22]/5 shadow-sm flex gap-1">
+                                    <span className="w-1.5 h-1.5 bg-[#fc6410] rounded-full animate-bounce"></span>
+                                    <span className="w-1.5 h-1.5 bg-[#fc6410] rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                                    <span className="w-1.5 h-1.5 bg-[#fc6410] rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer */}
@@ -579,10 +668,15 @@ const SupportChat = () => {
                                 type="text"
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                                 placeholder="Escribe un mensaje..."
                                 className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl py-3 px-4 pr-12 text-[11px] font-bold outline-none focus:border-[#fc6410]/20 focus:ring-4 focus:ring-[#fc6410]/5 transition-all placeholder:text-gray-300"
                             />
-                            <button className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#fc6410] text-white rounded-xl flex items-center justify-center hover:bg-[#e85a0d] transition-all active:scale-90 shadow-lg shadow-[#fc6410]/20">
+                            <button 
+                                onClick={handleSendMessage}
+                                disabled={isTyping}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#fc6410] text-white rounded-xl flex items-center justify-center hover:bg-[#e85a0d] transition-all active:scale-90 shadow-lg shadow-[#fc6410]/20 disabled:opacity-50"
+                            >
                                 <Send size={14} />
                             </button>
                         </div>
@@ -592,7 +686,6 @@ const SupportChat = () => {
         </div>
     );
 };
-
 
 // --- Full Screen Dashboard View ---
 const DashboardView = ({
@@ -13782,8 +13875,8 @@ function App() {
                 className="fixed bottom-[-10%] left-[-20%] w-[600px] h-[600px] blur-[180px] rounded-full -z-20 pointer-events-none"
             />
 
-            {/* Soporte Técnico - Ventana de Chat */}
-            <SupportChat />
+            {/* Soporte Técnico - Ventana de Chat vinculada con Gemini AI */}
+            <SupportChat geminiApiKey={geminiApiKey} />
         </div>
     );
 }
