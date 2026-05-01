@@ -522,6 +522,7 @@ const DashboardView = ({
     nominaDetailData = [],
     specialProjectsHistoryData = [],
     wosHistoryData = [],
+    csgServicesData = [],
     stores = [],
     employees = []
 }) => {
@@ -671,6 +672,12 @@ const DashboardView = ({
         return passDate && passStore;
     }), [wosHistoryData, dateFrom, dateTo, selectedStore]);
 
+    const filteredCSG = useMemo(() => csgServicesData.filter(s => {
+        const passDate = isDateInRange(s.fecha || s['Fecha Rad.'] || s.Timestamp);
+        const passStore = selectedStore === 'Todas' || s.tienda === selectedStore;
+        return passDate && passStore;
+    }), [csgServicesData, dateFrom, dateTo, selectedStore]);
+
     // 2. Cálculos de KPIs Principales
     const totalKBS_Nomina = filteredNomina.reduce((acc, curr) => acc + (parseFloat(curr.Pago_KBS) || 0), 0);
     const totalLGM_Nomina = filteredNomina.reduce((acc, curr) => acc + (parseFloat(curr.Pago_LGM) || 0), 0);
@@ -678,12 +685,16 @@ const DashboardView = ({
     const totalKBS_PE = filteredPE.reduce((acc, curr) => acc + (parseFloat(curr.pago_kbs || curr.Pago_KBS) || 0), 0);
     const totalLGM_PE = filteredPE.reduce((acc, curr) => acc + (parseFloat(curr.pago_lgm || curr.Pago_LGM) || 0), 0);
 
-    const totalIngresos = totalKBS_Nomina + totalKBS_PE;
-    const totalCostos = totalLGM_Nomina + totalLGM_PE;
+    const totalCSG_Ingresos = filteredCSG.reduce((acc, curr) => acc + (parseFloat(curr.monto_csg) || 0), 0);
+    const totalCSG_Costos = filteredCSG.reduce((acc, curr) => acc + (parseFloat(curr.monto_lgm) || 0), 0);
+
+    const totalIngresos = totalKBS_Nomina + totalKBS_PE + totalCSG_Ingresos;
+    const totalCostos = totalLGM_Nomina + totalLGM_PE + totalCSG_Costos;
     const margenBruto = totalIngresos - totalCostos;
     const roiPercent = totalIngresos > 0 ? ((margenBruto / totalIngresos) * 100).toFixed(1) : 0;
 
     const pendientesWOS = filteredWOS.filter(w => w.Status !== 'Paid').reduce((acc, curr) => acc + (parseFloat(curr.Monto_WOS || 0)), 0);
+    const pendientesCSG = filteredCSG.filter(s => s.status !== 'Paid').reduce((acc, curr) => acc + (parseFloat(curr.monto_csg || 0)), 0);
     const pendientesNomina = filteredNomina.filter(n => !n.Status || n.Status === 'Due').reduce((acc, curr) => acc + (parseFloat(curr.Pago_LGM) || 0), 0);
 
     // 3. Estadísticas por Tienda
@@ -694,9 +705,11 @@ const DashboardView = ({
         const peStore = filteredPE.filter(pe => pe.tienda === store.nombre || pe.Tienda === store.nombre);
 
         const kStore = nStore.reduce((acc, n) => acc + (parseFloat(n.Pago_KBS) || 0), 0) +
-            peStore.reduce((acc, pe) => acc + (parseFloat(pe.pago_kbs || pe.Pago_KBS) || 0), 0);
+            peStore.reduce((acc, pe) => acc + (parseFloat(pe.pago_kbs || pe.Pago_KBS) || 0), 0) +
+            filteredCSG.filter(s => s.tienda === store.nombre).reduce((acc, s) => acc + (parseFloat(s.monto_csg) || 0), 0);
         const lStore = nStore.reduce((acc, n) => acc + (parseFloat(n.Pago_LGM) || 0), 0) +
-            peStore.reduce((acc, pe) => acc + (parseFloat(pe.pago_lgm || pe.Pago_LGM) || 0), 0);
+            peStore.reduce((acc, pe) => acc + (parseFloat(pe.pago_lgm || pe.Pago_LGM) || 0), 0) +
+            filteredCSG.filter(s => s.tienda === store.nombre).reduce((acc, s) => acc + (parseFloat(s.monto_lgm) || 0), 0);
 
         const margen = kStore - lStore;
         const dStore = filteredDetail.filter(d => d.Tienda === store.nombre);
@@ -798,17 +811,19 @@ const DashboardView = ({
 
         filteredNomina.forEach(n => processGroup(n.Fecha_Envio || n.Timestamp || n.Periodo, parseFloat(n.Pago_KBS) || 0, parseFloat(n.Pago_LGM) || 0));
         filteredPE.forEach(pe => processGroup(pe.timestamp || pe.Timestamp || pe.fecha, parseFloat(pe.pago_kbs || pe.Pago_KBS) || 0, parseFloat(pe.pago_lgm || pe.Pago_LGM) || 0));
+        filteredCSG.forEach(s => processGroup(s.fecha || s['Fecha Rad.'] || s.Timestamp, parseFloat(s.monto_csg) || 0, parseFloat(s.monto_lgm) || 0));
 
         return Object.values(groups)
             .filter(g => g.ingresos > 1 || g.costos > 1) // Mayor rigor: al menos $1 de actividad
             .sort((a, b) => a.sortKey - b.sortKey);
-    }, [filteredNomina, filteredPE, trendPeriod, dateFrom, dateTo]);
+    }, [filteredNomina, filteredPE, filteredCSG, trendPeriod, dateFrom, dateTo]);
 
     // Composición de Ingresos
     const compositionData = useMemo(() => [
-        { name: 'Nómina Regular', value: totalKBS_Nomina, color: '#303a7f' },
-        { name: 'Proyectos Especiales', value: totalKBS_PE, color: '#6bbdb7' }
-    ], [totalKBS_Nomina, totalKBS_PE]);
+        { name: 'KBS Regular', value: totalKBS_Nomina, color: '#303a7f' },
+        { name: 'CSG Services', value: totalCSG_Ingresos, color: '#6bbdb7' },
+        { name: 'KBS Especiales', value: totalKBS_PE, color: '#f59e0b' }
+    ], [totalKBS_Nomina, totalCSG_Ingresos, totalKBS_PE]);
 
     // Rendimiento por Tienda (Interactivo)
     const chartStoreData = useMemo(() => {
@@ -12996,6 +13011,7 @@ function App() {
                             nominaDetailData={nominaDetailData}
                             specialProjectsHistoryData={specialProjectsHistoryData}
                             wosHistoryData={wosHistoryData}
+                            csgServicesData={csgServicesData}
                             stores={stores}
                             employees={employees}
                         />
