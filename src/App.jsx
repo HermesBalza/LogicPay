@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
@@ -5183,7 +5183,7 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
     );
 };
 
-const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryData }) => {
+const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryData, onOpenPayrollAdvice }) => {
     const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -5395,6 +5395,16 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
 
                 <div className="flex gap-2 h-11">
                     <button
+                        onClick={onOpenPayrollAdvice}
+                        style={{ backgroundColor: '#303a7f' }}
+                        className="h-full text-white font-black px-8 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e] whitespace-nowrap"
+                    >
+                        <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                        <Mail size={16} className="group-hover:scale-110 transition-transform duration-500" />
+                        <span className="tracking-widest uppercase text-[10px]">Payroll Advice</span>
+                    </button>
+
+                    <button
                         onClick={handleExportExcel}
                         style={{ backgroundColor: '#6bbdb7' }}
                         className="h-full text-white font-black px-8 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-teal-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#59aba5] whitespace-nowrap"
@@ -5467,6 +5477,363 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
                     </table>
                 </div>
             </div>
+        </div>
+    );
+};
+
+const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, employees, stores, specialProjectsData, MAIL_API_URL }) => {
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [selectedPeriod, setSelectedPeriod] = useState(null);
+    const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
+    const [isSending, setIsSending] = useState(false);
+    const [sendingProgress, setSendingProgress] = useState({ current: 0, total: 0, status: 'idle', logs: [] });
+    const [sentPayStubs, setSentPayStubs] = useState({});
+    const [previewPdf, setPreviewPdf] = useState({ isOpen: false, url: '', name: '' });
+    const [searchTerm, setSearchTerm] = useState('');
+    const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
+
+    // --- Helper: Generar Periodos (Reutilizado) ---
+    const generateBiweeklyPeriods = useCallback(() => {
+        const weeks = [];
+        let current = new Date(2026, 0, 1);
+        while (current.getDay() !== 0) current.setDate(current.getDate() - 1);
+        const endTarget = new Date(2040, 11, 31);
+        const yearWeekCounts = {};
+        while (current <= endTarget) {
+            const start = new Date(current);
+            const end = new Date(current);
+            end.setDate(end.getDate() + 6);
+            const saturdayYear = end.getFullYear();
+            if (!yearWeekCounts[saturdayYear]) yearWeekCounts[saturdayYear] = 0;
+            yearWeekCounts[saturdayYear]++;
+            weeks.push({
+                start: start.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
+                end: end.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
+                weekNumInYear: yearWeekCounts[saturdayYear],
+                weekYear: saturdayYear
+            });
+            current.setDate(current.getDate() + 7);
+        }
+        const biweekly = [];
+        for (let i = 0; i < weeks.length; i += 2) {
+            const w1 = weeks[i];
+            const w2 = weeks[i + 1];
+            biweekly.push({
+                range: `${w1.start} - ${w2.end}`,
+                w1, w2,
+                filterYear: w1.weekYear,
+                label: w1.weekYear === w2.weekYear ? `Semanas ${w1.weekNumInYear} y ${w2.weekNumInYear}` : `S. ${w1.weekNumInYear} (${w1.weekYear}) y S. ${w2.weekNumInYear} (${w2.weekYear})`
+            });
+        }
+        return biweekly;
+    }, []);
+
+    const allPeriods = useMemo(() => generateBiweeklyPeriods(), [generateBiweeklyPeriods]);
+    const filteredPeriods = useMemo(() => allPeriods.filter(p => p.filterYear === selectedYear), [allPeriods, selectedYear]);
+
+    // --- Efecto: Seleccionar último periodo procesado al abrir ---
+    useEffect(() => {
+        if (isOpen && nominaHistoryData.length > 0 && !selectedPeriod) {
+            const sortedHistory = [...nominaHistoryData].sort((a, b) => {
+                const dateA = new Date(a.fecha_inicio);
+                const dateB = new Date(b.fecha_inicio);
+                return dateB - dateA;
+            });
+            const latest = sortedHistory[0];
+            const latestPeriod = allPeriods.find(p => normalizeDate(p.w1.start) === normalizeDate(latest.fecha_inicio));
+            if (latestPeriod) {
+                setSelectedPeriod(latestPeriod);
+                setSelectedYear(latestPeriod.filterYear);
+            }
+        }
+    }, [isOpen, nominaHistoryData, allPeriods, selectedPeriod]);
+
+    // --- Lógica de Consolidación Global ---
+    useEffect(() => {
+        if (!selectedPeriod || !nominaHistoryData.length) return;
+
+        const parseHours = (val) => {
+            if (!val || val === 'X' || val === '0:00') return 0;
+            const s = String(val).trim();
+            if (s.includes(':')) {
+                const [h, m] = s.split(':').map(Number);
+                return h + (m || 0) / 60;
+            }
+            return parseFloat(s) || 0;
+        };
+
+        const allW1Records = nominaHistoryData.filter(h => normalizeDate(h.fecha_inicio) === normalizeDate(selectedPeriod.w1.start));
+        const allW2Records = nominaHistoryData.filter(h => normalizeDate(h.fecha_inicio) === normalizeDate(selectedPeriod.w2.start));
+
+        const empStoreMap = {};
+        const empDataMap = {};
+
+        const processRecords = (records, weekKey) => {
+            records.forEach(record => {
+                try {
+                    const data = JSON.parse(record.data_json);
+                    const storeName = record.nombre;
+                    (data.semanaTableData || []).forEach(emp => {
+                        const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
+                        if (!empStoreMap[empId]) empStoreMap[empId] = new Set();
+                        empStoreMap[empId].add(storeName);
+
+                        if (!empDataMap[empId]) empDataMap[empId] = { w1: [], w2: [] };
+                        empDataMap[empId][weekKey].push({
+                            store: storeName,
+                            empData: emp,
+                            earnings: (data.earningsTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)
+                        });
+                    });
+                } catch (e) { }
+            });
+        };
+
+        processRecords(allW1Records, 'w1');
+        processRecords(allW2Records, 'w2');
+
+        const consolidated = Object.keys(empStoreMap).map(id => {
+            const data = empDataMap[id] || { w1: [], w2: [] };
+            const totalHoursW1 = data.w1.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0);
+            const totalHoursW2 = data.w2.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0);
+
+            let rate = 0;
+            const firstEntry = [...data.w1, ...data.w2][0];
+            if (firstEntry && firstEntry.earnings) rate = Number(firstEntry.earnings.rate || 0);
+
+            const empNombreRaw = id.split('_')[0].trim().toLowerCase();
+            let peTotalHours = 0;
+            let peTotalEarnings = 0;
+
+            (specialProjectsData || []).forEach(project => {
+                if (project.status === 'registered') {
+                    (project.employees || []).forEach(row => {
+                        if (String(row.employeeName).trim().toLowerCase() === empNombreRaw) {
+                            const h = parseFloat(row.hours) || 0;
+                            const r = parseFloat(row.rateLogic) || 0;
+                            peTotalHours += h;
+                            peTotalEarnings += (h * r);
+                        }
+                    });
+                }
+            });
+
+            const finalNombre = (firstEntry?.empData?.nombre) || (id.split('_')[0].toUpperCase());
+            const cargo = (firstEntry?.empData?.cargo) || 'Personal';
+            const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === finalNombre.trim().toLowerCase());
+            const fullAddress = dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '';
+
+            return {
+                id,
+                nombre: finalNombre,
+                semana1: totalHoursW1 || null,
+                semana2: totalHoursW2 || null,
+                pe: peTotalHours,
+                peEarnings: peTotalEarnings,
+                rate,
+                cargo,
+                address: fullAddress,
+                stores: Array.from(empStoreMap[id])
+            };
+        });
+
+        consolidated.sort((a, b) => a.nombre.localeCompare(b.nombre));
+        setBiweeklyEmployees(consolidated);
+    }, [selectedPeriod, nominaHistoryData, specialProjectsData, employees]);
+
+    const filteredEmployees = useMemo(() => {
+        return biweeklyEmployees.filter(emp => 
+            emp.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            emp.id.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [biweeklyEmployees, searchTerm]);
+
+    const handleSendAll = async () => {
+        const recipients = biweeklyEmployees.filter(emp => {
+            const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+            return dbEmp && (dbEmp.email_tax || dbEmp.correo);
+        });
+        if (recipients.length === 0) return alert("No hay empleados con correo.");
+        if (!confirm(`¿Enviar ${recipients.length} recibos?`)) return;
+
+        setSendingProgress({ current: 0, total: recipients.length, status: 'sending', logs: ["🚀 Iniciando envío masivo...", `Periodo: ${selectedPeriod.range}`] });
+
+        for (let i = 0; i < recipients.length; i++) {
+            const emp = recipients[i];
+            const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+            const email = dbEmp.email_tax || dbEmp.correo;
+            setSendingProgress(prev => ({ ...prev, current: i + 1, logs: [`Generando recibo para ${emp.nombre}...`, ...prev.logs] }));
+            try {
+                const pdfResult = await generatePayStubPDF(emp.id);
+                if (pdfResult?.error) throw new Error(pdfResult.error);
+                await fetch(MAIL_API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({
+                        to: email,
+                        subject: `Recibo de Pago - ${selectedPeriod.range}`,
+                        body: `Hola ${emp.nombre}, adjuntamos tu recibo.`,
+                        attachments: [{
+                            name: `Recibo_${emp.nombre.replace(/\s+/g, '_')}.pdf`,
+                            type: 'application/pdf',
+                            base64: pdfResult
+                        }]
+                    })
+                });
+                setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
+                setSendingProgress(prev => ({ ...prev, logs: [`✅ Enviado a ${email}`, ...prev.logs] }));
+            } catch (error) {
+                setSendingProgress(prev => ({ ...prev, logs: [`❌ Error en ${emp.nombre}: ${error.message}`, ...prev.logs] }));
+            }
+            await new Promise(r => setTimeout(r, 600));
+        }
+        setSendingProgress(prev => ({ ...prev, status: 'finished', logs: ["✨ Finalizado.", ...prev.logs] }));
+    };
+
+    const handleSendIndividual = async (emp) => {
+        const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+        const email = dbEmp?.email_tax || dbEmp?.correo;
+        if (!email) return alert("Email no encontrado.");
+        setNotificationModal({ isOpen: true, type: 'loading', message: `Enviando a ${emp.nombre}...` });
+        try {
+            const pdfBase64 = await generatePayStubPDF(emp.id);
+            await fetch(MAIL_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({
+                    to: email,
+                    subject: `Recibo de Pago - ${selectedPeriod.range}`,
+                    body: `Hola ${emp.nombre}, adjuntamos tu recibo.`,
+                    attachments: [{
+                        name: `Recibo_${emp.nombre}.pdf`,
+                        type: 'application/pdf',
+                        base64: pdfBase64
+                    }]
+                })
+            });
+            setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
+            setNotificationModal({ isOpen: true, type: 'success', message: `Enviado con éxito.` });
+        } catch (error) {
+            setNotificationModal({ isOpen: true, type: 'error', message: `Error: ${error.message}` });
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[500] bg-[#f9f9f9] flex flex-col animate-in fade-in duration-500 overflow-hidden">
+            <header className="px-12 py-6 bg-white border-b-2 border-gray-100 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-6">
+                    <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-xl shadow-blue-900/20"><Mail size={28} /></div>
+                    <div>
+                        <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Payroll Advices</h2>
+                        <p className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-widest opacity-80">Consolidado Global de Recibos</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-2xl border-2 border-gray-100">
+                        <div className="flex items-center bg-white rounded-xl px-3 py-1.5 shadow-sm">
+                            <button onClick={() => setSelectedYear(y => y - 1)} className="p-1 hover:text-[#303a7f] transition-colors"><ChevronLeft size={14}/></button>
+                            <span className="px-4 text-xs font-black text-[#303a7f]">{selectedYear}</span>
+                            <button onClick={() => setSelectedYear(y => y + 1)} className="p-1 hover:text-[#303a7f] transition-colors"><ChevronRight size={14}/></button>
+                        </div>
+                        <select value={selectedPeriod?.range || ''} onChange={(e) => setSelectedPeriod(allPeriods.find(p => p.range === e.target.value))} className="bg-white border-none text-[10px] font-black text-[#303a7f] uppercase outline-none py-2 px-4 rounded-xl cursor-pointer">
+                            <option value="">Selecciona Periodo</option>
+                            {filteredPeriods.map(p => <option key={p.range} value={p.range}>{p.label} ({p.range})</option>)}
+                        </select>
+                    </div>
+                    <button onClick={onClose} className="p-3 bg-white text-gray-400 rounded-xl border-2 border-gray-100 hover:bg-red-50 hover:text-red-500 transition-all"><X size={24} /></button>
+                </div>
+            </header>
+            <main className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-[#fcfdfe]">
+                <div className="flex-1 flex flex-col overflow-hidden p-8">
+                    <div className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
+                        <div className="relative flex-1 max-w-md w-full">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                            <input type="text" placeholder="Buscar empleado..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border-2 border-gray-100 rounded-2xl py-3 pl-12 pr-6 text-sm font-bold outline-none shadow-sm" />
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <button onClick={handleSendAll} disabled={!selectedPeriod || biweeklyEmployees.length === 0} className="px-8 py-3 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/10 hover:bg-[#252a5e] disabled:opacity-50 transition-all">Enviar Todos</button>
+                        </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar rounded-[2rem] border-2 border-gray-50 bg-white">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="sticky top-0 bg-white z-10">
+                                <tr className="bg-gray-50/80">
+                                    <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100">Empleado</th>
+                                    <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">Tiendas</th>
+                                    <th className="p-5 text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest text-center border-b border-gray-100">Horas</th>
+                                    <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b border-gray-100">Monto</th>
+                                    <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-center border-b border-gray-100">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y-2 divide-gray-50">
+                                {filteredEmployees.map(emp => {
+                                    const totalHrs = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0));
+                                    const totalPay = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * emp.rate + emp.peEarnings;
+                                    const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+                                    const email = dbEmp?.email_tax || dbEmp?.correo;
+                                    return (
+                                        <tr key={emp.id} className="hover:bg-blue-50/10 transition-colors">
+                                            <td className="p-5"><div className="flex flex-col"><span className="text-sm font-black text-[#303a7f] uppercase">{emp.nombre}</span><span className="text-[10px] font-bold text-gray-400">{email || 'SIN CORREO'}</span></div></td>
+                                            <td className="p-5"><div className="flex flex-wrap gap-1">{emp.stores.map(s => <span key={s} className="text-[8px] font-black bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md">{s}</span>)}</div></td>
+                                            <td className="p-5 text-center text-sm font-black text-[#6bbdb7]">{totalHrs.toFixed(2)}h</td>
+                                            <td className="p-5 text-right text-sm font-black text-[#303a7f]">${totalPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                            <td className="p-5">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    {sentPayStubs[emp.id] ? <span className="text-[9px] font-black text-teal-600 bg-teal-50 px-3 py-1.5 rounded-full flex items-center gap-2"><Check size={12}/> ENVIADO</span> : (
+                                                        <>
+                                                            <button onClick={async () => {
+                                                                setNotificationModal({ isOpen: true, type: 'loading', message: `Generando PDF...` });
+                                                                const pdf = await generatePayStubPDF(emp.id);
+                                                                if (pdf) {
+                                                                    const blob = await (await fetch(`data:application/pdf;base64,${pdf}`)).blob();
+                                                                    setPreviewPdf({ isOpen: true, url: URL.createObjectURL(blob), name: emp.nombre });
+                                                                    setNotificationModal({ isOpen: false, type: 'loading', message: '' });
+                                                                }
+                                                            }} className="p-2 text-[#6bbdb7] hover:bg-[#6bbdb7] hover:text-white rounded-lg transition-all"><Eye size={16}/></button>
+                                                            <button onClick={() => handleSendIndividual(emp)} disabled={!email} className="p-2 bg-[#303a7f] text-white hover:bg-[#252a5e] rounded-lg disabled:opacity-30 transition-all"><Send size={16}/></button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <aside className="w-full lg:w-96 bg-gray-50/50 p-8 flex flex-col border-l border-gray-100">
+                    <h4 className="text-xs font-black text-[#303a7f] uppercase tracking-widest mb-6 flex items-center gap-2"><Activity size={16} className="text-[#6bbdb7]" /> Terminal de Envío</h4>
+                    <div className="flex-1 bg-black/90 rounded-2xl p-4 font-mono text-[9px] text-green-400 overflow-y-auto custom-scrollbar">
+                        {sendingProgress.logs.map((log, i) => <div key={i} className="mb-1 border-l-2 border-green-500/20 pl-2">{log}</div>)}
+                        {sendingProgress.status === 'idle' && <div className="text-gray-500 italic">En espera de ejecución...</div>}
+                    </div>
+                </aside>
+            </main>
+            <div className="absolute left-[-9999px] top-0 pointer-events-none select-none opacity-0">
+                {selectedPeriod && biweeklyEmployees.map(emp => (
+                    <PayStubPDF 
+                        key={`stub-tpl-${emp.id}`}
+                        employee={{ ...emp, codigo: emp.id.split('_')[1], stubId: emp.id, hoursW1: emp.semana1, earningsW1: (parseFloat(emp.semana1) || 0) * emp.rate, hoursW2: emp.semana2, earningsW2: (parseFloat(emp.semana2) || 0) * emp.rate }}
+                        period={selectedPeriod}
+                        store="Global"
+                    />
+                ))}
+            </div>
+            {previewPdf.isOpen && (
+                <div className="fixed inset-0 z-[600] flex items-center justify-center p-8 backdrop-blur-md bg-white/20">
+                    <div className="bg-white w-full max-w-4xl h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border">
+                        <div className="p-6 border-b flex justify-between items-center">
+                            <h4 className="text-sm font-black uppercase text-[#303a7f]">Vista Previa: {previewPdf.name}</h4>
+                            <button onClick={() => setPreviewPdf({ ...previewPdf, isOpen: false })} className="p-2 hover:bg-red-50 rounded-xl"><X/></button>
+                        </div>
+                        <iframe src={`${previewPdf.url}#toolbar=0`} className="flex-1 w-full" />
+                    </div>
+                </div>
+            )}
+            <EmailNotificationModal isOpen={notificationModal.isOpen} type={notificationModal.type} message={notificationModal.message} onOk={() => setNotificationModal({ ...notificationModal, isOpen: false })} />
         </div>
     );
 };
@@ -9916,6 +10283,7 @@ function App() {
     const [isWOSOpen, setIsWOSOpen] = useState(false);
     const [selectedSpecialProjectInvoice, setSelectedSpecialProjectInvoice] = useState(null);
     const [isSpecialProjectInvoiceOpen, setIsSpecialProjectInvoiceOpen] = useState(false);
+    const [isPayrollAdviceOpen, setIsPayrollAdviceOpen] = useState(false);
 
 
     // Eliminación de dependencia de Local Storage para Facturación
@@ -13688,6 +14056,7 @@ function App() {
                             employees={employees}
                             nominaHistoryData={nominaHistoryData}
                             specialProjectsHistoryData={specialProjectsHistoryData}
+                            onOpenPayrollAdvice={() => setIsPayrollAdviceOpen(true)}
                         />
                     )}
 
@@ -14067,6 +14436,16 @@ function App() {
                     }}
                 />
             )}
+
+            <PayrollAdvicesGlobalView
+                isOpen={isPayrollAdviceOpen}
+                onClose={() => setIsPayrollAdviceOpen(false)}
+                nominaHistoryData={nominaHistoryData}
+                employees={employees}
+                stores={stores}
+                specialProjectsData={specialProjectsData}
+                MAIL_API_URL={MAIL_API_URL}
+            />
 
             {/* FASE 8: MODAL DE PREVIEW DE PLANILLAS */}
             <SheetPreviewModal
