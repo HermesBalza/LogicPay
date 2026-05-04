@@ -4390,29 +4390,32 @@ const EmailNotificationModal = ({ isOpen, type, message, onOk }) => {
                 {/* Background Decor */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16 opacity-50" />
 
-                <div className={`w-20 h-20 rounded-[1.8rem] flex items-center justify-center mb-8 shadow-2xl transition-all duration-500 relative z-10 ${type === 'loading'
-                    ? 'bg-[#303a7f] text-white shadow-blue-900/20'
-                    : 'bg-[#6bbdb7] text-white shadow-teal-900/20'
+                <div className={`w-20 h-20 rounded-[1.8rem] flex items-center justify-center mb-8 shadow-2xl transition-all duration-500 relative z-10 ${type === 'loading' ? 'bg-[#303a7f] text-white shadow-blue-900/20' :
+                    type === 'error' ? 'bg-red-500 text-white shadow-red-900/20' :
+                        'bg-[#6bbdb7] text-white shadow-teal-900/20'
                     }`}>
                     {type === 'loading' ? (
                         <Loader2 size={36} className="animate-spin" />
+                    ) : type === 'error' ? (
+                        <X size={36} className="animate-in zoom-in duration-500" />
                     ) : (
                         <CheckCircle size={36} className="animate-in zoom-in duration-500" />
                     )}
                 </div>
 
                 <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-4 relative z-10">
-                    {type === 'loading' ? 'Enviando...' : '¡Correo Enviado!'}
+                    {type === 'loading' ? 'Enviando...' : type === 'error' ? '¡Vaya! Algo salió mal' : '¡Correo Enviado!'}
                 </h3>
 
                 <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-10 uppercase tracking-[0.1em] px-4 relative z-10">
                     {message}
                 </p>
 
-                {type === 'success' && (
+                {(type === 'success' || type === 'error') && (
                     <button
                         onClick={onOk}
-                        className="w-full py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#1e234d] transition-all active:scale-95 relative z-10"
+                        className={`w-full py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95 relative z-10 ${type === 'error' ? 'bg-red-500 shadow-red-900/20 hover:bg-red-600' : 'bg-[#303a7f] shadow-blue-900/20 hover:bg-[#1e234d]'
+                            }`}
                     >
                         Ok, Entendido
                     </button>
@@ -6144,6 +6147,164 @@ const NominaEmailModal = ({ isOpen, onClose, period, onSend, isSending, defaultT
     );
 };
 
+// ─── COMPONENTE: PayStubPDF (Plantilla Premium para Recibos) ────────────────
+const PayStubPDF = ({ employee, period, store, companyInfo }) => {
+    if (!employee || !period) return null;
+
+    const logoUrl = "/Logo Logic Group Management.png";
+    const primaryColor = "#303a7f";
+    const secondaryColor = "#6bbdb7";
+
+    const totalEarnings = (parseFloat(employee.earningsW1) || 0) + (parseFloat(employee.earningsW2) || 0) + (parseFloat(employee.peEarnings) || 0);
+
+    // Lógica para calcular rangos de fechas por semana
+    const [startStr, endStr] = (period.range || "").split(" - ");
+    const parseDate = (s) => {
+        if (!s) return new Date();
+        const [m, d, y] = s.split('/');
+        return new Date(y, m - 1, d);
+    };
+
+    const startDate = parseDate(startStr);
+    const w1End = new Date(startDate);
+    w1End.setDate(startDate.getDate() + 6);
+    const w2Start = new Date(startDate);
+    w2Start.setDate(startDate.getDate() + 7);
+    const w2End = parseDate(endStr);
+
+    const formatShort = (date) => {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${months[date.getMonth()]} ${String(date.getDate()).padStart(2, '0')}`;
+    };
+
+    const w1Range = startStr ? `(${formatShort(startDate)} - ${formatShort(w1End)})` : "";
+    const w2Range = startStr ? `(${formatShort(w2Start)} - ${formatShort(w2End)})` : "";
+    const today = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+
+    return (
+        <div
+            id={`pay-stub-${(employee.stubId || employee.codigo).replace(/[^a-zA-Z0-9]/g, '_')}`}
+            style={{
+                width: '800px',
+                padding: '40px',
+                backgroundColor: '#ffffff',
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+                color: '#333333',
+                position: 'absolute',
+                left: '-9999px',
+                top: '-9999px'
+            }}
+        >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px', borderBottom: `2px solid ${secondaryColor}`, paddingBottom: '20px' }}>
+                <div>
+                    <img src={logoUrl} alt="Logic Group Management" style={{ height: '60px', marginBottom: '10px' }} />
+                    <p style={{ margin: 0, fontSize: '10px', fontWeight: '900', color: primaryColor, letterSpacing: '2px', textTransform: 'uppercase' }}>Logic Group Management</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                    <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: primaryColor, textTransform: 'uppercase', letterSpacing: '-1px' }}>Payment Advice</h1>
+                    <p style={{ margin: '5px 0 0', fontSize: '12px', fontWeight: '700', color: secondaryColor }}>{today}</p>
+                </div>
+            </div>
+
+            {/* Info Section */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '40px' }}>
+                <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '15px' }}>
+                    <p style={{ margin: '0 0 5px', fontSize: '9px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Employee</p>
+                    <p style={{ margin: '0 0 5px', fontSize: '16px', fontWeight: '900', color: primaryColor }}>{employee.nombre}</p>
+                    <p style={{ margin: 0, fontSize: '11px', fontWeight: '700', color: '#64748b' }}>ID: {employee.codigo} | {employee.cargo || 'Associate'}</p>
+                </div>
+                <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '15px' }}>
+                    <p style={{ margin: '0 0 5px', fontSize: '9px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Store / Location</p>
+                    <p style={{ margin: '0 0 5px', fontSize: '16px', fontWeight: '900', color: primaryColor }}>{store || 'Multi-Location'}</p>
+                    <p style={{ margin: 0, fontSize: '11px', fontWeight: '700', color: '#64748b' }}>{employee.address || ''}</p>
+                </div>
+            </div>
+
+            {/* Earnings Table */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '40px' }}>
+                <thead>
+                    <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
+                        <th style={{ textAlign: 'left', padding: '12px 10px', fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase' }}>Description</th>
+                        <th style={{ textAlign: 'right', padding: '12px 10px', fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase' }}>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {/* Semana 1 */}
+                    {parseFloat(employee.hoursW1) > 0 && (
+                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>Professional Services - Week 1 {w1Range}</td>
+                            <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.earningsW1).toFixed(2)}</td>
+                        </tr>
+                    )}
+                    {/* Semana 2 */}
+                    {parseFloat(employee.hoursW2) > 0 && (
+                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>Professional Services - Week 2 {w2Range}</td>
+                            <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.earningsW2).toFixed(2)}</td>
+                        </tr>
+                    )}
+                    {/* Proyectos Especiales */}
+                    {parseFloat(employee.peEarnings) > 0 && (
+                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>Special / Additional Projects</td>
+                            <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.peEarnings).toFixed(2)}</td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+
+            {/* Summary */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ width: '300px', backgroundColor: primaryColor, color: '#ffffff', padding: '25px', borderRadius: '20px', boxShadow: '0 10px 20px rgba(48,58,127,0.2)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>Net Payment</span>
+                        <span style={{ fontSize: '20px', fontWeight: '900' }}>${totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ marginTop: '40px', textAlign: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '20px' }}>
+                <p style={{ margin: 0, fontSize: '10px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '2px' }}>This is an official payment advice issued by Logic Group Management</p>
+                <p style={{ margin: '5px 0 0', fontSize: '9px', fontWeight: '500', color: '#cbd5e1' }}>Generated automatically by LogicPay by AdWiser © 2026</p>
+
+                <div style={{ marginTop: '30px', padding: '15px', backgroundColor: '#f8fafc', borderRadius: '10px', textAlign: 'justify' }}>
+                    <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.4', color: '#94a3b8', fontStyle: 'italic' }}>
+                        <strong>CONFIDENTIALITY NOTE:</strong> This e-mail message, including any attachments, is for the sole use of the intended recipient(s) and may contain confidential and privileged information or may otherwise be protected by law. Any unauthorized review, use, disclosure or distribution is prohibited. If you are not the intended recipient, please contact the sender by reply e-mail and destroy all copies of the original message and any attachments.
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Función para generar el PDF en Base64
+const generatePayStubPDF = async (stubId) => {
+    const element = document.getElementById(`pay-stub-${stubId.replace(/[^a-zA-Z0-9]/g, '_')}`);
+    if (!element) return null;
+
+    try {
+        const canvas = await html2canvas(element, {
+            scale: 2,
+            backgroundColor: '#ffffff',
+            logging: false,
+            useCORS: true
+        });
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        return pdf.output('datauristring').split(',')[1];
+    } catch (error) {
+        console.error("Error generando PDF:", error);
+        return { error: error.message };
+    }
+};
+
 const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, setSpecialProjectsData, employees, onConfirmPayroll, onBack }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
@@ -6153,6 +6314,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [isPayStubModalOpen, setIsPayStubModalOpen] = useState(false);
+    const [sendingProgress, setSendingProgress] = useState({ current: 0, total: 0, status: 'idle', logs: [] });
+    const [sentPayStubs, setSentPayStubs] = useState({}); // { [empId]: true }
+    const [previewPdf, setPreviewPdf] = useState({ isOpen: false, url: '', name: '' });
 
     const handleCommentChange = (index, value) => {
         setBiweeklyEmployees(prev => {
@@ -6307,6 +6472,9 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             const finalNombre = (firstEntry?.empData?.nombre) || (id.split('_')[0].toUpperCase());
             const cargo = (firstEntry?.empData?.cargo) || 'Externo/PE';
 
+            const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === finalNombre.trim().toLowerCase());
+            const fullAddress = dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '';
+
             return {
                 id: id,
                 nombre: finalNombre,
@@ -6316,6 +6484,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 peEarnings: peTotalEarnings,
                 rate: rate,
                 cargo: cargo,
+                address: fullAddress,
                 comments: savedCommentsMap[finalNombre.trim().toLowerCase()] || (isConsolidatedView ? Array.from(empStoreMap[id] || []).join('\n').toUpperCase() : ''),
                 rowColor: isConsolidatedView ? 'bg-amber-50/30' : 'bg-white',
                 isMultiSite: empStoreMap[id].size > 1
@@ -6341,6 +6510,132 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     // FASE 9.8: Verificar si la nómina ya fue procesada (Persistencia en Variables)
     const periodKey = `${period.store}-${period.w1?.start}-${period.w2?.end}`;
     const isAlreadyProcessed = (processedBiweeks || []).includes(periodKey);
+
+    // ─── LÓGICA DE ENVÍO DE RECIBOS DE PAGO (PAY STUBS) ───────────────────
+    const handleSendAllPayStubs = async () => {
+        const recipients = biweeklyEmployees.filter(emp => {
+            const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+            return dbEmp && (dbEmp.email_tax || dbEmp.correo);
+        });
+
+        if (recipients.length === 0) {
+            alert("No hay empleados con correo electrónico registrado en este periodo.");
+            return;
+        }
+
+        setSendingProgress({ current: 0, total: recipients.length, status: 'sending', logs: [] });
+
+        for (let i = 0; i < recipients.length; i++) {
+            const emp = recipients[i];
+            const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+            const email = dbEmp.email_tax || dbEmp.correo;
+
+            setSendingProgress(prev => ({ ...prev, current: i + 1, logs: [`Generando recibo para ${emp.nombre}...`, ...prev.logs] }));
+
+            try {
+                const pdfResult = await generatePayStubPDF(emp.id);
+                if (pdfResult?.error) throw new Error(pdfResult.error);
+                if (!pdfResult) throw new Error("Elemento no encontrado en el DOM");
+                const pdfBase64 = pdfResult;
+
+                const emailPayload = {
+                    to: email,
+                    subject: `Recibo de Pago - Periodo ${period.range} - Logic Group Management`,
+                    body: `Hola ${emp.nombre},\n\nAdjunto encontrarás tu recibo de pago correspondiente al periodo del ${period.range}.\n\nEste es un correo automático, por favor no respondas a este mensaje.\n\nAtentamente,\nLogic Group Management.`,
+                    attachments: [{
+                        name: `Recibo_Pago_${emp.nombre.replace(/\s+/g, '_')}_${period.range.replace(/\s+/g, '_')}.pdf`,
+                        type: 'application/pdf',
+                        base64: pdfBase64
+                    }]
+                };
+
+                const response = await fetch(MAIL_API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(emailPayload)
+                });
+
+                setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
+                setSendingProgress(prev => ({ ...prev, logs: [`✅ Enviado con éxito a ${email}`, ...prev.logs] }));
+            } catch (error) {
+                console.error("Error enviando recibo:", error);
+                setSendingProgress(prev => ({ ...prev, logs: [`❌ Error enviando a ${emp.nombre}: ${error.message}`, ...prev.logs] }));
+            }
+
+            // Pequeña espera para no saturar el script
+            await new Promise(r => setTimeout(r, 500));
+        }
+
+        setSendingProgress(prev => ({ ...prev, status: 'finished', logs: ["✨ Proceso de envío finalizado.", ...prev.logs] }));
+    };
+
+    const handleSendIndividualPayStub = async (emp) => {
+        const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+        const email = dbEmp?.email_tax || dbEmp?.correo;
+
+        if (!email) {
+            alert("Este empleado no tiene un correo electrónico registrado.");
+            return;
+        }
+
+        setSendingProgress(prev => ({
+            current: prev.current,
+            total: prev.total || 1,
+            status: 'sending',
+            logs: [`Iniciando envío individual para ${emp.nombre}...`, ...prev.logs]
+        }));
+
+        try {
+            const pdfResult = await generatePayStubPDF(emp.id);
+            if (pdfResult?.error) throw new Error(pdfResult.error);
+            if (!pdfResult) throw new Error("Elemento no encontrado en el DOM");
+            const pdfBase64 = pdfResult;
+
+            const emailPayload = {
+                to: email,
+                subject: `Recibo de Pago - Periodo ${period.range} - Logic Group Management`,
+                body: `Hola ${emp.nombre},\n\nAdjunto encontrarás tu recibo de pago correspondiente al periodo del ${period.range}.\n\nEste es un correo automático, por favor no respondas a este mensaje.\n\nAtentamente,\nLogic Group Management.`,
+                attachments: [{
+                    name: `Recibo_Pago_${emp.nombre.replace(/\s+/g, '_')}_${period.range.replace(/\s+/g, '_')}.pdf`,
+                    type: 'application/pdf',
+                    base64: pdfBase64
+                }]
+            };
+
+            await fetch(MAIL_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                cache: 'no-cache',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(emailPayload)
+            });
+
+            setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
+            setSendingProgress(prev => ({ ...prev, status: 'finished', logs: [`✅ Recibo enviado con éxito a ${email}`, ...prev.logs] }));
+        } catch (error) {
+            console.error("Error enviando recibo individual:", error);
+            setSendingProgress(prev => ({ ...prev, status: 'finished', logs: [`❌ Error en envío individual (${emp.nombre}): ${error.message}`, ...prev.logs] }));
+        }
+    };
+
+    const handlePreviewPayStub = async (emp) => {
+        setNotificationModal({ isOpen: true, type: 'loading', message: `Preparando vista previa de ${emp.nombre}...` });
+        try {
+            const pdfBase64 = await generatePayStubPDF(emp.id);
+            if (!pdfBase64 || typeof pdfBase64 !== 'string') throw new Error("Error al generar el PDF");
+
+            const pdfBlob = await (await fetch(`data:application/pdf;base64,${pdfBase64}`)).blob();
+            const pdfUrl = URL.createObjectURL(pdfBlob);
+
+            setPreviewPdf({ isOpen: true, url: pdfUrl, name: emp.nombre });
+            setNotificationModal({ isOpen: false, type: 'loading', message: '' });
+        } catch (error) {
+            console.error("Error en vista previa:", error);
+            setNotificationModal({ isOpen: true, type: 'error', message: `No se pudo generar la vista previa: ${error.message}` });
+        }
+    };
 
     const handleSendNominaEmail = async (emailData) => {
         if (!MAIL_API_URL) {
@@ -6598,6 +6893,13 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             Enviar por Correo
                         </button>
                         <button
+                            onClick={() => setIsPayStubModalOpen(true)}
+                            className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/20"
+                        >
+                            <FileText size={16} />
+                            Recibos de Pago
+                        </button>
+                        <button
                             onClick={handleExportPDF}
                             className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/10"
                         >
@@ -6763,6 +7065,244 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 message={notificationModal.message}
                 onOk={() => setNotificationModal({ ...notificationModal, isOpen: false })}
             />
+
+            {/* MODAL: Centro de Notificación de Recibos de Pago (Pay Stubs) */}
+            {isPayStubModalOpen && (
+                <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/20 animate-in fade-in duration-300" data-html2canvas-ignore>
+                    <div className="bg-white w-full max-w-4xl h-[80vh] rounded-[3rem] shadow-[0_32px_100px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
+                        {/* Header */}
+                        <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 bg-[#6bbdb7] text-white rounded-2xl shadow-lg shadow-teal-900/20">
+                                    <Send size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Centro de Notificación</h3>
+                                    <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Gestión de envío de Recibos (Pay Stubs)</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    if (sendingProgress.status === 'sending') {
+                                        if (!confirm("Hay un envío en progreso. ¿Deseas cerrar el centro de notificación?")) return;
+                                    }
+                                    setIsPayStubModalOpen(false);
+                                    setSendingProgress({ current: 0, total: 0, status: 'idle', logs: [] });
+                                }}
+                                className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-[#fcfdfe]">
+                            {/* Lista de Empleados */}
+                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar border-r border-gray-50">
+                                <div className="mb-6 flex items-center justify-between">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest">Destinatarios ({biweeklyEmployees.length})</h4>
+                                    <div className="flex gap-2">
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-full border border-green-100">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                            <span className="text-[9px] font-black uppercase">Con Email</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {biweeklyEmployees.map(emp => {
+                                        const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+                                        const email = dbEmp?.email_tax || dbEmp?.correo;
+                                        const isSent = sentPayStubs[emp.id];
+
+                                        return (
+                                            <div key={emp.id} className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${isSent ? 'bg-teal-50/30 border-teal-100' : 'bg-white border-gray-50'}`}>
+                                                <div className="flex items-center gap-4">
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${isSent ? 'bg-teal-500 text-white' : 'bg-gray-100 text-[#303a7f]'}`}>
+                                                        {isSent ? <Check size={20} /> : emp.nombre.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-black text-[#303a7f] uppercase tracking-tight">{emp.nombre}</p>
+                                                        <p className="text-[10px] font-bold text-gray-400 flex items-center gap-1.5">
+                                                            {email ? (
+                                                                <>
+                                                                    <Mail size={10} className="text-[#6bbdb7]" />
+                                                                    {email}
+                                                                </>
+                                                            ) : (
+                                                                <span className="text-red-400 font-black">SIN CORREO REGISTRADO</span>
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    {isSent ? (
+                                                        <span className="text-[9px] font-black text-teal-600 uppercase tracking-widest bg-teal-100 px-3 py-1.5 rounded-full flex items-center gap-2">
+                                                            <Check size={10} /> Enviado
+                                                        </span>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => handlePreviewPayStub(emp)}
+                                                                className="p-2.5 bg-gray-50 text-[#6bbdb7] hover:bg-[#6bbdb7] hover:text-white rounded-xl transition-all active:scale-90 shadow-sm border border-gray-100"
+                                                                title="Ver recibo"
+                                                            >
+                                                                <Eye size={14} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleSendIndividualPayStub(emp)}
+                                                                disabled={!email || sendingProgress.status === 'sending'}
+                                                                className={`p-2.5 rounded-xl transition-all active:scale-90 flex items-center gap-2 group/btn ${email
+                                                                    ? 'bg-gray-50 text-[#303a7f] hover:bg-[#303a7f] hover:text-white border border-gray-100 shadow-sm'
+                                                                    : 'bg-gray-50 text-gray-300 cursor-not-allowed opacity-50'}`}
+                                                                title={email ? "Enviar ahora" : "No tiene email"}
+                                                            >
+                                                                <Send size={14} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                                                                <span className="text-[8px] font-black uppercase tracking-widest hidden sm:inline">Enviar</span>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Panel de Control / Logs */}
+                            <div className="w-full lg:w-96 bg-gray-50/50 p-8 flex flex-col">
+                                <div className="flex-1">
+                                    {sendingProgress.status === 'idle' ? (
+                                        <div className="h-full flex flex-col items-center justify-center text-center">
+                                            <div className="w-20 h-20 rounded-3xl bg-white shadow-xl shadow-blue-900/5 flex items-center justify-center text-[#303a7f] mb-6 animate-bounce">
+                                                <Mail size={40} />
+                                            </div>
+                                            <h5 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter mb-2">Listo para enviar</h5>
+                                            <p className="text-xs font-bold text-gray-500 leading-relaxed mb-8 px-4">
+                                                Se generarán archivos PDF individuales y se enviarán por correo a los empleados con cuenta registrada.
+                                            </p>
+                                            <button
+                                                onClick={handleSendAllPayStubs}
+                                                className="w-full py-5 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[11px] tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
+                                            >
+                                                Iniciar Envío Masivo
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="h-full flex flex-col">
+                                            <div className="mb-8">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">Progreso de Envío</span>
+                                                    <span className="text-[10px] font-black text-[#6bbdb7]">{sendingProgress.current} / {sendingProgress.total}</span>
+                                                </div>
+                                                <div className="h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
+                                                    <div
+                                                        className="h-full bg-gradient-to-r from-[#303a7f] to-[#6bbdb7] transition-all duration-500 ease-out"
+                                                        style={{ width: `${(sendingProgress.current / sendingProgress.total) * 100}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex-1 bg-black/90 rounded-2xl p-4 font-mono text-[9px] text-green-400 overflow-y-auto custom-scrollbar shadow-inner border border-white/10">
+                                                <div className="flex items-center gap-2 mb-3 border-b border-white/10 pb-2">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                                    <span className="uppercase font-black text-white/50 tracking-widest">Terminal LogicPay</span>
+                                                </div>
+                                                {sendingProgress.logs.map((log, idx) => (
+                                                    <div key={idx} className="mb-1.5 leading-relaxed">
+                                                        <span className="text-white/20 mr-2">[{new Date().toLocaleTimeString([], { hour12: false })}]</span>
+                                                        {log}
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {sendingProgress.status === 'finished' && (
+                                                <button
+                                                    onClick={() => setIsPayStubModalOpen(false)}
+                                                    className="w-full mt-6 py-4 bg-teal-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-teal-900/10 hover:bg-teal-600 transition-all"
+                                                >
+                                                    Finalizar
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Plantillas Invisibles para html2canvas (Fuera de modales para asegurar renderizado) */}
+            <div className="absolute left-[-9999px] top-0 pointer-events-none select-none overflow-visible">
+                {biweeklyEmployees.map(emp => (
+                    <PayStubPDF
+                        key={`stub-tpl-${emp.id}`}
+                        employee={{
+                            nombre: emp.nombre,
+                            codigo: emp.id.split('_')[1],
+                            stubId: emp.id,
+                            cargo: emp.cargo,
+                            rate: emp.rate,
+                            hoursW1: emp.semana1,
+                            earningsW1: (parseFloat(emp.semana1) || 0) * (parseFloat(emp.rate) || 0),
+                            hoursW2: emp.semana2,
+                            earningsW2: (parseFloat(emp.semana2) || 0) * (parseFloat(emp.rate) || 0),
+                            peHours: emp.pe,
+                            peEarnings: emp.peEarnings,
+                            address: emp.address
+                        }}
+                        period={period}
+                        store={period.store}
+                    />
+                ))}
+            </div>
+
+            {/* MODAL: Vista Previa de Recibo de Pago (PDF) */}
+            {previewPdf.isOpen && (
+                <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 backdrop-blur-2xl bg-white/30 animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-5xl h-[90vh] rounded-[3rem] shadow-[0_40px_120px_-20px_rgba(48,58,127,0.4)] border border-[#6bbdb7]/20 flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
+                        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-[#303a7f] text-white rounded-xl">
+                                    <FileText size={20} />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-black text-[#303a7f] uppercase tracking-tighter">Vista Previa: {previewPdf.name}</h4>
+                                    <p className="text-[10px] font-bold text-[#6bbdb7] uppercase tracking-widest">Verifica los datos antes del envío</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    if (previewPdf.url) URL.revokeObjectURL(previewPdf.url);
+                                    setPreviewPdf({ ...previewPdf, isOpen: false });
+                                }}
+                                className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="flex-1 bg-gray-200 overflow-hidden relative">
+                            <iframe
+                                src={`${previewPdf.url}#toolbar=0`}
+                                className="w-full h-full border-none"
+                                title="PDF Preview"
+                            />
+                        </div>
+                        <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex justify-center">
+                            <button
+                                onClick={() => {
+                                    if (previewPdf.url) URL.revokeObjectURL(previewPdf.url);
+                                    setPreviewPdf({ ...previewPdf, isOpen: false });
+                                }}
+                                className="px-12 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/10 hover:bg-[#252a5e] transition-all"
+                            >
+                                Cerrar Vista Previa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
