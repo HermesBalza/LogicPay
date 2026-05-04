@@ -5481,7 +5481,7 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
     );
 };
 
-const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, employees, stores, specialProjectsData, MAIL_API_URL }) => {
+const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDetailData, employees, stores, specialProjectsData, MAIL_API_URL }) => {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [selectedPeriod, setSelectedPeriod] = useState(null);
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
@@ -5548,98 +5548,88 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, employee
         }
     }, [isOpen, nominaHistoryData, allPeriods, selectedPeriod]);
 
-    // --- Lógica de Consolidación Global ---
+    // --- Lógica de Consolidación Global (Usando Nomina_Detalle) ---
     useEffect(() => {
-        if (!selectedPeriod || !nominaHistoryData.length) return;
+        if (!selectedPeriod || !nominaDetailData.length) return;
 
-        const parseHours = (val) => {
-            if (!val || val === 'X' || val === '0:00') return 0;
-            const s = String(val).trim();
-            if (s.includes(':')) {
-                const [h, m] = s.split(':').map(Number);
-                return h + (m || 0) / 60;
-            }
-            return parseFloat(s) || 0;
-        };
+        const empMap = {};
 
-        const allW1Records = nominaHistoryData.filter(h => normalizeDate(h.fecha_inicio) === normalizeDate(selectedPeriod.w1.start));
-        const allW2Records = nominaHistoryData.filter(h => normalizeDate(h.fecha_inicio) === normalizeDate(selectedPeriod.w2.start));
-
-        const empStoreMap = {};
-        const empDataMap = {};
-
-        const processRecords = (records, weekKey) => {
-            records.forEach(record => {
-                try {
-                    const data = JSON.parse(record.data_json);
-                    const storeName = record.nombre;
-                    (data.semanaTableData || []).forEach(emp => {
-                        const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
-                        if (!empStoreMap[empId]) empStoreMap[empId] = new Set();
-                        empStoreMap[empId].add(storeName);
-
-                        if (!empDataMap[empId]) empDataMap[empId] = { w1: [], w2: [] };
-                        empDataMap[empId][weekKey].push({
-                            store: storeName,
-                            empData: emp,
-                            earnings: (data.earningsTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)
-                        });
-                    });
-                } catch (e) { }
-            });
-        };
-
-        processRecords(allW1Records, 'w1');
-        processRecords(allW2Records, 'w2');
-
-        const consolidated = Object.keys(empStoreMap).map(id => {
-            const data = empDataMap[id] || { w1: [], w2: [] };
-            const totalHoursW1 = data.w1.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0);
-            const totalHoursW2 = data.w2.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0);
-
-            let rate = 0;
-            const firstEntry = [...data.w1, ...data.w2][0];
-            if (firstEntry && firstEntry.earnings) rate = Number(firstEntry.earnings.rate || 0);
-
-            const empNombreRaw = id.split('_')[0].trim().toLowerCase();
-            let peTotalHours = 0;
-            let peTotalEarnings = 0;
-
-            (specialProjectsData || []).forEach(project => {
-                if (project.status === 'registered') {
-                    (project.employees || []).forEach(row => {
-                        if (String(row.employeeName).trim().toLowerCase() === empNombreRaw) {
-                            const h = parseFloat(row.hours) || 0;
-                            const r = parseFloat(row.rateLogic) || 0;
-                            peTotalHours += h;
-                            peTotalEarnings += (h * r);
-                        }
-                    });
-                }
-            });
-
-            const finalNombre = (firstEntry?.empData?.nombre) || (id.split('_')[0].toUpperCase());
-            const cargo = (firstEntry?.empData?.cargo) || 'Personal';
-            const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === finalNombre.trim().toLowerCase());
-            const fullAddress = dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '';
-
-            return {
-                id,
-                nombre: finalNombre,
-                semana1: totalHoursW1 || null,
-                semana2: totalHoursW2 || null,
-                pe: peTotalHours,
-                peEarnings: peTotalEarnings,
-                rate,
-                cargo,
-                address: fullAddress,
-                stores: Array.from(empStoreMap[id])
-            };
+        // Filtrar registros que coincidan con el periodo seleccionado
+        const periodRecords = nominaDetailData.filter(record => {
+            const periodVal = String(record.periodo || record.Periodo || '').trim();
+            return periodVal === String(selectedPeriod.range).trim();
         });
+
+        periodRecords.forEach(record => {
+            try {
+                const dataJsonRaw = record.Data_JSON || record.data_json;
+                if (!dataJsonRaw) return;
+                
+                // Si ya fue parseado como objeto por fetchNominaDetail, lo usamos, si no lo parseamos.
+                let employeesList = [];
+                if (typeof dataJsonRaw === 'string') {
+                    employeesList = JSON.parse(dataJsonRaw);
+                } else if (Array.isArray(dataJsonRaw)) {
+                    employeesList = dataJsonRaw;
+                }
+
+                const storeName = record.tienda || record.Tienda || record.nombre;
+                
+                employeesList.forEach(emp => {
+                    const nombreEmp = emp.empleado || emp.nombre;
+                    const idEmp = emp.id || emp.codigo;
+                    if (!nombreEmp) return;
+
+                    const empId = `${String(nombreEmp).trim().toLowerCase()}_${String(idEmp).trim()}`;
+                    
+                    if (!empMap[empId]) {
+                        const dbEmp = employees.find(e => 
+                            String(e.nombre).trim().toLowerCase() === String(nombreEmp).trim().toLowerCase() ||
+                            String(e.codigo_empleado).trim() === String(idEmp).trim()
+                        );
+                        const fullAddress = dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '';
+                        const rate = dbEmp ? Number(dbEmp.pay_rate || dbEmp.rate || 0) : 0;
+
+                        empMap[empId] = {
+                            id: empId,
+                            nombre: nombreEmp,
+                            semana1: 0,
+                            semana2: 0,
+                            pe: 0,
+                            peEarnings: 0,
+                            totalPay: 0,
+                            rate: rate,
+                            cargo: emp.cargo || (dbEmp ? dbEmp.cargo : 'Personal'),
+                            address: fullAddress,
+                            stores: new Set()
+                        };
+                    }
+
+                    const entry = empMap[empId];
+                    entry.semana1 += Number(emp.w1 || 0);
+                    entry.semana2 += Number(emp.w2 || 0);
+                    entry.pe += Number(emp.pe || 0);
+                    entry.totalPay += Number(emp.total_lgm || 0);
+                    entry.stores.add(storeName);
+                    
+                    // Si el rate es 0, intentamos estimarlo del registro si total_hrs > 0
+                    if (entry.rate === 0 && Number(emp.total_hrs) > 0) {
+                        entry.rate = Number(emp.total_lgm) / Number(emp.total_hrs);
+                    }
+                });
+            } catch (e) {
+                console.error("Error procesando registro de Nomina_Detalle", e);
+            }
+        });
+
+        const consolidated = Object.values(empMap).map(emp => ({
+            ...emp,
+            stores: Array.from(emp.stores)
+        }));
 
         consolidated.sort((a, b) => a.nombre.localeCompare(b.nombre));
         setBiweeklyEmployees(consolidated);
-    }, [selectedPeriod, nominaHistoryData, specialProjectsData, employees]);
+    }, [selectedPeriod, nominaDetailData, employees]);
 
     const filteredEmployees = useMemo(() => {
         return biweeklyEmployees.filter(emp => 
@@ -5770,7 +5760,6 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, employee
                             <tbody className="divide-y-2 divide-gray-50">
                                 {filteredEmployees.map(emp => {
                                     const totalHrs = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0));
-                                    const totalPay = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * emp.rate + emp.peEarnings;
                                     const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
                                     const email = dbEmp?.email_tax || dbEmp?.correo;
                                     return (
@@ -5778,7 +5767,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, employee
                                             <td className="p-5"><div className="flex flex-col"><span className="text-sm font-black text-[#303a7f] uppercase">{emp.nombre}</span><span className="text-[10px] font-bold text-gray-400">{email || 'SIN CORREO'}</span></div></td>
                                             <td className="p-5"><div className="flex flex-wrap gap-1">{emp.stores.map(s => <span key={s} className="text-[8px] font-black bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md">{s}</span>)}</div></td>
                                             <td className="p-5 text-center text-sm font-black text-[#6bbdb7]">{totalHrs.toFixed(2)}h</td>
-                                            <td className="p-5 text-right text-sm font-black text-[#303a7f]">${totalPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                            <td className="p-5 text-right text-sm font-black text-[#303a7f]">${emp.totalPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                                             <td className="p-5">
                                                 <div className="flex items-center justify-center gap-2">
                                                     {sentPayStubs[emp.id] ? <span className="text-[9px] font-black text-teal-600 bg-teal-50 px-3 py-1.5 rounded-full flex items-center gap-2"><Check size={12}/> ENVIADO</span> : (
@@ -5816,7 +5805,16 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, employee
                 {selectedPeriod && biweeklyEmployees.map(emp => (
                     <PayStubPDF 
                         key={`stub-tpl-${emp.id}`}
-                        employee={{ ...emp, codigo: emp.id.split('_')[1], stubId: emp.id, hoursW1: emp.semana1, earningsW1: (parseFloat(emp.semana1) || 0) * emp.rate, hoursW2: emp.semana2, earningsW2: (parseFloat(emp.semana2) || 0) * emp.rate }}
+                        employee={{ 
+                            ...emp, 
+                            codigo: emp.id.split('_')[1], 
+                            stubId: emp.id, 
+                            hoursW1: emp.semana1, 
+                            earningsW1: (parseFloat(emp.semana1) || 0) * emp.rate, 
+                            hoursW2: emp.semana2, 
+                            earningsW2: (parseFloat(emp.semana2) || 0) * emp.rate,
+                            peEarnings: emp.peEarnings || (emp.totalPay - ((Number(emp.semana1) + Number(emp.semana2)) * emp.rate))
+                        }}
                         period={selectedPeriod}
                         store="Global"
                     />
@@ -14441,6 +14439,7 @@ function App() {
                 isOpen={isPayrollAdviceOpen}
                 onClose={() => setIsPayrollAdviceOpen(false)}
                 nominaHistoryData={nominaHistoryData}
+                nominaDetailData={nominaDetailData}
                 employees={employees}
                 stores={stores}
                 specialProjectsData={specialProjectsData}
