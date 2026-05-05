@@ -4588,15 +4588,35 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
 };
 
 const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, defaultTo = '' }) => {
-    const [to, setTo] = useState(defaultTo || '');
-    const [subject, setSubject] = useState(`Reporte VWH - ${storeName} - Periodo: ${fechaDesde} - ${fechaHasta}`);
-    const [body, setBody] = useState(`Hola,\n\nAdjunto envío el reporte de nómina correspondiente a la semana del ${fechaDesde} al ${fechaHasta} para la tienda ${storeName}.\n\nSaludos,\nLogic Group Management`);
+    const formatMMDDYY = (dateStr) => {
+        if (!dateStr) return "";
+        const parts = dateStr.split('/');
+        if (parts.length < 3) return "";
+        const m = parts[0].padStart(2, '0');
+        const d = parts[1].padStart(2, '0');
+        const y = parts[2].slice(-2);
+        return `${m}${d}${y}`;
+    };
+
+    const [to, setTo] = useState('Mindy.Odom@kbs-services.com');
+    const [cc, setCc] = useState('SYSCO@kbs-services.com');
+    const [subject, setSubject] = useState('');
+    const [body, setBody] = useState('');
+
+    useEffect(() => {
+        if (isOpen) {
+            const dStart = formatMMDDYY(fechaDesde);
+            const dEnd = formatMMDDYY(fechaHasta);
+            setSubject(`INVOICE ${String(storeName || '').toUpperCase()} ${dStart} - ${dEnd}`);
+            setBody(`Hello, Mindy\n\nAttached is the Invoice for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nThank You,\nLogic Group Management`);
+        }
+    }, [isOpen, storeName, fechaDesde, fechaHasta]);
 
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-[0_32px_80px_rgba(48,58,127,0.25)] border-2 border-white/50 overflow-hidden animate-in zoom-in-95 duration-500">
+            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-[0_32px_80px_rgba(48,58_127,0.25)] border-2 border-white/50 overflow-hidden animate-in zoom-in-95 duration-500">
                 {/* Header - Más Compacto */}
                 <div className="px-10 py-6 border-b-2 border-gray-50 bg-gradient-to-r from-blue-50/50 to-transparent flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -4624,11 +4644,28 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                                     type="email"
                                     value={to}
                                     onChange={(e) => setTo(e.target.value)}
-                                    placeholder="ejemplo@kbs-services.com"
+                                    placeholder="Mindy.Odom@kbs-services.com"
                                     className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
                                 />
                                 <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]">
                                     <Send size={16} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* CC */}
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Con Copia (CC)</label>
+                            <div className="relative">
+                                <input
+                                    type="email"
+                                    value={cc}
+                                    onChange={(e) => setCc(e.target.value)}
+                                    placeholder="SYSCO@kbs-services.com"
+                                    className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
+                                />
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]">
+                                    <Layers size={16} />
                                 </div>
                             </div>
                         </div>
@@ -4652,7 +4689,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                                     <FileText size={18} />
                                 </div>
                                 <div className="flex-1">
-                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">VWH_{storeName.replace(/\s+/g, '_')}.pdf</p>
+                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">{subject}.pdf</p>
                                     <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
                                 </div>
                                 <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm">
@@ -4684,7 +4721,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                         Cancelar
                     </button>
                     <button
-                        onClick={() => !isSending && onSend({ to, subject, body })}
+                        onClick={() => !isSending && onSend({ to, cc, subject, body })}
                         disabled={isSending}
                         className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3 group ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-[0_15px_30px_rgba(107,189,183,0.3)] hover:bg-[#59aba5]'}`}
                     >
@@ -4872,10 +4909,11 @@ const VWHTableModal = (props) => {
                 headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify({
                     to: emailData.to,
+                    cc: emailData.cc,
                     subject: emailData.subject,
                     body: emailData.body,
                     attachments: [{
-                        name: `VWH_Report_${payrollStore}_${currentStartDate.replace(/\//g, '-')}.pdf`,
+                        name: `${emailData.subject}.pdf`,
                         type: 'application/pdf',
                         base64: pdfBase64
                     }]
