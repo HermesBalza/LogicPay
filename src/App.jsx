@@ -5837,10 +5837,13 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
         <div className="fixed inset-0 z-[500] bg-[#f9f9f9] flex flex-col animate-in fade-in duration-500 overflow-hidden">
             <header className="px-12 py-6 bg-white border-b-2 border-gray-100 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-6">
-                    <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-xl shadow-blue-900/20"><Mail size={28} /></div>
-                    <div>
-                        <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Payroll Advices</h2>
-                        <p className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-widest opacity-80">Consolidado Global de Recibos</p>
+                    <div className="p-3 bg-[#303a7f] text-white rounded-xl shadow-xl shadow-blue-900/20"><Mail size={20} /></div>
+                    <div className="flex flex-col">
+                        <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Payroll Advices</h2>
+                        <div className="flex items-center gap-2">
+                            <div className="h-0.5 w-6 bg-[#6bbdb7] rounded-full" />
+                            <span className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-[0.2em]">Consolidado Global de Recibos</span>
+                        </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -5858,7 +5861,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                     <button onClick={onClose} className="p-3 bg-white text-gray-400 rounded-xl border-2 border-gray-100 hover:bg-red-50 hover:text-red-500 transition-all"><X size={24} /></button>
                 </div>
             </header>
-            <main className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-[#fcfdfe]">
+            <main className="flex-1 overflow-hidden flex flex-col bg-[#fcfdfe]">
                 <div className="flex-1 flex flex-col overflow-hidden p-8">
                     <div className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
                         <div className="relative flex-1 max-w-md w-full">
@@ -5916,13 +5919,6 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                         </table>
                     </div>
                 </div>
-                <aside className="w-full lg:w-96 bg-gray-50/50 p-8 flex flex-col border-l border-gray-100">
-                    <h4 className="text-xs font-black text-[#303a7f] uppercase tracking-widest mb-6 flex items-center gap-2"><Activity size={16} className="text-[#6bbdb7]" /> Terminal de Envío</h4>
-                    <div className="flex-1 bg-black/90 rounded-2xl p-4 font-mono text-[9px] text-green-400 overflow-y-auto custom-scrollbar">
-                        {sendingProgress.logs.map((log, i) => <div key={i} className="mb-1 border-l-2 border-green-500/20 pl-2">{log}</div>)}
-                        {sendingProgress.status === 'idle' && <div className="text-gray-500 italic">En espera de ejecución...</div>}
-                    </div>
-                </aside>
             </main>
             <div className="absolute left-[-9999px] top-0 pointer-events-none select-none opacity-0">
                 {selectedPeriod && biweeklyEmployees.map(emp => (
