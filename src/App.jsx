@@ -164,6 +164,38 @@ const normalizeDate = (d) => {
     return d;
 };
 
+// Calcula el rango de semana (Domingo a Sábado) para una fecha dada (MM/DD/YYYY)
+const getWeekRange = (dateStr) => {
+    if (!dateStr) return '';
+    if (dateStr.includes(' - ')) return dateStr;
+
+    const parts = dateStr.split('/');
+    if (parts.length !== 3) return dateStr;
+
+    const m = parseInt(parts[0]);
+    const d = parseInt(parts[1]);
+    const y = parseInt(parts[2]);
+    const date = new Date(y, m - 1, d);
+
+    if (isNaN(date.getTime())) return dateStr;
+
+    const dayOfWeek = date.getDay(); // 0=Dom, 6=Sab
+    const sun = new Date(date);
+    sun.setDate(date.getDate() - dayOfWeek);
+
+    const sat = new Date(sun);
+    sat.setDate(sun.getDate() + 6);
+
+    const fmt = (dt) => {
+        const mm = String(dt.getMonth() + 1).padStart(2, '0');
+        const dd = String(dt.getDate()).padStart(2, '0');
+        const yyyy = dt.getFullYear();
+        return `${mm}/${dd}/${yyyy}`;
+    };
+
+    return `${fmt(sun)} - ${fmt(sat)}`;
+};
+
 const normalizeName = (name) => {
     if (!name) return '';
     return name.toLowerCase()
@@ -5270,7 +5302,7 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
                 const yearMatch = history.periodo?.match(/\/(\d{4})$/);
                 if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
 
-                const periodKey = history.periodo;
+                const periodKey = getWeekRange(history.periodo);
                 periodsFound.add(periodKey);
 
                 const payload = JSON.parse(history.data_json);
@@ -5314,8 +5346,8 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
                     const yearMatch = service.fecha?.match(/\/(\d{4})$/);
                     if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
 
-                    // Usamos la fecha del servicio como identificador de periodo
-                    const periodKey = service.fecha;
+                    // Usamos el rango de la semana para mantener coherencia en las columnas
+                    const periodKey = getWeekRange(service.fecha);
                     periodsFound.add(periodKey);
 
                     const empId = resolveEmployeeId(service.empleado, service.codigo_empleado);
