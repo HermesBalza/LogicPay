@@ -4676,10 +4676,10 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                 </div>
 
                 {/* Footer - Más Compacto */}
-                <div className="px-10 pb-10 flex gap-4">
+                <div className="px-10 py-8 bg-gray-50/30 border-t border-gray-100 flex gap-4">
                     <button
                         onClick={onClose}
-                        className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent"
+                        className="px-8 py-4 bg-white text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-gray-100"
                     >
                         Cancelar
                     </button>
@@ -4694,6 +4694,81 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                             <Receipt size={18} className="group-hover:rotate-12 transition-transform" />
                         )}
                         {isSending ? 'Procesando Envío...' : 'Enviar Ahora'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending }) => {
+    const [to, setTo] = useState('');
+    const [subject, setSubject] = useState(`Reporte de Horas - ${storeName} - Periodo: ${fechaDesde} - ${fechaHasta}`);
+    const [body, setBody] = useState(`Hola,\n\nAdjunto envío el reporte de asistencia semanal correspondiente al periodo ${fechaDesde} - ${fechaHasta} para la tienda ${storeName}.\n\nSaludos,\nLogic Group Management`);
+
+    useEffect(() => {
+        if (isOpen) {
+            setSubject(`Reporte de Horas - ${storeName} - Periodo: ${fechaDesde} - ${fechaHasta}`);
+            setBody(`Hola,\n\nAdjunto envío el reporte de asistencia semanal correspondiente al periodo ${fechaDesde} - ${fechaHasta} para la tienda ${storeName}.\n\nSaludos,\nLogic Group Management`);
+        }
+    }, [isOpen, storeName, fechaDesde, fechaHasta]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-[0_32px_80px_rgba(48,58,127,0.25)] border-2 border-white/50 overflow-hidden animate-in zoom-in-95 duration-500">
+                <div className="px-10 py-6 border-b-2 border-gray-50 bg-gradient-to-r from-blue-50/50 to-transparent flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <Mail size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Enviar Reporte de Horas</h3>
+                            <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="px-10 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
+                            <div className="relative">
+                                <input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="ejemplo@correo.com" className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]"><Send size={16} /></div>
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto del Correo</label>
+                            <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documento Adjunto</label>
+                            <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
+                                <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10"><FileText size={18} /></div>
+                                <div className="flex-1">
+                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">Reporte_Horas_{storeName?.replace(/\s+/g, '_')}.pdf</p>
+                                    <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
+                                </div>
+                                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm"><Check size={14} /></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex flex-col space-y-1.5 h-full">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
+                        <textarea value={body} onChange={(e) => setBody(e.target.value)} className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]" />
+                    </div>
+                </div>
+
+                <div className="px-10 pb-10 flex gap-4">
+                    <button onClick={onClose} className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all border-2 border-transparent">Cancelar</button>
+                    <button onClick={() => !isSending && onSend({ to, subject, body })} disabled={isSending} className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}>
+                        {isSending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={18} />}
+                        {isSending ? 'Enviando...' : 'Enviar Ahora'}
                     </button>
                 </div>
             </div>
@@ -5338,7 +5413,7 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
                 console.error("Error processing special projects for 1099:", e);
             }
         });
-        
+
         // 3. Procesar Servicios CSG (Limpieza)
         if (csgServicesData && Array.isArray(csgServicesData)) {
             csgServicesData.forEach(service => {
@@ -5639,7 +5714,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
             try {
                 const dataJsonRaw = record.Data_JSON || record.data_json;
                 if (!dataJsonRaw) return;
-                
+
                 // Si ya fue parseado como objeto por fetchNominaDetail, lo usamos, si no lo parseamos.
                 let employeesList = [];
                 if (typeof dataJsonRaw === 'string') {
@@ -5649,16 +5724,16 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                 }
 
                 const storeName = record.tienda || record.Tienda || record.nombre;
-                
+
                 employeesList.forEach(emp => {
                     const nombreEmp = emp.empleado || emp.nombre;
                     const idEmp = emp.id || emp.codigo;
                     if (!nombreEmp) return;
 
                     const empId = `${String(nombreEmp).trim().toLowerCase()}_${String(idEmp).trim()}`;
-                    
+
                     if (!empMap[empId]) {
-                        const dbEmp = employees.find(e => 
+                        const dbEmp = employees.find(e =>
                             String(e.nombre).trim().toLowerCase() === String(nombreEmp).trim().toLowerCase() ||
                             String(e.codigo_empleado).trim() === String(idEmp).trim()
                         );
@@ -5686,7 +5761,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                     entry.pe += Number(emp.pe || 0);
                     entry.totalPay += Number(emp.total_lgm || 0);
                     entry.stores.add(storeName);
-                    
+
                     // Si el rate es 0, intentamos estimarlo del registro si total_hrs > 0
                     if (entry.rate === 0 && Number(emp.total_hrs) > 0) {
                         entry.rate = Number(emp.total_lgm) / Number(emp.total_hrs);
@@ -5696,7 +5771,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                 console.error("Error procesando registro de Nomina_Detalle", e);
             }
         });
-        
+
         // 2. Procesar registros de CSG_Nomina
         const periodCsgRecords = (csgNominaData || []).filter(record => {
             return String(record.periodo).trim() === String(selectedPeriod.range).trim();
@@ -5713,7 +5788,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                     const empId = `${String(nombreEmp).trim().toLowerCase()}_${String(idEmp).trim()}`;
 
                     if (!empMap[empId]) {
-                        const dbEmp = employees.find(e => 
+                        const dbEmp = employees.find(e =>
                             String(e.nombre).trim().toLowerCase() === String(nombreEmp).trim().toLowerCase() ||
                             String(e.codigo_empleado).trim() === String(idEmp).trim()
                         );
@@ -5755,7 +5830,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
     }, [selectedPeriod, nominaDetailData, csgNominaData, employees]);
 
     const filteredEmployees = useMemo(() => {
-        return biweeklyEmployees.filter(emp => 
+        return biweeklyEmployees.filter(emp =>
             emp.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
             emp.id.toLowerCase().includes(searchTerm.toLowerCase())
         );
@@ -5849,9 +5924,9 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-2xl border-2 border-gray-100">
                         <div className="flex items-center bg-white rounded-xl px-3 py-1.5 shadow-sm">
-                            <button onClick={() => setSelectedYear(y => y - 1)} className="p-1 hover:text-[#303a7f] transition-colors"><ChevronLeft size={14}/></button>
+                            <button onClick={() => setSelectedYear(y => y - 1)} className="p-1 hover:text-[#303a7f] transition-colors"><ChevronLeft size={14} /></button>
                             <span className="px-4 text-xs font-black text-[#303a7f]">{selectedYear}</span>
-                            <button onClick={() => setSelectedYear(y => y + 1)} className="p-1 hover:text-[#303a7f] transition-colors"><ChevronRight size={14}/></button>
+                            <button onClick={() => setSelectedYear(y => y + 1)} className="p-1 hover:text-[#303a7f] transition-colors"><ChevronRight size={14} /></button>
                         </div>
                         <select value={selectedPeriod?.range || ''} onChange={(e) => setSelectedPeriod(allPeriods.find(p => p.range === e.target.value))} className="bg-white border-none text-[10px] font-black text-[#303a7f] uppercase outline-none py-2 px-4 rounded-xl cursor-pointer">
                             <option value="">Selecciona Periodo</option>
@@ -5896,7 +5971,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                                             <td className="p-5 text-right text-sm font-black text-[#303a7f]">${emp.totalPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                                             <td className="p-5">
                                                 <div className="flex items-center justify-center gap-2">
-                                                    {sentPayStubs[emp.id] ? <span className="text-[9px] font-black text-teal-600 bg-teal-50 px-3 py-1.5 rounded-full flex items-center gap-2"><Check size={12}/> ENVIADO</span> : (
+                                                    {sentPayStubs[emp.id] ? <span className="text-[9px] font-black text-teal-600 bg-teal-50 px-3 py-1.5 rounded-full flex items-center gap-2"><Check size={12} /> ENVIADO</span> : (
                                                         <>
                                                             <button onClick={async () => {
                                                                 setNotificationModal({ isOpen: true, type: 'loading', message: `Generando PDF...` });
@@ -5906,8 +5981,8 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                                                                     setPreviewPdf({ isOpen: true, url: URL.createObjectURL(blob), name: emp.nombre });
                                                                     setNotificationModal({ isOpen: false, type: 'loading', message: '' });
                                                                 }
-                                                            }} className="p-2 text-[#6bbdb7] hover:bg-[#6bbdb7] hover:text-white rounded-lg transition-all"><Eye size={16}/></button>
-                                                            <button onClick={() => handleSendIndividual(emp)} disabled={!email} className="p-2 bg-[#303a7f] text-white hover:bg-[#252a5e] rounded-lg disabled:opacity-30 transition-all"><Send size={16}/></button>
+                                                            }} className="p-2 text-[#6bbdb7] hover:bg-[#6bbdb7] hover:text-white rounded-lg transition-all"><Eye size={16} /></button>
+                                                            <button onClick={() => handleSendIndividual(emp)} disabled={!email} className="p-2 bg-[#303a7f] text-white hover:bg-[#252a5e] rounded-lg disabled:opacity-30 transition-all"><Send size={16} /></button>
                                                         </>
                                                     )}
                                                 </div>
@@ -5922,15 +5997,15 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
             </main>
             <div className="absolute left-[-9999px] top-0 pointer-events-none select-none opacity-0">
                 {selectedPeriod && biweeklyEmployees.map(emp => (
-                    <PayStubPDF 
+                    <PayStubPDF
                         key={`stub-tpl-${emp.id}`}
-                        employee={{ 
-                            ...emp, 
-                            codigo: emp.id.split('_')[1], 
-                            stubId: emp.id, 
-                            hoursW1: emp.semana1, 
-                            earningsW1: (parseFloat(emp.semana1) || 0) * emp.rate, 
-                            hoursW2: emp.semana2, 
+                        employee={{
+                            ...emp,
+                            codigo: emp.id.split('_')[1],
+                            stubId: emp.id,
+                            hoursW1: emp.semana1,
+                            earningsW1: (parseFloat(emp.semana1) || 0) * emp.rate,
+                            hoursW2: emp.semana2,
                             earningsW2: (parseFloat(emp.semana2) || 0) * emp.rate,
                             peEarnings: emp.peEarnings || (emp.totalPay - ((Number(emp.semana1) + Number(emp.semana2)) * emp.rate) - (Number(emp.csgEarnings) || 0)),
                             csgEarnings: emp.csgEarnings || 0
@@ -5945,7 +6020,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                     <div className="bg-white w-full max-w-4xl h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border">
                         <div className="p-6 border-b flex justify-between items-center">
                             <h4 className="text-sm font-black uppercase text-[#303a7f]">Vista Previa: {previewPdf.name}</h4>
-                            <button onClick={() => setPreviewPdf({ ...previewPdf, isOpen: false })} className="p-2 hover:bg-red-50 rounded-xl"><X/></button>
+                            <button onClick={() => setPreviewPdf({ ...previewPdf, isOpen: false })} className="p-2 hover:bg-red-50 rounded-xl"><X /></button>
                         </div>
                         <iframe src={`${previewPdf.url}#toolbar=0`} className="flex-1 w-full" />
                     </div>
@@ -10311,6 +10386,11 @@ function App() {
     const [isEmployeeStatsModalOpen, setIsEmployeeStatsModalOpen] = useState(false);
     const [isStoreStatsModalOpen, setIsStoreStatsModalOpen] = useState(false);
     const [isConfirmApproveModalOpen, setIsConfirmApproveModalOpen] = useState(false);
+    const [isHoursReportEmailModalOpen, setIsHoursReportEmailModalOpen] = useState(false);
+    const [isSendingHoursReport, setIsSendingHoursReport] = useState(false);
+    const [hoursReportPdfBase64, setHoursReportPdfBase64] = useState(null);
+    const attendanceTableRef = useRef(null);
+    const attendanceReportRef = useRef(null);
 
     const [specialProjectsData, setSpecialProjectsData] = useState([]);
 
@@ -11423,6 +11503,93 @@ function App() {
             return h + (m || 0) / 60;
         }
         return parseFloat(val) || 0;
+    };
+
+    const handleOpenHoursReportEmail = async () => {
+        if (!attendanceReportRef.current) return;
+        setHoursReportPdfBase64(null); // Limpiar estado previo para nueva generación
+
+        setStatusModalTitle("Generando Reporte Premium");
+        setStatusModalMessage("Estamos preparando el documento con alta resolución y diseño corporativo. Por favor espere.");
+        setStatusModalType("processing");
+        setIsStatusModalOpen(true);
+
+        try {
+            // Capturar la versión "Printable" del reporte (oculta en el UI pero disponible para captura)
+            const element = attendanceReportRef.current;
+            const canvas = await html2canvas(element, {
+                scale: 1.5, // Optimización de peso manteniendo legibilidad profesional
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                logging: false,
+                windowWidth: 1200 // Ancho fijo para consistencia de layout
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdfWidth = 297; // Ancho estándar A4 horizontal (mm)
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            // Usar formato personalizado [ancho, alto] para que la página se ajuste al contenido real
+            const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+            const base64 = pdf.output('datauristring').split(',')[1];
+            setHoursReportPdfBase64(base64);
+            setIsStatusModalOpen(false);
+            setIsHoursReportEmailModalOpen(true);
+        } catch (error) {
+            console.error("Error generating Premium PDF:", error);
+            setStatusModalTitle("Error");
+            setStatusModalMessage("No se pudo generar el reporte premium.");
+            setStatusModalType("error");
+            setIsStatusModalOpen(true);
+        }
+    };
+    const handleSendHoursReportEmail = async (emailData) => {
+        if (!MAIL_API_URL) {
+            setStatusModalTitle("Error de Configuración");
+            setStatusModalMessage("Error: No se ha configurado la URL del Script de Correo (MAIL_API_URL). Por favor vincule la cuenta primero.");
+            setStatusModalType("error");
+            setIsStatusModalOpen(true);
+            return;
+        }
+        setIsSendingHoursReport(true);
+        try {
+            // Sanitizar nombres para el archivo adjunto
+            const safeStore = (payrollStore || 'Tienda').replace(/[^a-z0-9]/gi, '_');
+            const safeDate = (fechaDesde || 'Fecha').replace(/[^a-z0-9]/gi, '_');
+
+            await fetch(MAIL_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    to: emailData.to,
+                    subject: emailData.subject,
+                    body: emailData.body,
+                    attachments: [{
+                        name: `Reporte_Horas_${safeStore}_${safeDate}.pdf`,
+                        type: 'application/pdf',
+                        base64: hoursReportPdfBase64
+                    }]
+                })
+            });
+
+            setStatusModalTitle("Envío Exitoso");
+            setStatusModalMessage(`El reporte de horas ha sido enviado correctamente a ${emailData.to}.`);
+            setStatusModalType("success");
+            setIsStatusModalOpen(true);
+            setIsHoursReportEmailModalOpen(false);
+        } catch (error) {
+            console.error("Error sending email:", error);
+            setStatusModalTitle("Error de Envío");
+            setStatusModalMessage("Ocurrió un error al intentar enviar el correo. Por favor verifique su conexión.");
+            setStatusModalType("error");
+            setIsStatusModalOpen(true);
+        } finally {
+            setIsSendingHoursReport(false);
+        }
     };
 
     const handleApproveWeek = async () => {
@@ -13993,7 +14160,7 @@ function App() {
                                         </div>
                                     </div>
 
-                                    <div className="overflow-x-auto rounded-3xl border-[3px] border-gray-200">
+                                    <div ref={attendanceTableRef} className="overflow-x-auto rounded-3xl border-[3px] border-gray-200 bg-white">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
                                                 <tr className="bg-[#f9f9f9]/80">
@@ -14148,6 +14315,7 @@ function App() {
                                                 return (
                                                     <>
                                                         <button
+                                                            onClick={handleOpenHoursReportEmail}
                                                             className="px-8 py-3 bg-[#6bbdb7] text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/10 transition-all active:scale-95 flex items-center gap-2 hover:bg-[#59aba5]"
                                                         >
                                                             <Mail size={14} /> Enviar Reporte de Horas
@@ -14966,6 +15134,93 @@ function App() {
                     }
                 }}
             />
+
+            <HoursReportEmailModal
+                isOpen={isHoursReportEmailModalOpen}
+                onClose={() => setIsHoursReportEmailModalOpen(false)}
+                storeName={payrollStore}
+                fechaDesde={fechaDesde}
+                fechaHasta={fechaHasta}
+                onSend={handleSendHoursReportEmail}
+                isSending={isSendingHoursReport}
+            />
+
+            {/* COMPONENTE OCULTO PARA CAPTURA DE PDF (REPORTE PROFESIONAL) */}
+            <div
+                ref={attendanceReportRef}
+                style={{
+                    position: 'fixed',
+                    left: '-9999px',
+                    top: '-9999px',
+                    width: '1200px',
+                    backgroundColor: 'white',
+                    padding: '60px'
+                }}
+            >
+                {/* Header Premium Estilo LGM */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: '4px solid #303a7f', paddingBottom: '30px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                        <div style={{ padding: '15px', backgroundColor: '#303a7f', borderRadius: '15px' }}>
+                            <Users size={40} color="white" />
+                        </div>
+                        <div>
+                            <h1 style={{ fontSize: '32px', fontWeight: '900', color: '#303a7f', margin: 0, textTransform: 'uppercase', letterSpacing: '-1px' }}>
+                                Registro de Asistencia Semanal
+                            </h1>
+                            <p style={{ color: '#6bbdb7', fontWeight: '900', textTransform: 'uppercase', fontSize: '12px', margin: '5px 0 0 0', letterSpacing: '2px' }}>
+                                Logic Group Management
+                            </p>
+                        </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                        <p style={{ fontSize: '10px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 5px 0' }}>Tienda / Site</p>
+                        <p style={{ fontSize: '20px', fontWeight: '900', color: '#303a7f', margin: '0 0 15px 0', textTransform: 'uppercase' }}>{payrollStore || '---'}</p>
+                        <p style={{ fontSize: '10px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 5px 0' }}>Periodo de Nómina</p>
+                        <p style={{ fontSize: '14px', fontWeight: '700', color: '#303a7f', margin: 0 }}>{fechaDesde} — {fechaHasta}</p>
+                    </div>
+                </div>
+
+                {/* Tabla Estilizada con Números Legibles */}
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        <tr style={{ backgroundColor: '#f9fafb' }}>
+                            <th style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>Empleado / Cargo</th>
+                            {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map((d, i) => (
+                                <th key={i} style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'center', borderBottom: '2px solid #e5e7eb' }}>{d}</th>
+                            ))}
+                            <th style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'right', borderBottom: '2px solid #e5e7eb' }}>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {semanaTableData.map((row, i) => (
+                            <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                <td style={{ padding: '15px' }}>
+                                    <p style={{ fontSize: '12px', fontWeight: '900', color: '#303a7f', margin: 0, textTransform: 'uppercase' }}>{row.nombre}</p>
+                                    <p style={{ fontSize: '10px', fontWeight: '700', color: '#6bbdb7', margin: '3px 0 0 0' }}>{row.cargo} | ID: {row.codigo}</p>
+                                </td>
+                                {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
+                                    <td key={day} style={{ padding: '15px', textAlign: 'center', fontSize: '12px', fontWeight: '900', color: '#4b5563' }}>
+                                        {row[day]?.final || '-'}
+                                    </td>
+                                ))}
+                                <td style={{ padding: '15px', textAlign: 'right', fontSize: '13px', fontWeight: '900', color: '#303a7f' }}>
+                                    {row.total?.final || '0'}h
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+
+                {/* Footer del Reporte */}
+                <div style={{ marginTop: '50px', paddingTop: '20px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
+                    <p style={{ fontSize: '9px', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>
+                        Documento generado automáticamente por LogicPay — {new Date().toLocaleString()}
+                    </p>
+                    <p style={{ fontSize: '9px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase' }}>
+                        Página 1 de 1
+                    </p>
+                </div>
+            </div>
 
             {/* Decorative Brand Gradients */}
             <div
