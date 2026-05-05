@@ -5183,7 +5183,7 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
     );
 };
 
-const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryData, onOpenPayrollAdvice }) => {
+const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryData, csgServicesData, onOpenPayrollAdvice }) => {
     const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -5229,6 +5229,7 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
         // 1. Procesar Nómina Regular (Historico)
         nominaHistoryData.forEach(history => {
             try {
+                if (!history || !history.fecha_inicio) return;
                 const yearMatch = history.fecha_inicio?.match(/\/(\d{4})$/);
                 if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
 
@@ -5265,6 +5266,7 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
         // 2. Procesar Proyectos Especiales (P.E)
         specialProjectsHistoryData.forEach(history => {
             try {
+                if (!history || !history.periodo) return;
                 const yearMatch = history.periodo?.match(/\/(\d{4})$/);
                 if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
 
@@ -5303,6 +5305,41 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
                 console.error("Error processing special projects for 1099:", e);
             }
         });
+        
+        // 3. Procesar Servicios CSG (Limpieza)
+        if (csgServicesData && Array.isArray(csgServicesData)) {
+            csgServicesData.forEach(service => {
+                try {
+                    if (!service || !service.fecha) return;
+                    const yearMatch = service.fecha?.match(/\/(\d{4})$/);
+                    if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
+
+                    // Usamos la fecha del servicio como identificador de periodo
+                    const periodKey = service.fecha;
+                    periodsFound.add(periodKey);
+
+                    const empId = resolveEmployeeId(service.empleado, service.codigo_empleado);
+                    const info = idToInfoMap[empId] || { nombre: service.empleado, cargo: 'Cleaning' };
+
+                    if (!data[empId]) {
+                        data[empId] = {
+                            id: empId,
+                            nombre: info.nombre,
+                            cargo: info.cargo,
+                            firstName: info.firstName,
+                            lastName: info.lastName,
+                            totalBox1: 0,
+                            periods: {}
+                        };
+                    }
+                    const amount = parseFloat(service.monto_lgm) || 0;
+                    data[empId].periods[periodKey] = (data[empId].periods[periodKey] || 0) + amount;
+                    data[empId].totalBox1 += amount;
+                } catch (e) {
+                    console.error("Error processing CSG service for 1099:", e);
+                }
+            });
+        }
 
         const sortedPeriods = Array.from(periodsFound).sort((a, b) => {
             const dateA = new Date(a.split(' - ')[0]);
@@ -5314,7 +5351,7 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
             rows: Object.values(data),
             periods: sortedPeriods
         };
-    }, [fiscalYear, nominaHistoryData, specialProjectsHistoryData, employees]);
+    }, [fiscalYear, nominaHistoryData, specialProjectsHistoryData, csgServicesData, employees]);
 
     const filteredRows = useMemo(() => {
         return reportData.rows
@@ -5425,11 +5462,16 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
                                 <th className="p-6 text-[10px] font-black text-[#303a7f] uppercase tracking-widest sticky left-0 bg-gray-50/80 z-10 border-b-2 border-gray-100">Personal / ID</th>
                                 <th className="p-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center border-b-2 border-gray-100">TIN (Tax ID)</th>
                                 <th className="p-6 text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest text-right border-b-2 border-gray-100 bg-[#6bbdb7]/5">Total Box 1</th>
-                                {reportData.periods.map(p => (
-                                    <th key={p} className="p-6 text-[9px] font-bold text-gray-400 uppercase tracking-tighter text-center border-b-2 border-gray-100 border-l-2 border-gray-50">
-                                        {p.split(' - ')[0].slice(0, 5)} - {p.split(' - ')[1].slice(0, 5)}
-                                    </th>
-                                ))}
+                                {reportData.periods.map(p => {
+                                    const parts = p.split(' - ');
+                                    const start = parts[0] || '';
+                                    const end = parts[1] || '';
+                                    return (
+                                        <th key={p} className="p-6 text-[9px] font-bold text-gray-400 uppercase tracking-tighter text-center border-b-2 border-gray-100 border-l-2 border-gray-50">
+                                            {start.slice(0, 5)} {end ? `- ${end.slice(0, 5)}` : ''}
+                                        </th>
+                                    );
+                                })}
                             </tr>
                         </thead>
                         <tbody className="divide-y-2 divide-gray-50">
@@ -14054,6 +14096,7 @@ function App() {
                             employees={employees}
                             nominaHistoryData={nominaHistoryData}
                             specialProjectsHistoryData={specialProjectsHistoryData}
+                            csgServicesData={csgServicesData}
                             onOpenPayrollAdvice={() => setIsPayrollAdviceOpen(true)}
                         />
                     )}
