@@ -4738,7 +4738,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     );
 };
 
-const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, stores = [] }) => {
+const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, stores = [], specialProjectsHistoryData = [] }) => {
     const formatMMDDYY = (dateStr) => {
         if (!dateStr) return "";
         const parts = dateStr.split('/');
@@ -4764,6 +4764,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
     const [to, setTo] = useState('');
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
+    const [relevantProjects, setRelevantProjects] = useState([]);
 
     useEffect(() => {
         if (isOpen) {
@@ -4783,8 +4784,31 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
             setTo(emailTo);
             setSubject(`${storeName} Hours Report ${dStart} - ${dEnd}`);
             setBody(`${greeting}\n\nAttached is the Weekly Attendance Report for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nI look forward to your approval.\n\nBest regards,\nLogic Group Management`);
+
+            // Filtrar Proyectos Especiales para esta tienda y semana
+            const foundProjects = (specialProjectsHistoryData || []).filter(pe => {
+                const peStore = (pe.Tienda || pe.tienda || "").toUpperCase();
+                const currentStore = (storeName || "").toUpperCase();
+                if (peStore !== currentStore) return false;
+
+                // Primero intentar por el campo "Periodo" que es más preciso para la semana de trabajo
+                const pePeriod = pe.Periodo || pe.periodo || "";
+                if (pePeriod.includes(fechaDesde) || pePeriod.includes(fechaHasta)) return true;
+
+                // Si no hay periodo, intentar por fecha (fallback)
+                const peDate = pe.Timestamp || pe.fecha || pe.fecha_confirmacion;
+                if (!peDate) return false;
+
+                try {
+                    const d = new Date(peDate);
+                    const start = new Date(fechaDesde);
+                    const end = new Date(fechaHasta);
+                    return d >= start && d <= end;
+                } catch (e) { return false; }
+            });
+            setRelevantProjects(foundProjects);
         }
-    }, [isOpen, storeName, fechaDesde, fechaHasta, stores]);
+    }, [isOpen, storeName, fechaDesde, fechaHasta, stores, specialProjectsHistoryData]);
 
     if (!isOpen) return null;
 
@@ -4824,7 +4848,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                             <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
                                 <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10"><FileText size={18} /></div>
                                 <div className="flex-1">
-                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">{subject}.pdf</p>
+                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">{storeName.replace(/\s+/g, '_')}_Hours_Report.pdf</p>
                                     <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
                                 </div>
                                 <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm"><Check size={14} /></div>
@@ -4839,7 +4863,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
 
                 <div className="px-10 pb-10 flex gap-4">
                     <button onClick={onClose} className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all border-2 border-transparent">Cancelar</button>
-                    <button onClick={() => !isSending && onSend({ to, subject, body })} disabled={isSending} className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}>
+                    <button onClick={() => !isSending && onSend({ to, subject, body, relevantProjects })} disabled={isSending} className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}>
                         {isSending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={18} />}
                         {isSending ? 'Enviando...' : 'Enviar Ahora'}
                     </button>
@@ -11634,6 +11658,98 @@ function App() {
             const safeStore = (payrollStore || 'Tienda').replace(/[^a-z0-9]/gi, '_');
             const safeDate = (fechaDesde || 'Fecha').replace(/[^a-z0-9]/gi, '_');
 
+            const attachments = [{
+                name: `${emailData.subject}.pdf`,
+                type: 'application/pdf',
+                base64: hoursReportPdfBase64
+            }];
+
+            // Generar PDFs para Proyectos Especiales (Sin Rates)
+            if (emailData.relevantProjects && emailData.relevantProjects.length > 0) {
+                emailData.relevantProjects.forEach((proj, index) => {
+                    try {
+                        const doc = new jsPDF();
+                        let yPos = 20;
+
+                        // Header
+                        doc.setFillColor(48, 58, 127);
+                        doc.rect(0, 0, 210, 40, 'F');
+                        doc.setTextColor(255, 255, 255);
+                        doc.setFontSize(22);
+                        doc.text("SPECIAL PROJECT REPORT", 15, 25);
+                        
+                        doc.setTextColor(107, 189, 183);
+                        doc.setFontSize(10);
+                        doc.text("LOGIC GROUP MANAGEMENT - HOURS SUMMARY", 15, 33);
+
+                        yPos = 55;
+                        doc.setTextColor(48, 58, 127);
+                        doc.setFontSize(12);
+                        doc.text(`STORE: ${proj.Tienda || payrollStore}`, 15, yPos);
+                        yPos += 7;
+                        doc.text(`DATE: ${proj.Timestamp || proj.fecha}`, 15, yPos);
+                        yPos += 15;
+
+                        // Content
+                        const rawJson = proj.data_json || proj.Data_JSON || '[]';
+                        let projects = [];
+                        try {
+                            const parsed = JSON.parse(rawJson);
+                            projects = Array.isArray(parsed) ? parsed : [parsed];
+                        } catch(e) { projects = []; }
+
+                        projects.forEach((p, pIdx) => {
+                            doc.setFillColor(240, 244, 248);
+                            doc.rect(15, yPos - 5, 180, 8, 'F');
+                            doc.setFontSize(10);
+                            doc.text(`PROJECT: ${p.projectName || 'Special Project'}`, 20, yPos + 1);
+                            yPos += 12;
+
+                            // Table Header
+                            doc.setFontSize(8);
+                            doc.setTextColor(150, 150, 150);
+                            doc.text("EMPLOYEE NAME", 25, yPos);
+                            doc.text("HOURS", 150, yPos);
+                            yPos += 4;
+                            doc.setDrawColor(230, 230, 230);
+                            doc.line(25, yPos, 185, yPos);
+                            yPos += 6;
+
+                            doc.setTextColor(60, 60, 60);
+                            const emps = Array.isArray(p.employees) ? p.employees : [];
+                            let totalProjectHours = 0;
+
+                            emps.forEach(emp => {
+                                doc.text(String(emp.name).toUpperCase(), 25, yPos);
+                                doc.text(String(emp.hours), 150, yPos);
+                                totalProjectHours += (parseFloat(emp.hours) || 0);
+                                yPos += 6;
+                                
+                                if (yPos > 270) {
+                                    doc.addPage();
+                                    yPos = 20;
+                                }
+                            });
+
+                            yPos += 2;
+                            doc.setFontSize(9);
+                            doc.setTextColor(48, 58, 127);
+                            doc.text(`TOTAL PROJECT HOURS: ${totalProjectHours}`, 130, yPos);
+                            yPos += 15;
+                        });
+
+                        const peBase64 = doc.output('datauristring').split(',')[1];
+                        attachments.push({
+                            name: `Special_Project_${index + 1}_${(proj.Tienda || payrollStore).replace(/\s+/g, '_')}.pdf`,
+                            type: 'application/pdf',
+                            base64: peBase64
+                        });
+                    } catch (err) {
+                        console.error("Error generating Special Project PDF:", err);
+                    }
+                });
+            }
+
             await fetch(MAIL_API_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -11642,11 +11758,7 @@ function App() {
                     to: emailData.to,
                     subject: emailData.subject,
                     body: emailData.body,
-                    attachments: [{
-                        name: `${emailData.subject}.pdf`,
-                        type: 'application/pdf',
-                        base64: hoursReportPdfBase64
-                    }]
+                    attachments: attachments
                 })
             });
 
@@ -15218,6 +15330,7 @@ function App() {
                 onSend={handleSendHoursReportEmail}
                 isSending={isSendingHoursReport}
                 stores={stores}
+                specialProjectsHistoryData={specialProjectsHistoryData}
             />
 
             {/* COMPONENTE OCULTO PARA CAPTURA DE PDF (REPORTE PROFESIONAL) */}
