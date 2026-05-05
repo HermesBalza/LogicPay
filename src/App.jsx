@@ -99,6 +99,7 @@ const SPECIAL_PROJECTS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_PROYECTOS_ES
 const WOS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_WOS_URL;
 const VARIABLES_CSV_URL = import.meta.env.VITE_SHEET_VARIABLES_URL;
 const CSG_SERVICES_CSV_URL = import.meta.env.VITE_SHEET_CSG_SERVICIOS_URL;
+const CSG_NOMINA_CSV_URL = import.meta.env.VITE_SHEET_CSG_NOMINA_URL;
 const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
 
 // Parsea una fila CSV respetando campos entre comillas
@@ -5555,7 +5556,7 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
     );
 };
 
-const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDetailData, employees, stores, specialProjectsData, MAIL_API_URL }) => {
+const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDetailData, csgNominaData, employees, stores, specialProjectsData, MAIL_API_URL }) => {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [selectedPeriod, setSelectedPeriod] = useState(null);
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
@@ -5622,9 +5623,9 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
         }
     }, [isOpen, nominaHistoryData, allPeriods, selectedPeriod]);
 
-    // --- Lógica de Consolidación Global (Usando Nomina_Detalle) ---
+    // --- Lógica de Consolidación Global (Usando Nomina_Detalle + CSG_Nomina) ---
     useEffect(() => {
-        if (!selectedPeriod || !nominaDetailData.length) return;
+        if (!selectedPeriod || (!nominaDetailData.length && !csgNominaData.length)) return;
 
         const empMap = {};
 
@@ -5695,6 +5696,54 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                 console.error("Error procesando registro de Nomina_Detalle", e);
             }
         });
+        
+        // 2. Procesar registros de CSG_Nomina
+        const periodCsgRecords = (csgNominaData || []).filter(record => {
+            return String(record.periodo).trim() === String(selectedPeriod.range).trim();
+        });
+
+        periodCsgRecords.forEach(record => {
+            try {
+                const services = JSON.parse(record.servicios_json || '[]');
+                services.forEach(svc => {
+                    const nombreEmp = svc.empleado;
+                    const idEmp = svc.codigo_empleado;
+                    if (!nombreEmp) return;
+
+                    const empId = `${String(nombreEmp).trim().toLowerCase()}_${String(idEmp).trim()}`;
+
+                    if (!empMap[empId]) {
+                        const dbEmp = employees.find(e => 
+                            String(e.nombre).trim().toLowerCase() === String(nombreEmp).trim().toLowerCase() ||
+                            String(e.codigo_empleado).trim() === String(idEmp).trim()
+                        );
+                        const fullAddress = dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '';
+                        const rate = dbEmp ? Number(dbEmp.pay_rate || dbEmp.rate || 0) : 0;
+
+                        empMap[empId] = {
+                            id: empId,
+                            nombre: nombreEmp,
+                            semana1: 0,
+                            semana2: 0,
+                            pe: 0,
+                            csgEarnings: 0,
+                            totalPay: 0,
+                            rate: rate,
+                            cargo: svc.cargo || (dbEmp ? dbEmp.cargo : 'Cleaning Staff'),
+                            address: fullAddress,
+                            stores: new Set()
+                        };
+                    }
+
+                    const entry = empMap[empId];
+                    entry.totalPay += Number(svc.monto_lgm || 0);
+                    entry.csgEarnings = (entry.csgEarnings || 0) + Number(svc.monto_lgm || 0);
+                    entry.stores.add("CSG Cleaning");
+                });
+            } catch (e) {
+                console.error("Error procesando registro de CSG_Nomina", e);
+            }
+        });
 
         const consolidated = Object.values(empMap).map(emp => ({
             ...emp,
@@ -5703,7 +5752,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
 
         consolidated.sort((a, b) => a.nombre.localeCompare(b.nombre));
         setBiweeklyEmployees(consolidated);
-    }, [selectedPeriod, nominaDetailData, employees]);
+    }, [selectedPeriod, nominaDetailData, csgNominaData, employees]);
 
     const filteredEmployees = useMemo(() => {
         return biweeklyEmployees.filter(emp => 
@@ -5887,7 +5936,8 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                             earningsW1: (parseFloat(emp.semana1) || 0) * emp.rate, 
                             hoursW2: emp.semana2, 
                             earningsW2: (parseFloat(emp.semana2) || 0) * emp.rate,
-                            peEarnings: emp.peEarnings || (emp.totalPay - ((Number(emp.semana1) + Number(emp.semana2)) * emp.rate))
+                            peEarnings: emp.peEarnings || (emp.totalPay - ((Number(emp.semana1) + Number(emp.semana2)) * emp.rate) - (Number(emp.csgEarnings) || 0)),
+                            csgEarnings: emp.csgEarnings || 0
                         }}
                         period={selectedPeriod}
                         store="Global"
@@ -6594,7 +6644,7 @@ const PayStubPDF = ({ employee, period, store, companyInfo }) => {
     const primaryColor = "#303a7f";
     const secondaryColor = "#6bbdb7";
 
-    const totalEarnings = (parseFloat(employee.earningsW1) || 0) + (parseFloat(employee.earningsW2) || 0) + (parseFloat(employee.peEarnings) || 0);
+    const totalEarnings = (parseFloat(employee.earningsW1) || 0) + (parseFloat(employee.earningsW2) || 0) + (parseFloat(employee.peEarnings) || 0) + (parseFloat(employee.csgEarnings) || 0);
 
     // Lógica para calcular rangos de fechas por semana
     const [startStr, endStr] = (period.range || "").split(" - ");
@@ -6688,6 +6738,13 @@ const PayStubPDF = ({ employee, period, store, companyInfo }) => {
                         <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                             <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>Special / Additional Projects</td>
                             <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.peEarnings).toFixed(2)}</td>
+                        </tr>
+                    )}
+                    {/* Servicios CSG */}
+                    {parseFloat(employee.csgEarnings) > 0 && (
+                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>CSG Cleaning Services</td>
+                            <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.csgEarnings).toFixed(2)}</td>
                         </tr>
                     )}
                 </tbody>
@@ -10240,6 +10297,7 @@ function App() {
 
     // ─── Estados Módulo CSG ───────────────────────────────────────────────────
     const [csgServicesData, setCsgServicesData] = useState([]);
+    const [csgNominaData, setCsgNominaData] = useState([]);
     const [activeCSGTab, setActiveCSGTab] = useState('registro'); // 'registro' | 'historial' | 'nomina' | 'facturacion'
     const [isCsgFormOpen, setIsCsgFormOpen] = useState(false);
 
@@ -12687,6 +12745,37 @@ function App() {
         }
     };
 
+    const fetchCSGNomina = async () => {
+        if (!CSG_NOMINA_CSV_URL) return;
+        try {
+            const response = await fetch(`${CSG_NOMINA_CSV_URL}&t=${Date.now()}`);
+            const csvText = await response.text();
+            const lines = csvText.split('\n').filter(l => l.trim());
+            if (lines.length < 2) {
+                setCsgNominaData([]);
+                return;
+            }
+            const headers = parseCSVRow(lines[0]);
+            const loaded = lines.slice(1).map(line => {
+                const values = parseCSVRow(line);
+                const obj = createCSVRowObject(headers, values);
+                return {
+                    id_nomina: obj.id_nomina || '',
+                    periodo: obj.periodo || '',
+                    total_lgm: parseFloat(obj.total_lgm) || 0,
+                    total_csg: parseFloat(obj.total_csg) || 0,
+                    fecha_confirmacion: obj.fecha_confirmacion || '',
+                    correo_enviado: obj.correo_enviado || '',
+                    servicios_json: obj.servicios_json || '[]'
+                };
+            });
+            setCsgNominaData(loaded);
+            console.log(`[CSG Nomina] ${loaded.length} registros cargados.`);
+        } catch (error) {
+            console.error('[CSG Nomina] Error cargando nómina CSG:', error);
+        }
+    };
+
     useEffect(() => {
         fetchStores();
         fetchEmployees();
@@ -12696,6 +12785,7 @@ function App() {
         fetchWosHistory();
         fetchVariables();
         fetchCSGServices();
+        fetchCSGNomina();
     }, []);
 
 
@@ -14515,6 +14605,7 @@ function App() {
                 onClose={() => setIsPayrollAdviceOpen(false)}
                 nominaHistoryData={nominaHistoryData}
                 nominaDetailData={nominaDetailData}
+                csgNominaData={csgNominaData}
                 employees={employees}
                 stores={stores}
                 specialProjectsData={specialProjectsData}
