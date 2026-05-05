@@ -4772,6 +4772,15 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
             const dEnd = formatMMDDYY(fechaHasta);
             const greeting = mName ? `Hello ${mName},` : "Hello,";
 
+            // Asignar email por defecto según manager
+            let emailTo = "";
+            if (mName === "Pauline") emailTo = "pauline.ross@kbs-services.com";
+            else if (mName === "Shawna") emailTo = "spatterson@kbs-services.com";
+            else if (mName === "Tawana") emailTo = "Tawana.Davis@kbs-services.com";
+            else if (mName === "Christian / Alfredo") emailTo = "christian.madrigal@kbs-services.com, ALitardo@kbs-services.com";
+            else if (mName === "Hugh") emailTo = "";
+
+            setTo(emailTo);
             setSubject(`${storeName} Hours Report ${dStart} - ${dEnd}`);
             setBody(`${greeting}\n\nAttached is the Weekly Attendance Report for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nI look forward to your approval.\n\nBest regards,\nLogic Group Management`);
         }
