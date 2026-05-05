@@ -4701,17 +4701,44 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     );
 };
 
-const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending }) => {
+const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, stores = [] }) => {
+    const formatMMDDYY = (dateStr) => {
+        if (!dateStr) return "";
+        const parts = dateStr.split('/');
+        if (parts.length < 3) return "";
+        const m = parts[0].padStart(2, '0');
+        const d = parts[1].padStart(2, '0');
+        const y = parts[2].slice(-2);
+        return `${m}${d}${y}`;
+    };
+
+    const getManager = () => {
+        const store = stores.find(s => s.nombre === storeName);
+        if (!store) return "";
+        const state = (store.estado || store.state || "").toUpperCase();
+        if (state.includes("ARIZONA") || state.includes("AZ")) return "Pauline";
+        if (state.includes("TEXAS") || state.includes("TX")) return "Tawana";
+        if (state.includes("KENTUCKY") || state.includes("KY")) return "Shawna";
+        if (state.includes("UTAH") || state.includes("UT")) return "Christian / Alfredo";
+        if (state.includes("TENNESSEE") || state.includes("TN")) return "Hugh";
+        return "";
+    };
+
     const [to, setTo] = useState('');
-    const [subject, setSubject] = useState(`Reporte de Horas - ${storeName} - Periodo: ${fechaDesde} - ${fechaHasta}`);
-    const [body, setBody] = useState(`Hola,\n\nAdjunto envío el reporte de asistencia semanal correspondiente al periodo ${fechaDesde} - ${fechaHasta} para la tienda ${storeName}.\n\nSaludos,\nLogic Group Management`);
+    const [subject, setSubject] = useState('');
+    const [body, setBody] = useState('');
 
     useEffect(() => {
         if (isOpen) {
-            setSubject(`Reporte de Horas - ${storeName} - Periodo: ${fechaDesde} - ${fechaHasta}`);
-            setBody(`Hola,\n\nAdjunto envío el reporte de asistencia semanal correspondiente al periodo ${fechaDesde} - ${fechaHasta} para la tienda ${storeName}.\n\nSaludos,\nLogic Group Management`);
+            const mName = getManager();
+            const dStart = formatMMDDYY(fechaDesde);
+            const dEnd = formatMMDDYY(fechaHasta);
+            const greeting = mName ? `Hello ${mName},` : "Hello,";
+
+            setSubject(`${storeName} Hours Report ${dStart} - ${dEnd}`);
+            setBody(`${greeting}\n\nAttached is the Weekly Attendance Report for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nI look forward to your approval.\n\nBest regards,\nLogic Group Management`);
         }
-    }, [isOpen, storeName, fechaDesde, fechaHasta]);
+    }, [isOpen, storeName, fechaDesde, fechaHasta, stores]);
 
     if (!isOpen) return null;
 
@@ -4751,7 +4778,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                             <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
                                 <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10"><FileText size={18} /></div>
                                 <div className="flex-1">
-                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">Reporte_Horas_{storeName?.replace(/\s+/g, '_')}.pdf</p>
+                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">{subject}.pdf</p>
                                     <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
                                 </div>
                                 <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm"><Check size={14} /></div>
@@ -11569,7 +11596,7 @@ function App() {
                     subject: emailData.subject,
                     body: emailData.body,
                     attachments: [{
-                        name: `Reporte_Horas_${safeStore}_${safeDate}.pdf`,
+                        name: `${emailData.subject}.pdf`,
                         type: 'application/pdf',
                         base64: hoursReportPdfBase64
                     }]
@@ -15143,6 +15170,7 @@ function App() {
                 fechaHasta={fechaHasta}
                 onSend={handleSendHoursReportEmail}
                 isSending={isSendingHoursReport}
+                stores={stores}
             />
 
             {/* COMPONENTE OCULTO PARA CAPTURA DE PDF (REPORTE PROFESIONAL) */}
