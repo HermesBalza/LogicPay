@@ -6748,10 +6748,10 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
 
 const NominaEmailModal = ({ isOpen, onClose, period, onSend, isSending, defaultTo = '' }) => {
     // MODO DE PRUEBAS ACTIVO: Redirigiendo a coordinaciondeprocesos.aw@gmail.com
-    // const [to, setTo] = useState(defaultTo || '');
+    // const [to, setTo] = useState('estefanyclgm@gmail.com'); // Destinatario real (Habilitar cuando se indique)
     const [to, setTo] = useState('coordinaciondeprocesos.aw@gmail.com');
-    const [subject, setSubject] = useState(`Reporte de Nómina - ${period?.store} - Periodo: ${period?.range}`);
-    const [body, setBody] = useState(`Hola,\n\nAdjunto envío el reporte de nómina correspondiente a la semana del ${period?.range} para la tienda ${period?.store}.\n\nSaludos,\nLogic Group Management`);
+    const [subject, setSubject] = useState(`PAYROLL ${String(period?.store || '').toUpperCase()} - ${period?.range}`);
+    const [body, setBody] = useState(`Hi, Estefany\n\nAttached is the payroll report for the period of ${period?.range} for the ${period?.store} store.\n\nBest regards,\nLogic Group Management`);
 
     if (!isOpen || !period) return null;
 
@@ -6810,7 +6810,7 @@ const NominaEmailModal = ({ isOpen, onClose, period, onSend, isSending, defaultT
                                     <FileText size={18} />
                                 </div>
                                 <div className="flex-1">
-                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">Nomina_{period.store.replace(/\s+/g, '_')}_{period.range.replace(/\//g, '-')}.pdf</p>
+                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">{subject}.pdf</p>
                                     <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
                                 </div>
                                 <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm">
@@ -7458,7 +7458,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     subject: emailData.subject,
                     body: emailData.body,
                     attachments: [{
-                        name: `Nomina_${period.store.replace(/\s+/g, '_')}_${period.range.replace(/\//g, '-')}.pdf`,
+                        name: `${emailData.subject}.pdf`,
                         type: 'application/pdf',
                         base64: pdfBase64
                     }]
