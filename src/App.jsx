@@ -4813,9 +4813,10 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-[0_32px_80px_rgba(48,58,127,0.25)] border-2 border-white/50 overflow-hidden animate-in zoom-in-95 duration-500">
-                <div className="px-10 py-6 border-b-2 border-gray-50 bg-gradient-to-r from-blue-50/50 to-transparent flex items-center justify-between">
+        <div className="fixed inset-0 z-[500] bg-white animate-in slide-in-from-bottom duration-500 overflow-y-auto custom-scrollbar">
+            <div className="min-h-screen flex flex-col bg-gray-50/30">
+                {/* Header Full Screen */}
+                <div className="px-10 py-6 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
                             <Mail size={20} />
@@ -4830,7 +4831,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                     </button>
                 </div>
 
-                <div className="px-10 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="flex-1 px-10 py-12 grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-7xl mx-auto w-full">
                     <div className="space-y-6">
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
@@ -4894,9 +4895,18 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                     </div>
                 </div>
 
-                <div className="px-10 pb-10 flex gap-4">
-                    <button onClick={onClose} className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all border-2 border-transparent">Cancelar</button>
-                    <button onClick={() => !isSending && onSend({ to, subject, body, relevantProjects })} disabled={isSending} className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}>
+                <div className="px-10 pb-16 flex justify-center gap-6">
+                    <button 
+                        onClick={onClose} 
+                        className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        onClick={() => !isSending && onSend({ to, subject, body, relevantProjects })} 
+                        disabled={isSending} 
+                        className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
+                    >
                         {isSending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={18} />}
                         {isSending ? 'Enviando...' : 'Enviar Ahora'}
                     </button>
