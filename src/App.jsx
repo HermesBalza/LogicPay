@@ -4860,8 +4860,17 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
 
                                 {/* Simulación Proyectos Especiales */}
                                 {relevantProjects.map((proj, idx) => {
-                                    // Coherencia temporal: Usar fechaHasta del periodo
-                                    const dateParts = formatDate(fechaHasta).split('/');
+                                    // Determinar fecha real desde Data_JSON para la simulación
+                                    let peRealDate = proj.fecha || proj.Timestamp || proj.fecha_confirmacion || "";
+                                    try {
+                                        const parsed = JSON.parse(proj.data_json || proj.Data_JSON || '[]');
+                                        const projects = Array.isArray(parsed) ? parsed : [parsed];
+                                        if (projects.length > 0 && projects[0].fecha) {
+                                            peRealDate = projects[0].fecha;
+                                        }
+                                    } catch (e) { }
+
+                                    const dateParts = formatDate(peRealDate).split('/');
                                     const mmddyy = dateParts.length === 3 ? `${dateParts[0]}${dateParts[1]}${dateParts[2].slice(-2)}` : '000000';
                                     const fileName = `Hours Report ${proj.Tienda || storeName} - Special Project ${mmddyy}.pdf`;
 
@@ -11709,6 +11718,20 @@ function App() {
                         doc.setFont("helvetica", "black");
                         doc.text("LOGIC GROUP MANAGEMENT — HOURS SUMMARY", 15, 37);
 
+                        // --- DETERMINAR FECHA REAL Y DATOS DESDE DATA_JSON ---
+                        const rawJson = proj.data_json || proj.Data_JSON || '[]';
+                        let projects = [];
+                        let peRealDate = proj.fecha || proj.Timestamp || proj.fecha_confirmacion || "";
+                        
+                        try {
+                            const parsed = JSON.parse(rawJson);
+                            projects = Array.isArray(parsed) ? parsed : [parsed];
+                            // Extraer fecha certera del JSON del proyecto
+                            if (projects.length > 0 && projects[0].fecha) {
+                                peRealDate = projects[0].fecha;
+                            }
+                        } catch (e) { projects = []; }
+
                         // --- INFO BOX ---
                         yPos = 60;
                         doc.setTextColor(48, 58, 127);
@@ -11722,20 +11745,13 @@ function App() {
                         doc.setFont("helvetica", "bold");
                         doc.text("PROJECT DATE:", 15, yPos);
                         doc.setFont("helvetica", "normal");
-                        // Limpieza de fecha: solo fecha, sin hora y sin comas
-                        let cleanDate = formatDate(proj.fecha || proj.Timestamp || proj.fecha_confirmacion || "").split(' ')[0];
-                        cleanDate = cleanDate.replace(',', '').trim(); 
+                        // Usar la fecha real extraída del JSON
+                        let cleanDate = formatDate(peRealDate).split(' ')[0].replace(',', '').trim(); 
                         doc.text(cleanDate, 65, yPos); 
                         
                         yPos += 15;
 
                         // --- CONTENT ---
-                        const rawJson = proj.data_json || proj.Data_JSON || '[]';
-                        let projects = [];
-                        try {
-                            const parsed = JSON.parse(rawJson);
-                            projects = Array.isArray(parsed) ? parsed : [parsed];
-                        } catch (e) { projects = []; }
 
                         projects.forEach((p, pIdx) => {
                             // Sub-header Proyecto
@@ -11799,8 +11815,8 @@ function App() {
 
                         const peBase64 = doc.output('datauristring').split(',')[1];
                         
-                        // Generar MMDDYY basado en la fecha de cierre del periodo (fechaHasta) para coherencia
-                        const dateParts = formatDate(fechaHasta).split('/'); 
+                        // Generar MMDDYY basado en la fecha real extraída al inicio del loop
+                        const dateParts = formatDate(peRealDate).split('/'); 
                         const mmddyy = dateParts.length === 3 
                             ? `${dateParts[0]}${dateParts[1]}${dateParts[2].slice(-2)}` 
                             : '000000';
