@@ -509,16 +509,25 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
 
 // ─── CSGBiweekEmailModal: Interfaz de envío de correo estilo VWH ──────────────
 const CSGBiweekEmailModal = ({ isOpen, onClose, biweek, onSend, isSending }) => {
-    const [to, setTo] = useState('');
-    const [subject, setSubject] = useState(`Reporte de Nómina CSG - Periodo: ${biweek?.label}`);
-    const [body, setBody] = useState(`Hola,\n\nAdjunto envío el reporte de nómina correspondiente a la bisemana del ${biweek?.label}.\n\nSaludos,\nLogic Group Management`);
+    const [to, setTo] = useState('estefanyclgm@gmail.com');
+    const [subject, setSubject] = useState('');
+    const [body, setBody] = useState('');
+
+    useEffect(() => {
+        if (isOpen && biweek) {
+            setTo('estefanyclgm@gmail.com');
+            setSubject(`PAYROLL CSG - ${biweek.label}`);
+            setBody(`Hi, Estefany\n\nAttached is the payroll report for the period ${biweek.label}.\n\nBest regards,\nLogic Group Management`);
+        }
+    }, [isOpen, biweek]);
 
     if (!isOpen) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-[0_32px_80px_rgba(48,58,127,0.25)] border-2 border-white/50 overflow-hidden animate-in zoom-in-95 duration-500">
-                <div className="px-10 py-6 border-b-2 border-gray-50 bg-gradient-to-r from-blue-50/50 to-transparent flex items-center justify-between">
+        <div className="fixed inset-0 z-[1100] bg-white animate-in slide-in-from-bottom duration-500 overflow-hidden">
+            <div className="h-screen flex flex-col bg-gray-50/30">
+                {/* Header Full Screen */}
+                <div className="px-10 py-5 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
                             <Mail size={20} />
@@ -533,41 +542,86 @@ const CSGBiweekEmailModal = ({ isOpen, onClose, biweek, onSend, isSending }) => 
                     </button>
                 </div>
 
-                <div className="px-10 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="space-y-6">
+                {/* Body - Full Screen Grid */}
+                <div className="flex-1 px-10 py-6 grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-7xl mx-auto w-full overflow-hidden">
+                    <div className="space-y-4">
+                        {/* To */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
                             <div className="relative">
-                                <input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="ejemplo@correo.com" className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
-                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]"><Send size={16} /></div>
+                                <input
+                                    type="email"
+                                    value={to}
+                                    onChange={(e) => setTo(e.target.value)}
+                                    placeholder="ejemplo@correo.com"
+                                    className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
+                                />
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]">
+                                    <Send size={16} />
+                                </div>
                             </div>
                         </div>
+
+                        {/* Subject */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto del Correo</label>
-                            <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
+                            <input
+                                type="text"
+                                value={subject}
+                                onChange={(e) => setSubject(e.target.value)}
+                                className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
+                            />
                         </div>
+
+                        {/* Attachment Preview */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documento Adjunto</label>
                             <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
-                                <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10"><FileText size={18} /></div>
+                                <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10">
+                                    <FileText size={18} />
+                                </div>
                                 <div className="flex-1">
-                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">Nomina_CSG_{biweek?.id}.pdf</p>
+                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">{subject}.pdf</p>
                                     <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
                                 </div>
-                                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm"><Check size={14} /></div>
+                                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm">
+                                    <Check size={14} />
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    {/* Right Column: Message */}
                     <div className="flex flex-col space-y-1.5 h-full">
                         <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
-                        <textarea value={body} onChange={(e) => setBody(e.target.value)} className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]" />
+                        <div className="flex-1 relative min-h-[180px]">
+                            <textarea
+                                value={body}
+                                onChange={(e) => setBody(e.target.value)}
+                                className="w-full h-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed"
+                            />
+                        </div>
                     </div>
                 </div>
 
-                <div className="px-10 pb-10 flex gap-4">
-                    <button onClick={onClose} className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all border-2 border-transparent">Cancelar</button>
-                    <button onClick={() => !isSending && onSend({ to, subject, body })} disabled={isSending} className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}>
-                        {isSending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={18} />}
+                {/* Footer Full Screen - Compacto */}
+                <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
+                    <button
+                        onClick={onClose}
+                        className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={() => !isSending && onSend({ to, subject, body })}
+                        disabled={isSending}
+                        className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
+                    >
+                        {isSending ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <Receipt size={18} />
+                        )}
                         {isSending ? 'Enviando...' : 'Enviar Ahora'}
                     </button>
                 </div>
@@ -691,7 +745,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                     subject: emailData.subject,
                     body: emailData.body,
                     attachments: [{
-                        name: `Nomina_CSG_BW_${biweek.id}.pdf`,
+                        name: `${emailData.subject}.pdf`,
                         type: 'application/pdf',
                         base64: pdfBase64
                     }]
