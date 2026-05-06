@@ -100,6 +100,7 @@ const WOS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_WOS_URL;
 const VARIABLES_CSV_URL = import.meta.env.VITE_SHEET_VARIABLES_URL;
 const CSG_SERVICES_CSV_URL = import.meta.env.VITE_SHEET_CSG_SERVICIOS_URL;
 const CSG_NOMINA_CSV_URL = import.meta.env.VITE_SHEET_CSG_NOMINA_URL;
+const ADMIN_EMPLOYEES_CSV_URL = import.meta.env.VITE_SHEET_PERSONAL_ADMIN_URL;
 const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
 
 // Parsea una fila CSV respetando campos entre comillas
@@ -428,6 +429,27 @@ const csvRowToEmployee = (flat) => {
         })()
     };
 };
+
+// ─── Normalizador de filas CSV para Personal Administrativo LGM ───────────────
+const csvRowToAdminEmployee = (flat) => ({
+    nombre: flat.nombre || '',
+    codigo_empleado: (flat.codigo_empleado || '').replace(/^'/, ''),
+    cargo: flat.cargo || '',
+    salario_quincenal: parseFloat(flat.salario_quincenal) || 0,
+    metodo_pago: flat.metodo_pago || '',
+    cuenta_bancaria: (flat.cuenta_bancaria || '').replace(/^'/, ''),
+    email: flat.email || '',
+    fecha_ingreso: flat.fecha_ingreso || '',
+    tin: (flat.tin || '').replace(/^'/, ''),
+    tin_type: flat.tin_type || 'SSN',
+    first_name: flat.first_name || '',
+    last_name: flat.last_name || '',
+    address_1: flat.address_1 || '',
+    city: flat.city || '',
+    state: flat.state || '',
+    zip: (flat.zip || '').replace(/^'/, ''),
+    activo: String(flat.activo || 'TRUE').toUpperCase() !== 'FALSE'
+});
 
 // Función para comprimir imágenes antes de enviar a Sheets (evita límites de celda/POST)
 const compressImage = (base64Str, maxWidth = 300, quality = 0.7) => {
@@ -10060,6 +10082,368 @@ const BillingView = ({
     );
 };
 
+// ─── MÓDULO LGM: NÓMINA ADMINISTRATIVA ───────────────────────────────────────
+const AdminPayrollView = ({
+    adminEmployees = [],
+    adminPayrollHistory = [],
+    setAdminPayrollHistory,
+    searchTerm = '',
+    setSearchTerm,
+    syncToSheets,
+    mailApiUrl,
+    apiUrl,
+    onRefresh
+}) => {
+    const [activeSection, setActiveSection] = useState('employees'); // 'employees' | 'payroll' | 'history'
+    const [selectedPeriod, setSelectedPeriod] = useState('');
+    const [payrollRows, setPayrollRows] = useState([]);
+    const [isConfirming, setIsConfirming] = useState(false);
+    const [notif, setNotif] = useState({ open: false, type: 'success', msg: '' });
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+    // Formatear moneda
+    const fmtCurrency = (val) => {
+        const n = parseFloat(val) || 0;
+        return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    };
+
+    // Generar opciones de quincenas (últimas 6)
+    const generateBiweeklyOptions = () => {
+        const options = [];
+        const now = new Date();
+        for (let i = 0; i < 8; i++) {
+            const d = new Date(now);
+            d.setDate(now.getDate() - i * 15);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = d.getDate() <= 15 ? '01' : '16';
+            const endDay = day === '01' ? '15' : String(new Date(year, d.getMonth() + 1, 0).getDate()).padStart(2, '0');
+            const label = `${month}/${day}/${year} — ${month}/${endDay}/${year}`;
+            options.push(label);
+        }
+        return options;
+    };
+
+    // Cargar empleados en la tabla de pago al seleccionar período
+    const handleLoadPayroll = () => {
+        if (!selectedPeriod) return;
+        const activeEmps = adminEmployees.filter(e => e.activo);
+        const rows = activeEmps.map(emp => ({
+            id: emp.codigo_empleado || emp.nombre,
+            nombre: emp.nombre,
+            cargo: emp.cargo,
+            email: emp.email,
+            metodo_pago: emp.metodo_pago,
+            cuenta_bancaria: emp.cuenta_bancaria,
+            salario_base: emp.salario_quincenal,
+            ajuste: 0,
+            total: emp.salario_quincenal,
+            pagado: false
+        }));
+        setPayrollRows(rows);
+        setActiveSection('payroll');
+    };
+
+    const updateRow = (id, field, val) => {
+        setPayrollRows(prev => prev.map(r => {
+            if (r.id !== id) return r;
+            const updated = { ...r, [field]: val };
+            updated.total = (parseFloat(updated.salario_base) || 0) + (parseFloat(updated.ajuste) || 0);
+            return updated;
+        }));
+    };
+
+    const showNotif = (type, msg) => {
+        setNotif({ open: true, type, msg });
+        setTimeout(() => setNotif({ open: false, type: 'success', msg: '' }), 4000);
+    };
+
+    const handleConfirmPayroll = async () => {
+        if (!selectedPeriod || payrollRows.length === 0) return;
+        setIsConfirming(true);
+        try {
+            const timestamp = new Date().toLocaleString();
+            const newRecord = {
+                periodo: selectedPeriod,
+                fecha_confirmacion: timestamp,
+                empleados: payrollRows.map(r => ({
+                    nombre: r.nombre,
+                    cargo: r.cargo,
+                    salario_base: r.salario_base,
+                    ajuste: r.ajuste,
+                    total: r.total,
+                    metodo_pago: r.metodo_pago
+                })),
+                total_nomina: payrollRows.reduce((acc, r) => acc + (r.total || 0), 0)
+            };
+
+            // Guardar en historial local
+            setAdminPayrollHistory(prev => [newRecord, ...prev]);
+
+            // Sincronizar a Sheets
+            await syncToSheets('upsert', {
+                Periodo: selectedPeriod,
+                Fecha_Confirmacion: timestamp,
+                Total_Nomina: newRecord.total_nomina,
+                Empleados_JSON: JSON.stringify(newRecord.empleados)
+            }, 'Admin_Nomina_Historico', true);
+
+            showNotif('success', `Nómina del período ${selectedPeriod} confirmada exitosamente.`);
+            setActiveSection('history');
+        } catch (e) {
+            console.error('[LGM] Error confirmando nómina admin:', e);
+            showNotif('error', 'Error al confirmar la nómina. Verifique la conexión.');
+        } finally {
+            setIsConfirming(false);
+        }
+    };
+
+    const filteredEmployees = adminEmployees.filter(e =>
+        e.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        e.cargo.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const totalNomina = payrollRows.reduce((acc, r) => acc + (parseFloat(r.total) || 0), 0);
+
+    return (
+        <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+            {/* Notificación flotante */}
+            {notif.open && (
+                <div className={`fixed top-24 right-6 z-[500] px-6 py-4 rounded-2xl shadow-2xl font-black text-sm uppercase tracking-widest animate-in fade-in zoom-in duration-300 ${notif.type === 'success' ? 'bg-[#6bbdb7] text-white' : 'bg-red-500 text-white'}`}>
+                    {notif.msg}
+                </div>
+            )}
+
+            {/* Header de la vista */}
+            <div className="flex flex-col md:flex-row gap-4 mb-10 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex-1">
+                </div>
+
+                {/* Sub-navegación */}
+                <div className="h-11 bg-white border-2 border-[#303a7f]/10 rounded-2xl p-1 flex items-center gap-1 shadow-sm">
+                    {[
+                        { id: 'employees', label: 'Equipo', icon: Users },
+                        { id: 'payroll', label: 'Pago', icon: CreditCard },
+                        { id: 'history', label: 'Historial', icon: History }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveSection(tab.id)}
+                            className={`h-full px-4 rounded-xl transition-all flex items-center gap-2 ${activeSection === tab.id ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+                        >
+                            <tab.icon size={14} />
+                            <span className="text-[9px] font-black uppercase tracking-widest hidden sm:block">{tab.label}</span>
+                        </button>
+                    ))}
+                </div>
+
+
+            </div>
+
+            {/* ── SECCIÓN: EQUIPO ── */}
+            {activeSection === 'employees' && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {/* Buscador */}
+                    <div className="relative mb-6 group">
+                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Buscar por nombre o cargo..."
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className="w-full h-11 bg-white border-2 border-[#303a7f]/10 text-[#303a7f] rounded-2xl pl-12 pr-6 outline-none focus:border-[#303a7f]/20 font-bold shadow-sm text-sm placeholder:text-gray-300"
+                        />
+                    </div>
+
+                    {filteredEmployees.length === 0 ? (
+                        <div className="py-32 text-center bg-white rounded-[2rem] border-2 border-dashed border-gray-100">
+                            <Target size={48} className="text-gray-100 mx-auto mb-6" />
+                            <p className="text-gray-400 font-black text-base uppercase tracking-[0.2em] opacity-50">
+                                {adminEmployees.length === 0 ? 'No hay registros disponibles' : 'Sin coincidencias'}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {filteredEmployees.map((emp, i) => (
+                                <div key={i} className="bg-white rounded-[2rem] border-2 border-gray-50 shadow-sm hover:shadow-xl hover:border-[#303a7f]/10 transition-all duration-500 overflow-hidden group">
+                                    {/* Header de la card */}
+                                    <div className="bg-gradient-to-br from-[#303a7f] to-[#1e234d] p-6 relative">
+                                        <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-white font-black text-2xl shadow-inner mb-3">
+                                            {emp.nombre.charAt(0).toUpperCase()}
+                                        </div>
+                                        <h3 className="text-sm font-black text-white uppercase tracking-tight leading-tight">{emp.nombre}</h3>
+                                        <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest mt-0.5">{emp.cargo}</p>
+                                        <div className={`absolute top-4 right-4 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${emp.activo ? 'bg-green-400/20 text-green-200 border border-green-400/30' : 'bg-red-400/20 text-red-200 border border-red-400/30'}`}>
+                                            {emp.activo ? 'Activo' : 'Inactivo'}
+                                        </div>
+                                    </div>
+
+                                    {/* Datos */}
+                                    <div className="p-5 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sueldo Quincenal</span>
+                                            <span className="text-sm font-black text-[#303a7f]">{fmtCurrency(emp.salario_quincenal)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Método</span>
+                                            <span className="text-[10px] font-black text-[#6bbdb7] uppercase">{emp.metodo_pago || '—'}</span>
+                                        </div>
+                                        {emp.email && (
+                                            <div className="flex items-center gap-2 pt-1 border-t border-gray-50">
+                                                <Mail size={12} className="text-gray-300 flex-shrink-0" />
+                                                <span className="text-[9px] font-bold text-gray-400 truncate">{emp.email}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── SECCIÓN: MOTOR DE PAGO ── */}
+            {activeSection === 'payroll' && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {/* Selector de período */}
+                    <div className="bg-white rounded-[2rem] border-2 border-gray-50 shadow-sm p-6 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        <div className="flex-1">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Período Quincenal</label>
+                            <select
+                                value={selectedPeriod}
+                                onChange={e => setSelectedPeriod(e.target.value)}
+                                className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl px-4 py-3 outline-none focus:border-[#303a7f]/10 text-xs transition-all"
+                            >
+                                <option value="">— Seleccionar Quincena —</option>
+                                {generateBiweeklyOptions().map((opt, i) => (
+                                    <option key={i} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <button
+                            onClick={handleLoadPayroll}
+                            disabled={!selectedPeriod || adminEmployees.filter(e => e.activo).length === 0}
+                            className="px-8 py-3 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#1e234d] transition-all shadow-lg shadow-blue-900/10 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 mt-auto"
+                        >
+                            <Zap size={14} />
+                            Cargar Equipo
+                        </button>
+                    </div>
+
+                    {payrollRows.length === 0 ? (
+                        <div className="py-24 text-center bg-white rounded-[2rem] border-2 border-dashed border-gray-100">
+                            <CreditCard size={40} className="text-gray-100 mx-auto mb-4" />
+                            <p className="text-gray-300 font-black text-xs uppercase tracking-widest">Seleccione un período y presione "Cargar Equipo"</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="bg-white rounded-[2rem] border-2 border-gray-50 shadow-sm overflow-hidden mb-6">
+                                {/* Cabecera de tabla */}
+                                <div className="bg-gray-50/80 px-6 py-4 border-b-2 border-gray-100 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest">
+                                    <div>Empleado / Cargo</div>
+                                    <div className="text-right w-28">Sueldo Base</div>
+                                    <div className="text-right w-28">Ajuste</div>
+                                    <div className="text-right w-28">Total</div>
+                                    <div className="text-center w-16">Estado</div>
+                                </div>
+
+                                <div className="divide-y-2 divide-gray-50">
+                                    {payrollRows.map((row) => (
+                                        <div key={row.id} className="px-6 py-4 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center hover:bg-blue-50/20 transition-all">
+                                            <div>
+                                                <p className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</p>
+                                                <p className="text-[9px] font-bold text-[#6bbdb7] uppercase tracking-wider mt-0.5">{row.cargo}</p>
+                                            </div>
+                                            <div className="text-right w-28">
+                                                <span className="text-xs font-black text-[#303a7f]">{fmtCurrency(row.salario_base)}</span>
+                                            </div>
+                                            <div className="w-28">
+                                                <input
+                                                    type="number"
+                                                    value={row.ajuste}
+                                                    onChange={e => updateRow(row.id, 'ajuste', e.target.value)}
+                                                    className="w-full bg-gray-50 border-2 border-transparent focus:border-[#303a7f]/10 text-[#303a7f] font-black rounded-xl px-3 py-1.5 outline-none text-xs text-right transition-all"
+                                                    step="0.01"
+                                                    placeholder="0.00"
+                                                />
+                                            </div>
+                                            <div className="text-right w-28">
+                                                <span className="text-sm font-black text-[#6bbdb7]">{fmtCurrency(row.total)}</span>
+                                            </div>
+                                            <div className="flex justify-center w-16">
+                                                <div className={`w-2.5 h-2.5 rounded-full ${row.pagado ? 'bg-green-400 shadow-[0_0_8px_#4ade80]' : 'bg-gray-200'}`} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Footer de totales */}
+                                <div className="bg-[#303a7f] px-6 py-4 flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Total Nómina Quincenal</span>
+                                    <span className="text-2xl font-black text-white tracking-tighter">{fmtCurrency(totalNomina)}</span>
+                                </div>
+                            </div>
+
+                            {/* Botón confirmar */}
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={handleConfirmPayroll}
+                                    disabled={isConfirming}
+                                    className="px-10 py-4 bg-[#6bbdb7] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 flex items-center gap-3 disabled:opacity-60"
+                                >
+                                    {isConfirming ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                                    {isConfirming ? 'Confirmando...' : 'Confirmar Pago Quincenal'}
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
+
+            {/* ── SECCIÓN: HISTORIAL ── */}
+            {activeSection === 'history' && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {adminPayrollHistory.length === 0 ? (
+                        <div className="py-32 text-center bg-white rounded-[2rem] border-2 border-dashed border-gray-100">
+                            <History size={48} className="text-gray-100 mx-auto mb-6" />
+                            <p className="text-gray-400 font-black text-base uppercase tracking-[0.2em] opacity-50">Sin pagos confirmados aún</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {adminPayrollHistory.map((record, i) => (
+                                <div key={i} className="bg-white rounded-[2rem] border-2 border-gray-50 shadow-sm overflow-hidden hover:shadow-lg transition-all duration-300">
+                                    <div className="px-6 py-4 border-b-2 border-gray-50 flex items-center justify-between bg-gray-50/50">
+                                        <div>
+                                            <p className="text-xs font-black text-[#303a7f] uppercase tracking-tight">{record.periodo}</p>
+                                            <p className="text-[9px] font-bold text-gray-400 mt-0.5">Confirmado: {record.fecha_confirmacion}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Pagado</p>
+                                            <p className="text-xl font-black text-[#6bbdb7]">{fmtCurrency(record.total_nomina)}</p>
+                                        </div>
+                                    </div>
+                                    <div className="px-6 py-3 flex flex-wrap gap-3">
+                                        {(record.empleados || []).map((emp, j) => (
+                                            <div key={j} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                                                <div className="w-6 h-6 rounded-lg bg-[#303a7f]/10 flex items-center justify-center text-[#303a7f] font-black text-[9px]">{emp.nombre.charAt(0)}</div>
+                                                <div>
+                                                    <p className="text-[9px] font-black text-[#303a7f] uppercase leading-none">{emp.nombre}</p>
+                                                    <p className="text-[8px] font-bold text-[#6bbdb7]">{fmtCurrency(emp.total)}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 // --- CONFIGURACIÓN VIEW (MAESTRO) ---
 // --- CONFIGURACIÓN VIEW (MAESTRO) ---
 const SettingsView = () => {
@@ -10505,6 +10889,11 @@ function App() {
     const [vwhEmailsSent, setVwhEmailsSent] = useState({});
     const [peEmailsSent, setPeEmailsSent] = useState({});
     const [vwhRecordId, setVwhRecordId] = useState(null);
+
+    // ─── Estados Módulo LGM (Nómina Administrativa) ──────────────────────────
+    const [adminEmployees, setAdminEmployees] = useState([]);
+    const [adminPayrollHistory, setAdminPayrollHistory] = useState([]);
+    const [adminPayrollSearchTerm, setAdminPayrollSearchTerm] = useState('');
 
     // ─── Estados Módulo CSG ───────────────────────────────────────────────────
     const [csgServicesData, setCsgServicesData] = useState([]);
@@ -13216,6 +13605,27 @@ function App() {
         }
     };
 
+    // ─── Fetch: Personal Administrativo LGM ──────────────────────────────────
+    const fetchAdminEmployees = async () => {
+        if (!ADMIN_EMPLOYEES_CSV_URL || ADMIN_EMPLOYEES_CSV_URL.includes('XXXXXXXXX')) return;
+        try {
+            const response = await fetch(`${ADMIN_EMPLOYEES_CSV_URL}&t=${Date.now()}`);
+            const csvText = await response.text();
+            const lines = csvText.split('\n').filter(l => l.trim());
+            if (lines.length < 2) { setAdminEmployees([]); return; }
+            const headers = parseCSVRow(lines[0]);
+            const loaded = lines.slice(1).map(line => {
+                const values = parseCSVRow(line);
+                const flat = createCSVRowObject(headers, values);
+                return csvRowToAdminEmployee(flat);
+            }).filter(e => e.nombre.trim() !== '');
+            setAdminEmployees(loaded);
+            console.log(`[LogicPay LGM] ${loaded.length} empleados administrativos cargados.`);
+        } catch (error) {
+            console.error('[LogicPay LGM] Error cargando Personal Administrativo:', error);
+        }
+    };
+
     useEffect(() => {
         fetchStores();
         fetchEmployees();
@@ -13226,6 +13636,7 @@ function App() {
         fetchVariables();
         fetchCSGServices();
         fetchCSGNomina();
+        fetchAdminEmployees();
     }, []);
 
 
@@ -13396,6 +13807,7 @@ function App() {
         { id: 'payroll', label: 'Nómina', icon: CreditCard },
         { id: 'tax_center', label: '1099-NEC', icon: ShieldCheck },
         { id: 'csg', label: 'CSG', icon: Sparkles },
+        { id: 'lgm', label: 'LGM', icon: Target },
         { id: 'settings', label: 'Ajustes', icon: Settings },
     ];
 
@@ -13690,7 +14102,7 @@ function App() {
                             {navItems.find(i => i.id === activeTab)?.icon && React.createElement(navItems.find(i => i.id === activeTab).icon, { size: 14 })}
                         </div>
                         <h2 className="text-xs font-black text-[#303a7f] tracking-tighter uppercase leading-none m-0">
-                            {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : activeTab === 'tax_center' ? 'Centro 1099-NEC' : activeTab === 'billing' ? 'Gestión de Facturación' : activeTab === 'settings' ? 'Configuración' : activeTab === 'csg' ? 'Módulo Cleaning Services Group' : 'Dashboard'}
+                            {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : activeTab === 'tax_center' ? 'Centro 1099-NEC' : activeTab === 'billing' ? 'Gestión de Facturación' : activeTab === 'settings' ? 'Configuración' : activeTab === 'csg' ? 'Módulo Cleaning Services Group' : activeTab === 'lgm' ? 'Nómina Administrativa' : 'Dashboard'}
                         </h2>
                     </div>
 
@@ -14710,8 +15122,23 @@ function App() {
                         />
                     )}
 
+                    {/* MÓDULO LGM — NÓMINA ADMINISTRATIVA */}
+                    {activeTab === 'lgm' && (
+                        <AdminPayrollView
+                            adminEmployees={adminEmployees}
+                            adminPayrollHistory={adminPayrollHistory}
+                            setAdminPayrollHistory={setAdminPayrollHistory}
+                            searchTerm={adminPayrollSearchTerm}
+                            setSearchTerm={setAdminPayrollSearchTerm}
+                            syncToSheets={syncToSheets}
+                            mailApiUrl={MAIL_API_URL}
+                            apiUrl={API_URL}
+                            onRefresh={fetchAdminEmployees}
+                        />
+                    )}
+
                     {/* VISTA DEL DASHBOARD */}
-                    {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'csg' && activeTab !== 'settings')) && (
+                    {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'csg' && activeTab !== 'settings' && activeTab !== 'lgm')) && (
                         <DashboardView
                             nominaHistoryData={nominaHistoryData}
                             nominaDetailData={nominaDetailData}
