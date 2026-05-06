@@ -4615,10 +4615,10 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-[0_32px_80px_rgba(48,58_127,0.25)] border-2 border-white/50 overflow-hidden animate-in zoom-in-95 duration-500">
-                {/* Header - Más Compacto */}
-                <div className="px-10 py-6 border-b-2 border-gray-50 bg-gradient-to-r from-blue-50/50 to-transparent flex items-center justify-between">
+        <div className="fixed inset-0 z-[500] bg-white animate-in slide-in-from-bottom duration-500 overflow-hidden">
+            <div className="h-screen flex flex-col bg-gray-50/30">
+                {/* Header Full Screen */}
+                <div className="px-10 py-5 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
                             <Mail size={20} />
@@ -4633,9 +4633,9 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                     </button>
                 </div>
 
-                {/* Body - Grid Layout Más Compacto */}
-                <div className="px-10 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="space-y-6">
+                {/* Body - Full Screen Grid */}
+                <div className="flex-1 px-10 py-6 grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-7xl mx-auto w-full overflow-hidden">
+                    <div className="space-y-4">
                         {/* To */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
@@ -4702,35 +4702,33 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                     {/* Right Column: Message */}
                     <div className="flex flex-col space-y-1.5 h-full">
                         <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
-                        <div className="flex-1 relative min-h-[180px]">
-                            <textarea
-                                value={body}
-                                onChange={(e) => setBody(e.target.value)}
-                                className="w-full h-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed"
-                            />
-                        </div>
+                        <textarea
+                            value={body}
+                            onChange={(e) => setBody(e.target.value)}
+                            className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]"
+                        />
                     </div>
                 </div>
 
-                {/* Footer - Más Compacto */}
-                <div className="px-10 py-8 bg-gray-50/30 border-t border-gray-100 flex gap-4">
+                {/* Footer Full Screen - Compacto */}
+                <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
                     <button
                         onClick={onClose}
-                        className="px-8 py-4 bg-white text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-gray-100"
+                        className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={() => !isSending && onSend({ to, cc, subject, body })}
                         disabled={isSending}
-                        className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3 group ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-[0_15px_30px_rgba(107,189,183,0.3)] hover:bg-[#59aba5]'}`}
+                        className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
                         {isSending ? (
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         ) : (
-                            <Receipt size={18} className="group-hover:rotate-12 transition-transform" />
+                            <Receipt size={18} />
                         )}
-                        {isSending ? 'Procesando Envío...' : 'Enviar Ahora'}
+                        {isSending ? 'Enviando...' : 'Enviar Ahora'}
                     </button>
                 </div>
             </div>
@@ -4813,10 +4811,10 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[500] bg-white animate-in slide-in-from-bottom duration-500 overflow-y-auto custom-scrollbar">
-            <div className="min-h-screen flex flex-col bg-gray-50/30">
+        <div className="fixed inset-0 z-[500] bg-white animate-in slide-in-from-bottom duration-500 overflow-hidden">
+            <div className="h-screen flex flex-col bg-gray-50/30">
                 {/* Header Full Screen */}
-                <div className="px-10 py-6 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm">
+                <div className="px-10 py-5 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
                             <Mail size={20} />
@@ -4831,8 +4829,8 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                     </button>
                 </div>
 
-                <div className="flex-1 px-10 py-12 grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-7xl mx-auto w-full">
-                    <div className="space-y-6">
+                <div className="flex-1 px-10 py-6 grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-7xl mx-auto w-full overflow-hidden">
+                    <div className="space-y-4">
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
                             <div className="relative">
@@ -4895,7 +4893,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                     </div>
                 </div>
 
-                <div className="px-10 pb-16 flex justify-center gap-6">
+                <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
                     <button 
                         onClick={onClose} 
                         className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
