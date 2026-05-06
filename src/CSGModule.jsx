@@ -2411,7 +2411,7 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
                     subject: emailData.subject,
                     body: emailData.body,
                     attachments: (service.fotos || []).map((f, i) => ({
-                        name: `evidencia_${i + 1}.jpg`,
+                        name: `${service.tienda} - ${service.fecha} - img${i + 1}.jpg`,
                         type: 'image/jpeg',
                         base64: f
                     }))
@@ -2680,7 +2680,7 @@ const CSGServiceEmailModal = ({ isOpen, onClose, service, onSend, isSending }) =
                                             <Camera size={18} />
                                         </div>
                                         <div className="flex-1">
-                                            <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-tight">evidencia_{idx + 1}.jpg</p>
+                                            <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-tight">{service.tienda} - {service.fecha} - img{idx + 1}.jpg</p>
                                             <p className="text-[8px] text-[#303a7f]/60 font-bold uppercase">Evidence Photo</p>
                                         </div>
                                         <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#303a7f] shadow-sm">
