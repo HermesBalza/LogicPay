@@ -2282,7 +2282,8 @@ const StoreAddView = ({ onSave, onBack }) => {
             utility: { kbs: '', lsg: '' },
             shift_lead: { kbs: '', lsg: '' }
         },
-        employees: []
+        employees: [],
+        cliente: 'KBS'
     });
 
     const updateField = (field, value) => {
