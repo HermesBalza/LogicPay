@@ -4598,8 +4598,11 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
         return `${m}${d}${y}`;
     };
 
-    const [to, setTo] = useState('Mindy.Odom@kbs-services.com');
-    const [cc, setCc] = useState('SYSCO@kbs-services.com');
+    // MODO DE PRUEBAS ACTIVO: Redirigiendo a coordinaciondeprocesos.aw@gmail.com
+    // const [to, setTo] = useState('Mindy.Odom@kbs-services.com');
+    // const [cc, setCc] = useState('SYSCO@kbs-services.com');
+    const [to, setTo] = useState('coordinaciondeprocesos.aw@gmail.com');
+    const [cc, setCc] = useState('');
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
 
@@ -4771,7 +4774,8 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
             const dEnd = formatMMDDYY(fechaHasta);
             const greeting = mName ? `Hello ${mName},` : "Hello,";
 
-            // Asignar email por defecto según manager
+            // MODO DE PRUEBAS ACTIVO: Redirigiendo a coordinaciondeprocesos.aw@gmail.com
+            /*
             let emailTo = "";
             if (mName === "Pauline") emailTo = "pauline.ross@kbs-services.com";
             else if (mName === "Shawna") emailTo = "spatterson@kbs-services.com";
@@ -4780,6 +4784,9 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
             else if (mName === "Hugh") emailTo = "";
 
             setTo(emailTo);
+            */
+            let emailToTest = "coordinaciondeprocesos.aw@gmail.com";
+            setTo(emailToTest);
             setSubject(`${storeName} Hours Report ${dStart} - ${dEnd}`);
             setBody(`${greeting}\n\nAttached is the Weekly Attendance Report for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nI look forward to your approval.\n\nBest regards,\nLogic Group Management`);
 
@@ -6740,7 +6747,9 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
 };
 
 const NominaEmailModal = ({ isOpen, onClose, period, onSend, isSending, defaultTo = '' }) => {
-    const [to, setTo] = useState(defaultTo || '');
+    // MODO DE PRUEBAS ACTIVO: Redirigiendo a coordinaciondeprocesos.aw@gmail.com
+    // const [to, setTo] = useState(defaultTo || '');
+    const [to, setTo] = useState('coordinaciondeprocesos.aw@gmail.com');
     const [subject, setSubject] = useState(`Reporte de Nómina - ${period?.store} - Periodo: ${period?.range}`);
     const [body, setBody] = useState(`Hola,\n\nAdjunto envío el reporte de nómina correspondiente a la semana del ${period?.range} para la tienda ${period?.store}.\n\nSaludos,\nLogic Group Management`);
 
@@ -9149,9 +9158,11 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 // ─── Componente del Modal de Factura (Elegante y Premium) ───────────────────
 // ─── Modal Premium de Envío de Factura por Correo ──────────────────────────────
 const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending, defaultTo = '' }) => {
-    const [to, setTo] = useState(defaultTo || '');
-    const [subject, setSubject] = useState(`Invoice #${project.invoice} - ${project.proyecto || project.nombre} - ${project.tienda}`);
-    const [body, setBody] = useState(`Hola,\n\nAdjunto envío la factura #${project.invoice} correspondiente a los servicios profesionales del Proyecto Especial "${project.proyecto || project.nombre}" en la tienda ${project.tienda}.\n\nSaludos,\nLogic Group Management`);
+    // MODO DE PRUEBAS ACTIVO: Redirigiendo a coordinaciondeprocesos.aw@gmail.com
+    // const [to, setTo] = useState(defaultTo || '');
+    const [to, setTo] = useState('coordinaciondeprocesos.aw@gmail.com');
+    const [subject, setSubject] = useState(`Invoice Special Project #${project.invoice} - ${project.proyecto || project.nombre} - ${project.tienda}`);
+    const [body, setBody] = useState(`Hello, Mindy\n\nAttached is the Invoice Special Project #${project.invoice} for the professional services of the Special Project "${project.proyecto || project.nombre}" in the ${project.tienda} store.\n\nThank You,\nLogic Group Management`);
 
     if (!isOpen) return null;
 
@@ -9213,7 +9224,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                                     <FileText size={18} />
                                 </div>
                                 <div className="flex-1">
-                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">Invoice_{project.invoice}.pdf</p>
+                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">Invoice Special Project - {project.tienda} - {project.proyecto || project.nombre}.pdf</p>
                                     <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
                                 </div>
                                 <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm">
@@ -9317,7 +9328,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                     subject: emailData.subject,
                     body: emailData.body,
                     attachments: [{
-                        name: `Invoice_${project.invoice}_${project.tienda.replace(/\s+/g, '_')}.pdf`,
+                        name: `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`,
                         type: 'application/pdf',
                         base64: pdfBase64
                     }]
@@ -9364,7 +9375,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-            pdf.save(`Invoice_${project.invoice}_${project.tienda.replace(/\s+/g, '_')}.pdf`);
+            pdf.save(`Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`);
         } catch (error) {
             console.error('Error generating Invoice PDF:', error);
         }
