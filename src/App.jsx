@@ -4894,15 +4894,15 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                 </div>
 
                 <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
-                    <button 
-                        onClick={onClose} 
+                    <button
+                        onClick={onClose}
                         className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
                     >
                         Cancelar
                     </button>
-                    <button 
-                        onClick={() => !isSending && onSend({ to, subject, body, relevantProjects })} 
-                        disabled={isSending} 
+                    <button
+                        onClick={() => !isSending && onSend({ to, subject, body, relevantProjects })}
+                        disabled={isSending}
                         className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
                         {isSending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={18} />}
@@ -6747,9 +6747,10 @@ const NominaEmailModal = ({ isOpen, onClose, period, onSend, isSending, defaultT
     if (!isOpen || !period) return null;
 
     return (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300 font-sans">
-            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-[0_32px_80px_rgba(48,58,127,0.25)] border-2 border-white/50 overflow-hidden animate-in zoom-in-95 duration-500">
-                <div className="px-10 py-6 border-b-2 border-gray-50 bg-gradient-to-r from-blue-50/50 to-transparent flex items-center justify-between">
+        <div className="fixed inset-0 z-[500] bg-white animate-in slide-in-from-bottom duration-500 overflow-hidden font-sans">
+            <div className="h-screen flex flex-col bg-gray-50/30">
+                {/* Header Full Screen */}
+                <div className="px-10 py-5 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
                             <Mail size={20} />
@@ -6764,8 +6765,9 @@ const NominaEmailModal = ({ isOpen, onClose, period, onSend, isSending, defaultT
                     </button>
                 </div>
 
-                <div className="px-10 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="space-y-6">
+                {/* Body - Full Screen Grid */}
+                <div className="flex-1 px-10 py-6 grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-7xl mx-auto w-full overflow-hidden">
+                    <div className="space-y-4">
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
                             <div className="relative">
@@ -6811,34 +6813,33 @@ const NominaEmailModal = ({ isOpen, onClose, period, onSend, isSending, defaultT
 
                     <div className="flex flex-col space-y-1.5 h-full">
                         <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
-                        <div className="flex-1 relative min-h-[180px]">
-                            <textarea
-                                value={body}
-                                onChange={(e) => setBody(e.target.value)}
-                                className="w-full h-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed"
-                            />
-                        </div>
+                        <textarea
+                            value={body}
+                            onChange={(e) => setBody(e.target.value)}
+                            className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]"
+                        />
                     </div>
                 </div>
 
-                <div className="px-10 pb-10 flex gap-4">
+                {/* Footer Full Screen - Compacto */}
+                <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
                     <button
                         onClick={onClose}
-                        className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent"
+                        className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={() => !isSending && onSend({ to, subject, body })}
                         disabled={isSending}
-                        className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3 group ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-[0_15px_30px_rgba(107,189,183,0.3)] hover:bg-[#59aba5]'}`}
+                        className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
                         {isSending ? (
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         ) : (
-                            <Receipt size={18} className="group-hover:rotate-12 transition-transform" />
+                            <Receipt size={18} />
                         )}
-                        {isSending ? 'Procesando Envío...' : 'Enviar Ahora'}
+                        {isSending ? 'Enviando...' : 'Enviar Ahora'}
                     </button>
                 </div>
             </div>
@@ -9155,17 +9156,17 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300 font-sans">
-            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-[0_32px_80px_rgba(48,58,127,0.25)] border-2 border-white/50 overflow-hidden animate-in zoom-in-95 duration-500">
-                {/* Header */}
-                <div className="px-10 py-6 border-b-2 border-gray-50 bg-gradient-to-r from-blue-50/50 to-transparent flex items-center justify-between">
+        <div className="fixed inset-0 z-[500] bg-white animate-in slide-in-from-bottom duration-500 overflow-hidden font-sans">
+            <div className="h-screen flex flex-col bg-gray-50/30">
+                {/* Header Full Screen */}
+                <div className="px-10 py-5 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
                             <Mail size={20} />
                         </div>
                         <div>
-                            <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Enviar Factura</h3>
-                            <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Configuración de Envío de Proyecto</p>
+                            <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Enviar Proyecto Especial</h3>
+                            <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
@@ -9173,9 +9174,9 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                     </button>
                 </div>
 
-                {/* Body - Grid Layout */}
-                <div className="px-10 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="space-y-6">
+                {/* Body - Full Screen Grid */}
+                <div className="flex-1 px-10 py-6 grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-7xl mx-auto w-full overflow-hidden">
+                    <div className="space-y-4">
                         {/* To */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
@@ -9225,35 +9226,33 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                     {/* Right Column: Message */}
                     <div className="flex flex-col space-y-1.5 h-full">
                         <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
-                        <div className="flex-1 relative min-h-[180px]">
-                            <textarea
-                                value={body}
-                                onChange={(e) => setBody(e.target.value)}
-                                className="w-full h-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed"
-                            />
-                        </div>
+                        <textarea
+                            value={body}
+                            onChange={(e) => setBody(e.target.value)}
+                            className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]"
+                        />
                     </div>
                 </div>
 
-                {/* Footer */}
-                <div className="px-10 pb-10 flex gap-4">
+                {/* Footer Full Screen - Compacto */}
+                <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
                     <button
                         onClick={onClose}
-                        className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent"
+                        className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={() => !isSending && onSend({ to, subject, body })}
                         disabled={isSending}
-                        className={`flex-1 py-4 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3 group ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-[0_15px_30px_rgba(107,189,183,0.3)] hover:bg-[#59aba5]'}`}
+                        className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
                         {isSending ? (
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         ) : (
-                            <Receipt size={18} className="group-hover:rotate-12 transition-transform" />
+                            <Receipt size={18} />
                         )}
-                        {isSending ? 'Procesando Envío...' : 'Enviar Ahora'}
+                        {isSending ? 'Enviando...' : 'Enviar Ahora'}
                     </button>
                 </div>
             </div>
@@ -11715,12 +11714,12 @@ function App() {
                         // --- HEADER PREMIUM (Coherente con Reporte Principal) ---
                         doc.setFillColor(48, 58, 127); // Azul LGM (#303a7f)
                         doc.rect(0, 0, 210, 45, 'F');
-                        
+
                         doc.setTextColor(255, 255, 255);
                         doc.setFont("helvetica", "bold");
                         doc.setFontSize(24);
                         doc.text("SPECIAL PROJECT", 15, 28);
-                        
+
                         doc.setTextColor(107, 189, 183); // Teal LGM (#6bbdb7)
                         doc.setFontSize(10);
                         doc.setFont("helvetica", "black");
@@ -11730,7 +11729,7 @@ function App() {
                         const rawJson = proj.data_json || proj.Data_JSON || '[]';
                         let projects = [];
                         let peRealDate = proj.fecha || proj.Timestamp || proj.fecha_confirmacion || "";
-                        
+
                         try {
                             const parsed = JSON.parse(rawJson);
                             projects = Array.isArray(parsed) ? parsed : [parsed];
@@ -11747,16 +11746,16 @@ function App() {
                         doc.setFont("helvetica", "bold");
                         doc.text("STORE / SITE:", 15, yPos);
                         doc.setFont("helvetica", "normal");
-                        doc.text(String(proj.Tienda || payrollStore).toUpperCase(), 65, yPos); 
-                        
+                        doc.text(String(proj.Tienda || payrollStore).toUpperCase(), 65, yPos);
+
                         yPos += 8;
                         doc.setFont("helvetica", "bold");
                         doc.text("PROJECT DATE:", 15, yPos);
                         doc.setFont("helvetica", "normal");
                         // Usar la fecha real extraída del JSON
-                        let cleanDate = formatDate(peRealDate).split(' ')[0].replace(',', '').trim(); 
-                        doc.text(cleanDate, 65, yPos); 
-                        
+                        let cleanDate = formatDate(peRealDate).split(' ')[0].replace(',', '').trim();
+                        doc.text(cleanDate, 65, yPos);
+
                         yPos += 15;
 
                         // --- CONTENT ---
@@ -11770,15 +11769,15 @@ function App() {
                             doc.setFont("helvetica", "bold");
                             const projectTitle = p.proyecto || p.nombre || 'SPECIAL PROJECT';
                             doc.text(`PROJECT: ${String(projectTitle).toUpperCase()}`, 20, yPos + 1);
-                            
+
                             yPos += 15;
 
                             // Table Header
                             doc.setFontSize(9);
                             doc.setTextColor(150, 150, 150);
                             doc.text("EMPLOYEE NAME", 20, yPos);
-                            doc.text("HOURS", 190, yPos, { align: "right" }); 
-                            
+                            doc.text("HOURS", 190, yPos, { align: "right" });
+
                             yPos += 4;
                             doc.setDrawColor(230, 230, 230);
                             doc.setLineWidth(0.5);
@@ -11795,10 +11794,10 @@ function App() {
                                 // Corrección de Mapeo: employeeName en lugar de name
                                 const empName = emp.employeeName || emp.name || 'N/A';
                                 doc.text(String(empName).toUpperCase(), 20, yPos);
-                                doc.text(String(emp.hours || 0), 190, yPos, { align: "right" }); 
+                                doc.text(String(emp.hours || 0), 190, yPos, { align: "right" });
                                 totalProjectHours += (parseFloat(emp.hours) || 0);
                                 yPos += 8;
-                                
+
                                 if (yPos > 270) {
                                     doc.addPage();
                                     yPos = 20;
@@ -11810,23 +11809,23 @@ function App() {
                             doc.setDrawColor(48, 58, 127);
                             doc.setLineWidth(0.8);
                             doc.line(120, yPos, 195, yPos);
-                            
+
                             yPos += 8;
                             doc.setFontSize(10);
                             doc.setFont("helvetica", "bold");
                             doc.setTextColor(48, 58, 127);
                             doc.text("TOTAL PROJECT HOURS:", 120, yPos);
-                            doc.text(String(totalProjectHours.toFixed(2)), 190, yPos, { align: "right" }); 
-                            
+                            doc.text(String(totalProjectHours.toFixed(2)), 190, yPos, { align: "right" });
+
                             yPos += 20;
                         });
 
                         const peBase64 = doc.output('datauristring').split(',')[1];
-                        
+
                         // Generar MMDDYY basado en la fecha real extraída al inicio del loop
-                        const dateParts = formatDate(peRealDate).split('/'); 
-                        const mmddyy = dateParts.length === 3 
-                            ? `${dateParts[0]}${dateParts[1]}${dateParts[2].slice(-2)}` 
+                        const dateParts = formatDate(peRealDate).split('/');
+                        const mmddyy = dateParts.length === 3
+                            ? `${dateParts[0]}${dateParts[1]}${dateParts[2].slice(-2)}`
                             : '000000';
 
                         attachments.push({
