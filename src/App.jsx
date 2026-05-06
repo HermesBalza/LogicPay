@@ -4845,13 +4845,37 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documento Adjunto</label>
-                            <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
-                                <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10"><FileText size={18} /></div>
-                                <div className="flex-1">
-                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">{storeName.replace(/\s+/g, '_')}_Hours_Report.pdf</p>
-                                    <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
+                            <div className="space-y-3 max-h-[180px] overflow-y-auto pr-2 custom-scrollbar">
+                                {/* Simulación Reporte Principal */}
+                                <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
+                                    <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10"><FileText size={18} /></div>
+                                    <div className="flex-1">
+                                        <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">
+                                            {storeName.replace(/\s+/g, '_')}_Weekly_Attendance_Report.pdf
+                                        </p>
+                                        <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Reporte de Asistencia Semanal</p>
+                                    </div>
+                                    <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm"><Check size={14} /></div>
                                 </div>
-                                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm"><Check size={14} /></div>
+
+                                {/* Simulación Proyectos Especiales */}
+                                {relevantProjects.map((proj, idx) => {
+                                    // Coherencia temporal: Usar fechaHasta del periodo
+                                    const dateParts = formatDate(fechaHasta).split('/');
+                                    const mmddyy = dateParts.length === 3 ? `${dateParts[0]}${dateParts[1]}${dateParts[2].slice(-2)}` : '000000';
+                                    const fileName = `Hours Report ${proj.Tienda || storeName} - Special Project ${mmddyy}.pdf`;
+
+                                    return (
+                                        <div key={idx} className="p-4 bg-blue-50/30 rounded-2xl border-2 border-dashed border-blue-100/30 flex items-center gap-4 group transition-all animate-in slide-in-from-left duration-300" style={{ animationDelay: `${idx * 100}ms` }}>
+                                            <div className="p-2.5 bg-[#303a7f] text-white rounded-xl shadow-lg shadow-blue-900/10"><FileText size={18} /></div>
+                                            <div className="flex-1">
+                                                <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-tight">{fileName}</p>
+                                                <p className="text-[8px] text-[#303a7f]/60 font-bold uppercase">Special Project Support Doc</p>
+                                            </div>
+                                            <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#303a7f] shadow-sm"><Check size={14} /></div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
@@ -11664,66 +11688,92 @@ function App() {
                 base64: hoursReportPdfBase64
             }];
 
-            // Generar PDFs para Proyectos Especiales (Sin Rates)
+            // Generar PDFs para Proyectos Especiales (Sin Rates) - Rediseño Premium Hermes
             if (emailData.relevantProjects && emailData.relevantProjects.length > 0) {
                 emailData.relevantProjects.forEach((proj, index) => {
                     try {
                         const doc = new jsPDF();
                         let yPos = 20;
 
-                        // Header
-                        doc.setFillColor(48, 58, 127);
-                        doc.rect(0, 0, 210, 40, 'F');
-                        doc.setTextColor(255, 255, 255);
-                        doc.setFontSize(22);
-                        doc.text("SPECIAL PROJECT REPORT", 15, 25);
+                        // --- HEADER PREMIUM (Coherente con Reporte Principal) ---
+                        doc.setFillColor(48, 58, 127); // Azul LGM (#303a7f)
+                        doc.rect(0, 0, 210, 45, 'F');
                         
-                        doc.setTextColor(107, 189, 183);
+                        doc.setTextColor(255, 255, 255);
+                        doc.setFont("helvetica", "bold");
+                        doc.setFontSize(24);
+                        doc.text("SPECIAL PROJECT", 15, 28);
+                        
+                        doc.setTextColor(107, 189, 183); // Teal LGM (#6bbdb7)
                         doc.setFontSize(10);
-                        doc.text("LOGIC GROUP MANAGEMENT - HOURS SUMMARY", 15, 33);
+                        doc.setFont("helvetica", "black");
+                        doc.text("LOGIC GROUP MANAGEMENT — HOURS SUMMARY", 15, 37);
 
-                        yPos = 55;
+                        // --- INFO BOX ---
+                        yPos = 60;
                         doc.setTextColor(48, 58, 127);
-                        doc.setFontSize(12);
-                        doc.text(`STORE: ${proj.Tienda || payrollStore}`, 15, yPos);
-                        yPos += 7;
-                        doc.text(`DATE: ${proj.Timestamp || proj.fecha}`, 15, yPos);
+                        doc.setFontSize(10);
+                        doc.setFont("helvetica", "bold");
+                        doc.text("STORE / SITE:", 15, yPos);
+                        doc.setFont("helvetica", "normal");
+                        doc.text(String(proj.Tienda || payrollStore).toUpperCase(), 65, yPos); 
+                        
+                        yPos += 8;
+                        doc.setFont("helvetica", "bold");
+                        doc.text("PROJECT DATE:", 15, yPos);
+                        doc.setFont("helvetica", "normal");
+                        // Limpieza de fecha: solo fecha, sin hora y sin comas
+                        let cleanDate = formatDate(proj.fecha || proj.Timestamp || proj.fecha_confirmacion || "").split(' ')[0];
+                        cleanDate = cleanDate.replace(',', '').trim(); 
+                        doc.text(cleanDate, 65, yPos); 
+                        
                         yPos += 15;
 
-                        // Content
+                        // --- CONTENT ---
                         const rawJson = proj.data_json || proj.Data_JSON || '[]';
                         let projects = [];
                         try {
                             const parsed = JSON.parse(rawJson);
                             projects = Array.isArray(parsed) ? parsed : [parsed];
-                        } catch(e) { projects = []; }
+                        } catch (e) { projects = []; }
 
                         projects.forEach((p, pIdx) => {
-                            doc.setFillColor(240, 244, 248);
-                            doc.rect(15, yPos - 5, 180, 8, 'F');
-                            doc.setFontSize(10);
-                            doc.text(`PROJECT: ${p.projectName || 'Special Project'}`, 20, yPos + 1);
-                            yPos += 12;
+                            // Sub-header Proyecto
+                            doc.setFillColor(245, 247, 250);
+                            doc.rect(15, yPos - 6, 180, 10, 'F');
+                            doc.setTextColor(48, 58, 127);
+                            doc.setFontSize(11);
+                            doc.setFont("helvetica", "bold");
+                            const projectTitle = p.proyecto || p.nombre || 'SPECIAL PROJECT';
+                            doc.text(`PROJECT: ${String(projectTitle).toUpperCase()}`, 20, yPos + 1);
+                            
+                            yPos += 15;
 
                             // Table Header
-                            doc.setFontSize(8);
+                            doc.setFontSize(9);
                             doc.setTextColor(150, 150, 150);
-                            doc.text("EMPLOYEE NAME", 25, yPos);
-                            doc.text("HOURS", 150, yPos);
+                            doc.text("EMPLOYEE NAME", 20, yPos);
+                            doc.text("HOURS", 190, yPos, { align: "right" }); 
+                            
                             yPos += 4;
                             doc.setDrawColor(230, 230, 230);
-                            doc.line(25, yPos, 185, yPos);
-                            yPos += 6;
+                            doc.setLineWidth(0.5);
+                            doc.line(15, yPos, 195, yPos);
+                            yPos += 8;
 
+                            // Table Body
                             doc.setTextColor(60, 60, 60);
+                            doc.setFont("helvetica", "normal");
                             const emps = Array.isArray(p.employees) ? p.employees : [];
                             let totalProjectHours = 0;
 
                             emps.forEach(emp => {
-                                doc.text(String(emp.name).toUpperCase(), 25, yPos);
-                                doc.text(String(emp.hours), 150, yPos);
+                                // Corrección de Mapeo: employeeName en lugar de name
+                                const empName = emp.employeeName || emp.name || 'N/A';
+                                doc.text(String(empName).toUpperCase(), 20, yPos);
+                                doc.text(String(emp.hours || 0), 190, yPos, { align: "right" }); 
                                 totalProjectHours += (parseFloat(emp.hours) || 0);
-                                yPos += 6;
+                                yPos += 8;
                                 
                                 if (yPos > 270) {
                                     doc.addPage();
@@ -11731,16 +11781,32 @@ function App() {
                                 }
                             });
 
+                            // Total Footer por Proyecto
                             yPos += 2;
-                            doc.setFontSize(9);
+                            doc.setDrawColor(48, 58, 127);
+                            doc.setLineWidth(0.8);
+                            doc.line(120, yPos, 195, yPos);
+                            
+                            yPos += 8;
+                            doc.setFontSize(10);
+                            doc.setFont("helvetica", "bold");
                             doc.setTextColor(48, 58, 127);
-                            doc.text(`TOTAL PROJECT HOURS: ${totalProjectHours}`, 130, yPos);
-                            yPos += 15;
+                            doc.text("TOTAL PROJECT HOURS:", 120, yPos);
+                            doc.text(String(totalProjectHours.toFixed(2)), 190, yPos, { align: "right" }); 
+                            
+                            yPos += 20;
                         });
 
                         const peBase64 = doc.output('datauristring').split(',')[1];
+                        
+                        // Generar MMDDYY basado en la fecha de cierre del periodo (fechaHasta) para coherencia
+                        const dateParts = formatDate(fechaHasta).split('/'); 
+                        const mmddyy = dateParts.length === 3 
+                            ? `${dateParts[0]}${dateParts[1]}${dateParts[2].slice(-2)}` 
+                            : '000000';
+
                         attachments.push({
-                            name: `Special_Project_${index + 1}_${(proj.Tienda || payrollStore).replace(/\s+/g, '_')}.pdf`,
+                            name: `Hours Report ${proj.Tienda || payrollStore} - Special Project ${mmddyy}.pdf`,
                             type: 'application/pdf',
                             base64: peBase64
                         });
@@ -15353,7 +15419,7 @@ function App() {
                         </div>
                         <div>
                             <h1 style={{ fontSize: '32px', fontWeight: '900', color: '#303a7f', margin: 0, textTransform: 'uppercase', letterSpacing: '-1px' }}>
-                                Registro de Asistencia Semanal
+                                Weekly Attendance Report
                             </h1>
                             <p style={{ color: '#6bbdb7', fontWeight: '900', textTransform: 'uppercase', fontSize: '12px', margin: '5px 0 0 0', letterSpacing: '2px' }}>
                                 Logic Group Management
@@ -15361,9 +15427,9 @@ function App() {
                         </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                        <p style={{ fontSize: '10px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 5px 0' }}>Tienda / Site</p>
+                        <p style={{ fontSize: '10px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 5px 0' }}>Store / Site</p>
                         <p style={{ fontSize: '20px', fontWeight: '900', color: '#303a7f', margin: '0 0 15px 0', textTransform: 'uppercase' }}>{payrollStore || '---'}</p>
-                        <p style={{ fontSize: '10px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 5px 0' }}>Periodo de Nómina</p>
+                        <p style={{ fontSize: '10px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 5px 0' }}>Payroll Period</p>
                         <p style={{ fontSize: '14px', fontWeight: '700', color: '#303a7f', margin: 0 }}>{fechaDesde} — {fechaHasta}</p>
                     </div>
                 </div>
@@ -15372,8 +15438,8 @@ function App() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ backgroundColor: '#f9fafb' }}>
-                            <th style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>Empleado / Cargo</th>
-                            {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map((d, i) => (
+                            <th style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>Employee / Position</th>
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
                                 <th key={i} style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'center', borderBottom: '2px solid #e5e7eb' }}>{d}</th>
                             ))}
                             <th style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'right', borderBottom: '2px solid #e5e7eb' }}>Total</th>
@@ -15402,10 +15468,10 @@ function App() {
                 {/* Footer del Reporte */}
                 <div style={{ marginTop: '50px', paddingTop: '20px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
                     <p style={{ fontSize: '9px', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>
-                        Documento generado automáticamente por LogicPay — {new Date().toLocaleString()}
+                        Document automatically generated by LogicPay — {new Date().toLocaleString()}
                     </p>
                     <p style={{ fontSize: '9px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase' }}>
-                        Página 1 de 1
+                        Page 1 of 1
                     </p>
                 </div>
             </div>
