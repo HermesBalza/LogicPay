@@ -436,9 +436,11 @@ const csvRowToAdminEmployee = (flat) => ({
     codigo_empleado: (flat.codigo_empleado || '').replace(/^'/, ''),
     cargo: flat.cargo || '',
     salario_quincenal: parseFloat(flat.salario_quincenal) || 0,
+    frecuencia_pago: flat.frecuencia_pago || 'Quincenal',
     metodo_pago: flat.metodo_pago || '',
     cuenta_bancaria: (flat.cuenta_bancaria || '').replace(/^'/, ''),
     email: flat.email || '',
+    imagen: flat.imagen || '',
     fecha_ingreso: flat.fecha_ingreso || '',
     tin: (flat.tin || '').replace(/^'/, ''),
     tin_type: flat.tin_type || 'SSN',
@@ -10083,6 +10085,255 @@ const BillingView = ({
 };
 
 // ─── MÓDULO LGM: NÓMINA ADMINISTRATIVA ───────────────────────────────────────
+// ─── AdminEmployeeAddView: Pantalla para agregar/editar personal Administrativo ─────────
+const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
+    const isEdit = !!employee;
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [confirmName, setConfirmName] = useState('');
+    const [newEmp, setNewEmp] = useState(employee || {
+        nombre: '',
+        first_name: '',
+        last_name: '',
+        codigo_empleado: '',
+        cargo: '',
+        salario_quincenal: '',
+        frecuencia_pago: 'Quincenal',
+        metodo_pago: 'Direct Deposit',
+        cuenta_bancaria: '',
+        email: '',
+        fecha_ingreso: new Date().toISOString().split('T')[0],
+        tin: '',
+        tin_type: 'SSN',
+        address_1: '',
+        city: '',
+        state: '',
+        zip: '',
+        imagen: '',
+        activo: true
+    });
+
+    const updateField = (field, value) => {
+        setNewEmp(prev => {
+            const updated = { ...prev, [field]: value };
+            if (field === 'first_name' || field === 'last_name') {
+                updated.nombre = `${updated.first_name} ${updated.last_name}`.trim();
+            }
+            return updated;
+        });
+    };
+
+    const handleImageChange = async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                // Usamos la función de compresión existente
+                const compressed = await compressImage(reader.result);
+                updateField('imagen', compressed);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSave = () => {
+        if (!newEmp.first_name || !newEmp.last_name || !newEmp.codigo_empleado) {
+            alert('Por favor complete los campos obligatorios: Nombre, Apellido e Identificador.');
+            return;
+        }
+        onSave(newEmp);
+    };
+
+    const inputCls = "w-full bg-gray-50 border-2 border-[#303a7f]/10 rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm text-[#333333]";
+    const labelCls = "text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 ml-1";
+
+    return (
+        <div className="fixed inset-0 z-[1000] bg-white flex flex-col animate-in slide-in-from-right duration-500">
+            {/* Header */}
+            <div className="bg-white border-b-2 border-gray-100 px-10 py-8 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-6">
+                    <button onClick={onBack} className="p-3 bg-gray-50 text-[#303a7f] rounded-2xl hover:bg-gray-100 transition-all active:scale-90">
+                        <ArrowLeft size={24} />
+                    </button>
+                    <div>
+                        <h2 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase">{isEdit ? 'Editar Personal' : 'Nuevo Personal Administrativo'}</h2>
+                        <p className="text-gray-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-1">Registro de colaboradores LGM</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-4">
+                    {isEdit && onDelete && (
+                        <button onClick={() => setShowDeleteModal(true)} className="px-8 py-4 text-red-500 font-black text-[10px] uppercase tracking-widest hover:bg-red-50 transition-all rounded-2xl">Eliminar</button>
+                    )}
+                    <button onClick={onBack} className="px-8 py-4 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600 transition-all">Cancelar</button>
+                    <button onClick={handleSave} className="px-10 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-xl shadow-blue-900/20 active:scale-95">{isEdit ? 'Guardar Cambios' : 'Registrar Colaborador'}</button>
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto bg-[#fcfcfd] p-10">
+                <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
+                    {/* Left Column: ID & Photo */}
+                    <div className="lg:col-span-4 space-y-8">
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-gray-50 flex flex-col items-center">
+                            <div className="relative group">
+                                <div className="w-48 h-48 rounded-[2.5rem] bg-gray-50 border-4 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7]/50">
+                                    {newEmp.imagen ? (
+                                        <img src={newEmp.imagen} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="text-center">
+                                            <div className="bg-gray-100 p-4 rounded-2xl inline-block mb-3 text-gray-300">
+                                                <Users size={32} />
+                                            </div>
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Foto Perfil</p>
+                                        </div>
+                                    )}
+                                    <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                </div>
+                                <div className="absolute -bottom-2 -right-2 bg-[#6bbdb7] text-white p-3 rounded-2xl shadow-lg border-4 border-white">
+                                    <Settings size={18} />
+                                </div>
+                            </div>
+                            <div className="mt-8 w-full space-y-4">
+                                <div>
+                                    <label className={labelCls}>Identificador (SSN/ITIN/ID)</label>
+                                    <input type="text" placeholder="Ej: 453-14-7402" value={newEmp.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Cargo Administrativo</label>
+                                    <input type="text" placeholder="Ej: Administrador" value={newEmp.cargo} onChange={(e) => updateField('cargo', e.target.value)} className={inputCls} />
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    {/* Right Column: Financial & Personal Data */}
+                    <div className="lg:col-span-8 space-y-8">
+                        {/* Financial Data */}
+                        <section className="bg-white rounded-[2rem] p-10 shadow-xl shadow-blue-900/5 border-2 border-[#6bbdb7]/20">
+                            <h3 className="text-xl font-black text-[#6bbdb7] tracking-tighter mb-8 flex items-center gap-3">
+                                <div className="bg-[#6bbdb7] p-2 rounded-lg"><DollarSign className="text-white" size={18} /></div>
+                                Salario y Nómina
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="bg-[#303a7f]/5 rounded-2xl p-6 border-2 border-[#303a7f]/10">
+                                    <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest block mb-4">Salario Base ({newEmp.frecuencia_pago})</span>
+                                    <div className="flex items-center bg-white border-2 border-[#303a7f]/20 rounded-xl px-5 py-4 shadow-sm">
+                                        <span className="text-[#303a7f] font-black mr-3 text-lg">$</span>
+                                        <input type="number" step="0.01" placeholder="0.00" value={newEmp.salario_quincenal} onChange={(e) => updateField('salario_quincenal', e.target.value)} className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl" />
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className={labelCls}>Frecuencia de Pago</label>
+                                        <select value={newEmp.frecuencia_pago} onChange={(e) => updateField('frecuencia_pago', e.target.value)} className={inputCls}>
+                                            <option value="Quincenal">Quincenal</option>
+                                            <option value="Mensual">Mensual</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className={labelCls}>Método de Pago</label>
+                                        <select value={newEmp.metodo_pago} onChange={(e) => updateField('metodo_pago', e.target.value)} className={inputCls}>
+                                            <option value="Direct Deposit">Depósito Directo</option>
+                                            <option value="Check">Cheque</option>
+                                            <option value="Zelle">Zelle</option>
+                                            <option value="Cash">Efectivo</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Personal Data */}
+                        <section className="bg-white rounded-[2rem] p-10 shadow-xl shadow-blue-900/5 border-2 border-gray-50">
+                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
+                                <div className="bg-[#303a7f] p-2 rounded-lg"><Users className="text-white" size={18} /></div>
+                                Información Personal y Fiscal
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className={labelCls}>Nombre(s)</label>
+                                    <input type="text" placeholder="Ej: Mariana" value={newEmp.first_name} onChange={(e) => updateField('first_name', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Apellido(s)</label>
+                                    <input type="text" placeholder="Ej: Pepper" value={newEmp.last_name} onChange={(e) => updateField('last_name', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Email de Contacto</label>
+                                    <input type="email" placeholder="email@ejemplo.com" value={newEmp.email} onChange={(e) => updateField('email', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Tipo de Tax ID</label>
+                                    <select value={newEmp.tin_type} onChange={(e) => updateField('tin_type', e.target.value)} className={inputCls}>
+                                        <option value="SSN">SSN</option>
+                                        <option value="ITIN">ITIN</option>
+                                        <option value="EIN">EIN</option>
+                                    </select>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className={labelCls}>Dirección</label>
+                                    <input type="text" placeholder="Calle, Número, Apto..." value={newEmp.address_1} onChange={(e) => updateField('address_1', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Ciudad</label>
+                                    <input type="text" placeholder="Ej: Orlando" value={newEmp.city} onChange={(e) => updateField('city', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Estado</label>
+                                    <input type="text" placeholder="Ej: Florida" value={newEmp.state} onChange={(e) => updateField('state', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>ZIP Code</label>
+                                    <input type="text" placeholder="Ej: 32803" value={newEmp.zip} onChange={(e) => updateField('zip', e.target.value)} className={inputCls} />
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Banking Info */}
+                        <section className="bg-white rounded-[2rem] p-10 shadow-xl shadow-blue-900/5 border-2 border-gray-50">
+                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
+                                <div className="bg-gray-100 p-2 rounded-lg"><CreditCard className="text-[#303a7f]" size={18} /></div>
+                                Información Bancaria
+                            </h3>
+                            <div>
+                                <label className={labelCls}>Detalles de Cuenta</label>
+                                <textarea rows="3" placeholder="Número de cuenta, Routing, Banco..." value={newEmp.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className={inputCls + " resize-none"}></textarea>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)} />
+                    <div className="relative w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl border-2 border-white animate-in zoom-in-95 duration-200">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mb-6 text-red-500"><Trash2 size={36} /></div>
+                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter mb-3 uppercase">¿Eliminar empleado?</h3>
+                            <p className="text-gray-400 text-xs mb-8">Escriba el nombre para confirmar: <br /><span className="font-black text-[#333333]">"{newEmp.nombre}"</span></p>
+                            <input
+                                type="text"
+                                value={confirmName}
+                                onChange={(e) => setConfirmName(e.target.value)}
+                                className="w-full bg-gray-50 border-2 border-[#303a7f]/20 rounded-2xl p-4 outline-none text-center text-[#333333] font-bold focus:border-red-500/50 focus:bg-white transition-all"
+                            />
+                            <div className="flex gap-3 pt-6 w-full">
+                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-white text-gray-400 font-black py-4 rounded-2xl border-2 hover:bg-gray-50 transition-all">Cancelar</button>
+                                <button
+                                    disabled={confirmName !== newEmp.nombre}
+                                    onClick={() => { setShowDeleteModal(false); onDelete(newEmp); }}
+                                    className={`flex-1 font-black py-4 rounded-2xl text-white transition-all ${confirmName === newEmp.nombre ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/30' : 'bg-gray-100 text-gray-300'}`}
+                                >
+                                    Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const AdminPayrollView = ({
     adminEmployees = [],
     adminPayrollHistory = [],
@@ -10092,7 +10343,9 @@ const AdminPayrollView = ({
     syncToSheets,
     mailApiUrl,
     apiUrl,
-    onRefresh
+    onRefresh,
+    onAddEmployee,
+    onDeleteEmployee
 }) => {
     const [activeSection, setActiveSection] = useState('employees'); // 'employees' | 'payroll' | 'history'
     const [selectedPeriod, setSelectedPeriod] = useState('');
@@ -10101,6 +10354,7 @@ const AdminPayrollView = ({
     const [notif, setNotif] = useState({ open: false, type: 'success', msg: '' });
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [isAddingAdminEmployee, setIsAddingAdminEmployee] = useState(false);
+    const [editingAdminEmployee, setEditingAdminEmployee] = useState(null);
 
     // Formatear moneda
     const fmtCurrency = (val) => {
@@ -10249,6 +10503,31 @@ const AdminPayrollView = ({
                 </div>
             </div>
 
+            {isAddingAdminEmployee && (
+                <AdminEmployeeAddView
+                    onBack={() => setIsAddingAdminEmployee(false)}
+                    onSave={async (newEmp) => {
+                        await onAddEmployee(newEmp);
+                        setIsAddingAdminEmployee(false);
+                    }}
+                />
+            )}
+
+            {editingAdminEmployee && (
+                <AdminEmployeeAddView
+                    employee={editingAdminEmployee}
+                    onBack={() => setEditingAdminEmployee(null)}
+                    onSave={async (updatedEmp) => {
+                        await onAddEmployee(updatedEmp);
+                        setEditingAdminEmployee(null);
+                    }}
+                    onDelete={async (emp) => {
+                        if (onDeleteEmployee) await onDeleteEmployee(emp);
+                        setEditingAdminEmployee(null);
+                    }}
+                />
+            )}
+
             {/* ── SECCIÓN: EQUIPO ── */}
             {activeSection === 'employees' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -10274,11 +10553,15 @@ const AdminPayrollView = ({
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {filteredEmployees.map((emp, i) => (
-                                <div key={i} className="bg-white rounded-[2rem] border-2 border-gray-50 shadow-sm hover:shadow-xl hover:border-[#303a7f]/10 transition-all duration-500 overflow-hidden group">
+                                <div key={i} onClick={() => setEditingAdminEmployee(emp)} className="bg-white rounded-[2rem] border-2 border-gray-50 shadow-sm hover:shadow-xl hover:border-[#303a7f]/10 transition-all duration-500 overflow-hidden group cursor-pointer">
                                     {/* Header de la card */}
                                     <div className="bg-gradient-to-br from-[#303a7f] to-[#1e234d] p-6 relative">
-                                        <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-white font-black text-2xl shadow-inner mb-3">
-                                            {emp.nombre.charAt(0).toUpperCase()}
+                                        <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-white font-black text-2xl shadow-inner mb-3 overflow-hidden">
+                                            {emp.imagen ? (
+                                                <img src={emp.imagen} alt={emp.nombre} className="w-full h-full object-cover" />
+                                            ) : (
+                                                emp.nombre.charAt(0).toUpperCase()
+                                            )}
                                         </div>
                                         <h3 className="text-sm font-black text-white uppercase tracking-tight leading-tight">{emp.nombre}</h3>
                                         <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest mt-0.5">{emp.cargo}</p>
@@ -10290,7 +10573,7 @@ const AdminPayrollView = ({
                                     {/* Datos */}
                                     <div className="p-5 space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sueldo Quincenal</span>
+                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sueldo ({emp.frecuencia_pago || 'Quincenal'})</span>
                                             <span className="text-sm font-black text-[#303a7f]">{fmtCurrency(emp.salario_quincenal)}</span>
                                         </div>
                                         <div className="flex items-center justify-between">
@@ -13683,6 +13966,7 @@ function App() {
                         fetchStores();
                         if (sheetName === 'Personal') fetchEmployees();
                         if (sheetName === 'CSG_Servicios') fetchCSGServices();
+                        if (sheetName === 'Personal_Admin') fetchAdminEmployees();
                     }, 2000);
                 }
             })
@@ -13804,6 +14088,38 @@ function App() {
 
         syncToSheets('upsert', payload, 'Personal');
 
+    };
+
+    const handleCreateAdminEmployee = async (newEmp) => {
+        try {
+            const payload = {
+                ...newEmp,
+                codigo_empleado: `'${newEmp.codigo_empleado}`,
+                salario_quincenal: parseFloat(newEmp.salario_quincenal) || 0,
+                frecuencia_pago: newEmp.frecuencia_pago || 'Quincenal',
+                imagen: newEmp.imagen || '',
+                activo: 'TRUE'
+            };
+            await syncToSheets('upsert', payload, 'Personal_Admin');
+            await fetchAdminEmployees();
+            showSuccess(`Empleado ${newEmp.nombre} guardado exitosamente.`);
+        } catch (error) {
+            console.error('[AdminPayroll] Error saving admin employee:', error);
+            showError('No se pudo guardar el empleado administrativo.');
+        }
+    };
+
+    const handleDeleteAdminEmployee = async (emp) => {
+        try {
+            await syncToSheets('delete', { 
+                nombre: emp.nombre,
+                codigo_empleado: `'${emp.codigo_empleado}`
+            }, 'Personal_Admin', false, ['nombre', 'codigo_empleado']);
+            showSuccess(`Empleado eliminado exitosamente.`);
+        } catch (error) {
+            console.error('[AdminPayroll] Error deleting admin employee:', error);
+            showError('No se pudo eliminar el empleado administrativo.');
+        }
     };
 
     const storeNames = stores.map(s => s.nombre);
@@ -15142,6 +15458,8 @@ function App() {
                             mailApiUrl={MAIL_API_URL}
                             apiUrl={API_URL}
                             onRefresh={fetchAdminEmployees}
+                            onAddEmployee={handleCreateAdminEmployee}
+                            onDeleteEmployee={handleDeleteAdminEmployee}
                         />
                     )}
 
