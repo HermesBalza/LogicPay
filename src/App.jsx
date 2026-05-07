@@ -10362,19 +10362,34 @@ const AdminPayrollView = ({
         return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
     };
 
-    // Generar opciones de quincenas (últimas 6)
+    // Generar opciones de quincenas (bisemanas de 14 días) desde el 28 de Diciembre 2025
     const generateBiweeklyOptions = () => {
         const options = [];
+        const startDate = new Date(2025, 11, 28); // 28 de Dic 2025 (Mes 11)
         const now = new Date();
-        for (let i = 0; i < 8; i++) {
-            const d = new Date(now);
-            d.setDate(now.getDate() - i * 15);
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = d.getDate() <= 15 ? '01' : '16';
-            const endDay = day === '01' ? '15' : String(new Date(year, d.getMonth() + 1, 0).getDate()).padStart(2, '0');
-            const label = `${month}/${day}/${year} — ${month}/${endDay}/${year}`;
-            options.push(label);
+        
+        const MS_PER_DAY = 24 * 60 * 60 * 1000;
+        const MS_PER_BIWEEK = 14 * MS_PER_DAY;
+
+        // Calculamos cuántas bisemanas han pasado desde el inicio
+        const diffMS = now.getTime() - startDate.getTime();
+        const currentBiweekIndex = Math.floor(diffMS / MS_PER_BIWEEK);
+
+        // Generamos las últimas 12 bisemanas (desde la actual hacia atrás)
+        for (let i = 0; i < 12; i++) {
+            const idx = currentBiweekIndex - i;
+            if (idx < 0) break;
+
+            const pStart = new Date(startDate.getTime() + idx * MS_PER_BIWEEK);
+            const pEnd = new Date(pStart.getTime() + 13 * MS_PER_DAY);
+
+            const fmt = (d) => {
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${m}/${day}/${d.getFullYear()}`;
+            };
+
+            options.push(`${fmt(pStart)} — ${fmt(pEnd)}`);
         }
         return options;
     };
