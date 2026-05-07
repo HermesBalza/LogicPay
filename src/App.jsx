@@ -10356,6 +10356,28 @@ const AdminPayrollView = ({
     const [isAddingAdminEmployee, setIsAddingAdminEmployee] = useState(false);
     const [editingAdminEmployee, setEditingAdminEmployee] = useState(null);
 
+    // Cargar empleados automáticamente al cambiar el período
+    useEffect(() => {
+        if (selectedPeriod) {
+            const activeEmps = adminEmployees.filter(e => e.activo);
+            const rows = activeEmps.map(emp => ({
+                id: emp.codigo_empleado || emp.nombre,
+                nombre: emp.nombre,
+                cargo: emp.cargo,
+                email: emp.email,
+                metodo_pago: emp.metodo_pago,
+                cuenta_bancaria: emp.cuenta_bancaria,
+                salario_base: emp.salario_quincenal,
+                ajuste: 0,
+                total: emp.salario_quincenal,
+                pagado: false
+            }));
+            setPayrollRows(rows);
+        } else {
+            setPayrollRows([]);
+        }
+    }, [selectedPeriod, adminEmployees]);
+
     // Formatear moneda
     const fmtCurrency = (val) => {
         const n = parseFloat(val) || 0;
@@ -10421,6 +10443,10 @@ const AdminPayrollView = ({
             updated.total = (parseFloat(updated.salario_base) || 0) + (parseFloat(updated.ajuste) || 0);
             return updated;
         }));
+    };
+
+    const removeRow = (id) => {
+        setPayrollRows(prev => prev.filter(r => r.id !== id));
     };
 
     const showNotif = (type, msg) => {
@@ -10613,34 +10639,26 @@ const AdminPayrollView = ({
             {activeSection === 'payroll' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {/* Selector de período */}
-                    <div className="bg-white rounded-[2rem] border-2 border-gray-50 shadow-sm p-6 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        <div className="flex-1">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Período Quincenal</label>
+                    <div className="bg-white rounded-[2rem] border-2 border-gray-50 shadow-sm p-6 mb-6">
+                        <div className="w-full">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Período Bisemanal</label>
                             <select
                                 value={selectedPeriod}
                                 onChange={e => setSelectedPeriod(e.target.value)}
                                 className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl px-4 py-3 outline-none focus:border-[#303a7f]/10 text-xs transition-all"
                             >
-                                <option value="">— Seleccionar Quincena —</option>
+                                <option value="">— Seleccionar Bisemana —</option>
                                 {generateBiweeklyOptions().map((opt, i) => (
                                     <option key={i} value={opt}>{opt}</option>
                                 ))}
                             </select>
                         </div>
-                        <button
-                            onClick={handleLoadPayroll}
-                            disabled={!selectedPeriod || adminEmployees.filter(e => e.activo).length === 0}
-                            className="px-8 py-3 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#1e234d] transition-all shadow-lg shadow-blue-900/10 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 mt-auto"
-                        >
-                            <Zap size={14} />
-                            Cargar Equipo
-                        </button>
                     </div>
 
                     {payrollRows.length === 0 ? (
                         <div className="py-24 text-center bg-white rounded-[2rem] border-2 border-dashed border-gray-100">
                             <CreditCard size={40} className="text-gray-100 mx-auto mb-4" />
-                            <p className="text-gray-300 font-black text-xs uppercase tracking-widest">Seleccione un período y presione "Cargar Equipo"</p>
+                            <p className="text-gray-300 font-black text-xs uppercase tracking-widest">Seleccione un período para cargar el equipo automáticamente</p>
                         </div>
                     ) : (
                         <>
@@ -10651,7 +10669,7 @@ const AdminPayrollView = ({
                                     <div className="text-right w-28">Sueldo Base</div>
                                     <div className="text-right w-28">Ajuste</div>
                                     <div className="text-right w-28">Total</div>
-                                    <div className="text-center w-16">Estado</div>
+                                    <div className="w-10"></div>
                                 </div>
 
                                 <div className="divide-y-2 divide-gray-50">
@@ -10677,8 +10695,10 @@ const AdminPayrollView = ({
                                             <div className="text-right w-28">
                                                 <span className="text-sm font-black text-[#6bbdb7]">{fmtCurrency(row.total)}</span>
                                             </div>
-                                            <div className="flex justify-center w-16">
-                                                <div className={`w-2.5 h-2.5 rounded-full ${row.pagado ? 'bg-green-400 shadow-[0_0_8px_#4ade80]' : 'bg-gray-200'}`} />
+                                            <div className="flex justify-end w-10">
+                                                <button onClick={() => removeRow(row.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors">
+                                                    <Trash2 size={14} />
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
@@ -10686,7 +10706,7 @@ const AdminPayrollView = ({
 
                                 {/* Footer de totales */}
                                 <div className="bg-[#303a7f] px-6 py-4 flex items-center justify-between">
-                                    <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Total Nómina Quincenal</span>
+                                    <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Total Nómina Bisemanal</span>
                                     <span className="text-2xl font-black text-white tracking-tighter">{fmtCurrency(totalNomina)}</span>
                                 </div>
                             </div>
@@ -10699,7 +10719,7 @@ const AdminPayrollView = ({
                                     className="px-10 py-4 bg-[#6bbdb7] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 flex items-center gap-3 disabled:opacity-60"
                                 >
                                     {isConfirming ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                                    {isConfirming ? 'Confirmando...' : 'Confirmar Pago Quincenal'}
+                                    {isConfirming ? 'Confirmando...' : 'Confirmar Pago Bisemanal'}
                                 </button>
                             </div>
                         </>
