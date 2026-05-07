@@ -10501,6 +10501,7 @@ const AdminPayrollView = ({
     );
 
     const totalNomina = payrollRows.reduce((acc, r) => acc + (parseFloat(r.total) || 0), 0);
+    const isAlreadyConfirmed = adminPayrollHistory.some(record => record.periodo === selectedPeriod);
 
     return (
         <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -10716,11 +10717,11 @@ const AdminPayrollView = ({
                             <div className="flex justify-end">
                                 <button
                                     onClick={handleConfirmPayroll}
-                                    disabled={isConfirming}
-                                    className="px-10 py-4 bg-[#6bbdb7] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 flex items-center gap-3 disabled:opacity-60"
+                                    disabled={isConfirming || isAlreadyConfirmed}
+                                    className={`px-10 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center gap-3 ${isAlreadyConfirmed ? 'bg-emerald-500 cursor-not-allowed shadow-emerald-500/20' : 'bg-[#6bbdb7] hover:bg-[#59aba5] shadow-teal-900/10'} ${isConfirming ? 'opacity-60' : ''}`}
                                 >
                                     {isConfirming ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                                    {isConfirming ? 'Confirmando...' : 'Confirmar Nómina'}
+                                    {isConfirming ? 'Confirmando...' : (isAlreadyConfirmed ? 'Nómina Confirmada' : 'Confirmar Nómina')}
                                 </button>
                             </div>
                         </>
