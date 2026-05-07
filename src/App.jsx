@@ -5619,11 +5619,11 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
             adminPayrollHistory.forEach(history => {
                 try {
                     if (!history || !history.periodo) return;
-                    
+
                     // Extraer la fecha final del periodo (ej: "02/22/2026 — 03/07/2026")
                     const dateParts = history.periodo.split(/[—–-]/);
                     if (dateParts.length < 2) return;
-                    
+
                     const endDateStr = dateParts[dateParts.length - 1].trim();
                     const yearMatch = endDateStr.match(/\/(\d{4})$/);
                     if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
@@ -6040,13 +6040,13 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
         periodAdminRecords.forEach(record => {
             try {
                 const employeesList = typeof record.empleados === 'string' ? JSON.parse(record.empleados) : (record.empleados || []);
-                
+
                 employeesList.forEach(emp => {
                     const nombreEmp = emp.nombre;
                     if (!nombreEmp) return;
 
                     // Buscar datos reales en adminEmployees para obtener el código de 4 dígitos
-                    const adminMatch = adminEmployees?.find(ae => 
+                    const adminMatch = adminEmployees?.find(ae =>
                         String(ae.nombre).trim().toLowerCase() === String(nombreEmp).trim().toLowerCase()
                     );
                     const realCode = adminMatch ? String(adminMatch.codigo_empleado).trim() : (emp.codigo_empleado || 'ADMIN');
@@ -7044,9 +7044,8 @@ const PayStubPDF = ({ employee, period, store, companyInfo }) => {
                     <p style={{ margin: 0, fontSize: '11px', fontWeight: '700', color: '#64748b' }}>ID: {employee.codigo} | {employee.cargo || 'Associate'}</p>
                 </div>
                 <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '15px' }}>
-                    <p style={{ margin: '0 0 5px', fontSize: '9px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Store / Location</p>
-                    <p style={{ margin: '0 0 5px', fontSize: '16px', fontWeight: '900', color: primaryColor }}>{store || 'Multi-Location'}</p>
-                    <p style={{ margin: 0, fontSize: '11px', fontWeight: '700', color: '#64748b' }}>{employee.address || ''}</p>
+                    <p style={{ margin: '0 0 5px', fontSize: '9px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>EMPLOYEE ADDRESS</p>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '900', color: primaryColor, lineHeight: '1.2' }}>{employee.address || 'N/A'}</p>
                 </div>
             </div>
 
@@ -10500,7 +10499,7 @@ const AdminPayrollView = ({
         const options = [];
         const startDate = new Date(2025, 11, 28); // 28 de Dic 2025 (Mes 11)
         const now = new Date();
-        
+
         const MS_PER_DAY = 24 * 60 * 60 * 1000;
         const MS_PER_BIWEEK = 14 * MS_PER_DAY;
 
@@ -14284,7 +14283,7 @@ function App() {
 
     const handleDeleteAdminEmployee = async (emp) => {
         try {
-            await syncToSheets('delete', { 
+            await syncToSheets('delete', {
                 nombre: emp.nombre,
                 codigo_empleado: `'${emp.codigo_empleado}`
             }, 'Personal_Admin', false, ['nombre', 'codigo_empleado']);
