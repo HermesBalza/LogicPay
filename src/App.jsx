@@ -5621,10 +5621,10 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
                     if (!history || !history.periodo) return;
                     
                     // Extraer la fecha final del periodo (ej: "02/22/2026 — 03/07/2026")
-                    const dateParts = history.periodo.split('—');
-                    if (dateParts.length !== 2) return;
+                    const dateParts = history.periodo.split(/[—–-]/);
+                    if (dateParts.length < 2) return;
                     
-                    const endDateStr = dateParts[1].trim();
+                    const endDateStr = dateParts[dateParts.length - 1].trim();
                     const yearMatch = endDateStr.match(/\/(\d{4})$/);
                     if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
 
@@ -5843,7 +5843,7 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
     );
 };
 
-const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDetailData, csgNominaData, employees, stores, specialProjectsData, MAIL_API_URL }) => {
+const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDetailData, csgNominaData, employees, stores, specialProjectsData, adminPayrollHistory, adminEmployees, MAIL_API_URL }) => {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [selectedPeriod, setSelectedPeriod] = useState(null);
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
@@ -6032,14 +6032,75 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
             }
         });
 
-        const consolidated = Object.values(empMap).map(emp => ({
-            ...emp,
-            stores: Array.from(emp.stores)
-        }));
+        const periodAdminRecords = (adminPayrollHistory || []).filter(record => {
+            const normalize = (s) => String(s || '').replace(/[—–-]/g, '-').replace(/\s+/g, ' ').trim();
+            return normalize(record.periodo) === normalize(selectedPeriod.range);
+        });
+
+        periodAdminRecords.forEach(record => {
+            try {
+                const employeesList = typeof record.empleados === 'string' ? JSON.parse(record.empleados) : (record.empleados || []);
+                
+                employeesList.forEach(emp => {
+                    const nombreEmp = emp.nombre;
+                    if (!nombreEmp) return;
+
+                    // Buscar datos reales en adminEmployees para obtener el código de 4 dígitos
+                    const adminMatch = adminEmployees?.find(ae => 
+                        String(ae.nombre).trim().toLowerCase() === String(nombreEmp).trim().toLowerCase()
+                    );
+                    const realCode = adminMatch ? String(adminMatch.codigo_empleado).trim() : (emp.codigo_empleado || 'ADMIN');
+
+                    const empId = `${String(nombreEmp).trim().toLowerCase()}_${realCode}`;
+
+                    if (!empMap[empId]) {
+                        empMap[empId] = {
+                            id: empId,
+                            nombre: nombreEmp,
+                            semana1: 0,
+                            semana2: 0,
+                            pe: 0,
+                            csgEarnings: 0,
+                            adminEarnings: 0,
+                            totalPay: 0,
+                            rate: 0,
+                            cargo: adminMatch ? adminMatch.cargo : (emp.cargo || 'Administrativo'),
+                            address: adminMatch ? `${adminMatch.address_1}, ${adminMatch.city}, ${adminMatch.state} ${adminMatch.zip}` : '',
+                            stores: new Set()
+                        };
+                    } else {
+                        if (empMap[empId].adminEarnings === undefined) empMap[empId].adminEarnings = 0;
+                    }
+
+                    const entry = empMap[empId];
+                    entry.totalPay += Number(emp.total || 0);
+                    entry.adminEarnings += Number(emp.total || 0);
+                    entry.stores.add("Administración LGM");
+                });
+            } catch (e) {
+                console.error("Error procesando registro de Admin_Nomina_Historico", e);
+            }
+        });
+
+        const consolidated = Object.values(empMap).map(emp => {
+            // Resolver correo buscando en ambas bases
+            let email = emp.email_tax;
+            if (!email) {
+                const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim() || String(e.nombre).trim().toLowerCase() === String(emp.id.split('_')[0]).trim().toLowerCase());
+                const adminEmp = adminEmployees?.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim() || String(e.nombre).trim().toLowerCase() === String(emp.id.split('_')[0]).trim().toLowerCase());
+                email = dbEmp?.email_tax || dbEmp?.correo || adminEmp?.email || null;
+            }
+
+            return {
+                ...emp,
+                email_tax: email,
+                stores: Array.from(emp.stores)
+            };
+        });
 
         consolidated.sort((a, b) => a.nombre.localeCompare(b.nombre));
         setBiweeklyEmployees(consolidated);
-    }, [selectedPeriod, nominaDetailData, csgNominaData, employees]);
+    }, [selectedPeriod, nominaDetailData, csgNominaData, employees, adminPayrollHistory, adminEmployees]);
 
     const filteredEmployees = useMemo(() => {
         return biweeklyEmployees.filter(emp =>
@@ -6049,10 +6110,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
     }, [biweeklyEmployees, searchTerm]);
 
     const handleSendAll = async () => {
-        const recipients = biweeklyEmployees.filter(emp => {
-            const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
-            return dbEmp && (dbEmp.email_tax || dbEmp.correo);
-        });
+        const recipients = biweeklyEmployees.filter(emp => emp.email_tax);
         if (recipients.length === 0) return alert("No hay empleados con correo.");
         if (!confirm(`¿Enviar ${recipients.length} recibos?`)) return;
 
@@ -6060,8 +6118,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
 
         for (let i = 0; i < recipients.length; i++) {
             const emp = recipients[i];
-            const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
-            const email = dbEmp.email_tax || dbEmp.correo;
+            const email = emp.email_tax;
             setSendingProgress(prev => ({ ...prev, current: i + 1, logs: [`Generando recibo para ${emp.nombre}...`, ...prev.logs] }));
             try {
                 const pdfResult = await generatePayStubPDF(emp.id);
@@ -6091,8 +6148,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
     };
 
     const handleSendIndividual = async (emp) => {
-        const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
-        const email = dbEmp?.email_tax || dbEmp?.correo;
+        const email = emp.email_tax;
         if (!email) return alert("Email no encontrado.");
         setNotificationModal({ isOpen: true, type: 'loading', message: `Enviando a ${emp.nombre}...` });
         try {
@@ -6173,8 +6229,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                             <tbody className="divide-y-2 divide-gray-50">
                                 {filteredEmployees.map(emp => {
                                     const totalHrs = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0));
-                                    const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
-                                    const email = dbEmp?.email_tax || dbEmp?.correo;
+                                    const email = emp.email_tax;
                                     return (
                                         <tr key={emp.id} className="hover:bg-blue-50/10 transition-colors">
                                             <td className="p-5"><div className="flex flex-col"><span className="text-sm font-black text-[#303a7f] uppercase">{emp.nombre}</span><span className="text-[10px] font-bold text-gray-400">{email || 'SIN CORREO'}</span></div></td>
@@ -6219,8 +6274,9 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                             earningsW1: (parseFloat(emp.semana1) || 0) * emp.rate,
                             hoursW2: emp.semana2,
                             earningsW2: (parseFloat(emp.semana2) || 0) * emp.rate,
-                            peEarnings: emp.peEarnings || (emp.totalPay - ((Number(emp.semana1) + Number(emp.semana2)) * emp.rate) - (Number(emp.csgEarnings) || 0)),
-                            csgEarnings: emp.csgEarnings || 0
+                            peEarnings: emp.peEarnings || (emp.totalPay - ((Number(emp.semana1) + Number(emp.semana2)) * emp.rate) - (Number(emp.csgEarnings) || 0) - (Number(emp.adminEarnings) || 0)),
+                            csgEarnings: emp.csgEarnings || 0,
+                            adminEarnings: emp.adminEarnings || 0
                         }}
                         period={selectedPeriod}
                         store="Global"
@@ -6928,7 +6984,7 @@ const PayStubPDF = ({ employee, period, store, companyInfo }) => {
     const primaryColor = "#303a7f";
     const secondaryColor = "#6bbdb7";
 
-    const totalEarnings = (parseFloat(employee.earningsW1) || 0) + (parseFloat(employee.earningsW2) || 0) + (parseFloat(employee.peEarnings) || 0) + (parseFloat(employee.csgEarnings) || 0);
+    const totalEarnings = (parseFloat(employee.earningsW1) || 0) + (parseFloat(employee.earningsW2) || 0) + (parseFloat(employee.peEarnings) || 0) + (parseFloat(employee.csgEarnings) || 0) + (parseFloat(employee.adminEarnings) || 0);
 
     // Lógica para calcular rangos de fechas por semana
     const [startStr, endStr] = (period.range || "").split(" - ");
@@ -7029,6 +7085,13 @@ const PayStubPDF = ({ employee, period, store, companyInfo }) => {
                         <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                             <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>CSG Cleaning Services</td>
                             <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.csgEarnings).toFixed(2)}</td>
+                        </tr>
+                    )}
+                    {/* Nómina Administrativa */}
+                    {parseFloat(employee.adminEarnings) > 0 && (
+                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>Administrative Services LGM</td>
+                            <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.adminEarnings).toFixed(2)}</td>
                         </tr>
                     )}
                 </tbody>
@@ -15914,6 +15977,8 @@ function App() {
                 employees={employees}
                 stores={stores}
                 specialProjectsData={specialProjectsData}
+                adminPayrollHistory={adminPayrollHistory}
+                adminEmployees={adminEmployees}
                 MAIL_API_URL={MAIL_API_URL}
             />
 
