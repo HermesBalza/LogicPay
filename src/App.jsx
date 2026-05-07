@@ -5843,7 +5843,7 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
     );
 };
 
-const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDetailData, csgNominaData, employees, stores, specialProjectsData, adminPayrollHistory, adminEmployees, MAIL_API_URL }) => {
+const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDetailData, csgNominaData, employees, stores, specialProjectsData, adminPayrollHistory, adminEmployees, paEmailsSent, onEmailSent, MAIL_API_URL }) => {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [selectedPeriod, setSelectedPeriod] = useState(null);
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
@@ -6128,8 +6128,8 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                     mode: 'no-cors',
                     body: JSON.stringify({
                         to: email,
-                        subject: `Recibo de Pago - ${selectedPeriod.range}`,
-                        body: `Hola ${emp.nombre}, adjuntamos tu recibo.`,
+                        subject: `Payment Advice - ${selectedPeriod.range}`,
+                        body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`,
                         attachments: [{
                             name: `Recibo_${emp.nombre.replace(/\s+/g, '_')}.pdf`,
                             type: 'application/pdf',
@@ -6137,8 +6137,12 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                         }]
                     })
                 });
-                setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
                 setSendingProgress(prev => ({ ...prev, logs: [`✅ Enviado a ${email}`, ...prev.logs] }));
+                
+                if (onEmailSent) {
+                    const persistentKey = `${selectedPeriod.range.replace(/\s+/g, '')}#${emp.id}`;
+                    onEmailSent(persistentKey);
+                }
             } catch (error) {
                 setSendingProgress(prev => ({ ...prev, logs: [`❌ Error en ${emp.nombre}: ${error.message}`, ...prev.logs] }));
             }
@@ -6158,8 +6162,8 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                 mode: 'no-cors',
                 body: JSON.stringify({
                     to: email,
-                    subject: `Recibo de Pago - ${selectedPeriod.range}`,
-                    body: `Hola ${emp.nombre}, adjuntamos tu recibo.`,
+                    subject: `Payment Advice - ${selectedPeriod.range}`,
+                    body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`,
                     attachments: [{
                         name: `Recibo_${emp.nombre}.pdf`,
                         type: 'application/pdf',
@@ -6168,6 +6172,10 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                 })
             });
             setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
+            if (onEmailSent) {
+                const persistentKey = `${selectedPeriod.range.replace(/\s+/g, '')}#${emp.id}`;
+                onEmailSent(persistentKey);
+            }
             setNotificationModal({ isOpen: true, type: 'success', message: `Enviado con éxito.` });
         } catch (error) {
             setNotificationModal({ isOpen: true, type: 'error', message: `Error: ${error.message}` });
@@ -6238,7 +6246,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                                             <td className="p-5 text-right text-sm font-black text-[#303a7f]">${emp.totalPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                                             <td className="p-5">
                                                 <div className="flex items-center justify-center gap-2">
-                                                    {sentPayStubs[emp.id] ? <span className="text-[9px] font-black text-teal-600 bg-teal-50 px-3 py-1.5 rounded-full flex items-center gap-2"><Check size={12} /> ENVIADO</span> : (
+                                                    {(paEmailsSent[`${selectedPeriod?.range.replace(/\s+/g, '')}#${emp.id}`] || sentPayStubs[emp.id]) ? <span className="text-[9px] font-black text-teal-600 bg-teal-50 px-3 py-1.5 rounded-full flex items-center gap-2"><Check size={12} /> ENVIADO</span> : (
                                                         <>
                                                             <button onClick={async () => {
                                                                 setNotificationModal({ isOpen: true, type: 'loading', message: `Generando PDF...` });
@@ -11326,6 +11334,7 @@ function App() {
     const [vwhEmailsSent, setVwhEmailsSent] = useState({});
     const [peEmailsSent, setPeEmailsSent] = useState({});
     const [vwhRecordId, setVwhRecordId] = useState(null);
+    const [paEmailsSent, setPaEmailsSent] = useState({}); // FASE 10: Persistencia Recibos Enviados
 
     // ─── Estados Módulo LGM (Nómina Administrativa) ──────────────────────────
     const [adminEmployees, setAdminEmployees] = useState([]);
@@ -13868,6 +13877,7 @@ function App() {
                     if (key === 'processed_biweeks' && val) try { setProcessedBiweeks(JSON.parse(val)); } catch (e) { }
                     if (key === 'vwh_emails_sent' && val) try { setVwhEmailsSent(JSON.parse(val)); } catch (e) { }
                     if (key === 'pe_emails_sent' && val) try { setPeEmailsSent(JSON.parse(val)); } catch (e) { }
+                    if (key === 'pa_emails_sent' && val) try { setPaEmailsSent(JSON.parse(val)); } catch (e) { }
                     if (key === 'special_projects_data' && val) try {
                         const parsed = JSON.parse(val);
                         setSpecialProjectsData(Array.isArray(parsed) ? parsed : []);
@@ -15978,6 +15988,12 @@ function App() {
                 specialProjectsData={specialProjectsData}
                 adminPayrollHistory={adminPayrollHistory}
                 adminEmployees={adminEmployees}
+                paEmailsSent={paEmailsSent}
+                onEmailSent={(key) => {
+                    const updated = { ...paEmailsSent, [key]: true };
+                    setPaEmailsSent(updated);
+                    syncVariableToSheets('pa_emails_sent', updated);
+                }}
                 MAIL_API_URL={MAIL_API_URL}
             />
 
