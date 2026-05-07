@@ -10100,6 +10100,7 @@ const AdminPayrollView = ({
     const [isConfirming, setIsConfirming] = useState(false);
     const [notif, setNotif] = useState({ open: false, type: 'success', msg: '' });
     const [isSendingEmail, setIsSendingEmail] = useState(false);
+    const [isAddingAdminEmployee, setIsAddingAdminEmployee] = useState(false);
 
     // Formatear moneda
     const fmtCurrency = (val) => {
@@ -10215,13 +10216,10 @@ const AdminPayrollView = ({
                 </div>
             )}
 
-            {/* Header de la vista */}
-            <div className="flex flex-col md:flex-row gap-4 mb-10 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex-1">
-                </div>
-
-                {/* Sub-navegación */}
-                <div className="h-11 bg-white border-2 border-[#303a7f]/10 rounded-2xl p-1 flex items-center gap-1 shadow-sm">
+            {/* Header / Tabs & Actions Row */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Navigation Tabs - Lado Izquierdo */}
+                <div className="bg-white rounded-2xl border-2 border-gray-100 p-1.5 inline-flex gap-1 shadow-sm">
                     {[
                         { id: 'employees', label: 'Equipo', icon: Users },
                         { id: 'payroll', label: 'Pago', icon: CreditCard },
@@ -10230,15 +10228,25 @@ const AdminPayrollView = ({
                         <button
                             key={tab.id}
                             onClick={() => setActiveSection(tab.id)}
-                            className={`h-full px-4 rounded-xl transition-all flex items-center gap-2 ${activeSection === tab.id ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+                            className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSection === tab.id ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}
                         >
                             <tab.icon size={14} />
-                            <span className="text-[9px] font-black uppercase tracking-widest hidden sm:block">{tab.label}</span>
+                            {tab.label}
                         </button>
                     ))}
                 </div>
 
+                {/* Action Buttons - Lado Derecho */}
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setIsAddingAdminEmployee(true)}
+                        className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
+                    >
+                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
+                        <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
+                    </button>
 
+                </div>
             </div>
 
             {/* ── SECCIÓN: EQUIPO ── */}
