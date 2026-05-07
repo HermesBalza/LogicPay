@@ -14100,7 +14100,7 @@ function App() {
                 imagen: newEmp.imagen || '',
                 activo: 'TRUE'
             };
-            await syncToSheets('upsert', payload, 'Personal_Admin');
+            await syncToSheets('upsert', payload, 'Personal_Admin', false, ['nombre', 'codigo_empleado']);
             await fetchAdminEmployees();
             showSuccess(`Empleado ${newEmp.nombre} guardado exitosamente.`);
         } catch (error) {
