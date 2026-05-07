@@ -6308,8 +6308,43 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
 };
 
 
-const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDesde, getFormattedDateForDay }) => {
+const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDesde, getFormattedDateForDay, employees = [], payrollStore = '' }) => {
     if (!isOpen) return null;
+
+    const handleDownloadExcel = () => {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet([
+            [payrollStore || "Nombre de Tienda"],
+            ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"]
+        ]);
+
+        const rowsToInsert = data.map(row => {
+            const empCode = row.nombre ? row.nombre.toString().trim() : "";
+            // Buscar empleado en la base de datos local para obtener nombre y cargo reales si existen
+            const localMatch = (employees || []).find(e => 
+                e.codigo_empleado && e.codigo_empleado.toString().trim() === empCode && 
+                e.tienda === payrollStore
+            );
+
+            return [
+                localMatch ? localMatch.nombre : `Empleado ${empCode}`,
+                empCode,
+                localMatch ? localMatch.cargo : "Janitorial",
+                row.domingo || "0:00",
+                row.lunes || "0:00",
+                row.martes || "0:00",
+                row.miercoles || "0:00",
+                row.jueves || "0:00",
+                row.viernes || "0:00",
+                row.sabado || "0:00",
+                row.total || "0:00"
+            ];
+        });
+
+        XLSX.utils.sheet_add_aoa(ws, rowsToInsert, { origin: 2 });
+        XLSX.utils.book_append_sheet(wb, ws, "Reporte IVR");
+        XLSX.writeFile(wb, `Reporte_IVR_${(payrollStore || 'Tienda').replace(/\s+/g, '_')}_${new Date().getTime()}.xlsx`);
+    };
 
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#6bbdb7]/10 animate-in fade-in duration-300">
@@ -6338,6 +6373,14 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
                         >
                             <Info size={16} />
                             Detalles
+                        </button>
+                        <button
+                            onClick={handleDownloadExcel}
+                            className="p-3 bg-[#303a7f] text-white rounded-2xl border-2 border-[#303a7f]/10 shadow-lg shadow-blue-900/10 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95"
+                            title="Descargar reporte en formato Excel"
+                        >
+                            <Download size={16} />
+                            Descargar Reporte
                         </button>
                         <button
                             onClick={onClose}
@@ -14407,6 +14450,8 @@ function App() {
                 data={biometricTableData}
                 fechaDesde={fechaDesde}
                 getFormattedDateForDay={getFormattedDateForDay}
+                employees={employees}
+                payrollStore={payrollStore}
             />
 
             <VWHTableModal
@@ -15261,7 +15306,7 @@ function App() {
                                         onClick={processPayroll}
                                         disabled={!payrollStore || !fechaDesde || !fechaHasta || !(supervisorFile || biometricFile) || isProcessingPayroll}
                                         style={{ backgroundColor: (payrollStore && fechaDesde && fechaHasta && (supervisorFile || biometricFile)) ? '#303a7f' : '#f3f4f6' }}
-                                        className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl flex items-center gap-3 ${(supervisorFile && payrollStore && fechaDesde && fechaHasta)
+                                        className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl flex items-center gap-3 ${((supervisorFile || biometricFile) && payrollStore && fechaDesde && fechaHasta)
                                             ? 'text-white shadow-blue-900/20 active:scale-95 hover:bg-[#252a5e]'
                                             : 'text-gray-300 cursor-not-allowed shadow-none'
                                             }`}
@@ -15273,7 +15318,7 @@ function App() {
                                             </>
                                         ) : (
                                             <>
-                                                <Settings size={18} className={(supervisorFile && payrollStore) ? "animate-spin-slow" : ""} />
+                                                <Settings size={18} className={((supervisorFile || biometricFile) && payrollStore) ? "animate-spin-slow" : ""} />
                                                 Procesar Data
                                             </>
                                         )}
