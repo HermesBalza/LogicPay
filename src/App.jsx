@@ -101,6 +101,7 @@ const VARIABLES_CSV_URL = import.meta.env.VITE_SHEET_VARIABLES_URL;
 const CSG_SERVICES_CSV_URL = import.meta.env.VITE_SHEET_CSG_SERVICIOS_URL;
 const CSG_NOMINA_CSV_URL = import.meta.env.VITE_SHEET_CSG_NOMINA_URL;
 const ADMIN_EMPLOYEES_CSV_URL = import.meta.env.VITE_SHEET_PERSONAL_ADMIN_URL;
+const ADMIN_NOMINA_HISTORICO_CSV_URL = import.meta.env.VITE_SHEET_ADMIN_NOMINA_HISTORICO_URL;
 const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
 
 // Parsea una fila CSV respetando campos entre comillas
@@ -10719,7 +10720,7 @@ const AdminPayrollView = ({
                                     className="px-10 py-4 bg-[#6bbdb7] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 flex items-center gap-3 disabled:opacity-60"
                                 >
                                     {isConfirming ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                                    {isConfirming ? 'Confirmando...' : 'Confirmar Pago Bisemanal'}
+                                    {isConfirming ? 'Confirmando...' : 'Confirmar Nómina'}
                                 </button>
                             </div>
                         </>
@@ -13952,6 +13953,30 @@ function App() {
         }
     };
 
+    const fetchAdminPayrollHistory = async () => {
+        if (!ADMIN_NOMINA_HISTORICO_CSV_URL || ADMIN_NOMINA_HISTORICO_CSV_URL.includes('XXXXXXXXX')) return;
+        try {
+            const response = await fetch(`${ADMIN_NOMINA_HISTORICO_CSV_URL}&t=${Date.now()}`);
+            const csvText = await response.text();
+            const lines = csvText.split('\n').filter(l => l.trim());
+            if (lines.length < 2) { setAdminPayrollHistory([]); return; }
+            const headers = parseCSVRow(lines[0]);
+            const loaded = lines.slice(1).map(line => {
+                const values = parseCSVRow(line);
+                const flat = createCSVRowObject(headers, values);
+                return {
+                    periodo: flat.Periodo || flat.periodo,
+                    fecha_confirmacion: flat.Fecha_Confirmacion || flat.fecha_confirmacion,
+                    total_nomina: parseFloat(flat.Total_Nomina || flat.total_nomina) || 0,
+                    empleados: JSON.parse(flat.Empleados_JSON || flat.empleados_json || '[]')
+                };
+            });
+            setAdminPayrollHistory(loaded);
+        } catch (error) {
+            console.error('[AdminPayroll] Error cargando historial administrativo:', error);
+        }
+    };
+
     useEffect(() => {
         fetchStores();
         fetchEmployees();
@@ -13963,6 +13988,7 @@ function App() {
         fetchCSGServices();
         fetchCSGNomina();
         fetchAdminEmployees();
+        fetchAdminPayrollHistory();
     }, []);
 
 
@@ -14002,6 +14028,7 @@ function App() {
                         if (sheetName === 'Personal') fetchEmployees();
                         if (sheetName === 'CSG_Servicios') fetchCSGServices();
                         if (sheetName === 'Personal_Admin') fetchAdminEmployees();
+                        if (sheetName === 'Admin_Nomina_Historico') fetchAdminPayrollHistory();
                     }, 2000);
                 }
             })
