@@ -5456,7 +5456,7 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
     );
 };
 
-const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryData, csgServicesData, onOpenPayrollAdvice }) => {
+const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryData, csgServicesData, adminPayrollHistory, onOpenPayrollAdvice }) => {
     const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -5614,6 +5614,53 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
             });
         }
 
+        // 4. Procesar Nómina Administrativa (LGM)
+        if (adminPayrollHistory && Array.isArray(adminPayrollHistory)) {
+            adminPayrollHistory.forEach(history => {
+                try {
+                    if (!history || !history.periodo) return;
+                    
+                    // Extraer la fecha final del periodo (ej: "02/22/2026 — 03/07/2026")
+                    const dateParts = history.periodo.split('—');
+                    if (dateParts.length !== 2) return;
+                    
+                    const endDateStr = dateParts[1].trim();
+                    const yearMatch = endDateStr.match(/\/(\d{4})$/);
+                    if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
+
+                    const periodKey = getWeekRange(endDateStr);
+                    periodsFound.add(periodKey);
+
+                    const payload = history.empleados || [];
+
+                    payload.forEach(empRow => {
+                        const originalName = empRow.nombre;
+                        const originalId = empRow.codigo_empleado;
+
+                        const empId = resolveEmployeeId(originalName, originalId);
+                        const info = idToInfoMap[empId] || { nombre: originalName, cargo: empRow.cargo || 'Administrativo' };
+
+                        if (!data[empId]) {
+                            data[empId] = {
+                                id: empId,
+                                nombre: info.nombre,
+                                cargo: info.cargo,
+                                firstName: info.firstName,
+                                lastName: info.lastName,
+                                totalBox1: 0,
+                                periods: {}
+                            };
+                        }
+                        const amount = parseFloat(empRow.total) || 0;
+                        data[empId].periods[periodKey] = (data[empId].periods[periodKey] || 0) + amount;
+                        data[empId].totalBox1 += amount;
+                    });
+                } catch (e) {
+                    console.error("Error processing admin payroll for 1099:", e);
+                }
+            });
+        }
+
         const sortedPeriods = Array.from(periodsFound).sort((a, b) => {
             const dateA = new Date(a.split(' - ')[0]);
             const dateB = new Date(b.split(' - ')[0]);
@@ -5624,7 +5671,7 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
             rows: Object.values(data),
             periods: sortedPeriods
         };
-    }, [fiscalYear, nominaHistoryData, specialProjectsHistoryData, csgServicesData, employees]);
+    }, [fiscalYear, nominaHistoryData, specialProjectsHistoryData, csgServicesData, adminPayrollHistory, employees]);
 
     const filteredRows = useMemo(() => {
         return reportData.rows
@@ -15459,6 +15506,7 @@ function App() {
                             nominaHistoryData={nominaHistoryData}
                             specialProjectsHistoryData={specialProjectsHistoryData}
                             csgServicesData={csgServicesData}
+                            adminPayrollHistory={adminPayrollHistory}
                             onOpenPayrollAdvice={() => setIsPayrollAdviceOpen(true)}
                         />
                     )}
