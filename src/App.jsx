@@ -12839,14 +12839,18 @@ function App() {
                     // Asegurar nombres exactos de columnas (Case Sensitive)
                     updatedEmp['Rate KBS'] = employee.rateKBS || 0;
                     updatedEmp['Rate LGM'] = employee.rateLGM || 0;
+                    updatedEmp['Rate CSG'] = employee.rate_csg || 0;
+                    updatedEmp['Cliente'] = employee.cliente || 'KBS';
                     updatedEmp['Observaciones'] = employee.observaciones || '';
 
                     // Eliminar llaves internas camelCase para prevenir que el script de Google cree columnas nuevas
                     delete updatedEmp.rateKBS;
                     delete updatedEmp.rateLGM;
+                    delete updatedEmp.rate_csg;
+                    delete updatedEmp.cliente;
                     delete updatedEmp.observaciones;
 
-                    await syncToSheets('upsert', updatedEmp, 'Personal', true);
+                    await syncToSheets('upsert', updatedEmp, 'Personal', true, ['nombre', 'codigo_empleado']);
                 }
                 setSyncProgress(i + 1);
             }
@@ -14216,15 +14220,19 @@ function App() {
             // Mapeo de llaves para Google Sheets (Nombres de Columnas Exactos)
             'Rate KBS': updatedEmployee.rateKBS || 0,
             'Rate LGM': updatedEmployee.rateLGM || 0,
+            'Rate CSG': updatedEmployee.rate_csg || 0,
+            'Cliente': updatedEmployee.cliente || 'KBS',
             'Observaciones': updatedEmployee.observaciones || ''
         };
 
         // Limpieza de llaves internas para integridad del esquema en Sheets
         delete payload.rateKBS;
         delete payload.rateLGM;
+        delete payload.rate_csg;
+        delete payload.cliente;
         delete payload.observaciones;
 
-        syncToSheets('upsert', payload, 'Personal');
+        syncToSheets('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
 
     };
 
@@ -14268,7 +14276,7 @@ function App() {
         delete payload.cliente;
         delete payload.observaciones;
 
-        syncToSheets('upsert', payload, 'Personal');
+        syncToSheets('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
 
     };
 
@@ -16199,12 +16207,21 @@ function App() {
                             'Observaciones': newEmp.observaciones || ''
                         };
 
+                        // Mapeo de llaves para Google Sheets (Nombres de Columnas Exactos)
+                        payload['Rate KBS'] = payload.rateKBS || 0;
+                        payload['Rate LGM'] = payload.rateLGM || 0;
+                        payload['Rate CSG'] = payload.rate_csg || 0;
+                        payload['Cliente'] = payload.cliente || 'KBS';
+                        payload['Observaciones'] = payload.observaciones || '';
+
                         // Limpieza de llaves internas para integridad del esquema en Sheets
                         delete payload.rateKBS;
                         delete payload.rateLGM;
+                        delete payload.rate_csg;
+                        delete payload.cliente;
                         delete payload.observaciones;
 
-                        syncToSheets('upsert', payload, 'Personal');
+                        syncToSheets('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
                     }}
                     onUpdateLocationHistory={(employeeName, newSegment) => {
                         setEmployees(prev => {
@@ -16237,15 +16254,19 @@ function App() {
                                 locationHistory: JSON.stringify(updatedEmp.locationHistory),
                                 'Rate KBS': updatedEmp.rateKBS || 0,
                                 'Rate LGM': updatedEmp.rateLGM || 0,
+                                'Rate CSG': updatedEmp.rate_csg || 0,
+                                'Cliente': updatedEmp.cliente || 'KBS',
                                 'Observaciones': updatedEmp.observaciones || ''
                             };
 
                             // Limpieza de llaves internas
                             delete payload.rateKBS;
                             delete payload.rateLGM;
+                            delete payload.rate_csg;
+                            delete payload.cliente;
                             delete payload.observaciones;
 
-                            syncToSheets('upsert', payload, 'Personal');
+                            syncToSheets('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
 
                             return newEmployees;
                         });
