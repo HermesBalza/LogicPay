@@ -4205,7 +4205,9 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
         zip: '',
         country: 'EE. UU.',
         email_tax: '',
-        site_code: ''
+        site_code: '',
+        rateKBS: 0,
+        rateLGM: 0
     });
 
     const updateField = (field, value) => {
@@ -4310,6 +4312,22 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
                                 <div className="group">
                                     <label className="text-[9px] text-[#303a7f] uppercase font-black tracking-widest block mb-1">Detalles de Pago</label>
                                     <textarea value={newEmployee.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm resize-none" rows="3" placeholder="Zelle, No. Cuenta, Banco..."></textarea>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="group">
+                                        <label className="text-[9px] text-[#303a7f] uppercase font-black tracking-widest block mb-1">Rate KBS ($/hr)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
+                                            <input type="number" value={newEmployee.rateKBS || ''} onChange={(e) => updateField('rateKBS', parseFloat(e.target.value) || 0)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 pl-7 font-black text-sm text-[#303a7f]" placeholder="0.00" />
+                                        </div>
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[9px] text-[#6bbdb7] uppercase font-black tracking-widest block mb-1">Rate LGM ($/hr)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
+                                            <input type="number" value={newEmployee.rateLGM || ''} onChange={(e) => updateField('rateLGM', parseFloat(e.target.value) || 0)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 pl-7 font-black text-sm text-[#6bbdb7]" placeholder="0.00" />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </section>
@@ -9906,23 +9924,32 @@ const BillingView = ({
                     });
                 }
 
-                // --- CÁLCULO DE HORAS (Detección inteligente de fragmentos) ---
-                if (data.isSplitFragment && data.fragmentRange && data.semanaTableData) {
-                    const [mS, dS, yS] = data.fragmentRange.start.split('/');
-                    const [mE, dE, yE] = data.fragmentRange.end.split('/');
-                    const sIdx = new Date(yS, mS - 1, dS).getDay();
-                    const eIdx = new Date(yE, mE - 1, dE).getDay();
-                    const daysMapping = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                // --- CÁLCULO DE HORAS (Consistencia con Reporte VWH) ---
+                const helperHhmmToDecimal = (v) => {
+                    if (!v || v === 'X' || v === '0:00') return 0;
+                    const s = String(v);
+                    if (s.includes(':')) {
+                        const [h, m] = s.split(':').map(Number);
+                        return h + (m || 0) / 60;
+                    }
+                    return parseFloat(s) || 0;
+                };
 
-                    const helperHhmmToDecimal = (v) => {
-                        if (!v || v === 'X' || v === '0:00') return 0;
-                        const s = String(v);
-                        if (s.includes(':')) {
-                            const [h, m] = s.split(':').map(Number);
-                            return h + (m || 0) / 60;
+                if (data.semanaTableData) {
+                    const daysMapping = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                    let sIdx = 0;
+                    let eIdx = 6;
+
+                    if (data.isSplitFragment && data.fragmentRange) {
+                        try {
+                            const [mS, dS, yS] = data.fragmentRange.start.split('/');
+                            const [mE, dE, yE] = data.fragmentRange.end.split('/');
+                            sIdx = new Date(yS, mS - 1, dS).getDay();
+                            eIdx = new Date(yE, mE - 1, dE).getDay();
+                        } catch (e) {
+                            sIdx = 0; eIdx = 6;
                         }
-                        return parseFloat(s) || 0;
-                    };
+                    }
 
                     data.semanaTableData.forEach(emp => {
                         for (let i = sIdx; i <= eIdx; i++) {
@@ -9930,7 +9957,7 @@ const BillingView = ({
                         }
                     });
                 } else if (data.kbsBillingTableData) {
-                    // Lógica original para semanas completas
+                    // Fallback para registros antiguos
                     data.kbsBillingTableData.forEach(r => {
                         const totalVal = parseFloat(rowTotalToNumber(r.total)) || 0;
                         const rateVal = parseFloat(r.rate) || 1;
@@ -12811,6 +12838,10 @@ function App() {
                 const rateKBS = employeeInfo?.rateKBS || 0;
 
                 const calcDay = (val, rate) => hhmmToDecimal(val) * rate;
+                const days = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                const sumDaysTotal = (empRow, rate) => {
+                    return days.reduce((acc, day) => acc + (hhmmToDecimal(empRow[day]?.final) * rate), 0);
+                };
 
                 return {
                     lsg: {
@@ -12825,7 +12856,7 @@ function App() {
                         jueves: calcDay(emp.jueves.final, rateLSG),
                         viernes: calcDay(emp.viernes.final, rateLSG),
                         sabado: calcDay(emp.sabado.final, rateLSG),
-                        total: hhmmToDecimal(emp.total.final) * rateLSG
+                        total: sumDaysTotal(emp, rateLSG)
                     },
                     kbs: {
                         nombre: emp.nombre,
@@ -12839,7 +12870,7 @@ function App() {
                         jueves: calcDay(emp.jueves.final, rateKBS),
                         viernes: calcDay(emp.viernes.final, rateKBS),
                         sabado: calcDay(emp.sabado.final, rateKBS),
-                        total: hhmmToDecimal(emp.total.final) * rateKBS
+                        total: sumDaysTotal(emp, rateKBS)
                     }
                 };
             });
