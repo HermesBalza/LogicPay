@@ -6484,7 +6484,11 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
         setLocalResults(updated);
     };
 
-
+    const handleExcludeResolution = (index) => {
+        const updated = [...localResults];
+        updated[index].isExcluded = !updated[index].isExcluded;
+        setLocalResults(updated);
+    };
 
     const handleFinalize = () => {
         onAddAll(localResults);
@@ -6518,14 +6522,19 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                         </div>
                     ) : (
                         localResults.map((res, idx) => (
-                            <div key={idx} className="group relative">
-                                <div className={`flex items-center gap-4 py-3 px-6 rounded-2xl border-2 transition-all duration-200 hover:shadow-md ${res.resolvedEmployee ? 'bg-green-50/20 border-green-100' : 'bg-white border-gray-100'
+                            <div key={idx} className={`group relative ${res.isExcluded ? 'opacity-50' : ''}`}>
+                                <div className={`flex items-center gap-4 py-3 px-6 rounded-2xl border-2 transition-all duration-200 hover:shadow-md ${res.isExcluded ? 'bg-gray-100 border-red-200' : res.resolvedEmployee ? 'bg-green-50/20 border-green-100' : 'bg-white border-gray-100'
                                     }`}>
                                     {/* Left: Excel Data (Gris Oscuro) */}
                                     <div className="w-[280px] shrink-0">
                                         <div className="flex items-center gap-2 mb-0.5">
                                             <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">En Excel</span>
-                                            {res.type === 'ambiguous' && (
+                                            {res.isExcluded && (
+                                                <div className="px-1.5 py-0.5 bg-red-500 text-white rounded text-[7px] font-black uppercase tracking-tight flex items-center gap-1">
+                                                    <Trash2 size={8} /> Excluido
+                                                </div>
+                                            )}
+                                            {!res.isExcluded && res.type === 'ambiguous' && (
                                                 <div className="px-1.5 py-0.5 bg-amber-500 text-white rounded text-[7px] font-black uppercase tracking-tight flex items-center gap-1">
                                                     <AlertTriangle size={8} /> Duplicado
                                                 </div>
@@ -6590,13 +6599,35 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                                             )}
                                         </div>
 
-                                        <button
-                                            onClick={() => { setSearchingIdx(idx); setManualSearchTerm(res.excelRow.nombre || ''); }}
-                                            className="px-4 py-2 bg-gray-50 text-[#303a7f] rounded-xl text-[9px] font-black uppercase tracking-widest border border-gray-100 hover:bg-[#303a7f] hover:text-white hover:border-[#303a7f] transition-all active:scale-95 shadow-sm flex items-center gap-2"
-                                        >
-                                            <Search size={12} />
-                                            Buscar
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            {res.isExcluded ? (
+                                                <button
+                                                    onClick={() => handleExcludeResolution(idx)}
+                                                    className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[9px] font-black uppercase tracking-widest border border-red-100 hover:bg-red-500 hover:text-white transition-all active:scale-95 shadow-sm flex items-center gap-2"
+                                                    title="Restaurar Empleado"
+                                                >
+                                                    <ArrowLeftRight size={12} />
+                                                    Restaurar
+                                                </button>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        onClick={() => { setSearchingIdx(idx); setManualSearchTerm(res.excelRow.nombre || ''); }}
+                                                        className="px-4 py-2 bg-gray-50 text-[#303a7f] rounded-xl text-[9px] font-black uppercase tracking-widest border border-gray-100 hover:bg-[#303a7f] hover:text-white hover:border-[#303a7f] transition-all active:scale-95 shadow-sm flex items-center gap-2"
+                                                    >
+                                                        <Search size={12} />
+                                                        Buscar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleExcludeResolution(idx)}
+                                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100"
+                                                        title="Excluir/Ignorar Empleado"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
 
                                     </div>
                                 </div>
@@ -6685,17 +6716,21 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                     <div className="flex items-center gap-6">
                         <div className="flex flex-col">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total de registros</p>
-                            <p className="text-xl font-black text-[#303a7f] leading-none">{localResults.length}</p>
+                            <p className="text-xl font-black text-[#303a7f] leading-none">{localResults.filter(r => !r.isExcluded).length}</p>
                         </div>
                         <div className="h-8 w-px bg-gray-200" />
                         <div className="flex gap-4">
                             <div className="flex flex-col">
                                 <span className="text-[8px] font-black text-green-500 uppercase tracking-wider">Listos</span>
-                                <span className="text-xs font-black text-gray-600">{localResults.filter(r => r.resolvedEmployee).length}</span>
+                                <span className="text-xs font-black text-gray-600">{localResults.filter(r => r.resolvedEmployee && !r.isExcluded).length}</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-[8px] font-black text-amber-500 uppercase tracking-wider">Pendientes</span>
-                                <span className="text-xs font-black text-gray-600">{localResults.filter(r => !r.resolvedEmployee).length}</span>
+                                <span className="text-xs font-black text-gray-600">{localResults.filter(r => !r.resolvedEmployee && !r.isExcluded).length}</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[8px] font-black text-red-500 uppercase tracking-wider">Excluidos</span>
+                                <span className="text-xs font-black text-gray-600">{localResults.filter(r => r.isExcluded).length}</span>
                             </div>
                         </div>
                     </div>
@@ -6705,9 +6740,9 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                             Cerrar
                         </button>
                         <button
-                            disabled={localResults.filter(r => !r.resolvedEmployee).length > 0}
+                            disabled={localResults.filter(r => !r.resolvedEmployee && !r.isExcluded).length > 0}
                             onClick={handleFinalize}
-                            className={`px-12 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-3 ${localResults.filter(r => !r.resolvedEmployee).length > 0
+                            className={`px-12 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-3 ${localResults.filter(r => !r.resolvedEmployee && !r.isExcluded).length > 0
                                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                 : 'bg-[#303a7f] text-white shadow-blue-900/20 hover:bg-[#252a5e]'
                                 }`}
@@ -12294,7 +12329,8 @@ function App() {
             originalNameInExcel: res.excelRow.nombre,
             originalCodeInExcel: res.excelRow.codigo || "",
             officialName: res.resolvedEmployee ? res.resolvedEmployee.nombre : res.tempNombre,
-            officialCode: res.resolvedEmployee ? res.resolvedEmployee.codigo_empleado : res.tempCodigo
+            officialCode: res.resolvedEmployee ? res.resolvedEmployee.codigo_empleado : res.tempCodigo,
+            isExcluded: res.isExcluded || false
         }));
 
         const genAI = new GoogleGenerativeAI(geminiApiKey);
@@ -12314,9 +12350,11 @@ function App() {
             
             TAREA:
             1. Analiza cada fila del REPORTE ORIGINAL. 
-            2. Si encuentras una fila de empleado que coincida con una RESOLUCIÓN (por nombre o código previo), reemplaza el nombre y el código por los OFICIALES.
-            3. NO CAMBIES NINGÚN OTRO DATO (Horas, Cargos, Totales, Encabezados).
-            4. Retorna el REPORTE COMPLETO como un JSON Array of Arrays corregido.
+            2. Si encuentras una fila de empleado que coincida con una RESOLUCIÓN (por nombre o código previo):
+               - Si la resolución indica "isExcluded": true, ELIMINA LA FILA COMPLETA del reporte resultante.
+               - Si NO está excluido, reemplaza el nombre y el código por los OFICIALES.
+            3. NO CAMBIES NINGÚN OTRO DATO (Horas, Cargos, Totales, Encabezados) de las filas que no son eliminadas.
+            4. Retorna el REPORTE COMPLETO como un JSON Array of Arrays corregido, sin las filas marcadas como excluidas.
         `;
 
         const result = await model.generateContent(prompt);
