@@ -8471,7 +8471,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                         WOS
                     </button>
                     <button
-                        onClick={onOpenBilling}
+                        onClick={() => onOpenBilling(selectedYear)}
                         disabled={!selectedStore || selectedStore === CONSOLIDATED_STORE}
                         className={`h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg ${selectedStore && selectedStore !== CONSOLIDATED_STORE
                             ? 'bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]'
@@ -9932,13 +9932,22 @@ const BillingView = ({
     onUpdateManual = () => { },
     onUpdateManualPE = () => { },
     vwhEmailsSent = {},
-    peEmailsSent = {}
+    peEmailsSent = {},
+    filterYear = new Date().getFullYear()
 }) => {
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     // --- LÓGICA TABLA VWH (Nómina Regular) ---
-    // Filtrado y ordenado seguro (Safe-Sort)
+    // Filtrado y ordenado seguro (Safe-Sort) - incluye filtro por año seleccionado
     const activeRecords = (historyData || [])
-        .filter(h => h && h.nombre && String(h.nombre).trim() === String(storeName).trim())
+        .filter(h => {
+            if (!h || !h.nombre || String(h.nombre).trim() !== String(storeName).trim()) return false;
+            // Filtrar por año: extraer el año de fecha_inicio (formato MM/DD/YYYY)
+            if (h.fecha_inicio) {
+                const parts = String(h.fecha_inicio).split('/');
+                if (parts.length === 3 && Number(parts[2]) !== filterYear) return false;
+            }
+            return true;
+        })
         .sort((a, b) => {
             try {
                 if (!a.fecha_inicio || !b.fecha_inicio) return 0;
@@ -10032,7 +10041,8 @@ const BillingView = ({
     });
 
     // --- LÓGICA TABLA PROYECTOS ESPECIALES (P.E) ---
-    const currentYear = new Date().getFullYear();
+    // currentYear usa el año seleccionado desde el Motor de Nómina (filterYear)
+    const currentYear = filterYear;
     const parseProjectDate = (value) => {
         if (!value) return null;
         const raw = String(value).trim();
@@ -11605,6 +11615,7 @@ function App() {
 
     // Controles de Visibilidad del Modal de Facturación
     const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+    const [billingFilterYear, setBillingFilterYear] = useState(new Date().getFullYear());
     const [isSyncingBilling, setIsSyncingBilling] = useState(false);
     const [isWOSOpen, setIsWOSOpen] = useState(false);
     const [selectedSpecialProjectInvoice, setSelectedSpecialProjectInvoice] = useState(null);
@@ -15195,7 +15206,7 @@ function App() {
                                 onSelectStore={setSelectedHistoryStore}
                                 historyData={nominaHistoryData}
                                 processedBiweeks={processedBiweeks}
-                                onOpenBilling={() => setIsBillingModalOpen(true)}
+                                onOpenBilling={(year) => { setBillingFilterYear(year); setIsBillingModalOpen(true); }}
                                 onOpenWOS={() => setIsWOSOpen(true)}
                                 manualData={billingManualRecords}
                                 onUpdateManual={(week, field, val) => {
@@ -15922,6 +15933,7 @@ function App() {
                     {/* Contenido del Modal (BillingView) - Nivel Dios */}
                     <div className="flex-1 overflow-y-auto p-12 bg-[#fcfdfe] custom-scrollbar">
                         <BillingView
+                            filterYear={billingFilterYear}
                             storeName={selectedHistoryStore}
                             historyData={nominaHistoryData}
                             specialHistoryData={specialProjectsHistoryData}
