@@ -11565,6 +11565,7 @@ function App() {
     const attendanceReportRef = useRef(null);
 
     const [specialProjectsData, setSpecialProjectsData] = useState([]);
+    const [payrollDrafts, setPayrollDrafts] = useState({});
 
     // Contador global de invoices para Proyectos Especiales (empieza desde 100)
     const [nextInvoice, setNextInvoice] = useState(100);
@@ -12642,6 +12643,18 @@ function App() {
             setPayrollResults([]);
             setPayrollProgress(supervisorJson.length);
 
+            // Guardar borrador inicial (Data del Supervisor)
+            const draftKey = `${payrollStore}_${fechaDesde}_${fechaHasta}`.replace(/\s+/g, '_');
+            const newDraft = {
+                semanaTableData: semanaRows,
+                biometricTableData: [],
+                rawBiometricData: [],
+                payrollResults: []
+            };
+            const updatedDrafts = { ...payrollDrafts, [draftKey]: newDraft };
+            setPayrollDrafts(updatedDrafts);
+            syncVariableToSheets('payroll_drafts', JSON.stringify(updatedDrafts));
+
             // --- AUTOMATIZACIÓN FASE 2: Iniciar procesamiento de IA inmediatamente ---
             if (biometricFile && geminiApiKey) {
                 console.log('[Payroll] Iniciando Fase 2 (IA) automáticamente...');
@@ -13146,6 +13159,12 @@ function App() {
                 return updated;
             });
 
+
+            // Eliminar el borrador de la hoja Variables al aprobar
+            const draftKey = `${payrollStore}_${fechaDesde}_${fechaHasta}`.replace(/\s+/g, '_');
+            const { [draftKey]: removedDraft, ...remainingDrafts } = payrollDrafts;
+            setPayrollDrafts(remainingDrafts);
+            syncVariableToSheets('payroll_drafts', JSON.stringify(remainingDrafts));
 
             showSuccess("Cálculo Semanal procesado, Guardado en Historial y Personal actualizado exitosamente.");
             fetchEmployees();
@@ -14091,6 +14110,7 @@ function App() {
                         const parsed = JSON.parse(val);
                         setSpecialProjectsData(Array.isArray(parsed) ? parsed : []);
                     } catch (e) { }
+                    if (key === 'payroll_drafts' && val) try { setPayrollDrafts(JSON.parse(val)); } catch (e) { }
                     if (key === 'next_invoice') setNextInvoice(normalizeInvoice(val));
                 }
 
@@ -14320,6 +14340,22 @@ function App() {
         fetchAdminPayrollHistory();
     }, []);
 
+    useEffect(() => {
+        // Restaurar selección previa tras refresco (Post-Aprobación)
+        const savedStore = localStorage.getItem('last_payroll_store');
+        const savedDesde = localStorage.getItem('last_payroll_desde');
+        const savedHasta = localStorage.getItem('last_payroll_hasta');
+
+        if (savedStore) setPayrollStore(savedStore);
+        if (savedDesde) setFechaDesde(savedDesde);
+        if (savedHasta) setFechaHasta(savedHasta);
+
+        // Limpiar para no afectar navegaciones futuras
+        localStorage.removeItem('last_payroll_store');
+        localStorage.removeItem('last_payroll_desde');
+        localStorage.removeItem('last_payroll_hasta');
+    }, []);
+
 
     useEffect(() => {
         if (!variablesLoaded || !specialProjectsHistoryData || specialProjectsHistoryData.length === 0) return;
@@ -14337,6 +14373,63 @@ function App() {
             return next;
         });
     }, [specialProjectsHistoryData, variablesLoaded]);
+
+    useEffect(() => {
+        if (!variablesLoaded || !payrollStore || !fechaDesde || !fechaHasta) return;
+        const draftKey = `${payrollStore}_${fechaDesde}_${fechaHasta}`.replace(/\s+/g, '_');
+        const draft = payrollDrafts[draftKey];
+
+        const isApproved = (nominaHistoryData || []).some(h =>
+            String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+            h.fecha_inicio === fechaDesde
+        );
+
+        if (draft) {
+            console.log('[Payroll] Borrador encontrado para este período. Restaurando estado...');
+            if (draft.semanaTableData) setSemanaTableData(draft.semanaTableData);
+            if (draft.biometricTableData) setBiometricTableData(draft.biometricTableData);
+            if (draft.rawBiometricData) setRawBiometricData(draft.rawBiometricData);
+            if (draft.payrollResults) setPayrollResults(draft.payrollResults);
+        } else if (!isApproved) {
+            // Solo limpiar si NO hay borrador Y la semana NO está aprobada
+            setSemanaTableData([]);
+            setBiometricTableData([]);
+            setRawBiometricData([]);
+            setPayrollResults([]);
+        }
+    }, [payrollStore, fechaDesde, fechaHasta, variablesLoaded, payrollDrafts, nominaHistoryData]);
+
+    // Efecto para AUTO-GUARDADO de borradores al detectar cambios
+    useEffect(() => {
+        if (!variablesLoaded || !payrollStore || !fechaDesde || !fechaHasta || semanaTableData.length === 0) return;
+
+        // CANDADO: No guardar borradores si la semana ya está aprobada en el historial
+        const isApproved = (nominaHistoryData || []).some(h =>
+            String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+            h.fecha_inicio === fechaDesde
+        );
+        if (isApproved) return;
+
+        const draftKey = `${payrollStore}_${fechaDesde}_${fechaHasta}`.replace(/\s+/g, '_');
+        const timer = setTimeout(() => {
+            const newDraft = {
+                semanaTableData,
+                biometricTableData,
+                rawBiometricData,
+                payrollResults
+            };
+
+            // Solo sincronizar si hay cambios reales para evitar bucles
+            if (JSON.stringify(payrollDrafts[draftKey]) !== JSON.stringify(newDraft)) {
+                console.log('[Payroll] Auto-guardando borrador en la nube...');
+                const updatedDrafts = { ...payrollDrafts, [draftKey]: newDraft };
+                setPayrollDrafts(updatedDrafts);
+                syncVariableToSheets('payroll_drafts', JSON.stringify(updatedDrafts));
+            }
+        }, 3000);
+
+        return () => clearTimeout(timer);
+    }, [semanaTableData, biometricTableData, rawBiometricData, payrollResults, payrollStore, fechaDesde, fechaHasta, variablesLoaded, nominaHistoryData]);
 
     // ─── API: Sincronizar cambios con Google Sheets ──────────────────────────
     // Usa mode: 'no-cors' con Content-Type: 'text/plain' (CORS-safelisted).
@@ -16374,7 +16467,15 @@ function App() {
                         </p>
                         {statusModalType !== 'processing' && (
                             <button
-                                onClick={() => setIsStatusModalOpen(false)}
+                                onClick={() => {
+                                    setIsStatusModalOpen(false);
+                                    if (statusModalMessage.includes("Cálculo Semanal procesado")) {
+                                        localStorage.setItem('last_payroll_store', payrollStore);
+                                        localStorage.setItem('last_payroll_desde', fechaDesde);
+                                        localStorage.setItem('last_payroll_hasta', fechaHasta);
+                                        window.location.reload();
+                                    }
+                                }}
                                 className={`w-full py-4 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 ${statusModalType === 'success' ? 'bg-[#303a7f] shadow-blue-900/10 hover:bg-[#252a5e]' : 'bg-red-500 shadow-red-900/10 hover:bg-red-600'}`}
                             >
                                 Ok
