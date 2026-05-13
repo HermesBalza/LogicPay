@@ -7251,7 +7251,7 @@ const generatePayStubPDF = async (stubId) => {
     }
 };
 
-const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, setSpecialProjectsData, employees, onConfirmPayroll, onBack }) => {
+const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, onConfirmPayroll, onBack }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -7323,22 +7323,56 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         processRecords(allW2Records, 'w2');
 
         // También incluir Proyectos Especiales en el mapa de sedes
-        (specialProjectsData || []).forEach(project => {
-            if (project.status === 'registered') {
-                (project.employees || []).forEach(row => {
-                    if (row.employeeName) {
-                        const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(row.employeeName).trim().toLowerCase());
-                        const code = dbEmp ? dbEmp.codigo_empleado : 'EXT';
-                        const empId = `${String(row.employeeName).trim().toLowerCase()}_${code}`;
-                        if (!empStoreMap[empId]) empStoreMap[empId] = new Set();
-                        // El proyecto ya viene asociado a una tienda en specialProjectsData (que cargamos en App.jsx)
-                        // pero aquí necesitamos saber si es una tienda distinta.
-                        // Para simplificar, si está en specialProjectsData y es un proyecto registrado, sumamos "Proyecto Especial" como una sede virtual
-                        // o usamos el nombre de la tienda del proyecto si está disponible.
-                        empStoreMap[empId].add(project.tienda || "Proyecto Especial");
-                    }
-                });
+        // peStoreMap se construye desde el historial COMPLETO de P.E. (no filtrado por tienda)
+        // para detectar cuando un empleado tiene P.E. en una tienda diferente a la actual.
+        const peStoreMap = {};
+
+        // Helper: convierte "MM/DD/YYYY" a timestamp numérico para comparación cronológica correcta
+        const toTs = (dateStr) => {
+            if (!dateStr) return 0;
+            const s = String(dateStr).trim();
+            // Formato MM/DD/YYYY
+            const parts = s.split('/');
+            if (parts.length === 3) {
+                return new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1])).getTime();
             }
+            return 0;
+        };
+
+        const w1StartTs = toTs(period.w1?.start);
+        const w2EndTs = toTs(period.w2?.end);
+
+        const allPEInPeriod = (specialProjectsHistoryData || []).filter(record => {
+            if (!record.periodo) return false;
+            // El periodo del P.E. tiene formato "MM/DD/YYYY - MM/DD/YYYY"
+            // Usamos ' - ' como separador para evitar conflicto con guiones en fechas
+            const sepIdx = String(record.periodo).indexOf(' - ');
+            if (sepIdx === -1) return false;
+            const peStartTs = toTs(String(record.periodo).substring(0, sepIdx).trim());
+            const peEndTs = toTs(String(record.periodo).substring(sepIdx + 3).trim());
+            if (!peStartTs || !peEndTs || !w1StartTs || !w2EndTs) return false;
+            // Solapamiento cronológico correcto: peStart <= w2End AND peEnd >= w1Start
+            return peStartTs <= w2EndTs && peEndTs >= w1StartTs;
+        });
+        allPEInPeriod.forEach(record => {
+            try {
+                const parsed = JSON.parse(record.data_json || '{}');
+                const items = Array.isArray(parsed) ? parsed : [parsed];
+                items.forEach(item => {
+                    (item.employees || []).forEach(row => {
+                        if (row.employeeName) {
+                            const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(row.employeeName).trim().toLowerCase());
+                            const code = dbEmp ? dbEmp.codigo_empleado : 'EXT';
+                            const empId = `${String(row.employeeName).trim().toLowerCase()}_${code}`;
+                            const peTienda = record.tienda || record.Tienda || 'Proyecto Especial';
+                            if (!empStoreMap[empId]) empStoreMap[empId] = new Set();
+                            empStoreMap[empId].add(peTienda);
+                            if (!peStoreMap[empId]) peStoreMap[empId] = new Set();
+                            peStoreMap[empId].add(peTienda);
+                        }
+                    });
+                });
+            } catch (e) { }
         });
 
         // 2. Determinar qué empleados incluir en esta vista
@@ -7350,7 +7384,13 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 return isMultiSite;
             } else {
                 // Vista de tienda regular: Incluir si trabajó aquí Y NO es multi-sitio
-                return stores.has(period.store) && !isMultiSite;
+                // Adicionalmente, excluir si el empleado tiene P.E. en una tienda DIFERENTE a la actual,
+                // ya que en ese caso es multi-sitio (horas regulares aquí + P.E. en otra tienda)
+                // y su pago debe gestionarse exclusivamente en la vista Consolidada.
+                const hasPEInOtherStore = peStoreMap[empId]
+                    ? Array.from(peStoreMap[empId]).some(peTienda => peTienda !== period.store)
+                    : false;
+                return stores.has(period.store) && !isMultiSite && !hasPEInOtherStore;
             }
         });
 
@@ -7439,7 +7479,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
         consolidated.sort((a, b) => a.nombre.localeCompare(b.nombre));
         setBiweeklyEmployees(consolidated);
-    }, [period, nominaHistoryData, specialProjectsData, nominaDetailData]);
+    }, [period, nominaHistoryData, specialProjectsData, specialProjectsHistoryData, nominaDetailData]);
 
     if (!period) return null;
 
@@ -16089,6 +16129,7 @@ function App() {
                     setFechaDesde={setFechaDesde}
                     setFechaHasta={setFechaHasta}
                     specialProjectsData={specialProjectsData}
+                    specialProjectsHistoryData={specialProjectsHistoryData}
                     setSpecialProjectsData={setSpecialProjectsData}
                     employees={employees}
                     onConfirmPayroll={handleConfirmPayroll}
