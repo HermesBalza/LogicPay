@@ -3514,7 +3514,15 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             {/* CSG Status Modal */}
             <CSGStatusModal
                 isOpen={statusModal.open}
-                onClose={() => setStatusModal({ open: false, title: '', message: '' })}
+                onClose={() => {
+                    if (statusModal.title === '¡Servicio Registrado!') {
+                        sessionStorage.setItem('activeTab', 'csg');
+                        sessionStorage.setItem('activeCSGTab', 'registro');
+                        window.location.reload();
+                    } else {
+                        setStatusModal({ open: false, title: '', message: '' });
+                    }
+                }}
                 title={statusModal.title}
                 message={statusModal.message}
             />

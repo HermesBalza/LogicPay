@@ -11806,7 +11806,7 @@ function App() {
     // ─── Estados Módulo CSG ───────────────────────────────────────────────────
     const [csgServicesData, setCsgServicesData] = useState([]);
     const [csgNominaData, setCsgNominaData] = useState([]);
-    const [activeCSGTab, setActiveCSGTab] = useState('registro'); // 'registro' | 'historial' | 'nomina' | 'facturacion'
+    const [activeCSGTab, setActiveCSGTab] = useState(sessionStorage.getItem('activeCSGTab') || 'registro'); // 'registro' | 'historial' | 'nomina' | 'facturacion'
     const [isCsgFormOpen, setIsCsgFormOpen] = useState(false);
     const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
 
@@ -13666,6 +13666,7 @@ function App() {
     // --- LÓGICA DE PERSISTENCIA DE NAVEGACIÓN (Nivel Dios) ---
     useEffect(() => {
         sessionStorage.setItem('activeTab', activeTab);
+        sessionStorage.setItem('activeCSGTab', activeCSGTab);
         sessionStorage.setItem('editingStoreId', editingStore?.codigo || '');
         sessionStorage.setItem('editingEmployeeId', editingEmployee?.codigo_empleado || '');
         sessionStorage.setItem('isBiweeklyManagementOpen', isBiweeklyManagementOpen);
@@ -13677,7 +13678,7 @@ function App() {
         if (selectedHistoryStore) sessionStorage.setItem('selectedHistoryStore', selectedHistoryStore);
         if (fechaDesde) sessionStorage.setItem('fechaDesde', fechaDesde);
         if (fechaHasta) sessionStorage.setItem('fechaHasta', fechaHasta);
-    }, [activeTab, editingStore, editingEmployee, isBiweeklyManagementOpen, payrollView, selectedHistoryStore, fechaDesde, fechaHasta, storeSearchTerm, employeeSearchTerm]);
+    }, [activeTab, activeCSGTab, editingStore, editingEmployee, isBiweeklyManagementOpen, payrollView, selectedHistoryStore, fechaDesde, fechaHasta, storeSearchTerm, employeeSearchTerm]);
 
     // Re-hidratación de Tiendas
     useEffect(() => {
