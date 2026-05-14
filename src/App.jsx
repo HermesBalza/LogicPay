@@ -70,7 +70,8 @@ import {
     Target,
     Eraser,
     Layers,
-    Copy
+    Copy,
+    Paperclip
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -2571,7 +2572,7 @@ const StoreAddView = ({ onSave, onBack }) => {
 };
 
 
-const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], wosHistoryData = [], syncToSheets, onRefreshHistory, onAcceptPayment }) => {
+const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], wosHistoryData = [], syncToSheets, onRefreshHistory, onAcceptPayment, setNotificationModal }) => {
     const fileInputRef = useRef(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isCrossing, setIsCrossing] = useState(false);
@@ -2616,6 +2617,59 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
     const [selectedWosGroup, setSelectedWosGroup] = useState(null);
     const [isWOSBugOpen, setIsWOSBugOpen] = useState(false);
     const [isWOSHistoryOpen, setIsWOSHistoryOpen] = useState(false);
+    const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+    const [isSendingTicket, setIsSendingTicket] = useState(false);
+
+    // --- Lógica de Envío de Ticket (Reclamos) ---
+    const handleSendTicketEmail = async (emailData) => {
+        if (!MAIL_API_URL) {
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: "Error: No se ha configurado la URL del Script de Correo (MAIL_API_URL). Por favor vincule la cuenta primero."
+            });
+            return;
+        }
+
+        setIsSendingTicket(true);
+        setNotificationModal({
+            isOpen: true,
+            type: 'loading',
+            message: `Estamos preparando y enviando el ticket a ${emailData.to}. Por favor espere.`
+        });
+
+        try {
+            const payload = {
+                to: emailData.to,
+                subject: emailData.subject,
+                body: emailData.body,
+                attachments: emailData.attachments || []
+            };
+
+            await fetch(MAIL_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(payload)
+            });
+
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: `El ticket ha sido enviado con éxito a ${emailData.to}.`
+            });
+            setIsTicketModalOpen(false);
+        } catch (error) {
+            console.error('Error enviando ticket:', error);
+            setNotificationModal({
+                isOpen: true,
+                type: 'success',
+                message: "Error crítico al procesar el envío del ticket. Verifique la conexión."
+            });
+        } finally {
+            setIsSendingTicket(false);
+        }
+    };
 
     // --- Lógica de Auto-Guardado en Base de Datos ---
     const handleAutoSaveWOS = async (currentMetadata, currentServices) => {
@@ -2908,6 +2962,14 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                         accept=".pdf"
                         onChange={handleUploadWOS}
                     />
+                    <button
+                        onClick={() => setIsTicketModalOpen(true)}
+                        className="h-[48px] px-8 bg-white border-2 border-orange-500/20 text-orange-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-orange-50 active:scale-95 flex items-center gap-3 shadow-xl"
+                    >
+                        <Plus size={16} />
+                        Crear Ticket
+                    </button>
+
                     <button
                         onClick={() => setIsWOSHistoryOpen(true)}
                         className="h-[48px] px-8 bg-white border-2 border-[#303a7f]/20 text-[#303a7f] rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-gray-50 active:scale-95 flex items-center gap-3 shadow-xl"
@@ -3602,6 +3664,13 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                     </div>
                 </div>
             )}
+
+            <WOSTicketModal
+                isOpen={isTicketModalOpen}
+                onClose={() => setIsTicketModalOpen(false)}
+                onSend={handleSendTicketEmail}
+                isSending={isSendingTicket}
+            />
         </div>
     );
 };
@@ -7064,6 +7133,202 @@ const NominaEmailModal = ({ isOpen, onClose, period, onSend, isSending, defaultT
                     </button>
                     <button
                         onClick={() => !isSending && onSend({ to, subject, body })}
+                        disabled={isSending}
+                        className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
+                    >
+                        {isSending ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <Receipt size={18} />
+                        )}
+                        {isSending ? 'Enviando...' : 'Enviar Ahora'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+const WOSTicketModal = ({ isOpen, onClose, onSend, isSending }) => {
+    const [to, setTo] = useState('absup@kbs-services.com');
+    const [subject, setSubject] = useState('');
+    const [body, setBody] = useState('');
+    const [attachments, setAttachments] = useState([]);
+    const ticketFileInputRef = useRef(null);
+
+    const handleFileChange = async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        const newAttachments = await Promise.all(files.map(file => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    resolve({
+                        name: file.name,
+                        type: file.type,
+                        base64: event.target.result.split(',')[1]
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
+        }));
+        setAttachments(prev => [...prev, ...newAttachments]);
+    };
+
+    const handlePaste = async (e) => {
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf("image") !== -1) {
+                const file = items[i].getAsFile();
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const newAttachment = {
+                        name: `screenshot_${new Date().getTime()}.png`,
+                        type: file.type,
+                        base64: event.target.result.split(',')[1]
+                    };
+                    setAttachments(prev => [...prev, newAttachment]);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    };
+
+    const removeAttachment = (index) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div 
+            className="fixed inset-0 z-[500] bg-white animate-in slide-in-from-bottom duration-500 overflow-hidden font-sans"
+            onPaste={handlePaste}
+        >
+            <div className="h-screen flex flex-col bg-gray-50/30">
+                {/* Header Full Screen */}
+                <div className="px-10 py-5 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <Mail size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Crear Ticket</h3>
+                            <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Body - Full Screen Grid */}
+                <div className="flex-1 px-10 py-6 grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-7xl mx-auto w-full overflow-hidden">
+                    <div className="space-y-4 flex flex-col">
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
+                            <div className="relative">
+                                <input
+                                    type="email"
+                                    value={to}
+                                    onChange={(e) => setTo(e.target.value)}
+                                    placeholder="ejemplo@kbs-services.com"
+                                    className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
+                                />
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]">
+                                    <Send size={16} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto del Correo</label>
+                            <input
+                                type="text"
+                                value={subject}
+                                onChange={(e) => setSubject(e.target.value)}
+                                placeholder="Escriba el asunto aquí..."
+                                className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5 flex-1 flex flex-col overflow-hidden">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documentos Adjuntos ({attachments.length})</label>
+                            <input
+                                type="file"
+                                ref={ticketFileInputRef}
+                                className="hidden"
+                                onChange={handleFileChange}
+                                multiple
+                            />
+
+                            <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+                                <div
+                                    onClick={() => ticketFileInputRef.current.click()}
+                                    className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all cursor-pointer hover:border-[#6bbdb7] hover:bg-teal-50 shrink-0"
+                                >
+                                    <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10">
+                                        <Upload size={18} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">Adjuntar Archivos</p>
+                                        <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Haga clic aquí o pegue capturas (Ctrl+V)</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                    {attachments.map((file, idx) => (
+                                        <div key={idx} className="flex items-center gap-3 p-3 bg-white border border-gray-100 rounded-xl shadow-sm animate-in fade-in slide-in-from-left-2 duration-300">
+                                            <div className="p-2 bg-gray-50 text-[#303a7f] rounded-lg">
+                                                <FileText size={14} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[10px] font-black text-[#303a7f] uppercase truncate">{file.name}</p>
+                                                <p className="text-[8px] text-gray-400 font-bold uppercase">{file.type}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => removeAttachment(idx)}
+                                                className="p-2 hover:bg-red-50 text-gray-300 hover:text-red-500 rounded-lg transition-all"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {attachments.length === 0 && (
+                                        <div className="h-full flex flex-col items-center justify-center opacity-30">
+                                            <Paperclip size={32} className="mb-2" />
+                                            <p className="text-[9px] font-black uppercase tracking-widest text-center">Sin archivos adjuntos</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col space-y-1.5 h-full">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
+                        <textarea
+                            value={body}
+                            onChange={(e) => setBody(e.target.value)}
+                            onPaste={handlePaste}
+                            placeholder="Escriba su mensaje aquí... También puede pegar capturas directamente."
+                            className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]"
+                        />
+                    </div>
+                </div>
+
+                {/* Footer Full Screen - Compacto */}
+                <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
+                    <button
+                        onClick={onClose}
+                        className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={() => !isSending && onSend({ to, subject, body, attachments })}
                         disabled={isSending}
                         className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
@@ -11543,6 +11808,7 @@ function App() {
     const [csgNominaData, setCsgNominaData] = useState([]);
     const [activeCSGTab, setActiveCSGTab] = useState('registro'); // 'registro' | 'historial' | 'nomina' | 'facturacion'
     const [isCsgFormOpen, setIsCsgFormOpen] = useState(false);
+    const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
 
     const [invalidCodes, setInvalidCodes] = useState([]);
     const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
@@ -16640,6 +16906,7 @@ function App() {
                 syncToSheets={syncToSheets}
                 onRefreshHistory={fetchWosHistory}
                 onAcceptPayment={handleAcceptWOSPayment}
+                setNotificationModal={setNotificationModal}
             />
 
             {isManualModalOpen && (
@@ -16790,6 +17057,7 @@ function App() {
 
             {/* Soporte Técnico - Ventana de Chat vinculada con Gemini AI */}
             <SupportChat geminiApiKey={geminiApiKey} userName={user?.name} />
+            <EmailNotificationModal isOpen={notificationModal.isOpen} type={notificationModal.type} message={notificationModal.message} onOk={() => setNotificationModal({ ...notificationModal, isOpen: false })} />
         </div>
     );
 }
