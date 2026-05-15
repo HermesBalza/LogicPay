@@ -5065,10 +5065,13 @@ const VWHTableModal = (props) => {
 
         try {
             element.style.height = 'auto';
+            element.style.width = '1280px';
+            element.style.minWidth = '1280px';
             element.style.maxHeight = 'none';
             element.style.overflow = 'visible';
             if (scrollableDiv) {
                 scrollableDiv.style.height = 'auto';
+                scrollableDiv.style.width = '1280px';
                 scrollableDiv.style.maxHeight = 'none';
                 scrollableDiv.style.overflow = 'visible';
             }
@@ -5083,9 +5086,9 @@ const VWHTableModal = (props) => {
             });
 
             const imgData = canvas.toDataURL('image/png');
-            const imgWidth = 210;
+            const imgWidth = 277; // A4 landscape width approx in mm
             const pageHeight = (canvas.height * imgWidth) / canvas.width;
-            const pdf = new jsPDF('p', 'mm', [imgWidth, pageHeight]);
+            const pdf = new jsPDF('l', 'mm', [imgWidth, pageHeight]);
             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
 
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
@@ -5143,10 +5146,13 @@ const VWHTableModal = (props) => {
         try {
             // Forzamos expansión total para la captura
             element.style.height = 'auto';
+            element.style.width = '1280px';
+            element.style.minWidth = '1280px';
             element.style.maxHeight = 'none';
             element.style.overflow = 'visible';
             if (scrollableDiv) {
                 scrollableDiv.style.height = 'auto';
+                scrollableDiv.style.width = '1280px';
                 scrollableDiv.style.maxHeight = 'none';
                 scrollableDiv.style.overflow = 'visible';
             }
@@ -5163,10 +5169,10 @@ const VWHTableModal = (props) => {
             const imgData = canvas.toDataURL('image/png');
 
             // Calculamos dimensiones para una "sola hoja" de tamaño personalizado
-            const imgWidth = 210; // A4 width en mm
+            const imgWidth = 277; // A4 landscape width approx en mm
             const pageHeight = (canvas.height * imgWidth) / canvas.width;
 
-            const pdf = new jsPDF('p', 'mm', [imgWidth, pageHeight]);
+            const pdf = new jsPDF('l', 'mm', [imgWidth, pageHeight]);
             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
             pdf.save(`VWH_Report_${payrollStore}_${currentStartDate.replace(/\//g, '-')}.pdf`);
         } catch (error) {
@@ -5211,6 +5217,7 @@ const VWHTableModal = (props) => {
     };
 
     const renderVWHReport = (reportData, start, end, isSplitPart = false) => {
+        const isAZPEN = String(payrollStore).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN';
         const days = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
         let currentTotal = 0;
 
@@ -5220,18 +5227,116 @@ const VWHTableModal = (props) => {
         const dateStart = new Date(parseInt(yS), parseInt(mS) - 1, parseInt(dS));
         const dateEnd = new Date(parseInt(yE), parseInt(mE) - 1, parseInt(dE));
 
-        const startIndex = dateStart.getDay(); // 0-Dom, 6-Sab
-        const endIndex = dateEnd.getDay();
+        // Determinar si es una Quincena (rango mayor a 7 días)
+        const isQuincenaRange = (dateEnd - dateStart) / (1000 * 60 * 60 * 24) > 7;
+
+        const startIndex = isQuincenaRange ? 0 : dateStart.getDay(); // 0-Dom, 6-Sab
+        const endIndex = isQuincenaRange ? 6 : dateEnd.getDay();
 
         const processedData = reportData.map(emp => {
             let empTotalFragment = 0;
-            // Sumamos solo las horas que caen dentro del rango de índices detectado
+            // Sumamos las horas de las columnas correspondientes
             for (let i = startIndex; i <= endIndex; i++) {
                 empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
             }
             currentTotal += empTotalFragment;
             return { ...emp, fragmentTotal: empTotalFragment };
         });
+
+        if (isAZPEN) {
+            // Versión AZPEN: Estructura de 8 columnas idéntica a las otras tiendas para consistencia en PDF
+            return (
+                <div className="bg-white mx-auto h-fit max-w-7xl relative shadow-2xl border-2 border-gray-50 rounded-[4rem] overflow-hidden mb-16 last:mb-0">
+                    <div className="p-12 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/20 to-transparent">
+                        <div className="flex items-center gap-6">
+                            <div className="p-5 bg-[#303a7f] text-white rounded-[1.8rem] shadow-2xl shadow-blue-900/30">
+                                <ClipboardCheck size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">REPORTE VWH</h3>
+                                <p className="text-[#6bbdb7] font-black uppercase text-[12px] tracking-[0.2em]">
+                                    {payrollStore} | Period: {start} - {end}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Forzamos grid-cols-4 para evitar recortes en PDF */}
+                    <div className="px-12 py-10 grid grid-cols-4 gap-12 border-b-2 border-gray-50 bg-gray-50/30">
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Site Name</p>
+                            <p className="text-[13px] font-black text-[#303a7f] uppercase leading-tight">{payrollStore}</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">KBS ID</p>
+                            <p className="text-sm font-black text-[#303a7f] uppercase tabular-nums">{kbsId}</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Vendor Name</p>
+                            <p className="text-sm font-black text-[#303a7f] uppercase">Logic Group Management</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Total Billing</p>
+                            <p className="text-3xl font-black text-[#6bbdb7] tabular-nums leading-none tracking-tighter">$484.33</p>
+                        </div>
+                    </div>
+
+                    <div className="p-12">
+                        <div className="overflow-hidden rounded-[2.5rem] border-2 border-gray-100 shadow-2xl shadow-blue-900/[0.04]">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-50/80">
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Site Code</th>
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">KBS ID</th>
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100">Vendor Name</th>
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Billing Description</th>
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Date</th>
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Hours</th>
+                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Job Code</th>
+                                        <th className="p-5 text-[9px] font-black text-white uppercase tracking-[0.2em] text-right bg-[#303a7f] px-8">Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y-2 divide-gray-50">
+                                    <tr className="group hover:bg-blue-50/20 transition-all duration-300">
+                                        <td className="p-6 text-[11px] font-bold text-gray-500 uppercase pl-8">{payrollStore}</td>
+                                        <td className="p-6 text-[11px] font-bold text-gray-500 text-center tabular-nums">{kbsId}</td>
+                                        <td className="p-6 text-[10px] font-black text-gray-400 uppercase opacity-40">Logic Group</td>
+                                        <td className="p-6 pl-8">
+                                            <span className="text-[12px] font-black text-[#303a7f] uppercase tracking-tight">Janitorial and Maintenance Services</span>
+                                        </td>
+                                        <td className="p-6 text-[11px] font-bold text-gray-400 text-center whitespace-nowrap">{start}-{end}</td>
+                                        <td className="p-6 text-[11px] font-bold text-gray-500 text-center">N/A</td>
+                                        <td className="p-6 text-[11px] font-bold text-gray-500 text-center">---</td>
+                                        <td className="p-6 text-right px-8 bg-[#303a7f]/[0.02]">
+                                            <span className="text-sm font-black text-[#303a7f] tabular-nums">$484.33</span>
+                                        </td>
+                                    </tr>
+                                    <tr className="bg-[#303a7f] border-t-4 border-white">
+                                        <td colSpan={7} className="p-8 text-[11px] font-black text-white uppercase tracking-[0.3em] text-right italic pr-12 opacity-80">
+                                            Total
+                                        </td>
+                                        <td className="p-8 text-right bg-[#303a7f]/90 px-8">
+                                            <span className="text-2xl font-black text-white tabular-nums drop-shadow-xl tracking-tighter">
+                                                $484.33
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="mt-16 flex justify-between items-center opacity-30 px-6 border-t-2 border-gray-50 pt-8">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-[#303a7f] flex items-center justify-center text-white">
+                                    <Receipt size={14} />
+                                </div>
+                                <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">AdWisers LogicPay</p>
+                            </div>
+                            <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">Logic Group Management LLC.</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
         return (
             <div className="bg-white mx-auto h-fit max-w-7xl relative shadow-2xl border-2 border-gray-50 rounded-[4rem] overflow-hidden mb-16 last:mb-0">
@@ -6225,7 +6330,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                     })
                 });
                 setSendingProgress(prev => ({ ...prev, logs: [`✅ Enviado a ${email}`, ...prev.logs] }));
-                
+
                 if (onEmailSent) {
                     const persistentKey = `${selectedPeriod.range.replace(/\s+/g, '')}#${emp.id}`;
                     onEmailSent(persistentKey);
@@ -6408,8 +6513,8 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
         const rowsToInsert = data.map(row => {
             const empCode = row.nombre ? row.nombre.toString().trim() : "";
             // Buscar empleado en la base de datos local para obtener nombre y cargo reales si existen
-            const localMatch = (employees || []).find(e => 
-                e.codigo_empleado && e.codigo_empleado.toString().trim() === empCode && 
+            const localMatch = (employees || []).find(e =>
+                e.codigo_empleado && e.codigo_empleado.toString().trim() === empCode &&
                 e.tienda === payrollStore
             );
 
@@ -7203,7 +7308,7 @@ const WOSTicketModal = ({ isOpen, onClose, onSend, isSending }) => {
     if (!isOpen) return null;
 
     return (
-        <div 
+        <div
             className="fixed inset-0 z-[500] bg-white animate-in slide-in-from-bottom duration-500 overflow-hidden font-sans"
             onPaste={handlePaste}
         >
@@ -10193,6 +10298,7 @@ const BillingView = ({
     specialHistoryData = [],
     isSyncing = false,
     onOpenVWH = () => { },
+    onOpenQuincenaVWH = () => { },
     onOpenPE = () => { },
     onUpdateManual = () => { },
     onUpdateManualPE = () => { },
@@ -10231,7 +10337,7 @@ const BillingView = ({
 
     if (isAZPEN) {
         const quincenasMap = {};
-        
+
         activeRecords.forEach(h => {
             if (!h.fecha_inicio) return;
             const partsStart = h.fecha_inicio.split('/');
@@ -10245,23 +10351,23 @@ const BillingView = ({
                 const d = dateObj.getDate();
                 const qNumber = d <= 15 ? 1 : 2;
                 const qKey = `${y}-${String(m).padStart(2, '0')}-Q${qNumber}`;
-                
+
                 if (!quincenasMap[qKey]) {
                     const mStr = String(m).padStart(2, '0');
                     const lastDay = new Date(y, m, 0).getDate();
                     const qStart = qNumber === 1 ? `${mStr}/01/${y}` : `${mStr}/16/${y}`;
                     const qEnd = qNumber === 1 ? `${mStr}/15/${y}` : `${mStr}/${lastDay}/${y}`;
-                    
+
                     quincenasMap[qKey] = {
                         _ids: new Set(),
-                        id: h.codigo, 
+                        id: h.codigo,
                         radicacion: '',
                         semana: `${qStart} - ${qEnd}`,
                         fecha_inicio: qStart,
                         fecha_fin: qEnd,
                         nombre_store: h.nombre || '',
                         horas: 0,
-                        facturacion: 484.33, 
+                        facturacion: 484.33,
                         costos: 0,
                         utilidad: 0,
                         pago: '',
@@ -10271,7 +10377,7 @@ const BillingView = ({
                         _qKey: qKey
                     };
                 }
-                
+
                 const q = quincenasMap[qKey];
                 q._ids.add(h.codigo);
                 if (h['Fecha Rad.'] || h['fecha rad.']) q.radicacion = h['Fecha Rad.'] || h['fecha rad.'];
@@ -10280,14 +10386,14 @@ const BillingView = ({
                 if (h['wos'] || h['WOS']) q.wos = h['wos'] || h['WOS'];
                 const statusVal = h['Status'] || h['status'] || '';
                 if (statusVal === 'Paid') q.pagada = true;
-                
+
                 return q;
             };
 
             try {
                 if (h && h.data_json) {
                     const data = JSON.parse(h.data_json);
-                    
+
                     const helperHhmmToDecimal = (v) => {
                         if (!v || v === 'X' || v === '0:00') return 0;
                         const s = String(v);
@@ -10311,7 +10417,7 @@ const BillingView = ({
                                 eIdx = new Date(fyE, fmE - 1, fdE).getDay();
                             } catch (e) { sIdx = 0; eIdx = 6; }
                         }
-                        
+
                         data.semanaTableData.forEach(emp => {
                             const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
                             const earningRow = (data.earningsTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId);
@@ -10328,12 +10434,12 @@ const BillingView = ({
                                 }
                             }
                         });
-                    } 
-                    
+                    }
+
                     if (!addedHours && h.fecha_fin) {
                         const [mF, dF, yF] = h.fecha_fin.split('/').map(Number);
                         const q = getOrInitQuincena(new Date(yF, mF - 1, dF));
-                        
+
                         let totalH = 0;
                         let totalC = 0;
                         if (data.kbsBillingTableData) {
@@ -10583,9 +10689,13 @@ const BillingView = ({
                                 <td className="px-3 py-4 text-center">
                                     <div className="flex items-center justify-center gap-2">
                                         {isAZPEN ? (
-                                            <span className="text-[#303a7f] font-bold text-[10px] whitespace-nowrap px-2 pb-0.5">
+                                            <button
+                                                onClick={() => onOpenQuincenaVWH(row)}
+                                                title="Ver Detalle de Nómina Quincenal VWH"
+                                                className="text-[#303a7f] hover:text-[#6bbdb7] border-[#303a7f]/30 hover:border-[#6bbdb7] active:scale-95 text-[10px] font-bold transition-all border-b border-dashed pb-0.5 whitespace-nowrap px-2"
+                                            >
                                                 {row.semana}
-                                            </span>
+                                            </button>
                                         ) : (
                                             <button
                                                 onClick={() => onOpenVWH(row.id)}
@@ -16561,6 +16671,83 @@ function App() {
                                     }
                                 } else {
                                     showError("No se encontró el registro histórico para esta semana.");
+                                }
+                            }}
+                            onOpenQuincenaVWH={(row) => {
+                                // Helper local para evitar error de referencia
+                                const rowTotalToNumber = (val) => {
+                                    if (!val) return 0;
+                                    return String(val).replace(/[^0-9.-]+/g, "");
+                                };
+
+                                const ids = Array.isArray(row._ids) ? row._ids : [];
+                                const historyRecords = nominaHistoryData.filter(h =>
+                                    String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
+                                    ids.includes(String(h.codigo))
+                                );
+
+                                if (historyRecords.length > 0) {
+                                    try {
+                                        let consolidatedSemana = [];
+                                        let consolidatedEarnings = [];
+                                        let consolidatedKbs = [];
+                                        let consolidatedBiometric = [];
+                                        let consolidatedRaw = [];
+
+                                        historyRecords.forEach(h => {
+                                            const payload = JSON.parse(h.data_json);
+                                            (payload.semanaTableData || []).forEach(emp => {
+                                                const empId = String(emp.codigo || emp.nombre);
+                                                const existing = consolidatedSemana.find(e => String(e.codigo || e.nombre) === empId);
+                                                if (existing) {
+                                                    ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].forEach(day => {
+                                                        const currentVal = hhmmToDecimal(existing[day]?.final || 0);
+                                                        const newVal = hhmmToDecimal(emp[day]?.final || 0);
+                                                        if (newVal > 0) {
+                                                            const totalHrs = currentVal + newVal;
+                                                            const hNum = Math.floor(totalHrs);
+                                                            const mNum = Math.round((totalHrs - hNum) * 60);
+                                                            existing[day] = { ...existing[day], final: `${hNum}:${String(mNum).padStart(2, '0')}` };
+                                                        }
+                                                    });
+                                                    existing.total = (parseFloat(existing.total) || 0) + (parseFloat(emp.total) || 0);
+                                                } else {
+                                                    consolidatedSemana.push({ ...emp });
+                                                }
+                                            });
+
+                                            (payload.earningsTableData || []).forEach(earn => {
+                                                const existing = consolidatedEarnings.find(e => String(e.codigo || e.nombre) === String(earn.codigo || earn.nombre));
+                                                if (existing) {
+                                                    existing.total = (parseFloat(rowTotalToNumber(existing.total)) + parseFloat(rowTotalToNumber(earn.total))).toFixed(2);
+                                                } else {
+                                                    consolidatedEarnings.push({ ...earn });
+                                                }
+                                            });
+
+                                            consolidatedKbs = [...consolidatedKbs, ...(payload.kbsBillingTableData || [])];
+                                            consolidatedBiometric = [...consolidatedBiometric, ...(payload.biometricTableData || [])];
+                                            consolidatedRaw = [...consolidatedRaw, ...(payload.rawBiometricData || [])];
+                                        });
+
+                                        setSemanaTableData(consolidatedSemana);
+                                        setEarningsTableData(consolidatedEarnings);
+                                        setKbsBillingTableData(consolidatedKbs);
+                                        setBiometricTableData(consolidatedBiometric);
+                                        setRawBiometricData(consolidatedRaw);
+
+                                        setFechaDesde(row.fecha_inicio);
+                                        setFechaHasta(row.fecha_fin);
+                                        setPayrollStore(selectedHistoryStore);
+                                        setVwhRecordId(ids[0]);
+                                        setIsHistoricalDataLoaded(true);
+                                        setIsVWHModalOpen(true);
+                                    } catch (e) {
+                                        console.error("[BillingView] Error consolidando quincena:", e);
+                                        showError("Error al consolidar los datos de la quincena.");
+                                    }
+                                } else {
+                                    showError("No se encontraron registros para esta quincena.");
                                 }
                             }}
                             onOpenPE={(projectId) => {
