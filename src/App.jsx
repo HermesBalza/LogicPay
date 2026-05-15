@@ -10201,6 +10201,8 @@ const BillingView = ({
     filterYear = new Date().getFullYear()
 }) => {
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
+    const isAZPEN = String(storeName).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN';
+
     // --- LÓGICA TABLA VWH (Nómina Regular) ---
     // Filtrado y ordenado seguro (Safe-Sort) - incluye filtro por año seleccionado
     const activeRecords = (historyData || [])
@@ -10225,85 +10227,219 @@ const BillingView = ({
             } catch (e) { return 0; }
         });
 
-    const tableData = activeRecords.map(h => {
-        let stats = { horas: 0, facturacion: 0, costos: 0 };
-        try {
-            if (h && h.data_json) {
-                const data = JSON.parse(h.data_json);
-                // --- CÁLCULO DE FACTURACIÓN (KBS) ---
-                if (data.kbsBillingTableData) {
-                    data.kbsBillingTableData.forEach(r => {
-                        const totalVal = parseFloat(rowTotalToNumber(r.total)) || 0;
-                        stats.facturacion += totalVal;
-                    });
+    let tableData = [];
+
+    if (isAZPEN) {
+        const quincenasMap = {};
+        
+        activeRecords.forEach(h => {
+            if (!h.fecha_inicio) return;
+            const partsStart = h.fecha_inicio.split('/');
+            if (partsStart.length !== 3) return;
+            const [mS, dS, yS] = partsStart.map(Number);
+            const baseStartDate = new Date(yS, mS - 1, dS);
+
+            const getOrInitQuincena = (dateObj) => {
+                const y = dateObj.getFullYear();
+                const m = dateObj.getMonth() + 1;
+                const d = dateObj.getDate();
+                const qNumber = d <= 15 ? 1 : 2;
+                const qKey = `${y}-${String(m).padStart(2, '0')}-Q${qNumber}`;
+                
+                if (!quincenasMap[qKey]) {
+                    const mStr = String(m).padStart(2, '0');
+                    const lastDay = new Date(y, m, 0).getDate();
+                    const qStart = qNumber === 1 ? `${mStr}/01/${y}` : `${mStr}/16/${y}`;
+                    const qEnd = qNumber === 1 ? `${mStr}/15/${y}` : `${mStr}/${lastDay}/${y}`;
+                    
+                    quincenasMap[qKey] = {
+                        _ids: new Set(),
+                        id: h.codigo, 
+                        radicacion: '',
+                        semana: `${qStart} - ${qEnd}`,
+                        fecha_inicio: qStart,
+                        fecha_fin: qEnd,
+                        nombre_store: h.nombre || '',
+                        horas: 0,
+                        facturacion: 484.33, 
+                        costos: 0,
+                        utilidad: 0,
+                        pago: '',
+                        fecha_pago: '',
+                        wos: '',
+                        pagada: false,
+                        _qKey: qKey
+                    };
                 }
+                
+                const q = quincenasMap[qKey];
+                q._ids.add(h.codigo);
+                if (h['Fecha Rad.'] || h['fecha rad.']) q.radicacion = h['Fecha Rad.'] || h['fecha rad.'];
+                if (h['pago'] || h['Pago']) q.pago = h['pago'] || h['Pago'];
+                if (h['fecha de pago'] || h['Fecha de Pago']) q.fecha_pago = h['fecha de pago'] || h['Fecha de Pago'];
+                if (h['wos'] || h['WOS']) q.wos = h['wos'] || h['WOS'];
+                const statusVal = h['Status'] || h['status'] || '';
+                if (statusVal === 'Paid') q.pagada = true;
+                
+                return q;
+            };
 
-                // --- CÁLCULO DE HORAS (Consistencia con Reporte VWH) ---
-                const helperHhmmToDecimal = (v) => {
-                    if (!v || v === 'X' || v === '0:00') return 0;
-                    const s = String(v);
-                    if (s.includes(':')) {
-                        const [h, m] = s.split(':').map(Number);
-                        return h + (m || 0) / 60;
-                    }
-                    return parseFloat(s) || 0;
-                };
-
-                if (data.semanaTableData) {
-                    const daysMapping = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-                    let sIdx = 0;
-                    let eIdx = 6;
-
-                    if (data.isSplitFragment && data.fragmentRange) {
-                        try {
-                            const [mS, dS, yS] = data.fragmentRange.start.split('/');
-                            const [mE, dE, yE] = data.fragmentRange.end.split('/');
-                            sIdx = new Date(yS, mS - 1, dS).getDay();
-                            eIdx = new Date(yE, mE - 1, dE).getDay();
-                        } catch (e) {
-                            sIdx = 0; eIdx = 6;
+            try {
+                if (h && h.data_json) {
+                    const data = JSON.parse(h.data_json);
+                    
+                    const helperHhmmToDecimal = (v) => {
+                        if (!v || v === 'X' || v === '0:00') return 0;
+                        const s = String(v);
+                        if (s.includes(':')) {
+                            const [hrs, min] = s.split(':').map(Number);
+                            return hrs + (min || 0) / 60;
                         }
+                        return parseFloat(s) || 0;
+                    };
+
+                    let addedHours = false;
+
+                    if (data.semanaTableData) {
+                        const daysMapping = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                        let sIdx = 0; let eIdx = 6;
+                        if (data.isSplitFragment && data.fragmentRange) {
+                            try {
+                                const [fmS, fdS, fyS] = data.fragmentRange.start.split('/');
+                                const [fmE, fdE, fyE] = data.fragmentRange.end.split('/');
+                                sIdx = new Date(fyS, fmS - 1, fdS).getDay();
+                                eIdx = new Date(fyE, fmE - 1, fdE).getDay();
+                            } catch (e) { sIdx = 0; eIdx = 6; }
+                        }
+                        
+                        data.semanaTableData.forEach(emp => {
+                            const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
+                            const earningRow = (data.earningsTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId);
+                            const rate = earningRow ? (parseFloat(earningRow.rate) || 0) : 0;
+
+                            for (let i = sIdx; i <= eIdx; i++) {
+                                const hrs = helperHhmmToDecimal(emp[daysMapping[i]]?.final || 0);
+                                if (hrs > 0) {
+                                    const currentDate = new Date(baseStartDate.getFullYear(), baseStartDate.getMonth(), baseStartDate.getDate() + (i - sIdx));
+                                    const q = getOrInitQuincena(currentDate);
+                                    q.horas += hrs;
+                                    q.costos += hrs * rate;
+                                    addedHours = true;
+                                }
+                            }
+                        });
+                    } 
+                    
+                    if (!addedHours && h.fecha_fin) {
+                        const [mF, dF, yF] = h.fecha_fin.split('/').map(Number);
+                        const q = getOrInitQuincena(new Date(yF, mF - 1, dF));
+                        
+                        let totalH = 0;
+                        let totalC = 0;
+                        if (data.kbsBillingTableData) {
+                            data.kbsBillingTableData.forEach(r => {
+                                const totalVal = parseFloat(rowTotalToNumber(r.total)) || 0;
+                                const rateVal = parseFloat(r.rate) || 1;
+                                totalH += totalVal / rateVal;
+                            });
+                        }
+                        if (data.earningsTableData) {
+                            totalC = data.earningsTableData.reduce((acc, r) => acc + (parseFloat(rowTotalToNumber(r.total)) || 0), 0);
+                        }
+                        q.horas += totalH;
+                        q.costos += totalC;
+                    }
+                }
+            } catch (e) { console.error("[LogicPay] Error parsing history json for AZPEN", e); }
+        });
+
+        tableData = Object.values(quincenasMap).map(q => {
+            q._ids = Array.from(q._ids);
+            q.utilidad = q.facturacion - q.costos;
+            return q;
+        }).sort((a, b) => a._qKey.localeCompare(b._qKey));
+
+    } else {
+        tableData = activeRecords.map(h => {
+            let stats = { horas: 0, facturacion: 0, costos: 0 };
+            try {
+                if (h && h.data_json) {
+                    const data = JSON.parse(h.data_json);
+                    // --- CÁLCULO DE FACTURACIÓN (KBS) ---
+                    if (data.kbsBillingTableData) {
+                        data.kbsBillingTableData.forEach(r => {
+                            const totalVal = parseFloat(rowTotalToNumber(r.total)) || 0;
+                            stats.facturacion += totalVal;
+                        });
                     }
 
-                    data.semanaTableData.forEach(emp => {
-                        for (let i = sIdx; i <= eIdx; i++) {
-                            stats.horas += helperHhmmToDecimal(emp[daysMapping[i]]?.final || 0);
+                    // --- CÁLCULO DE HORAS (Consistencia con Reporte VWH) ---
+                    const helperHhmmToDecimal = (v) => {
+                        if (!v || v === 'X' || v === '0:00') return 0;
+                        const s = String(v);
+                        if (s.includes(':')) {
+                            const [h, m] = s.split(':').map(Number);
+                            return h + (m || 0) / 60;
                         }
-                    });
-                } else if (data.kbsBillingTableData) {
-                    // Fallback para registros antiguos
-                    data.kbsBillingTableData.forEach(r => {
-                        const totalVal = parseFloat(rowTotalToNumber(r.total)) || 0;
-                        const rateVal = parseFloat(r.rate) || 1;
-                        stats.horas += totalVal / rateVal;
-                    });
-                }
-                if (data.earningsTableData) {
-                    stats.costos = data.earningsTableData.reduce((acc, r) => acc + (parseFloat(rowTotalToNumber(r.total)) || 0), 0);
-                }
-            }
-        } catch (e) { console.error("[LogicPay] Error parsing history json", e); }
+                        return parseFloat(s) || 0;
+                    };
 
-        const statusVal = h['Status'] || h['status'] || '';
-        const isPaid = statusVal === 'Paid';
+                    if (data.semanaTableData) {
+                        const daysMapping = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                        let sIdx = 0;
+                        let eIdx = 6;
 
-        return {
-            id: h.codigo,
-            radicacion: h['Fecha Rad.'] || h['fecha rad.'] || '',
-            semana: h.fecha_inicio && h.fecha_fin ? `${h.fecha_inicio} - ${h.fecha_fin}` : 'Período Desconocido',
-            fecha_inicio: h.fecha_inicio || '',
-            fecha_fin: h.fecha_fin || '',
-            nombre_store: h.nombre || '',
-            horas: stats.horas || 0,
-            facturacion: stats.facturacion || 0,
-            costos: stats.costos || 0,
-            utilidad: (stats.facturacion || 0) - (stats.costos || 0),
-            pago: h['pago'] || h['Pago'] || '',
-            fecha_pago: h['fecha de pago'] || h['Fecha de Pago'] || '',
-            wos: h['wos'] || h['WOS'] || '',
-            pagada: isPaid
-        };
-    });
+                        if (data.isSplitFragment && data.fragmentRange) {
+                            try {
+                                const [mS, dS, yS] = data.fragmentRange.start.split('/');
+                                const [mE, dE, yE] = data.fragmentRange.end.split('/');
+                                sIdx = new Date(yS, mS - 1, dS).getDay();
+                                eIdx = new Date(yE, mE - 1, dE).getDay();
+                            } catch (e) {
+                                sIdx = 0; eIdx = 6;
+                            }
+                        }
+
+                        data.semanaTableData.forEach(emp => {
+                            for (let i = sIdx; i <= eIdx; i++) {
+                                stats.horas += helperHhmmToDecimal(emp[daysMapping[i]]?.final || 0);
+                            }
+                        });
+                    } else if (data.kbsBillingTableData) {
+                        // Fallback para registros antiguos
+                        data.kbsBillingTableData.forEach(r => {
+                            const totalVal = parseFloat(rowTotalToNumber(r.total)) || 0;
+                            const rateVal = parseFloat(r.rate) || 1;
+                            stats.horas += totalVal / rateVal;
+                        });
+                    }
+                    if (data.earningsTableData) {
+                        stats.costos = data.earningsTableData.reduce((acc, r) => acc + (parseFloat(rowTotalToNumber(r.total)) || 0), 0);
+                    }
+                }
+            } catch (e) { console.error("[LogicPay] Error parsing history json", e); }
+
+            const statusVal = h['Status'] || h['status'] || '';
+            const isPaid = statusVal === 'Paid';
+
+            return {
+                id: h.codigo,
+                radicacion: h['Fecha Rad.'] || h['fecha rad.'] || '',
+                semana: h.fecha_inicio && h.fecha_fin ? `${h.fecha_inicio} - ${h.fecha_fin}` : 'Período Desconocido',
+                fecha_inicio: h.fecha_inicio || '',
+                fecha_fin: h.fecha_fin || '',
+                nombre_store: h.nombre || '',
+                horas: stats.horas || 0,
+                facturacion: stats.facturacion || 0,
+                costos: stats.costos || 0,
+                utilidad: (stats.facturacion || 0) - (stats.costos || 0),
+                pago: h['pago'] || h['Pago'] || '',
+                fecha_pago: h['fecha de pago'] || h['Fecha de Pago'] || '',
+                wos: h['wos'] || h['WOS'] || '',
+                pagada: isPaid
+            };
+        });
+    }
 
     // --- LÓGICA TABLA PROYECTOS ESPECIALES (P.E) ---
     // currentYear usa el año seleccionado desde el Motor de Nómina (filterYear)
@@ -10427,7 +10563,7 @@ const BillingView = ({
                 <table className="w-full border-collapse table-auto mb-6">
                     <thead className="sticky top-0 z-20">
                         <tr className="bg-white border-b border-gray-100 shadow-sm">
-                            {['Fecha Rad.', 'Semana Facturada', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Status'].map((h, i) => (
+                            {['Fecha Rad.', isAZPEN ? 'Quincena Facturada' : 'Semana Facturada', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Status'].map((h, i) => (
                                 <th key={i} className="px-2 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
                             ))}
                         </tr>
@@ -10446,13 +10582,19 @@ const BillingView = ({
                                 </td>
                                 <td className="px-3 py-4 text-center">
                                     <div className="flex items-center justify-center gap-2">
-                                        <button
-                                            onClick={() => onOpenVWH(row.id)}
-                                            title="Ver Detalle de Nómina VWH"
-                                            className="text-[#303a7f] hover:text-[#6bbdb7] border-[#303a7f]/30 hover:border-[#6bbdb7] active:scale-95 text-[10px] font-bold transition-all border-b border-dashed pb-0.5"
-                                        >
-                                            {row.semana}
-                                        </button>
+                                        {isAZPEN ? (
+                                            <span className="text-[#303a7f] font-bold text-[10px] whitespace-nowrap px-2 pb-0.5">
+                                                {row.semana}
+                                            </span>
+                                        ) : (
+                                            <button
+                                                onClick={() => onOpenVWH(row.id)}
+                                                title="Ver Detalle de Nómina VWH"
+                                                className="text-[#303a7f] hover:text-[#6bbdb7] border-[#303a7f]/30 hover:border-[#6bbdb7] active:scale-95 text-[10px] font-bold transition-all border-b border-dashed pb-0.5"
+                                            >
+                                                {row.semana}
+                                            </button>
+                                        )}
                                         {(() => {
                                             // Construir múltiples variantes de clave para máxima compatibilidad con Variables
                                             const fi = row.fecha_inicio || '';
@@ -10499,7 +10641,14 @@ const BillingView = ({
                                     <input
                                         type="checkbox"
                                         checked={row.pagada}
-                                        onChange={(e) => onUpdateManual(row.id, 'pagada', e.target.checked)}
+                                        onChange={(e) => {
+                                            const val = e.target.checked;
+                                            if (row._ids) {
+                                                row._ids.forEach(id => onUpdateManual(id, 'pagada', val));
+                                            } else {
+                                                onUpdateManual(row.id, 'pagada', val);
+                                            }
+                                        }}
                                         className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all"
                                     />
                                 </td>
