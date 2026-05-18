@@ -10560,6 +10560,9 @@ const BillingView = ({
         });
     }
 
+    // Filtrar semanas con cero actividad (0 horas), ya que no generan facturación a KBS
+    tableData = tableData.filter(item => item.horas > 0);
+
     // --- LÓGICA TABLA PROYECTOS ESPECIALES (P.E) ---
     // currentYear usa el año seleccionado desde el Motor de Nómina (filterYear)
     const currentYear = filterYear;
