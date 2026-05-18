@@ -11687,7 +11687,7 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
         return Object.values(groups).map(g => ({
             ...g,
             rateAverage: g.hours > 0 ? (g.totalKBS / g.hours) : 0
-        })).sort((a, b) => {
+        })).filter(g => g.hours > 0).sort((a, b) => {
             try {
                 const dateA = String(a.date || '').split(' - ')[0];
                 const dateB = String(b.date || '').split(' - ')[0];
