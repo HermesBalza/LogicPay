@@ -10373,7 +10373,7 @@ const BillingView = ({
 
                     quincenasMap[qKey] = {
                         _ids: new Set(),
-                        id: h.codigo,
+                        id: '',
                         radicacion: '',
                         semana: `${qStart} - ${qEnd}`,
                         fecha_inicio: qStart,
@@ -10393,12 +10393,20 @@ const BillingView = ({
 
                 const q = quincenasMap[qKey];
                 q._ids.add(h.codigo);
-                if (h['Fecha Rad.'] || h['fecha rad.']) q.radicacion = h['Fecha Rad.'] || h['fecha rad.'];
-                if (h['pago'] || h['Pago']) q.pago = h['pago'] || h['Pago'];
-                if (h['fecha de pago'] || h['Fecha de Pago']) q.fecha_pago = h['fecha de pago'] || h['Fecha de Pago'];
-                if (h['wos'] || h['WOS']) q.wos = h['wos'] || h['WOS'];
-                const statusVal = h['Status'] || h['status'] || '';
-                if (statusVal === 'Paid') q.pagada = true;
+
+                // Evitar contaminación cruzada: solo asociar ID y metadatos si la semana coincide con la quincena correspondiente
+                const hQNumber = dS <= 15 ? 1 : 2;
+                const hQKey = `${yS}-${String(mS).padStart(2, '0')}-Q${hQNumber}`;
+
+                if (qKey === hQKey) {
+                    if (!q.id) q.id = h.codigo;
+                    if (h['Fecha Rad.'] || h['fecha rad.']) q.radicacion = h['Fecha Rad.'] || h['fecha rad.'];
+                    if (h['pago'] || h['Pago']) q.pago = h['pago'] || h['Pago'];
+                    if (h['fecha de pago'] || h['Fecha de Pago']) q.fecha_pago = h['fecha de pago'] || h['Fecha de Pago'];
+                    if (h['wos'] || h['WOS']) q.wos = h['wos'] || h['WOS'];
+                    const statusVal = h['Status'] || h['status'] || '';
+                    if (statusVal === 'Paid') q.pagada = true;
+                }
 
                 return q;
             };
@@ -10736,11 +10744,12 @@ const BillingView = ({
                                                 `${storeName}_${fi}_${ff}`,
                                                 `${storeName.toLowerCase()}_${fi}_${ff}`,
                                             ];
-                                            return (row.radicacion && row.radicacion !== '--/--/--') ? (
+                                            const isSent = (row.radicacion && row.radicacion !== '--/--/--') || candidateKeys.some(k => vwhEmailsSent[k]);
+                                            return isSent ? (
                                                 <Send
                                                     size={18}
                                                     className="text-[#6bbdb7] drop-shadow-[0_0_15px_rgba(107,189,183,1)] animate-in fade-in zoom-in duration-500"
-                                                    title={`Enviado el ${row.radicacion}`}
+                                                    title={`Enviado el ${row.radicacion || 'recientemente'}`}
                                                 />
                                             ) : null;
                                         })()}
@@ -15298,7 +15307,7 @@ function App() {
                     // 1. Marcar como enviado
                     const updated = { ...vwhEmailsSent, [reportKey]: true };
                     setVwhEmailsSent(updated);
-                    syncVariableToSheets('vwh_emails_sent', updated);
+                    // syncVariableToSheets('vwh_emails_sent', updated);
 
                     // 2. Automatización Fecha Rad. (MM/DD/YYYY)
                     if (vwhRecordId) {
@@ -16756,7 +16765,7 @@ function App() {
                                         setFechaDesde(row.fecha_inicio);
                                         setFechaHasta(row.fecha_fin);
                                         setPayrollStore(selectedHistoryStore);
-                                        setVwhRecordId(ids[0]);
+                                        setVwhRecordId(row.id);
                                         setIsHistoricalDataLoaded(true);
                                         setIsVWHModalOpen(true);
                                     } catch (e) {
