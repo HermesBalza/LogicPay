@@ -4873,6 +4873,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
     };
 
     const [to, setTo] = useState('');
+    const [cc, setCc] = useState('');
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
     const [relevantProjects, setRelevantProjects] = useState([]);
@@ -4886,13 +4887,18 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
 
             // Asignar email por defecto según manager
             let emailTo = "";
+            let emailCc = "";
             if (mName === "Pauline") emailTo = "pauline.ross@kbs-services.com";
-            else if (mName === "Shawna") emailTo = "spatterson@kbs-services.com";
+            else if (mName === "Shawna") {
+                emailTo = "spatterson@kbs-services.com";
+                emailCc = "estefanyclgm@gmail.com, GFish@kbs-services.com, mary.alstatt@kbs-services.com";
+            }
             else if (mName === "Tawana") emailTo = "Tawana.Davis@kbs-services.com";
             else if (mName === "Christian / Alfredo") emailTo = "christian.madrigal@kbs-services.com, ALitardo@kbs-services.com";
             else if (mName === "Hugh") emailTo = "";
 
             setTo(emailTo);
+            setCc(emailCc);
             setSubject(`${storeName} Hours Report ${dStart} - ${dEnd}`);
             setBody(`${greeting}\n\nAttached is the Weekly Attendance Report for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nI look forward to your approval.\n\nBest regards,\nLogic Group Management`);
 
@@ -4949,6 +4955,13 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                             <div className="relative">
                                 <input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="ejemplo@correo.com" className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
                                 <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]"><Send size={16} /></div>
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Con Copia (CC)</label>
+                            <div className="relative">
+                                <input type="text" value={cc} onChange={(e) => setCc(e.target.value)} placeholder="ejemplo@correo.com, otro@correo.com" className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]"><Users size={16} /></div>
                             </div>
                         </div>
                         <div className="space-y-1.5">
@@ -5014,7 +5027,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                         Cancelar
                     </button>
                     <button
-                        onClick={() => !isSending && onSend({ to, subject, body, relevantProjects })}
+                        onClick={() => !isSending && onSend({ to, cc, subject, body, relevantProjects })}
                         disabled={isSending}
                         className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
@@ -13421,6 +13434,7 @@ function App() {
                 headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify({
                     to: emailData.to,
+                    cc: emailData.cc,
                     subject: emailData.subject,
                     body: emailData.body,
                     attachments: attachments
