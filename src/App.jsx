@@ -3846,6 +3846,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                             <option value="Janitorial">Janitorial</option>
                                             <option value="Utility">Utility</option>
                                             <option value="Shift Lead">Shift Lead</option>
+                                            <option value="Supervisor">Supervisor</option>
                                         </select>
                                     ) : (
                                         <input
@@ -4365,6 +4366,7 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
                                         <option value="Janitorial">Janitorial</option>
                                         <option value="Utility">Utility</option>
                                         <option value="Shift Lead">Shift Lead</option>
+                                        <option value="Supervisor">Supervisor</option>
                                     </select>
                                 </div>
                                 <div className="group">
@@ -7471,7 +7473,7 @@ const PayStubPDF = ({ employee, period, store, companyInfo }) => {
     const primaryColor = "#303a7f";
     const secondaryColor = "#6bbdb7";
 
-    const totalEarnings = (parseFloat(employee.earningsW1) || 0) + (parseFloat(employee.earningsW2) || 0) + (parseFloat(employee.peEarnings) || 0) + (parseFloat(employee.csgEarnings) || 0) + (parseFloat(employee.adminEarnings) || 0);
+    const totalEarnings = (parseFloat(employee.earningsW1) || 0) + (parseFloat(employee.earningsW2) || 0) + (parseFloat(employee.peEarnings) || 0) + (parseFloat(employee.csgEarnings) || 0) + (parseFloat(employee.adminEarnings) || 0) + (parseFloat(employee.sueldoFijo) || 0);
 
     // Lógica para calcular rangos de fechas por semana
     const [startStr, endStr] = (period.range || "").split(" - ");
@@ -7580,6 +7582,13 @@ const PayStubPDF = ({ employee, period, store, companyInfo }) => {
                             <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.adminEarnings).toFixed(2)}</td>
                         </tr>
                     )}
+                    {/* Supervisor Fixed Salary */}
+                    {parseFloat(employee.sueldoFijo) > 0 && (
+                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>Biweekly Fixed Salary (Supervisor)</td>
+                            <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.sueldoFijo).toFixed(2)}</td>
+                        </tr>
+                    )}
                 </tbody>
             </table>
 
@@ -7637,6 +7646,11 @@ const generatePayStubPDF = async (stubId) => {
 const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, onConfirmPayroll, onBack }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
+    const [addedSupervisors, setAddedSupervisors] = useState([]);
+    const [superInputName, setSuperInputName] = useState('');
+    const [superInputSalary, setSuperInputSalary] = useState('');
+    const [superSelectedId, setSuperSelectedId] = useState('');
+    const [showSuperSuggestions, setShowSuperSuggestions] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const biweeklyReportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -7658,7 +7672,49 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
     // 2. Lógica de consolidación (W1 + W2) con detección Multi-Sitio
     useEffect(() => {
-        if (!period || !nominaHistoryData.length) return;
+        if (!period) return;
+
+        // Cargar desde Nomina_Detalle si ya está confirmada
+        const loadedConsId = `${period.store}_${period.range}`.replace(/\s+/g, '_');
+        const loadedExistingDetail = (nominaDetailData || []).find(d =>
+            String(d.id_consolidacion || '').trim() === loadedConsId
+        );
+
+        if (loadedExistingDetail && loadedExistingDetail.data_json) {
+            try {
+                const savedData = JSON.parse(loadedExistingDetail.data_json);
+                const loaded = savedData.map(row => {
+                    const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(row.empleado).trim().toLowerCase());
+                    const fullAddress = dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '';
+                    return {
+                        id: row.id ? `${row.empleado.toLowerCase()}_${row.id}` : `sup_${row.empleado.toLowerCase()}`,
+                        nombre: row.empleado,
+                        semana1: row.w1 !== undefined && row.w1 !== null ? row.w1 : null,
+                        semana2: row.w2 !== undefined && row.w2 !== null ? row.w2 : null,
+                        pe: row.pe || 0,
+                        peEarnings: 0,
+                        rate: 0,
+                        sueldoFijo: row.cargo === 'Supervisor' ? row.total_lgm : 0,
+                        cargo: row.cargo,
+                        address: fullAddress,
+                        comments: row.comments || '',
+                        rowColor: row.cargo === 'Supervisor' ? 'bg-teal-50/40 border-l-4 border-teal-500' : (period.store === CONSOLIDATED_STORE ? 'bg-amber-50/30' : 'bg-white'),
+                        isMultiSite: false
+                    };
+                });
+                loaded.sort((a, b) => {
+                    if (a.cargo === 'Supervisor' && b.cargo !== 'Supervisor') return 1;
+                    if (a.cargo !== 'Supervisor' && b.cargo === 'Supervisor') return -1;
+                    return a.nombre.localeCompare(b.nombre);
+                });
+                setBiweeklyEmployees(loaded);
+                return;
+            } catch (e) {
+                console.error("Error loading saved detail data:", e);
+            }
+        }
+
+        if (!nominaHistoryData.length) return;
 
         const parseHours = (val) => {
             if (!val || val === 'X' || val === '0:00') return 0;
@@ -7867,13 +7923,19 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     if (!period) return null;
 
     // 3. Cálculos de Totales
-    const calculateTotalHrs = (emp) => (Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0));
+    const calculateTotalHrs = (emp) => {
+        if (emp.cargo === 'Supervisor') return 0;
+        return (Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0));
+    };
     const calculatePagoTotal = (emp) => {
+        if (emp.cargo === 'Supervisor') {
+            return Number(emp.sueldoFijo || 0);
+        }
         const baseEarnings = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
         return baseEarnings + (emp.peEarnings || 0);
     };
 
-    const subtotalNomina = biweeklyEmployees.reduce((acc, emp) => acc + calculatePagoTotal(emp), 0);
+    const subtotalNomina = [...biweeklyEmployees, ...addedSupervisors].reduce((acc, emp) => acc + calculatePagoTotal(emp), 0);
     const totalFinal = subtotalNomina;
 
     // FASE 9.8: Verificar si la nómina ya fue procesada (Persistencia en Variables)
@@ -7882,7 +7944,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
     // ─── LÓGICA DE ENVÍO DE RECIBOS DE PAGO (PAY STUBS) ───────────────────
     const handleSendAllPayStubs = async () => {
-        const recipients = biweeklyEmployees.filter(emp => {
+        const recipients = [...biweeklyEmployees, ...addedSupervisors].filter(emp => {
             const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
             return dbEmp && (dbEmp.email_tax || dbEmp.correo);
         });
@@ -8348,12 +8410,174 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                         </tr>
                                     );
                                 })}
+
+                                {addedSupervisors.map((emp, idx) => {
+                                    return (
+                                        <tr key={`sup-${idx}`} className={`group transition-colors ${emp.rowColor} hover:brightness-95`}>
+                                            <td className="p-4 border-r-2 border-gray-100 font-black text-[#303a7f] text-xs uppercase tracking-tight flex items-center justify-between">
+                                                <span>{emp.nombre}</span>
+                                                {!isAlreadyProcessed && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setAddedSupervisors(prev => prev.filter((_, i) => i !== idx));
+                                                        }}
+                                                        className="text-red-500 hover:text-red-700 text-[9px] font-black uppercase tracking-wider ml-2"
+                                                    >
+                                                        Eliminar
+                                                    </button>
+                                                )}
+                                            </td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-xs">-</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-xs">-</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-400 italic text-xs">-</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-black text-[#303a7f] text-xs">-</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-400 text-xs">-</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-right font-black text-[#303a7f] text-xs tabular-nums bg-opacity-30">
+                                                {!isAlreadyProcessed ? (
+                                                    <div className="flex items-center justify-end bg-white border-2 border-brand-primary/20 rounded-xl px-2 py-1 shadow-sm w-24 ml-auto">
+                                                        <span className="text-[#6bbdb7] font-black mr-1 text-[10px]">$</span>
+                                                        <input
+                                                            type="number"
+                                                            value={emp.sueldoFijo || ''}
+                                                            onChange={(e) => {
+                                                                const val = parseFloat(e.target.value) || 0;
+                                                                setAddedSupervisors(prev => prev.map((item, i) => i === idx ? { ...item, sueldoFijo: val } : item));
+                                                            }}
+                                                            className="w-full bg-transparent border-none text-[10px] font-bold outline-none text-right p-0"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    `$${Number(emp.sueldoFijo || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                                )}
+                                            </td>
+                                            <td className={`p-4 px-2 py-1 transition-colors ${emp.comments ? 'bg-amber-100' : 'bg-transparent'}`}>
+                                                <textarea
+                                                    value={emp.comments || ''}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setAddedSupervisors(prev => prev.map((item, i) => i === idx ? { ...item, comments: val } : item));
+                                                    }}
+                                                    readOnly={isAlreadyProcessed}
+                                                    rows={(emp.comments || '').split('\n').length || 1}
+                                                    className={`w-full bg-transparent border-none text-[10px] font-bold outline-none ring-0 focus:ring-0 transition-colors resize-none overflow-hidden block leading-tight ${isAlreadyProcessed ? 'cursor-not-allowed' : ''} ${emp.comments ? 'text-amber-600' : 'text-gray-500 placeholder-gray-200'}`}
+                                                    placeholder={isAlreadyProcessed ? '' : 'Añadir comentario...'}
+                                                />
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+
+                                {!isAlreadyProcessed && (
+                                    <tr className="bg-teal-50/10 border-t-2 border-dashed border-teal-500/20">
+                                        <td className="p-4" colSpan="6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-64 relative">
+                                                    <label className="text-[8px] text-teal-600 font-black uppercase tracking-widest block mb-1">Nombre del Supervisor</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Escriba o seleccione..."
+                                                        value={superInputName}
+                                                        onChange={(e) => {
+                                                            setSuperInputName(e.target.value);
+                                                            setShowSuperSuggestions(true);
+                                                        }}
+                                                        onFocus={() => setShowSuperSuggestions(true)}
+                                                        className="w-full bg-white border-2 border-teal-500/20 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-teal-500 transition-all"
+                                                    />
+                                                    {/* Sugerencias de Autocompletado */}
+                                                    {showSuperSuggestions && (
+                                                        <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-[200] max-h-40 overflow-y-auto">
+                                                            {employees
+                                                                .filter(e => {
+                                                                    const isSuper = String(e.cargo).toLowerCase().includes('super');
+                                                                    const matchesName = String(e.nombre).toLowerCase().includes(superInputName.toLowerCase());
+                                                                    return isSuper && matchesName;
+                                                                })
+                                                                .map((e, sIdx) => (
+                                                                    <div
+                                                                        key={sIdx}
+                                                                        onClick={() => {
+                                                                            setSuperInputName(e.nombre);
+                                                                            setSuperSelectedId(e.codigo_empleado);
+                                                                            setShowSuperSuggestions(false);
+                                                                        }}
+                                                                        className="px-4 py-2 hover:bg-teal-50 text-xs font-bold text-gray-700 cursor-pointer transition-colors"
+                                                                    >
+                                                                        {e.nombre} (ID: {e.codigo_empleado})
+                                                                    </div>
+                                                                ))
+                                                            }
+                                                            {employees.filter(e => String(e.cargo).toLowerCase().includes('super')).length === 0 && (
+                                                                <div className="px-4 py-2 text-gray-400 text-[10px] font-bold">No hay supervisores en personal</div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="w-32">
+                                                    <label className="text-[8px] text-teal-600 font-black uppercase tracking-widest block mb-1">Sueldo Fijo ($)</label>
+                                                    <input
+                                                        type="number"
+                                                        placeholder="0.00"
+                                                        value={superInputSalary}
+                                                        onChange={(e) => setSuperInputSalary(e.target.value)}
+                                                        className="w-full bg-white border-2 border-teal-500/20 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-teal-500 transition-all text-right"
+                                                    />
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (!superInputName.trim()) return;
+                                                        const name = superInputName.trim().toUpperCase();
+                                                        const salary = parseFloat(superInputSalary) || 0;
+                                                        const code = superSelectedId || `SUP_${Date.now()}`;
+                                                        
+                                                        // Evitar duplicados
+                                                        if ([...biweeklyEmployees, ...addedSupervisors].some(emp => emp.nombre.toUpperCase() === name)) {
+                                                            alert("Este supervisor ya está en la lista.");
+                                                            return;
+                                                        }
+
+                                                        const newSuper = {
+                                                            id: `${name.toLowerCase()}_${code}`,
+                                                            nombre: name,
+                                                            semana1: null,
+                                                            semana2: null,
+                                                            pe: 0,
+                                                            peEarnings: 0,
+                                                            rate: 0,
+                                                            sueldoFijo: salary,
+                                                            cargo: 'Supervisor',
+                                                            comments: '',
+                                                            rowColor: 'bg-teal-50/40 border-l-4 border-teal-500',
+                                                            isSupervisor: true
+                                                        };
+
+                                                        setAddedSupervisors(prev => [...prev, newSuper]);
+                                                        
+                                                        // Reset inputs
+                                                        setSuperInputName('');
+                                                        setSuperInputSalary('');
+                                                        setSuperSelectedId('');
+                                                        setShowSuperSuggestions(false);
+                                                    }}
+                                                    className="px-6 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 mt-4"
+                                                >
+                                                    Agregar
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td colSpan="2"></td>
+                                    </tr>
+                                )}
                             </tbody>
                             <tfoot>
 
                                 <tr className="bg-[#303a7f] text-white font-black">
                                     <td className="p-5 text-left text-[10px] uppercase tracking-widest bg-[#252a5e]">
-                                        Total Personal: {biweeklyEmployees.length}
+                                        Total Personal: {[...biweeklyEmployees, ...addedSupervisors].length}
                                     </td>
                                     <td colSpan="5" className="p-5 text-right text-[12px] uppercase tracking-[0.4em]">TOTAL DE NÓMINA:</td>
                                     <td className="p-5 text-right text-lg tabular-nums border-r border-white/10">
@@ -8369,7 +8593,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     <div data-html2canvas-ignore className="mt-12 flex justify-end items-center gap-4 border-t-2 border-gray-50 pt-10">
                         <button
                             onClick={() => setIsConfirmModalOpen(true)}
-                            disabled={isSaving || isAlreadyProcessed || biweeklyEmployees.length === 0}
+                            disabled={isSaving || isAlreadyProcessed || [...biweeklyEmployees, ...addedSupervisors].length === 0}
                             className={`px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isSaving
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                 : isAlreadyProcessed
@@ -8406,7 +8630,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                         <button
                                             onClick={() => {
                                                 setIsConfirmModalOpen(false);
-                                                onConfirmPayroll(biweeklyEmployees);
+                                                onConfirmPayroll([...biweeklyEmployees, ...addedSupervisors]);
                                             }}
                                             className="flex-1 py-4 bg-[#303a7f] hover:bg-[#252a5e] text-white font-black rounded-2xl transition-all shadow-lg shadow-blue-900/20 uppercase text-[10px] tracking-widest active:scale-95 flex justify-center items-center gap-2"
                                         >
@@ -8469,7 +8693,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             {/* Lista de Empleados */}
                             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar border-r border-gray-50">
                                 <div className="mb-6 flex items-center justify-between">
-                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest">Destinatarios ({biweeklyEmployees.length})</h4>
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest">Destinatarios ({[...biweeklyEmployees, ...addedSupervisors].length})</h4>
                                     <div className="flex gap-2">
                                         <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-full border border-green-100">
                                             <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
@@ -8479,7 +8703,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                 </div>
 
                                 <div className="space-y-3">
-                                    {biweeklyEmployees.map(emp => {
+                                    {[...biweeklyEmployees, ...addedSupervisors].map(emp => {
                                         const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
                                         const email = dbEmp?.email_tax || dbEmp?.correo;
                                         const isSent = sentPayStubs[emp.id];
@@ -8604,7 +8828,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
             {/* Plantillas Invisibles para html2canvas (Fuera de modales para asegurar renderizado) */}
             <div className="absolute left-[-9999px] top-0 pointer-events-none select-none overflow-visible">
-                {biweeklyEmployees.map(emp => (
+                {[...biweeklyEmployees, ...addedSupervisors].map(emp => (
                     <PayStubPDF
                         key={`stub-tpl-${emp.id}`}
                         employee={{
@@ -8613,6 +8837,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             stubId: emp.id,
                             cargo: emp.cargo,
                             rate: emp.rate,
+                            sueldoFijo: emp.sueldoFijo || 0,
                             hoursW1: emp.semana1,
                             earningsW1: (parseFloat(emp.semana1) || 0) * (parseFloat(emp.rate) || 0),
                             hoursW2: emp.semana2,
@@ -12783,26 +13008,29 @@ function App() {
         try {
             // 1. Preparar datos para Nomina_Detalle
             const nominaDetalleRows = biweeklyEmployees.map(emp => {
-                const totalHrs = Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0);
-                const baseEarnings = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
+                const isSup = emp.cargo === 'Supervisor';
+                const totalHrs = isSup ? 0 : Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0);
+                const baseEarnings = isSup ? (Number(emp.sueldoFijo) || 0) : (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
                 const totalLGM = baseEarnings + (emp.peEarnings || 0);
 
                 let totalKBS = 0;
-                const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase());
-                if (dbEmp) {
-                    // Fuente única de verdad: Rate Personal KBS del Empleado
-                    const rateKBS = dbEmp.rateKBS || 0;
-                    totalKBS = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * rateKBS;
-                    // Sumar KBS de Proyectos Especiales (ya usan rate personal por fila)
-                    (specialProjectsData || []).forEach(project => {
-                        if (project.status === 'registered') {
-                            (project.employees || []).forEach(row => {
-                                if (String(row.employeeName).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()) {
-                                    totalKBS += (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0);
-                                }
-                            });
-                        }
-                    });
+                if (!isSup) {
+                    const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase());
+                    if (dbEmp) {
+                        // Fuente única de verdad: Rate Personal KBS del Empleado
+                        const rateKBS = dbEmp.rateKBS || 0;
+                        totalKBS = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * rateKBS;
+                        // Sumar KBS de Proyectos Especiales (ya usan rate personal por fila)
+                        (specialProjectsData || []).forEach(project => {
+                            if (project.status === 'registered') {
+                                (project.employees || []).forEach(row => {
+                                    if (String(row.employeeName).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()) {
+                                        totalKBS += (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0);
+                                    }
+                                });
+                            }
+                        });
+                    }
                 }
 
                 return {
