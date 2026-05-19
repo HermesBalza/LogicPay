@@ -5679,14 +5679,53 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
     );
 };
 
-const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryData, csgServicesData, adminPayrollHistory, onOpenPayrollAdvice }) => {
-    const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());
+const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDetailData, onOpenPayrollAdvice }) => {
+    const [fiscalYear, setFiscalYear] = useState(() => {
+        const curYear = new Date().getFullYear();
+        return curYear >= 2026 ? curYear : 2026;
+    });
     const [searchTerm, setSearchTerm] = useState('');
+
+    const availableYears = useMemo(() => {
+        const yearsSet = new Set();
+        yearsSet.add(2026); // Garantizar que 2026 siempre esté presente por defecto
+
+        const getYear = (periodStr) => {
+            if (!periodStr) return null;
+            const parts = periodStr.split(/[—–-]/);
+            if (parts.length < 2) return null;
+            const endPart = parts[parts.length - 1].trim();
+            const yearMatch = endPart.match(/\/(\d{4})$/);
+            return yearMatch ? parseInt(yearMatch[1]) : null;
+        };
+
+        if (nominaDetailData && Array.isArray(nominaDetailData)) {
+            nominaDetailData.forEach(r => {
+                const y = getYear(r.periodo || r.Periodo);
+                if (y && y >= 2026) yearsSet.add(y);
+            });
+        }
+        if (csgNominaData && Array.isArray(csgNominaData)) {
+            csgNominaData.forEach(r => {
+                const y = getYear(r.periodo);
+                if (y && y >= 2026) yearsSet.add(y);
+            });
+        }
+        if (adminPayrollHistory && Array.isArray(adminPayrollHistory)) {
+            adminPayrollHistory.forEach(r => {
+                const y = getYear(r.periodo);
+                if (y && y >= 2026) yearsSet.add(y);
+            });
+        }
+
+        return Array.from(yearsSet).sort((a, b) => b - a);
+    }, [nominaDetailData, csgNominaData, adminPayrollHistory]);
 
     // --- LÓGICA DE AGREGACIÓN FISCAL ---
     const reportData = useMemo(() => {
         const data = {};
         const periodsFound = new Set();
+        const periodBounds = []; // Almacenará objetos { key: string, start: Date, end: Date } para mapeo dinámico
 
         // 0. Crear mapas de búsqueda maestros desde la lista de personal (employees)
         const nameToIdMap = {};
@@ -5722,64 +5761,114 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
             return cleanId || originalName || 'S/ID';
         };
 
-        // 1. Procesar Nómina Regular (Historico)
-        nominaHistoryData.forEach(history => {
-            try {
-                if (!history || !history.fecha_inicio) return;
-                const yearMatch = history.fecha_inicio?.match(/\/(\d{4})$/);
-                if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
+        // Helper para extraer el año a partir de un periodo del formato "MM/DD/YYYY - MM/DD/YYYY"
+        const getYearFromPeriod = (periodStr) => {
+            if (!periodStr) return null;
+            const parts = periodStr.split(/[—–-]/);
+            if (parts.length < 2) return null;
+            const endPart = parts[parts.length - 1].trim();
+            const yearMatch = endPart.match(/\/(\d{4})$/);
+            return yearMatch ? parseInt(yearMatch[1]) : null;
+        };
 
-                const periodKey = `${history.fecha_inicio} - ${history.fecha_fin}`;
-                periodsFound.add(periodKey);
-
-                const payload = JSON.parse(history.data_json);
-                const earnings = payload.earningsTableData || [];
-
-                earnings.forEach(empPay => {
-                    const empId = resolveEmployeeId(empPay.nombre, empPay.codigo);
-                    const info = idToInfoMap[empId] || { nombre: empPay.nombre, cargo: empPay.cargo };
-
-                    if (!data[empId]) {
-                        data[empId] = {
-                            id: empId,
-                            nombre: info.nombre,
-                            cargo: info.cargo,
-                            firstName: info.firstName,
-                            lastName: info.lastName,
-                            totalBox1: 0,
-                            periods: {}
-                        };
-                    }
-                    const amount = parseFloat(empPay.total) || 0;
-                    data[empId].periods[periodKey] = (data[empId].periods[periodKey] || 0) + amount;
-                    data[empId].totalBox1 += amount;
-                });
-            } catch (e) {
-                console.error("Error processing history for 1099:", e);
+        // Helper para parsear fechas de periodos "MM/DD/YYYY"
+        const parseDate = (dateStr) => {
+            if (!dateStr) return null;
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                return new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
             }
-        });
+            return new Date(dateStr);
+        };
 
-        // 2. Procesar Proyectos Especiales (P.E)
-        specialProjectsHistoryData.forEach(history => {
-            try {
-                if (!history || !history.periodo) return;
-                const yearMatch = history.periodo?.match(/\/(\d{4})$/);
-                if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
+        // A. Registrar periodos bisemanales de KBS (nominaDetailData)
+        if (nominaDetailData && Array.isArray(nominaDetailData)) {
+            nominaDetailData.forEach(record => {
+                try {
+                    if (!record || !record.periodo || !record.data_json) return;
+                    const year = getYearFromPeriod(record.periodo);
+                    if (year !== fiscalYear) return;
 
-                const periodKey = getWeekRange(history.periodo);
-                periodsFound.add(periodKey);
+                    const periodKey = record.periodo.trim();
+                    periodsFound.add(periodKey);
 
-                const payload = JSON.parse(history.data_json);
-                const projects = Array.isArray(payload) ? payload : [payload];
+                    // Parsear límites de la bisemana
+                    const parts = periodKey.split(/[—–-]/);
+                    if (parts.length >= 2) {
+                        const startD = parseDate(parts[0].trim());
+                        const endD = parseDate(parts[1].trim());
+                        if (startD && endD && !periodBounds.some(b => b.key === periodKey)) {
+                            periodBounds.push({ key: periodKey, start: startD, end: endD });
+                        }
+                    }
 
-                projects.forEach(project => {
-                    const emps = project.employees || [];
-                    emps.forEach(empRow => {
-                        const originalName = empRow.employeeName;
-                        const originalId = empRow.employeeId; // Algunos P.E pueden traer el ID ahora
+                    // Procesar a TODOS los empleados en la nómina (KBS)
+                    const payload = typeof record.data_json === 'string' ? JSON.parse(record.data_json) : record.data_json;
+                    const rowsList = Array.isArray(payload) ? payload : [];
+
+                    rowsList.forEach(empRow => {
+                        if (!empRow) return;
+                        const originalName = empRow.empleado || empRow.nombre;
+                        const originalId = empRow.id || empRow.codigo;
+                        if (!originalName) return;
 
                         const empId = resolveEmployeeId(originalName, originalId);
-                        const info = idToInfoMap[empId] || { nombre: originalName, cargo: 'Especial' };
+                        const info = idToInfoMap[empId] || { nombre: originalName, cargo: empRow.cargo || 'Personal' };
+
+                        if (!data[empId]) {
+                           data[empId] = {
+                               id: empId,
+                               nombre: info.nombre,
+                               cargo: info.cargo,
+                               firstName: info.firstName,
+                               lastName: info.lastName,
+                               totalBox1: 0,
+                               periods: {}
+                           };
+                        }
+                        const amount = parseFloat(empRow.total_lgm) || parseFloat(empRow.total) || 0;
+                        data[empId].periods[periodKey] = (data[empId].periods[periodKey] || 0) + amount;
+                        data[empId].totalBox1 += amount;
+                    });
+                } catch (e) {
+                    console.error("Error processing KBS payroll in Nomina_Detalle for 1099:", e);
+                }
+            });
+        }
+
+        // B. Registrar periodos bisemanales de CSG (csgNominaData)
+        if (csgNominaData && Array.isArray(csgNominaData)) {
+            csgNominaData.forEach(record => {
+                try {
+                    if (!record || !record.periodo || !record.servicios_json) return;
+                    const year = getYearFromPeriod(record.periodo);
+                    if (year !== fiscalYear) return;
+
+                    const periodKey = record.periodo.trim();
+                    periodsFound.add(periodKey);
+
+                    // Parsear límites de la bisemana
+                    const parts = periodKey.split(/[—–-]/);
+                    if (parts.length >= 2) {
+                        const startD = parseDate(parts[0].trim());
+                        const endD = parseDate(parts[1].trim());
+                        if (startD && endD && !periodBounds.some(b => b.key === periodKey)) {
+                            periodBounds.push({ key: periodKey, start: startD, end: endD });
+                        }
+                    }
+
+                    // Procesar a TODOS los empleados en la nómina (CSG)
+                    const payload = typeof record.servicios_json === 'string' ? JSON.parse(record.servicios_json) : record.servicios_json;
+                    const rowsList = Array.isArray(payload) ? payload : [];
+
+                    rowsList.forEach(svc => {
+                        if (!svc) return;
+                        const originalName = svc.empleado;
+                        const originalId = svc.codigo_empleado;
+                        if (!originalName) return;
+
+                        const empId = resolveEmployeeId(originalName, originalId);
+                        const info = idToInfoMap[empId] || { nombre: originalName, cargo: svc.cargo || 'Cleaning' };
 
                         if (!data[empId]) {
                             data[empId] = {
@@ -5792,73 +5881,66 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
                                 periods: {}
                             };
                         }
-                        const amount = (parseFloat(empRow.hours) || 0) * (parseFloat(empRow.rateLogic) || 0);
+                        const amount = parseFloat(svc.monto_lgm) || 0;
                         data[empId].periods[periodKey] = (data[empId].periods[periodKey] || 0) + amount;
                         data[empId].totalBox1 += amount;
                     });
-                });
-            } catch (e) {
-                console.error("Error processing special projects for 1099:", e);
-            }
-        });
-
-        // 3. Procesar Servicios CSG (Limpieza)
-        if (csgServicesData && Array.isArray(csgServicesData)) {
-            csgServicesData.forEach(service => {
-                try {
-                    if (!service || !service.fecha) return;
-                    const yearMatch = service.fecha?.match(/\/(\d{4})$/);
-                    if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
-
-                    // Usamos el rango de la semana para mantener coherencia en las columnas
-                    const periodKey = getWeekRange(service.fecha);
-                    periodsFound.add(periodKey);
-
-                    const empId = resolveEmployeeId(service.empleado, service.codigo_empleado);
-                    const info = idToInfoMap[empId] || { nombre: service.empleado, cargo: 'Cleaning' };
-
-                    if (!data[empId]) {
-                        data[empId] = {
-                            id: empId,
-                            nombre: info.nombre,
-                            cargo: info.cargo,
-                            firstName: info.firstName,
-                            lastName: info.lastName,
-                            totalBox1: 0,
-                            periods: {}
-                        };
-                    }
-                    const amount = parseFloat(service.monto_lgm) || 0;
-                    data[empId].periods[periodKey] = (data[empId].periods[periodKey] || 0) + amount;
-                    data[empId].totalBox1 += amount;
                 } catch (e) {
-                    console.error("Error processing CSG service for 1099:", e);
+                    console.error("Error processing CSG payroll in CSG_Nomina for 1099:", e);
                 }
             });
         }
 
-        // 4. Procesar Nómina Administrativa (LGM)
+        // Helper para encontrar la bisemana correspondiente para un pago (administrativos)
+        const findMatchingPeriod = (endDateStr) => {
+            const targetDate = parseDate(endDateStr);
+            if (!targetDate) return null;
+
+            // 1. Buscar coincidencia exacta o contenedor
+            let bestPeriod = null;
+            for (const bound of periodBounds) {
+                if (targetDate >= bound.start && targetDate <= bound.end) {
+                    return bound.key;
+                }
+            }
+
+            // 2. Si no contiene la fecha, buscar la bisemana más cercana en días
+            let minDiff = Infinity;
+            for (const bound of periodBounds) {
+                const diffEnd = Math.abs(targetDate - bound.end);
+                if (diffEnd < minDiff) {
+                    minDiff = diffEnd;
+                    bestPeriod = bound.key;
+                }
+            }
+            return bestPeriod;
+        };
+
+        // C. Consolidar Personal Administrativo (adminPayrollHistory)
         if (adminPayrollHistory && Array.isArray(adminPayrollHistory)) {
             adminPayrollHistory.forEach(history => {
                 try {
-                    if (!history || !history.periodo) return;
+                    if (!history || !history.periodo || !history.empleados) return;
 
                     // Extraer la fecha final del periodo (ej: "02/22/2026 — 03/07/2026")
                     const dateParts = history.periodo.split(/[—–-]/);
                     if (dateParts.length < 2) return;
 
                     const endDateStr = dateParts[dateParts.length - 1].trim();
-                    const yearMatch = endDateStr.match(/\/(\d{4})$/);
-                    if (!yearMatch || parseInt(yearMatch[1]) !== fiscalYear) return;
+                    const year = getYearFromPeriod(history.periodo);
+                    if (year !== fiscalYear) return;
 
-                    const periodKey = getWeekRange(endDateStr);
-                    periodsFound.add(periodKey);
+                    // Buscar la bisemana correspondiente registrada
+                    const periodKey = findMatchingPeriod(endDateStr);
+                    if (!periodKey) return; // Si no hay bisemanas en ese año, omitir
 
                     const payload = history.empleados || [];
 
                     payload.forEach(empRow => {
+                        if (!empRow) return;
                         const originalName = empRow.nombre;
                         const originalId = empRow.codigo_empleado;
+                        if (!originalName) return;
 
                         const empId = resolveEmployeeId(originalName, originalId);
                         const info = idToInfoMap[empId] || { nombre: originalName, cargo: empRow.cargo || 'Administrativo' };
@@ -5884,9 +5966,10 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
             });
         }
 
+        // D. Ordenar columnas de periodos por fecha
         const sortedPeriods = Array.from(periodsFound).sort((a, b) => {
-            const dateA = new Date(a.split(' - ')[0]);
-            const dateB = new Date(b.split(' - ')[0]);
+            const dateA = new Date(a.split(/[—–-]/)[0].trim());
+            const dateB = new Date(b.split(/[—–-]/)[0].trim());
             return dateA - dateB;
         });
 
@@ -5894,7 +5977,7 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
             rows: Object.values(data),
             periods: sortedPeriods
         };
-    }, [fiscalYear, nominaHistoryData, specialProjectsHistoryData, csgServicesData, adminPayrollHistory, employees]);
+    }, [fiscalYear, csgNominaData, adminPayrollHistory, nominaDetailData, employees]);
 
     const filteredRows = useMemo(() => {
         return reportData.rows
@@ -5967,9 +6050,9 @@ const TaxCenterView = ({ employees, nominaHistoryData, specialProjectsHistoryDat
                         onChange={(e) => setFiscalYear(parseInt(e.target.value))}
                         className="h-full bg-white border-none rounded-xl px-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest outline-none cursor-pointer hover:bg-gray-50 transition-colors"
                     >
-                        <option value={2026}>Fiscal 2026</option>
-                        <option value={2025}>Fiscal 2025</option>
-                        <option value={2024}>Fiscal 2024</option>
+                        {availableYears.map(year => (
+                            <option key={year} value={year}>Fiscal {year}</option>
+                        ))}
                     </select>
                 </div>
 
@@ -7118,7 +7201,7 @@ const ConfirmPayrollProgressModal = ({ isOpen, progress, step, isFinished, onClo
 
                 {isFinished ? (
                     <button
-                        onClick={onClose}
+                        onClick={() => window.location.reload()}
                         className="w-full py-4 bg-[#303a7f] hover:bg-[#252a5e] text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-blue-900/20 transition-all active:scale-95 animate-in fade-in slide-in-from-bottom-4 duration-500"
                     >
                         Ok / Finalizar
@@ -7708,8 +7791,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         semana1: row.w1 !== undefined && row.w1 !== null ? row.w1 : null,
                         semana2: row.w2 !== undefined && row.w2 !== null ? row.w2 : null,
                         pe: row.pe || 0,
-                        peEarnings: 0,
-                        rate: 0,
+                        peEarnings: row.pe_earnings !== undefined ? row.pe_earnings : 0,
+                        rate: row.rate !== undefined ? row.rate : (dbEmp ? (dbEmp.rateLGM || 0) : 0),
                         sueldoFijo: row.cargo === 'Supervisor' ? row.total_lgm : 0,
                         cargo: row.cargo,
                         address: fullAddress,
@@ -7954,9 +8037,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     const subtotalNomina = [...biweeklyEmployees, ...addedSupervisors].reduce((acc, emp) => acc + calculatePagoTotal(emp), 0);
     const totalFinal = subtotalNomina;
 
-    // FASE 9.8: Verificar si la nómina ya fue procesada (Persistencia en Variables)
-    const periodKey = `${period.store}-${period.w1?.start}-${period.w2?.end}`;
-    const isAlreadyProcessed = (processedBiweeks || []).includes(periodKey);
+    // FASE 9.8: Verificar si la nómina ya fue procesada (Persistencia en Variables de Nomina_Detalle)
+    const isAlreadyProcessed = (nominaDetailData || []).some(d =>
+        String(d.id_consolidacion || '').trim() === `${period.store}_${period.range}`.replace(/\s+/g, '_')
+    );
 
     // ─── LÓGICA DE ENVÍO DE RECIBOS DE PAGO (PAY STUBS) ───────────────────
     const handleSendAllPayStubs = async () => {
@@ -8613,7 +8697,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             className={`px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isSaving
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                 : isAlreadyProcessed
-                                    ? 'bg-green-600 text-white cursor-not-allowed'
+                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/20 cursor-not-allowed'
                                     : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/20'
                                 }`}
                         >
@@ -13060,17 +13144,17 @@ function App() {
         try {
             // 1. Preparar datos para Nomina_Detalle
             const nominaDetalleRows = biweeklyEmployees.map(emp => {
+                const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase());
                 const isSup = emp.cargo === 'Supervisor';
                 const totalHrs = isSup ? 0 : Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0);
                 const baseEarnings = isSup ? (Number(emp.sueldoFijo) || 0) : (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
                 const totalLGM = baseEarnings + (emp.peEarnings || 0);
 
                 let totalKBS = 0;
+                const rateKBS = dbEmp ? (dbEmp.rateKBS || 0) : 0;
                 if (!isSup) {
-                    const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase());
                     if (dbEmp) {
                         // Fuente única de verdad: Rate Personal KBS del Empleado
-                        const rateKBS = dbEmp.rateKBS || 0;
                         totalKBS = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * rateKBS;
                         // Sumar KBS de Proyectos Especiales (ya usan rate personal por fila)
                         (specialProjectsData || []).forEach(project => {
@@ -13099,6 +13183,9 @@ function App() {
                     Total_KBS: totalKBS,
                     Margen: totalKBS - totalLGM,
                     Comentarios: emp.comments || '',
+                    Rate_LGM: emp.rate || 0,
+                    Rate_KBS: rateKBS,
+                    PE_Earnings: emp.peEarnings || 0,
                     Fecha_Confirmacion: new Date().toLocaleString()
                 };
             });
@@ -13117,7 +13204,10 @@ function App() {
                 total_lgm: row.Total_LGM,
                 total_kbs: row.Total_KBS,
                 margen: row.Margen,
-                comments: row.Comentarios
+                comments: row.Comentarios,
+                rate: row.Rate_LGM,
+                rate_kbs: row.Rate_KBS,
+                pe_earnings: row.PE_Earnings
             }));
 
             const currentTimestamp = new Date().toLocaleString();
@@ -15092,7 +15182,7 @@ function App() {
                 setCsgNominaData([]);
                 return;
             }
-            const headers = parseCSVRow(lines[0]);
+            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
             const loaded = lines.slice(1).map(line => {
                 const values = parseCSVRow(line);
                 const obj = createCSVRowObject(headers, values);
@@ -17000,10 +17090,9 @@ function App() {
                     {activeTab === 'tax_center' && (
                         <TaxCenterView
                             employees={employees}
-                            nominaHistoryData={nominaHistoryData}
-                            specialProjectsHistoryData={specialProjectsHistoryData}
-                            csgServicesData={csgServicesData}
+                            csgNominaData={csgNominaData}
                             adminPayrollHistory={adminPayrollHistory}
+                            nominaDetailData={nominaDetailData}
                             onOpenPayrollAdvice={() => setIsPayrollAdviceOpen(true)}
                         />
                     )}
