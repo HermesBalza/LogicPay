@@ -10614,7 +10614,7 @@ const BillingView = ({
 
                     quincenasMap[qKey] = {
                         _ids: new Set(),
-                        id: '',
+                        id: `Q-${qStart.replace(/\//g, '')}-${qEnd.replace(/\//g, '')}`,
                         radicacion: '',
                         semana: `${qStart} - ${qEnd}`,
                         fecha_inicio: qStart,
@@ -10640,13 +10640,17 @@ const BillingView = ({
                 const hQKey = `${yS}-${String(mS).padStart(2, '0')}-Q${hQNumber}`;
 
                 if (qKey === hQKey) {
-                    if (!q.id) q.id = h.codigo;
-                    if (h['Fecha Rad.'] || h['fecha rad.']) q.radicacion = h['Fecha Rad.'] || h['fecha rad.'];
-                    if (h['pago'] || h['Pago']) q.pago = h['pago'] || h['Pago'];
-                    if (h['fecha de pago'] || h['Fecha de Pago']) q.fecha_pago = h['fecha de pago'] || h['Fecha de Pago'];
-                    if (h['wos'] || h['WOS']) q.wos = h['wos'] || h['WOS'];
-                    const statusVal = h['Status'] || h['status'] || '';
-                    if (statusVal === 'Paid') q.pagada = true;
+                    if (String(h.codigo).startsWith('Q-')) {
+                        q.id = h.codigo;
+                        // Para AZPEN, solo populamos metadatos financieros y radicación desde la fila quincenal unificada (Q-)
+                        // para mantener aisladas y vírgenes las semanas individuales.
+                        if (h['Fecha Rad.'] || h['fecha rad.']) q.radicacion = h['Fecha Rad.'] || h['fecha rad.'];
+                        if (h['pago'] || h['Pago']) q.pago = h['pago'] || h['Pago'];
+                        if (h['fecha de pago'] || h['Fecha de Pago']) q.fecha_pago = h['fecha de pago'] || h['Fecha de Pago'];
+                        if (h['wos'] || h['WOS']) q.wos = h['wos'] || h['WOS'];
+                        const statusVal = h['Status'] || h['status'] || '';
+                        q.pagada = (statusVal === 'Paid');
+                    }
                 }
 
                 return q;
@@ -11019,7 +11023,9 @@ const BillingView = ({
                                         checked={row.pagada}
                                         onChange={(e) => {
                                             const val = e.target.checked;
-                                            if (row._ids) {
+                                            if (isAZPEN) {
+                                                onUpdateManual(row.id, 'pagada', val);
+                                            } else if (row._ids) {
                                                 row._ids.forEach(id => onUpdateManual(id, 'pagada', val));
                                             } else {
                                                 onUpdateManual(row.id, 'pagada', val);
@@ -12574,10 +12580,39 @@ function App() {
                         // Formato legado {id: week, field, val} de BillingView → mantener lógica original.
                         const { id: week, field, val } = task;
                         // FIX Bug #2: Normalizar apóstrofe antes de comparar para evitar fallos de find().
-                        const existing = nominaHistoryData.find(h =>
+                        let existing = nominaHistoryData.find(h =>
                             String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
                             String(h.codigo).replace(/^'+/, '').trim() === String(week).replace(/^'+/, '').trim()
-                        ) || {};
+                        );
+
+                        if (!existing && String(week).startsWith('Q-')) {
+                            // Crear el registro quincenal al vuelo si no existe en local (para guardar de inmediato en Sheets)
+                            const parts = String(week).split('-');
+                            let fecha_inicio = '';
+                            let fecha_fin = '';
+                            if (parts.length === 3) {
+                                const startStr = parts[1];
+                                const endStr = parts[2];
+                                if (startStr.length === 8 && endStr.length === 8) {
+                                    fecha_inicio = `${startStr.slice(0, 2)}/${startStr.slice(2, 4)}/${startStr.slice(4)}`;
+                                    fecha_fin = `${endStr.slice(0, 2)}/${endStr.slice(2, 4)}/${endStr.slice(4)}`;
+                                }
+                            }
+                            existing = {
+                                nombre: selectedHistoryStore,
+                                codigo: week,
+                                fecha_inicio,
+                                fecha_fin,
+                                data_json: JSON.stringify({ isQuincenaAZPEN: true, expectedPayment: 484.33 }),
+                                "Fecha Rad.": '',
+                                "Pago": '',
+                                "Fecha de Pago": '',
+                                "WOS": '',
+                                "Status": 'Due'
+                            };
+                        } else {
+                            existing = existing || {};
+                        }
 
                         payload = {
                             nombre: selectedHistoryStore,
@@ -16914,23 +16949,61 @@ function App() {
                             specialHistoryData={specialProjectsHistoryData}
                             isSyncing={isSyncingBilling}
                             onUpdateManual={async (week, field, val) => {
-                                // 1. Actualización Local Inmediata
-                                setNominaHistoryData(prev => prev.map(h => {
-                                    if (String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && String(h.codigo) === String(week)) {
+                                // 1. Actualización Local Inmediata (creando fila al vuelo si no existe para AZPEN)
+                                setNominaHistoryData(prev => {
+                                    const hasRow = prev.some(h => String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && String(h.codigo) === String(week));
+                                    if (!hasRow && String(week).startsWith('Q-')) {
+                                        const parts = String(week).split('-');
+                                        let fecha_inicio = '';
+                                        let fecha_fin = '';
+                                        if (parts.length === 3) {
+                                             const startStr = parts[1];
+                                             const endStr = parts[2];
+                                             if (startStr.length === 8 && endStr.length === 8) {
+                                                 fecha_inicio = `${startStr.slice(0, 2)}/${startStr.slice(2, 4)}/${startStr.slice(4)}`;
+                                                 fecha_fin = `${endStr.slice(0, 2)}/${endStr.slice(2, 4)}/${endStr.slice(4)}`;
+                                             }
+                                        }
                                         const fieldMap = {
-                                            'fecha rad.': ['fecha rad.', 'Fecha Rad.'],
-                                            'pago': ['pago', 'Pago'],
-                                            'fecha de pago': ['fecha de pago', 'Fecha de Pago'],
-                                            'wos': ['wos', 'WOS'],
-                                            'pagada': ['status', 'Status']
+                                             'fecha rad.': ['fecha rad.', 'Fecha Rad.'],
+                                             'pago': ['pago', 'Pago'],
+                                             'fecha de pago': ['fecha de pago', 'Fecha de Pago'],
+                                             'wos': ['wos', 'WOS'],
+                                             'pagada': ['status', 'Status']
                                         };
                                         const finalVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : val;
-                                        const updated = { ...h };
-                                        (fieldMap[field] || []).forEach(key => { updated[key] = finalVal; });
-                                        return updated;
+                                        const newRow = {
+                                             nombre: selectedHistoryStore,
+                                             codigo: week,
+                                             fecha_inicio,
+                                             fecha_fin,
+                                             data_json: JSON.stringify({ isQuincenaAZPEN: true, expectedPayment: 484.33 }),
+                                             "Fecha Rad.": '',
+                                             "Pago": '',
+                                             "Fecha de Pago": '',
+                                             "WOS": '',
+                                             "Status": 'Due'
+                                        };
+                                        (fieldMap[field] || []).forEach(key => { newRow[key] = finalVal; });
+                                        return [...prev, newRow];
                                     }
-                                    return h;
-                                }));
+                                    return prev.map(h => {
+                                        if (String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && String(h.codigo) === String(week)) {
+                                            const fieldMap = {
+                                                'fecha rad.': ['fecha rad.', 'Fecha Rad.'],
+                                                'pago': ['pago', 'Pago'],
+                                                'fecha de pago': ['fecha de pago', 'Fecha de Pago'],
+                                                'wos': ['wos', 'WOS'],
+                                                'pagada': ['status', 'Status']
+                                            };
+                                            const finalVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : val;
+                                            const updated = { ...h };
+                                            (fieldMap[field] || []).forEach(key => { updated[key] = finalVal; });
+                                            return updated;
+                                        }
+                                        return h;
+                                    });
+                                });
 
                                 // 2. Persistencia en Base de Datos vía Referencia (Observer con Cola)
                                 billingPendingSaveRef.current.push({ id: week, field, val });
