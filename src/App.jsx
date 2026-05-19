@@ -2582,6 +2582,9 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
     const getKBSFromNomina = (rec) => {
         try {
             const data = JSON.parse(rec.data_json || '{}');
+            if (data.isQuincenaAZPEN) {
+                return data.expectedPayment || 484.33;
+            }
             if (Array.isArray(data.kbsBillingTableData)) {
                 return data.kbsBillingTableData.reduce((acc, r) =>
                     acc + (parseFloat(String(r.total || '0').replace(/[^0-9.-]/g, '')) || 0), 0);
@@ -2785,7 +2788,20 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
         setIsCrossing(true);
         try {
             // Filtrar solo facturas "Due" para el contexto de la IA
-            const dueNomina = nominaHistoryData.filter(h => !h.Status || h.Status === 'Due');
+            const dueNomina = nominaHistoryData.filter(h => {
+                if (h.Status && h.Status !== 'Due') return false;
+                
+                const storeName = String(h.nombre).trim().toUpperCase();
+                if (storeName === 'UNITED PARCEL SERVICE AZPEN') {
+                    // Para AZPEN, SOLO enviamos las facturaciones radicadas quincenales (las que inician con Q-)
+                    // y omitimos las semanales para evitar confusión a la IA.
+                    if (!String(h.codigo).startsWith('Q-')) {
+                        return false;
+                    }
+                }
+                
+                return (!h.Status || h.Status === 'Due');
+            });
             const duePE = specialProjectsHistoryData.filter(h => !h.Status || h.Status === 'Due');
 
             const genAI = new GoogleGenerativeAI(geminiApiKey);
@@ -15537,22 +15553,66 @@ function App() {
                     setVwhEmailsSent(updated);
                     // syncVariableToSheets('vwh_emails_sent', updated);
 
-                    // 2. Automatización Fecha Rad. (MM/DD/YYYY)
+                    // 2. Automatización Fecha Rad. (MM/DD/YYYY) y Creación de Factura Quincenal
                     if (vwhRecordId) {
                         const autoDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+                        const isAZPEN = String(payrollStore).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN';
 
-                        setNominaHistoryData(prev => prev.map(h => {
-                            if (String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && String(h.codigo) === String(vwhRecordId)) {
-                                const updatedHist = { ...h };
-                                updatedHist['fecha rad.'] = autoDate;
-                                updatedHist['Fecha Rad.'] = autoDate;
-                                updatedHist.radicacion = autoDate; // Sincronización con la UI
-                                return updatedHist;
+                        if (isAZPEN) {
+                            // Crear nueva fila de Facturación Quincenal en Nomina_Historico
+                            const qId = `Q-${(fechaDesde || '').replace(/\//g, '')}-${(fechaHasta || '').replace(/\//g, '')}`;
+                            
+                            // Evitar duplicados
+                            const exists = nominaHistoryData.some(h => h.codigo === qId && String(h.nombre).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN');
+                            
+                            if (!exists) {
+                                const newRow = {
+                                    nombre: payrollStore,
+                                    codigo: qId,
+                                    fecha_inicio: fechaDesde,
+                                    fecha_fin: fechaHasta,
+                                    data_json: JSON.stringify({ isQuincenaAZPEN: true, expectedPayment: 484.33 }),
+                                    "Fecha Rad.": autoDate,
+                                    "fecha rad.": autoDate,
+                                    radicacion: autoDate,
+                                    "Pago": "",
+                                    "Fecha de Pago": "",
+                                    "WOS": "",
+                                    "Status": "Due"
+                                };
+                                
+                                setNominaHistoryData(prev => [...prev, newRow]);
+                                
+                                billingPendingSaveRef.current.push({
+                                    __prebuilt: true,
+                                    nombre: newRow.nombre,
+                                    codigo: `'${newRow.codigo}`,
+                                    fecha_inicio: newRow.fecha_inicio,
+                                    fecha_fin: newRow.fecha_fin,
+                                    data_json: newRow.data_json,
+                                    "Fecha Rad.": newRow["Fecha Rad."],
+                                    "Pago": newRow["Pago"],
+                                    "Fecha de Pago": newRow["Fecha de Pago"],
+                                    "WOS": newRow["WOS"],
+                                    "Status": newRow["Status"]
+                                });
+                                setIsSyncingBilling(true);
                             }
-                            return h;
-                        }));
-                        billingPendingSaveRef.current.push({ id: vwhRecordId, field: 'fecha rad.', val: autoDate });
-                        setIsSyncingBilling(true);
+                        } else {
+                            // Lógica original para el resto de las tiendas (actualizar semana)
+                            setNominaHistoryData(prev => prev.map(h => {
+                                if (String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && String(h.codigo) === String(vwhRecordId)) {
+                                    const updatedHist = { ...h };
+                                    updatedHist['fecha rad.'] = autoDate;
+                                    updatedHist['Fecha Rad.'] = autoDate;
+                                    updatedHist.radicacion = autoDate; // Sincronización con la UI
+                                    return updatedHist;
+                                }
+                                return h;
+                            }));
+                            billingPendingSaveRef.current.push({ id: vwhRecordId, field: 'fecha rad.', val: autoDate });
+                            setIsSyncingBilling(true);
+                        }
                     }
                 }}
             />
