@@ -12350,6 +12350,7 @@ function App() {
     const fechaHastaRef = useRef(null);
 
     const [isVWHModalOpen, setIsVWHModalOpen] = useState(false);
+    const [isAttendanceEyeModalOpen, setIsAttendanceEyeModalOpen] = useState(false);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [isPEModalOpen, setIsPEModalOpen] = useState(false);
     const [isEmployeeStatsModalOpen, setIsEmployeeStatsModalOpen] = useState(false);
@@ -15667,6 +15668,235 @@ function App() {
 
             <SheetProgressModal isOpen={isProcessingSheets} />
 
+            {isAttendanceEyeModalOpen && (
+                <div className="fixed inset-0 z-[150] bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
+                    <div className="bg-slate-50 w-full h-full max-w-[98vw] max-h-[96vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="px-8 py-5 bg-white border-b border-slate-100 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-purple-50 text-purple-700 rounded-2xl">
+                                    <Eye size={22} />
+                                </div>
+                                <div className="flex flex-col">
+                                    <h3 className="text-lg font-black text-slate-800 tracking-tight leading-none mb-1">
+                                        Rates y Costos de Asistencia Semanal
+                                    </h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                                        Análisis Financiero de Horas de la Semana
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => setIsAttendanceEyeModalOpen(false)}
+                                    className="group p-2.5 bg-slate-50 text-slate-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border border-slate-100 flex items-center justify-center"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Contenido Scrollable */}
+                        <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                            {/* KPI Cards */}
+                            {(() => {
+                                let totalHours = 0;
+                                let totalKBS = 0;
+                                let totalLGM = 0;
+
+                                semanaTableData.forEach(row => {
+                                    const hDec = hhmmToDecimal(row.total.final);
+                                    totalHours += hDec;
+
+                                    const empId = `${String(row.nombre).trim().toLowerCase()}_${String(row.codigo).replace(/^'+/, '').trim()}`;
+                                    const kbsRow = (kbsBillingTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+                                    const lgmRow = (earningsTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+
+                                    const employeeInfo = employees.find(e =>
+                                        String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
+                                        String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
+                                    );
+
+                                    const kbsRate = kbsRow ? (kbsRow.rate || 0) : (employeeInfo?.rateKBS || 0);
+                                    const kbsTotal = kbsRow ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
+                                    const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
+                                    const lgmTotal = lgmRow ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
+
+                                    totalKBS += kbsTotal;
+                                    totalLGM += lgmTotal;
+                                });
+
+                                const margin = totalKBS - totalLGM;
+                                const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
+
+                                return (
+                                    <div className="grid grid-cols-4 gap-5">
+                                        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
+                                            <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl">
+                                                <Clock size={24} />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Horas</span>
+                                                <span className="text-2xl font-black text-slate-700">{formatDecimal(totalHours)}h</span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
+                                            <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl">
+                                                <TrendingUp size={24} />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Facturación KBS</span>
+                                                <span className="text-2xl font-black text-emerald-600">{formatCurrency(totalKBS)}</span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
+                                            <div className="p-4 bg-rose-50 text-rose-600 rounded-2xl">
+                                                <TrendingDown size={24} />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Costo LGM (Operativo)</span>
+                                                <span className="text-2xl font-black text-rose-600">{formatCurrency(totalLGM)}</span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
+                                            <div className="p-4 bg-purple-50 text-purple-600 rounded-2xl">
+                                                <DollarSign size={24} />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Utilidad Neta LGM</span>
+                                                <span className="text-2xl font-black text-purple-600">{formatCurrency(margin)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Tabla Registro de Asistencia Semanal Ampliada */}
+                            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse table-fixed">
+                                        <colgroup>
+                                            <col className="w-[14%]" />
+                                            <col className="w-[8%]" />
+                                            <col className="w-[5.2%]" />
+                                            <col className="w-[5.2%]" />
+                                            <col className="w-[5.2%]" />
+                                            <col className="w-[5.2%]" />
+                                            <col className="w-[5.2%]" />
+                                            <col className="w-[5.2%]" />
+                                            <col className="w-[5.2%]" />
+                                            <col className="w-[7%]" />
+                                            <col className="w-[7.5%]" />
+                                            <col className="w-[8.5%]" />
+                                            <col className="w-[7.5%]" />
+                                            <col className="w-[8.5%]" />
+                                        </colgroup>
+                                        <thead>
+                                            <tr className="bg-slate-50/75 border-b border-slate-100">
+                                                <th className="px-2.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Empleado / Código</th>
+                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Cargo</th>
+                                                {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map((day, dIdx) => {
+                                                    const dayAbbrs = {
+                                                        domingo: 'Dom',
+                                                        lunes: 'Lun',
+                                                        martes: 'Mar',
+                                                        miercoles: 'Mié',
+                                                        jueves: 'Jue',
+                                                        viernes: 'Vie',
+                                                        sabado: 'Sáb'
+                                                    };
+                                                    return (
+                                                        <th key={day} className="px-1 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-center border-l border-slate-100">
+                                                            <span className="block mb-0.5">{dayAbbrs[day]}</span>
+                                                            <span className="text-[7.5px] text-slate-400 font-bold opacity-75">
+                                                                {fechaDesde ? getFormattedDateForDay(fechaDesde, dIdx) : '--/--'}
+                                                            </span>
+                                                        </th>
+                                                    );
+                                                })}
+                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-center border-l border-slate-100 bg-blue-50/30">Total Hrs</th>
+                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-purple-50/30">Rate KBS</th>
+                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-purple-50/50">Total KBS</th>
+                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-rose-50/30">Rate LGM</th>
+                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-rose-50/50">Total LGM</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {semanaTableData.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="14" className="py-24 text-center text-slate-300 font-extrabold uppercase text-xs tracking-[0.3em] italic">
+                                                        No hay datos de asistencia cargados en esta semana.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                semanaTableData.map((row, idx) => {
+                                                    const empId = `${String(row.nombre).trim().toLowerCase()}_${String(row.codigo).replace(/^'+/, '').trim()}`;
+                                                    const kbsRow = (kbsBillingTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+                                                    const lgmRow = (earningsTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+
+                                                    const employeeInfo = employees.find(e =>
+                                                        String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
+                                                        String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
+                                                    );
+
+                                                    const hDec = hhmmToDecimal(row.total.final);
+                                                    const kbsRate = kbsRow ? (kbsRow.rate || 0) : (employeeInfo?.rateKBS || 0);
+                                                    const kbsTotal = kbsRow ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
+                                                    const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
+                                                    const lgmTotal = lgmRow ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
+
+                                                    const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
+
+                                                    return (
+                                                        <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
+                                                            <td className="px-2.5 py-2 border-r border-slate-50 overflow-hidden truncate">
+                                                                <div className="flex flex-col overflow-hidden">
+                                                                    <span className="text-[10.5px] font-black text-slate-700 uppercase leading-none truncate" title={row.nombre}>{row.nombre}</span>
+                                                                    <span className="text-[8px] font-black text-slate-400 tabular-nums tracking-[0.1em] mt-1">ID: {row.codigo || '----'}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-1.5 py-2 border-r border-slate-50 overflow-hidden truncate">
+                                                                <span className="text-[8px] font-extrabold text-slate-500 uppercase bg-slate-100 px-1.5 py-0.5 rounded" title={row.cargo}>{row.cargo}</span>
+                                                            </td>
+                                                            {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
+                                                                <td key={day} className="p-1 text-center border-l border-slate-50">
+                                                                    <span className="text-[10.5px] font-black text-slate-600 tabular-nums">
+                                                                        {formatDecimal(row[day]?.final)}
+                                                                    </span>
+                                                                </td>
+                                                            ))}
+                                                            <td className="px-1.5 py-2 text-center border-l border-slate-50 bg-blue-50/10">
+                                                                <span className="text-[10.5px] font-black text-slate-700 tabular-nums">
+                                                                    {formatDecimal(row.total.final)}h
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-purple-50/10 font-bold text-slate-600 tabular-nums text-[10.5px]">
+                                                                {formatCurrency(kbsRate)}
+                                                            </td>
+                                                            <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-purple-50/20 font-black text-purple-700 tabular-nums text-[10.5px]">
+                                                                {formatCurrency(kbsTotal)}
+                                                            </td>
+                                                            <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-rose-50/10 font-bold text-slate-600 tabular-nums text-[10.5px]">
+                                                                {formatCurrency(lgmRate)}
+                                                            </td>
+                                                            <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-rose-50/20 font-black text-rose-600 tabular-nums text-[10.5px]">
+                                                                {formatCurrency(lgmTotal)}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <SheetProgressModal isOpen={isProcessingSheets} />
+
             {isEmployeeStatsModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm" onClick={() => setIsEmployeeStatsModalOpen(false)} />
@@ -16479,6 +16709,18 @@ function App() {
                                         </div>
 
                                         <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={() => setIsAttendanceEyeModalOpen(true)}
+                                                disabled={semanaTableData.length === 0}
+                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center justify-center group ${
+                                                    semanaTableData.length > 0
+                                                        ? 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100 animate-pulse'
+                                                        : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                                                }`}
+                                                title="Ver Rates y Costos"
+                                            >
+                                                <Eye size={16} />
+                                            </button>
                                             {(() => {
                                                 const isCurrentWeekApproved = (nominaHistoryData || []).some(h =>
                                                     String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
