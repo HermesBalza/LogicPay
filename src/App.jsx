@@ -3696,9 +3696,12 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
 const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [confirmName, setConfirmName] = useState('');
     const [editedEmployee, setEditedEmployee] = useState({ ...employee });
     const [showTin, setShowTin] = useState(false);
+    const savePromiseRef = useRef(null);
 
     const updateField = (field, value) => {
         if (!isEditing) return;
@@ -3736,8 +3739,16 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
     };
 
     const handleSave = () => {
-        onSave(editedEmployee);
+        // Guardamos en localStorage el empleado editado para la verificación post-recarga
+        localStorage.setItem('pending_employee_sync', JSON.stringify(editedEmployee));
+
+        // Disparamos la sincronización en segundo plano inmediatamente
+        const promise = onSave(editedEmployee);
+        savePromiseRef.current = promise;
+        
+        // Al mismo tiempo, mostramos la ventana de notificación premium
         setIsEditing(false);
+        setShowSuccessModal(true);
     };
 
     return (
@@ -4262,6 +4273,52 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {showSuccessModal && (
+                <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-10 flex flex-col items-center text-center animate-in zoom-in-95 duration-500 border-2 border-white relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16 opacity-50" />
+                        
+                        <div className="w-20 h-20 rounded-[1.8rem] bg-[#6bbdb7] text-white flex items-center justify-center mb-8 shadow-2xl shadow-teal-900/20 animate-bounce relative z-10">
+                            <CheckCircle size={36} className="animate-in zoom-in duration-500" />
+                        </div>
+
+                        <h3 className="text-[#303a7f] font-black text-xl uppercase tracking-tighter mb-4 relative z-10">
+                            ¡Cambios Guardados!
+                        </h3>
+
+                        <p className="text-gray-400 text-[10px] font-bold leading-relaxed mb-8 uppercase tracking-[0.1em] px-2 relative z-10">
+                            La información del empleado ha sido actualizada exitosamente en la base de datos.
+                        </p>
+
+                        <button
+                            disabled={isRefreshing}
+                            onClick={async () => {
+                                setIsRefreshing(true);
+                                try {
+                                    if (savePromiseRef.current) {
+                                        await savePromiseRef.current;
+                                    }
+                                } catch (err) {
+                                    console.error('[Entendido] Error esperando guardado:', err);
+                                } finally {
+                                    window.location.reload();
+                                }
+                            }}
+                            className="w-full py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#1e234d] active:scale-95 transition-all relative z-10 flex items-center justify-center gap-2 disabled:opacity-80"
+                        >
+                            {isRefreshing ? (
+                                <>
+                                    <Loader2 size={14} className="animate-spin" />
+                                    Actualizando...
+                                </>
+                            ) : (
+                                "Ok, Entendido"
+                            )}
+                        </button>
                     </div>
                 </div>
             )}
@@ -12355,6 +12412,9 @@ function App() {
     const pendingEmployeeId = useRef(sessionStorage.getItem('editingEmployeeId'));
     const [isAddingEmployee, setIsAddingEmployee] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSyncingEmployeeCSV, setIsSyncingEmployeeCSV] = useState(
+        () => !!localStorage.getItem('pending_employee_sync')
+    );
     const [stores, setStores] = useState([]);
     const [employees, setEmployees] = useState([]);
     const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado' | 'desconectado' | 'sincronizando'
@@ -14802,7 +14862,7 @@ function App() {
         }
     };
 
-    const fetchEmployees = async () => {
+    const fetchEmployees = async (retryCount = 0) => {
         setIsLoading(true);
         setDbStatus('sincronizando');
         try {
@@ -14814,6 +14874,8 @@ function App() {
             if (lines.length < 2) {
                 setEmployees([]);
                 setDbStatus('conectado');
+                setIsLoading(false);
+                setIsSyncingEmployeeCSV(false);
                 return;
             }
             const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
@@ -14823,13 +14885,56 @@ function App() {
                 // Permitir que csvRowToEmployee encuentre campos con variantes de nombre
                 return csvRowToEmployee(obj);
             });
+
+            // --- VERIFICACIÓN DE SINCRONIZACIÓN FRESCA DE DATOS ---
+            const pendingSyncStr = localStorage.getItem('pending_employee_sync');
+            if (pendingSyncStr) {
+                try {
+                    const pending = JSON.parse(pendingSyncStr);
+                    const csvEmp = loaded.find(e => String(e.codigo_empleado).trim().replace(/^'/, '') === String(pending.codigo_empleado).trim().replace(/^'/, ''));
+                    
+                    const keysToCompare = [
+                        'nombre', 'direccion', 'telefono', 'email', 'cargo', 'store_association', 
+                        'zip', 'tin', 'site_code', 'cuenta_bancaria', 'rateKBS', 'rateLGM', 'rate_csg', 
+                        'cliente', 'observaciones', 'fecha_ingreso', 'fecha_egreso', 'activo', 'imagen'
+                    ];
+                    
+                    const isSyncComplete = csvEmp && keysToCompare.every(key => {
+                        const csvVal = String(csvEmp[key] || '').trim().replace(/^'/, '');
+                        const expVal = String(pending[key] || '').trim().replace(/^'/, '');
+                        return csvVal === expVal;
+                    });
+
+                    if (!isSyncComplete && retryCount < 8) {
+                        console.warn(`[LogicPay] Google Sheets aún no propaga los cambios para ${pending.nombre}. Reintentando en 2.5s (Intento ${retryCount + 1}/8)...`);
+                        setTimeout(() => {
+                            fetchEmployees(retryCount + 1);
+                        }, 2500);
+                        return; // Retornamos sin desactivar isSyncingEmployeeCSV ni isLoading
+                    } else {
+                        if (isSyncComplete) {
+                            console.log(`[LogicPay] ¡Sincronización confirmada de forma exitosa en Google Sheets para ${pending.nombre}!`);
+                        } else {
+                            console.error(`[LogicPay] Se superó el límite de reintentos de propagación del CSV.`);
+                        }
+                        localStorage.removeItem('pending_employee_sync');
+                        setIsSyncingEmployeeCSV(false);
+                    }
+                } catch (e) {
+                    console.error('[LogicPay] Error validando pending_employee_sync:', e);
+                    localStorage.removeItem('pending_employee_sync');
+                    setIsSyncingEmployeeCSV(false);
+                }
+            }
+
             setEmployees(loaded);
             setDbStatus('conectado');
+            setIsLoading(false);
         } catch (error) {
             console.error('[LogicPay] Error cargando empleados desde CSV:', error);
             setDbStatus('desconectado');
-        } finally {
             setIsLoading(false);
+            setIsSyncingEmployeeCSV(false);
         }
     };
 
@@ -15352,6 +15457,7 @@ function App() {
         return fetch(API_URL, {
             method: 'POST',
             mode: 'no-cors',
+            keepalive: true,
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action, data, sheetName, matchKeys })
         })
@@ -15442,7 +15548,7 @@ function App() {
         delete payload.cliente;
         delete payload.observaciones;
 
-        syncToSheets('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
+        return syncToSheets('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
 
     };
 
@@ -15535,7 +15641,7 @@ function App() {
         { id: 'settings', label: 'Ajustes', icon: Settings },
     ];
 
-    if (!variablesLoaded) return <SplashLoader />;
+    if (!variablesLoaded || isSyncingEmployeeCSV) return <SplashLoader />;
     if (!user) return <LoginView onLogin={handleLogin} />;
 
     return (
