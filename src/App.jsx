@@ -9001,7 +9001,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     );
 };
 
-const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [], onOpenBilling = () => { }, onOpenWOS = () => { } }) => {
+const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [], onOpenBilling = () => { }, onOpenWOS = () => { }, nominaDetailData = [] }) => {
     const [selectedYear, setSelectedYear] = useState(2026);
     if (!isOpen) return null;
 
@@ -9198,8 +9198,10 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                         {filteredPeriods.map((p) => {
                             const bothProcessed = isWeekProcessed(p.w1.start) && isWeekProcessed(p.w2.start);
-                            const periodKey = `${selectedStore}-${p.w1.start}-${p.w2.end}`;
-                            const isProcessed = processedBiweeks.includes(periodKey);
+                            const expectedId = `${selectedStore}_${p.w1.start}_-_${p.w2.end}`.replace(/\s+/g, '_');
+                            const isProcessed = (nominaDetailData || []).some(d =>
+                                String(d.id_consolidacion || '').trim() === expectedId
+                            );
                             return (
                                 <div
                                     key={p.periodNum}
@@ -12477,12 +12479,7 @@ function App() {
         return () => clearInterval(interval);
     }, [user]);
 
-    // --- SINCRONIZACIÓN AUTOMÁTICA DE VARIABLES OPERATIVAS ---
-    useEffect(() => {
-        if (variablesLoaded && initialLoadApplied.current) {
-            syncVariableToSheets('processed_biweeks', processedBiweeks);
-        }
-    }, [processedBiweeks, variablesLoaded]);
+
 
     useEffect(() => {
         if (variablesLoaded && initialLoadApplied.current) {
@@ -13232,13 +13229,6 @@ function App() {
             // 5. Actualizar estado visual
             setConfirmPayrollProgress(95);
             setConfirmPayrollStep("Actualizando estados locales...");
-            const periodKey = `${selectedBiweeklyPeriod.store}-${selectedBiweeklyPeriod.w1.start}-${selectedBiweeklyPeriod.w2.end}`;
-            if (!processedBiweeks.includes(periodKey)) {
-                const updated = [...processedBiweeks, periodKey];
-                setProcessedBiweeks(updated);
-                // Sincronización inmediata para garantizar persistencia
-                await syncVariableToSheets('processed_biweeks', updated);
-            }
 
             // ÉXITO FINAL
             setConfirmPayrollProgress(100);
@@ -16536,6 +16526,7 @@ function App() {
                                 onSelectStore={setSelectedHistoryStore}
                                 historyData={nominaHistoryData}
                                 processedBiweeks={processedBiweeks}
+                                nominaDetailData={nominaDetailData}
                                 onOpenBilling={(year) => { setBillingFilterYear(year); setIsBillingModalOpen(true); }}
                                 onOpenWOS={() => setIsWOSOpen(true)}
                                 manualData={billingManualRecords}
@@ -17226,6 +17217,7 @@ function App() {
                 onSelectStore={setSelectedHistoryStore}
                 historyData={nominaHistoryData}
                 processedBiweeks={processedBiweeks}
+                nominaDetailData={nominaDetailData}
                 onOpenBilling={() => setIsBillingModalOpen(true)}
                 onOpenWOS={() => setIsWOSOpen(true)}
                 manualData={billingManualRecords}
