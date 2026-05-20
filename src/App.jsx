@@ -88,7 +88,7 @@ import { CSGView } from './CSGModule.jsx';
 const genAIClient = (key) => new GoogleGenerativeAI(key);
 
 // ─── BASE DE DATOS: Google Sheets via Apps Script (escritura) ───────────────
-const API_URL = 'https://script.google.com/macros/s/AKfycbxpul9_uMVb1RfBj7E5ASUJ470Ps4b5seldhCdC1oOTCNkgcWU0HNIpkP1k5eTXImrEoA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbx3706uq0VSVMN7xDcW3A9qRWXNAUNN5DGWNxGnp4FI3uuZECDBdgi8mnNQU2xGfWI0IA/exec';
 const MAIL_API_URL = 'https://script.google.com/macros/s/AKfycbwJO2nSGQxA5TjaMUsuhlVUlZhksSFIm1oQihRsM3M9C6BJoMeBOu4mu7Nqxd56bVYunw/exec'; // Vincular con la URL del Script desplegado en la segunda cuenta de Gmail
 
 // ─── BASE DE DATOS: Google Sheets publicado como CSV (lectura) ───────────────
@@ -9993,7 +9993,7 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
 });
 
 // ─── Vista Principal de Proyectos Especiales ─────────────────────────────────
-const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterProject, onAnulateProjectSheet, onRegisterEmployee, onUpdateLocationHistory, onSyncCorrelativo }) => {
+const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterProject, onAnulateProjectSheet, onRegisterEmployee, onUpdateLocationHistory, onSyncCorrelativo, onReserveInvoice }) => {
     const [anulatingProject, setAnulatingProject] = useState(null);
 
     // Convertir el rango de fechas MM/DD/YYYY a YYYY-MM-DD para los inputs tipo date
@@ -10006,19 +10006,20 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
     const minDate = toInputDate(fechaDesde);
     const maxDate = toInputDate(fechaHasta);
 
-    // Crear un nuevo proyecto vacío con el siguiente número de invoice sincronizado
+    // Crear un nuevo proyecto vacío con el siguiente número de invoice reservado atómicamente en el servidor
     const addProject = async () => {
-        let currentNext = nextInvoice;
-
-        // Verificación forzada: Consultar base de datos antes de generar la tarjeta
-        if (onSyncCorrelativo) {
-            currentNext = await onSyncCorrelativo();
+        if (!onReserveInvoice) {
+            console.error('[LogicPay] onReserveInvoice no está definido.');
+            return;
         }
 
-        const invoiceNumber = normalizeInvoice(currentNext);
+        // El servidor reserva el número de invoice de forma atómica (lee + incrementa + guarda en una sola operación)
+        const reservedInvoice = await onReserveInvoice();
+        if (!reservedInvoice) return; // El handler ya habrá mostrado el error al usuario
+
         const newProject = {
             id: Date.now(),
-            invoice: invoiceNumber,
+            invoice: reservedInvoice,
             fecha: minDate, // Fecha inicial = inicio del periodo
             nombre: '',
             descripcion: '',
@@ -10026,8 +10027,8 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
         };
         setSpecialProjectsData(prev => [...prev, newProject]);
 
-        // Actualizar el estado global con el siguiente disponible para el caché local
-        setNextInvoice(normalizeInvoice(Number(currentNext) + 1));
+        // Mantener el estado local sincronizado con el valor que devolvió el servidor
+        setNextInvoice(normalizeInvoice(Number(reservedInvoice) + 1));
     };
 
     // Eliminar un proyecto y renumerar los restantes desde la base original
@@ -15192,6 +15193,32 @@ function App() {
         }
     };
 
+    // Reserva atómica del siguiente número de invoice en el servidor.
+    // El Apps Script lee next_invoice, lo incrementa y lo guarda en una sola operación,
+    // garantizando que dos usuarios simultáneos reciban números diferentes.
+    const handleReserveInvoice = async () => {
+        showProcessing("Reservando número de Invoice...");
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'reserveInvoice' })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error || 'El servidor rechazó la reserva.');
+            const reserved = normalizeInvoice(result.invoice);
+            setNextInvoice(reserved + 1); // Mantener estado local coherente
+            return reserved;
+        } catch (error) {
+            console.error('[LogicPay] Error reservando invoice:', error);
+            showError('No se pudo reservar el número de Invoice. Verifica tu conexión e intenta de nuevo.');
+            return null;
+        } finally {
+            setIsStatusModalOpen(false);
+        }
+    };
+
     // \u2500\u2500\u2500 API: Cargar servicios CSG desde CSV p\u00fablico de Google Sheets \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
     const fetchCSGServices = async () => {
         if (!CSG_SERVICES_CSV_URL) return;
@@ -17921,6 +17948,7 @@ function App() {
                         syncVariableToSheets('next_invoice', String(normalized));
                     }}
                     onSyncCorrelativo={handleSyncCorrelativo}
+                    onReserveInvoice={handleReserveInvoice}
                     onRegisterProject={handleRegisterSpecialProject}
                     onAnulateProjectSheet={handleAnulateSpecialProject}
                     onRegisterEmployee={(newEmp) => {
