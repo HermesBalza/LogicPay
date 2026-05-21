@@ -13495,7 +13495,19 @@ function App() {
 
             wb.Sheets[wsName] = newWs;
 
-            const fileName = `REPORTE_CORREGIDO_AI_${payrollStore || 'LGM'}_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`;
+            const cleanDateStr = (dateStr) => {
+                if (!dateStr) return '00000000';
+                if (dateStr.includes('-')) {
+                    const [y, m, d] = dateStr.split('-');
+                    return `${m}${d}${y}`;
+                }
+                return String(dateStr).replace(/[^0-9]/g, '');
+            };
+            const formattedDesde = cleanDateStr(fechaDesde);
+            const formattedHasta = cleanDateStr(fechaHasta);
+            const storeNameFixed = (payrollStore || 'LGM').replace(/\s+/g, '_');
+            
+            const fileName = `Asistencia_Corregida_${storeNameFixed}_${formattedDesde}-${formattedHasta}.xlsx`;
             XLSX.writeFile(wb, fileName);
             setSupervisorFile(null);
             if (supervisorFileInputRef.current) supervisorFileInputRef.current.value = "";
