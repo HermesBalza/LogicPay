@@ -16936,7 +16936,17 @@ function App() {
 
                                         <div className="flex items-center gap-4">
                                             <button
-                                                onClick={() => setIsAttendanceEyeModalOpen(true)}
+                                                onClick={() => {
+                                                    setIsLoading(true);
+                                                    // Limpieza profunda (Forzar Refrescamiento de Caché)
+                                                    setKbsBillingTableData([]);
+                                                    setEarningsTableData([]);
+                                                    
+                                                    setTimeout(() => {
+                                                        setIsLoading(false);
+                                                        setIsAttendanceEyeModalOpen(true);
+                                                    }, 1500);
+                                                }}
                                                 disabled={semanaTableData.length === 0}
                                                 className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center justify-center group ${
                                                     semanaTableData.length > 0
@@ -17928,10 +17938,23 @@ function App() {
                                 onClick={() => {
                                     setIsStatusModalOpen(false);
                                     if (statusModalMessage.includes("Cálculo Semanal procesado")) {
-                                        localStorage.setItem('last_payroll_store', payrollStore);
-                                        localStorage.setItem('last_payroll_desde', fechaDesde);
-                                        localStorage.setItem('last_payroll_hasta', fechaHasta);
-                                        window.location.reload();
+                                        setIsLoading(true);
+                                        
+                                        // Limpiar variables de caché
+                                        setKbsBillingTableData([]);
+                                        setEarningsTableData([]);
+                                        
+                                        Promise.all([
+                                            fetchNominaDetail(),
+                                            fetchNominaHistory(),
+                                            fetchEmployees()
+                                        ]).then(() => {
+                                            setTimeout(() => {
+                                                setIsLoading(false);
+                                            }, 2500);
+                                        }).catch(() => {
+                                            setTimeout(() => setIsLoading(false), 2500);
+                                        });
                                     }
                                 }}
                                 className={`w-full py-4 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 ${statusModalType === 'success' ? 'bg-[#303a7f] shadow-blue-900/10 hover:bg-[#252a5e]' : 'bg-red-500 shadow-red-900/10 hover:bg-red-600'}`}
