@@ -17207,9 +17207,9 @@ function App() {
                                                                     <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-6 shadow-inner border border-red-100">
                                                                         <AlertTriangle size={32} className="text-red-500" />
                                                                     </div>
-                                                                    <h3 className="text-2xl font-black text-[#303a7f] mb-2 text-center tracking-tight">¿Aprobar Semana?</h3>
+                                                                    <h3 className="text-2xl font-black text-[#303a7f] mb-2 text-center tracking-tight">¿APROBAR SEMANA?</h3>
                                                                     <p className="text-center text-gray-500 text-sm font-medium mb-8 leading-relaxed">
-                                                                        Esta acción <strong className="text-red-500 font-black">NO tiene vuelta atrás</strong>.<br /><br />
+                                                                        Esta acción <strong className="text-red-500 font-black">no tiene vuelta atrás</strong>.<br /><br />
                                                                         Asegúrate de haber cargado la Asistencia Semanal y/o los Proyectos Especiales de esta semana.
                                                                     </p>
                                                                     <div className="flex gap-4 w-full">

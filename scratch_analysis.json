@@ -1,0 +1,1086 @@
+{
+  "totalLines": 17067,
+  "functionCount": 479,
+  "stateCount": 219,
+  "effectCount": 36,
+  "states": [
+    {
+      "line": 484,
+      "code": "const [selectedUser, setSelectedUser] = useState('');"
+    },
+    {
+      "line": 485,
+      "code": "const [password, setPassword] = useState('');"
+    },
+    {
+      "line": 486,
+      "code": "const [error, setError] = useState(false);"
+    },
+    {
+      "line": 581,
+      "code": "const [isOpen, setIsOpen] = useState(false);"
+    },
+    {
+      "line": 582,
+      "code": "const [message, setMessage] = useState('');"
+    },
+    {
+      "line": 583,
+      "code": "const [systemContext, setSystemContext] = useState('');"
+    },
+    {
+      "line": 584,
+      "code": "const [chatHistory, setChatHistory] = useState(["
+    },
+    {
+      "line": 587,
+      "code": "const [isTyping, setIsTyping] = useState(false);"
+    },
+    {
+      "line": 776,
+      "code": "const [dateFrom, setDateFrom] = useState(null);"
+    },
+    {
+      "line": 777,
+      "code": "const [dateTo, setDateTo] = useState(null);"
+    },
+    {
+      "line": 778,
+      "code": "const [selectedStore, setSelectedStore] = useState('Todas');"
+    },
+    {
+      "line": 779,
+      "code": "const [selectedEmployee, setSelectedEmployee] = useState('Todos');"
+    },
+    {
+      "line": 780,
+      "code": "const [selectedSupervisor, setSelectedSupervisor] = useState('Todos');"
+    },
+    {
+      "line": 781,
+      "code": "const [trendPeriod, setTrendPeriod] = useState('monthly'); // 'monthly' | 'weekly'"
+    },
+    {
+      "line": 1748,
+      "code": "const [isEditing, setIsEditing] = useState(false);"
+    },
+    {
+      "line": 1749,
+      "code": "const [showDeleteModal, setShowDeleteModal] = useState(false);"
+    },
+    {
+      "line": 1750,
+      "code": "const [confirmName, setConfirmName] = useState('');"
+    },
+    {
+      "line": 1757,
+      "code": "const [editedStore, setEditedStore] = useState({"
+    },
+    {
+      "line": 2297,
+      "code": "const [newStore, setNewStore] = useState({"
+    },
+    {
+      "line": 2577,
+      "code": "const [isUploading, setIsUploading] = useState(false);"
+    },
+    {
+      "line": 2578,
+      "code": "const [isCrossing, setIsCrossing] = useState(false);"
+    },
+    {
+      "line": 2579,
+      "code": "const [isWOSDetailOpen, setIsWOSDetailOpen] = useState(false);"
+    },
+    {
+      "line": 2606,
+      "code": "const [wosData, setWosData] = useState({"
+    },
+    {
+      "line": 2615,
+      "code": "const [wosServices, setWosServices] = useState([]);"
+    },
+    {
+      "line": 2616,
+      "code": "const [acceptedKeys, setAcceptedKeys] = useState(new Set());"
+    },
+    {
+      "line": 2617,
+      "code": "const [selectedWosGroup, setSelectedWosGroup] = useState(null);"
+    },
+    {
+      "line": 2618,
+      "code": "const [isWOSBugOpen, setIsWOSBugOpen] = useState(false);"
+    },
+    {
+      "line": 2619,
+      "code": "const [isWOSHistoryOpen, setIsWOSHistoryOpen] = useState(false);"
+    },
+    {
+      "line": 2620,
+      "code": "const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);"
+    },
+    {
+      "line": 2621,
+      "code": "const [isSendingTicket, setIsSendingTicket] = useState(false);"
+    },
+    {
+      "line": 3681,
+      "code": "const [isEditing, setIsEditing] = useState(false);"
+    },
+    {
+      "line": 3682,
+      "code": "const [showDeleteModal, setShowDeleteModal] = useState(false);"
+    },
+    {
+      "line": 3683,
+      "code": "const [confirmName, setConfirmName] = useState('');"
+    },
+    {
+      "line": 3684,
+      "code": "const [editedEmployee, setEditedEmployee] = useState({ ...employee });"
+    },
+    {
+      "line": 3685,
+      "code": "const [showTin, setShowTin] = useState(false);"
+    },
+    {
+      "line": 4256,
+      "code": "const [newEmployee, setNewEmployee] = useState({"
+    },
+    {
+      "line": 4714,
+      "code": "const [to, setTo] = useState('Mindy.Odom@kbs-services.com');"
+    },
+    {
+      "line": 4715,
+      "code": "const [cc, setCc] = useState('SYSCO@kbs-services.com');"
+    },
+    {
+      "line": 4716,
+      "code": "const [subject, setSubject] = useState('');"
+    },
+    {
+      "line": 4717,
+      "code": "const [body, setBody] = useState('');"
+    },
+    {
+      "line": 4875,
+      "code": "const [to, setTo] = useState('');"
+    },
+    {
+      "line": 4876,
+      "code": "const [subject, setSubject] = useState('');"
+    },
+    {
+      "line": 4877,
+      "code": "const [body, setBody] = useState('');"
+    },
+    {
+      "line": 4878,
+      "code": "const [relevantProjects, setRelevantProjects] = useState([]);"
+    },
+    {
+      "line": 5034,
+      "code": "const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);"
+    },
+    {
+      "line": 5035,
+      "code": "const [isSendingEmail, setIsSendingEmail] = useState(false);"
+    },
+    {
+      "line": 5036,
+      "code": "const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });"
+    },
+    {
+      "line": 5037,
+      "code": "const [activeSplitPart, setActiveSplitPart] = useState('A');"
+    },
+    {
+      "line": 5547,
+      "code": "const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());"
+    },
+    {
+      "line": 5548,
+      "code": "const [searchTerm, setSearchTerm] = useState('');"
+    },
+    {
+      "line": 5934,
+      "code": "const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());"
+    },
+    {
+      "line": 5935,
+      "code": "const [selectedPeriod, setSelectedPeriod] = useState(null);"
+    },
+    {
+      "line": 5936,
+      "code": "const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);"
+    },
+    {
+      "line": 5937,
+      "code": "const [isSending, setIsSending] = useState(false);"
+    },
+    {
+      "line": 5938,
+      "code": "const [sendingProgress, setSendingProgress] = useState({ current: 0, total: 0, status: 'idle', logs: [] });"
+    },
+    {
+      "line": 5939,
+      "code": "const [sentPayStubs, setSentPayStubs] = useState({});"
+    },
+    {
+      "line": 5940,
+      "code": "const [previewPdf, setPreviewPdf] = useState({ isOpen: false, url: '', name: '' });"
+    },
+    {
+      "line": 5941,
+      "code": "const [searchTerm, setSearchTerm] = useState('');"
+    },
+    {
+      "line": 5942,
+      "code": "const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });"
+    },
+    {
+      "line": 6538,
+      "code": "const [localResults, setLocalResults] = useState([]);"
+    },
+    {
+      "line": 6539,
+      "code": "const [searchingIdx, setSearchingIdx] = useState(null);"
+    },
+    {
+      "line": 6540,
+      "code": "const [manualSearchTerm, setManualSearchTerm] = useState('');"
+    },
+    {
+      "line": 7045,
+      "code": "const [to, setTo] = useState('estefanyclgm@gmail.com');"
+    },
+    {
+      "line": 7046,
+      "code": "const [subject, setSubject] = useState(`PAYROLL ${String(period?.store || '').toUpperCase()} - ${period?.range}`);"
+    },
+    {
+      "line": 7047,
+      "code": "const [body, setBody] = useState(`Hi, Estefany\\n\\nAttached is the payroll report for the period of ${period?.range} for the ${period?.store} store.\\n\\nBest regards,\\nLogic Group Management`);"
+    },
+    {
+      "line": 7154,
+      "code": "const [to, setTo] = useState('absup@kbs-services.com');"
+    },
+    {
+      "line": 7155,
+      "code": "const [subject, setSubject] = useState('');"
+    },
+    {
+      "line": 7156,
+      "code": "const [body, setBody] = useState('');"
+    },
+    {
+      "line": 7157,
+      "code": "const [attachments, setAttachments] = useState([]);"
+    },
+    {
+      "line": 7521,
+      "code": "const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);"
+    },
+    {
+      "line": 7522,
+      "code": "const [isSaving, setIsSaving] = useState(false);"
+    },
+    {
+      "line": 7524,
+      "code": "const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);"
+    },
+    {
+      "line": 7525,
+      "code": "const [isSendingEmail, setIsSendingEmail] = useState(false);"
+    },
+    {
+      "line": 7526,
+      "code": "const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });"
+    },
+    {
+      "line": 7527,
+      "code": "const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);"
+    },
+    {
+      "line": 7528,
+      "code": "const [isPayStubModalOpen, setIsPayStubModalOpen] = useState(false);"
+    },
+    {
+      "line": 7529,
+      "code": "const [sendingProgress, setSendingProgress] = useState({ current: 0, total: 0, status: 'idle', logs: [] });"
+    },
+    {
+      "line": 7530,
+      "code": "const [sentPayStubs, setSentPayStubs] = useState({}); // { [empId]: true }"
+    },
+    {
+      "line": 7531,
+      "code": "const [previewPdf, setPreviewPdf] = useState({ isOpen: false, url: '', name: '' });"
+    },
+    {
+      "line": 8562,
+      "code": "const [selectedYear, setSelectedYear] = useState(2026);"
+    },
+    {
+      "line": 8927,
+      "code": "const [searchTerm, setSearchTerm] = useState(value || '');"
+    },
+    {
+      "line": 8928,
+      "code": "const [isOpen, setIsOpen] = useState(false);"
+    },
+    {
+      "line": 8929,
+      "code": "const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });"
+    },
+    {
+      "line": 8931,
+      "code": "const [registerForm, setRegisterForm] = useState(null);"
+    },
+    {
+      "line": 9166,
+      "code": "const [localValue, setLocalValue] = useState(value || '');"
+    },
+    {
+      "line": 9186,
+      "code": "const [localNombre, setLocalNombre] = useState(project.nombre || '');"
+    },
+    {
+      "line": 9187,
+      "code": "const [localDesc, setLocalDesc] = useState(project.descripcion || '');"
+    },
+    {
+      "line": 9188,
+      "code": "const [localComentarios, setLocalComentarios] = useState(project.comentarios || '');"
+    },
+    {
+      "line": 9495,
+      "code": "const [anulatingProject, setAnulatingProject] = useState(null);"
+    },
+    {
+      "line": 9696,
+      "code": "const [to, setTo] = useState(defaultTo || '');"
+    },
+    {
+      "line": 9697,
+      "code": "const [subject, setSubject] = useState(`Invoice Special Project #${project.invoice} - ${project.proyecto || project.nombre} - ${project.tienda}`);"
+    },
+    {
+      "line": 9698,
+      "code": "const [body, setBody] = useState(`Hello, Mindy\\n\\nAttached is the Invoice Special Project #${project.invoice} for the professional services of the Special Project \"${project.proyecto || project.nombre}\" in the ${project.tienda} store.\\n\\nThank You,\\nLogic Group Management`);"
+    },
+    {
+      "line": 9810,
+      "code": "const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);"
+    },
+    {
+      "line": 9811,
+      "code": "const [isSendingEmail, setIsSendingEmail] = useState(false);"
+    },
+    {
+      "line": 9812,
+      "code": "const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });"
+    },
+    {
+      "line": 10077,
+      "code": "const [inputInvoice, setInputInvoice] = useState('');"
+    },
+    {
+      "line": 10629,
+      "code": "const [showDeleteModal, setShowDeleteModal] = useState(false);"
+    },
+    {
+      "line": 10630,
+      "code": "const [confirmName, setConfirmName] = useState('');"
+    },
+    {
+      "line": 10631,
+      "code": "const [newEmp, setNewEmp] = useState(employee || {"
+    },
+    {
+      "line": 10888,
+      "code": "const [activeSection, setActiveSection] = useState('employees'); // 'employees' | 'payroll' | 'history'"
+    },
+    {
+      "line": 10889,
+      "code": "const [selectedPeriod, setSelectedPeriod] = useState('');"
+    },
+    {
+      "line": 10890,
+      "code": "const [payrollRows, setPayrollRows] = useState([]);"
+    },
+    {
+      "line": 10891,
+      "code": "const [isConfirming, setIsConfirming] = useState(false);"
+    },
+    {
+      "line": 10892,
+      "code": "const [notif, setNotif] = useState({ open: false, type: 'success', msg: '' });"
+    },
+    {
+      "line": 10893,
+      "code": "const [isSendingEmail, setIsSendingEmail] = useState(false);"
+    },
+    {
+      "line": 10894,
+      "code": "const [isAddingAdminEmployee, setIsAddingAdminEmployee] = useState(false);"
+    },
+    {
+      "line": 10895,
+      "code": "const [editingAdminEmployee, setEditingAdminEmployee] = useState(null);"
+    },
+    {
+      "line": 11324,
+      "code": "const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);"
+    },
+    {
+      "line": 11325,
+      "code": "const [isSendingEmail, setIsSendingEmail] = useState(false);"
+    },
+    {
+      "line": 11326,
+      "code": "const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });"
+    },
+    {
+      "line": 11634,
+      "code": "const [to, setTo] = useState('kbs.billing@services.com');"
+    },
+    {
+      "line": 11635,
+      "code": "const [cc, setCc] = useState('');"
+    },
+    {
+      "line": 11636,
+      "code": "const [subject, setSubject] = useState('');"
+    },
+    {
+      "line": 11637,
+      "code": "const [body, setBody] = useState('');"
+    },
+    {
+      "line": 11728,
+      "code": "const [variablesLoaded, setVariablesLoaded] = useState(false);"
+    },
+    {
+      "line": 11730,
+      "code": "const [activeTab, setActiveTab] = useState(sessionStorage.getItem('activeTab') || 'dashboard');"
+    },
+    {
+      "line": 11731,
+      "code": "const [isSidebarOpen, setSidebarOpen] = useState(true);"
+    },
+    {
+      "line": 11732,
+      "code": "const [storeSearchTerm, setStoreSearchTerm] = useState(sessionStorage.getItem('storeSearchTerm') || '');"
+    },
+    {
+      "line": 11733,
+      "code": "const [employeeSearchTerm, setEmployeeSearchTerm] = useState(sessionStorage.getItem('employeeSearchTerm') || '');"
+    },
+    {
+      "line": 11734,
+      "code": "const [editingStore, setEditingStore] = useState(null);"
+    },
+    {
+      "line": 11736,
+      "code": "const [isAddingStore, setIsAddingStore] = useState(false);"
+    },
+    {
+      "line": 11737,
+      "code": "const [editingEmployee, setEditingEmployee] = useState(null);"
+    },
+    {
+      "line": 11739,
+      "code": "const [isAddingEmployee, setIsAddingEmployee] = useState(false);"
+    },
+    {
+      "line": 11740,
+      "code": "const [isLoading, setIsLoading] = useState(false);"
+    },
+    {
+      "line": 11741,
+      "code": "const [stores, setStores] = useState([]);"
+    },
+    {
+      "line": 11742,
+      "code": "const [employees, setEmployees] = useState([]);"
+    },
+    {
+      "line": 11743,
+      "code": "const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado' | 'desconectado' | 'sincronizando'"
+    },
+    {
+      "line": 11745,
+      "code": "const [user, setUser] = useState(null);"
+    },
+    {
+      "line": 11748,
+      "code": "const [supervisorFile, setSupervisorFile] = useState(null);"
+    },
+    {
+      "line": 11749,
+      "code": "const [biometricFile, setBiometricFile] = useState(null);"
+    },
+    {
+      "line": 11750,
+      "code": "const [payrollStore, setPayrollStore] = useState('');"
+    },
+    {
+      "line": 11751,
+      "code": "const [semanaTableData, setSemanaTableData] = useState([]);"
+    },
+    {
+      "line": 11752,
+      "code": "const [biometricTableData, setBiometricTableData] = useState([]); // FASE 2: Resumen Biométrico IA"
+    },
+    {
+      "line": 11753,
+      "code": "const [personalViewMode, setPersonalViewMode] = useState('grid'); // Cuadrícula por defecto"
+    },
+    {
+      "line": 11754,
+      "code": "const [storesViewMode, setStoresViewMode] = useState('grid'); // Cuadrícula por defecto para tiendas"
+    },
+    {
+      "line": 11755,
+      "code": "const [rawBiometricData, setRawBiometricData] = useState([]); // FASE 2.5: Datos crudos para detalles"
+    },
+    {
+      "line": 11756,
+      "code": "const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // FASE 2.5: Modal detalles"
+    },
+    {
+      "line": 11757,
+      "code": "const [payrollResults, setPayrollResults] = useState([]);"
+    },
+    {
+      "line": 11758,
+      "code": "const [isProcessingPayroll, setIsProcessingPayroll] = useState(false);"
+    },
+    {
+      "line": 11759,
+      "code": "const [isProcessingIA, setIsProcessingIA] = useState(false);"
+    },
+    {
+      "line": 11760,
+      "code": "const [geminiApiKey, setGeminiApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || '');"
+    },
+    {
+      "line": 11761,
+      "code": "const [verificationResults, setVerificationResults] = useState([]); // FASE 4: Resultados de verificación"
+    },
+    {
+      "line": 11762,
+      "code": "const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false); // FASE 4: Control del modal"
+    },
+    {
+      "line": 11763,
+      "code": "const [isSyncingBatch, setIsSyncingBatch] = useState(false); // FASE 4.8: Estado de sincronización masiva"
+    },
+    {
+      "line": 11764,
+      "code": "const [syncProgress, setSyncProgress] = useState(0); // FASE 4.8: Progreso actual"
+    },
+    {
+      "line": 11765,
+      "code": "const [syncTotal, setSyncTotal] = useState(0); // FASE 4.8: Total de registros"
+    },
+    {
+      "line": 11766,
+      "code": "const [payrollProgress, setPayrollProgress] = useState(0); // FASE 5: Progreso Nómina"
+    },
+    {
+      "line": 11767,
+      "code": "const [payrollTotalRows, setPayrollTotalRows] = useState(0); // FASE 5: Total filas Nómina"
+    },
+    {
+      "line": 11768,
+      "code": "const [payrollStep, setPayrollStep] = useState('supervisor'); // 'supervisor' | 'ia' | 'crossover'"
+    },
+    {
+      "line": 11769,
+      "code": "const [fechaDesde, setFechaDesde] = useState(sessionStorage.getItem('fechaDesde') || '');"
+    },
+    {
+      "line": 11770,
+      "code": "const [fechaHasta, setFechaHasta] = useState(sessionStorage.getItem('fechaHasta') || '');"
+    },
+    {
+      "line": 11771,
+      "code": "const [earningsTableData, setEarningsTableData] = useState([]); // FASE 6: Reporte Monetario (LSG)"
+    },
+    {
+      "line": 11772,
+      "code": "const [kbsBillingTableData, setKbsBillingTableData] = useState([]); // FASE 6.5: Reporte Facturación (KBS)"
+    },
+    {
+      "line": 11773,
+      "code": "const [isWeeklyApproved, setIsWeeklyApproved] = useState(false); // FASE 6: Estado de aprobación"
+    },
+    {
+      "line": 11774,
+      "code": "const [isStatusModalOpen, setIsStatusModalOpen] = useState(false); // FASE 7: Modal de estatus profesional"
+    },
+    {
+      "line": 11775,
+      "code": "const [statusModalMessage, setStatusModalMessage] = useState('');"
+    },
+    {
+      "line": 11776,
+      "code": "const [statusModalTitle, setStatusModalTitle] = useState('');"
+    },
+    {
+      "line": 11777,
+      "code": "const [isManualModalOpen, setIsManualModalOpen] = useState(false); // Manual de Uso"
+    },
+    {
+      "line": 11780,
+      "code": "const [statusModalType, setStatusModalType] = useState('success'); // 'success' | 'error'"
+    },
+    {
+      "line": 11781,
+      "code": "const [payrollView, setPayrollView] = useState(sessionStorage.getItem('payrollView') || 'history'); // 'history' | 'engine'"
+    },
+    {
+      "line": 11782,
+      "code": "const [isBiweeklyManagementOpen, setIsBiweeklyManagementOpen] = useState(sessionStorage.getItem('isBiweeklyManagementOpen') === 'true');"
+    },
+    {
+      "line": 11783,
+      "code": "const [selectedBiweeklyPeriod, setSelectedBiweeklyPeriod] = useState(() => {"
+    },
+    {
+      "line": 11788,
+      "code": "const [nominaHistoryData, setNominaHistoryData] = useState([]); // FASE 9: Historial Persistente"
+    },
+    {
+      "line": 11789,
+      "code": "const [nominaDetailData, setNominaDetailData] = useState([]); // FASE 9.5: Detalle Consolidado (Comentarios)"
+    },
+    {
+      "line": 11790,
+      "code": "const [selectedHistoryStore, setSelectedHistoryStore] = useState(sessionStorage.getItem('selectedHistoryStore') || '');"
+    },
+    {
+      "line": 11791,
+      "code": "const [isUPSConsolidatedOpen, setIsUPSConsolidatedOpen] = useState(false);"
+    },
+    {
+      "line": 11792,
+      "code": "const [upsFilterWeek, setUpsFilterWeek] = useState(null); // Para filtrar por semana específica desde VWH"
+    },
+    {
+      "line": 11794,
+      "code": "const [isHistoricalDataLoaded, setIsHistoricalDataLoaded] = useState(false); // Flag para la UI"
+    },
+    {
+      "line": 11795,
+      "code": "const [processedBiweeks, setProcessedBiweeks] = useState([]);"
+    },
+    {
+      "line": 11796,
+      "code": "const [vwhEmailsSent, setVwhEmailsSent] = useState({});"
+    },
+    {
+      "line": 11797,
+      "code": "const [peEmailsSent, setPeEmailsSent] = useState({});"
+    },
+    {
+      "line": 11798,
+      "code": "const [vwhRecordId, setVwhRecordId] = useState(null);"
+    },
+    {
+      "line": 11799,
+      "code": "const [paEmailsSent, setPaEmailsSent] = useState({}); // FASE 10: Persistencia Recibos Enviados"
+    },
+    {
+      "line": 11802,
+      "code": "const [adminEmployees, setAdminEmployees] = useState([]);"
+    },
+    {
+      "line": 11803,
+      "code": "const [adminPayrollHistory, setAdminPayrollHistory] = useState([]);"
+    },
+    {
+      "line": 11804,
+      "code": "const [adminPayrollSearchTerm, setAdminPayrollSearchTerm] = useState('');"
+    },
+    {
+      "line": 11807,
+      "code": "const [csgServicesData, setCsgServicesData] = useState([]);"
+    },
+    {
+      "line": 11808,
+      "code": "const [csgNominaData, setCsgNominaData] = useState([]);"
+    },
+    {
+      "line": 11809,
+      "code": "const [activeCSGTab, setActiveCSGTab] = useState(sessionStorage.getItem('activeCSGTab') || 'registro'); // 'registro' | 'historial' | 'nomina' | 'facturacion'"
+    },
+    {
+      "line": 11810,
+      "code": "const [isCsgFormOpen, setIsCsgFormOpen] = useState(false);"
+    },
+    {
+      "line": 11811,
+      "code": "const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });"
+    },
+    {
+      "line": 11813,
+      "code": "const [invalidCodes, setInvalidCodes] = useState([]);"
+    },
+    {
+      "line": 11814,
+      "code": "const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);"
+    },
+    {
+      "line": 11815,
+      "code": "const [isBiometricIVRModalOpen, setIsBiometricIVRModalOpen] = useState(false);"
+    },
+    {
+      "line": 11816,
+      "code": "const [isSupervisorModalOpen, setIsSupervisorModalOpen] = useState(false);"
+    },
+    {
+      "line": 11821,
+      "code": "const [isVWHModalOpen, setIsVWHModalOpen] = useState(false);"
+    },
+    {
+      "line": 11822,
+      "code": "const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);"
+    },
+    {
+      "line": 11823,
+      "code": "const [isPEModalOpen, setIsPEModalOpen] = useState(false);"
+    },
+    {
+      "line": 11824,
+      "code": "const [isEmployeeStatsModalOpen, setIsEmployeeStatsModalOpen] = useState(false);"
+    },
+    {
+      "line": 11825,
+      "code": "const [isStoreStatsModalOpen, setIsStoreStatsModalOpen] = useState(false);"
+    },
+    {
+      "line": 11826,
+      "code": "const [isConfirmApproveModalOpen, setIsConfirmApproveModalOpen] = useState(false);"
+    },
+    {
+      "line": 11827,
+      "code": "const [isHoursReportEmailModalOpen, setIsHoursReportEmailModalOpen] = useState(false);"
+    },
+    {
+      "line": 11828,
+      "code": "const [isSendingHoursReport, setIsSendingHoursReport] = useState(false);"
+    },
+    {
+      "line": 11829,
+      "code": "const [hoursReportPdfBase64, setHoursReportPdfBase64] = useState(null);"
+    },
+    {
+      "line": 11833,
+      "code": "const [specialProjectsData, setSpecialProjectsData] = useState([]);"
+    },
+    {
+      "line": 11834,
+      "code": "const [payrollDrafts, setPayrollDrafts] = useState({});"
+    },
+    {
+      "line": 11837,
+      "code": "const [nextInvoice, setNextInvoice] = useState(100);"
+    },
+    {
+      "line": 11839,
+      "code": "const [activeUsers, setActiveUsers] = useState([]);"
+    },
+    {
+      "line": 11840,
+      "code": "const [isPresenceOpen, setIsPresenceOpen] = useState(false);"
+    },
+    {
+      "line": 11913,
+      "code": "const [sheetFiles, setSheetFiles] = useState([]); // FASE 8: Digitalizador"
+    },
+    {
+      "line": 11914,
+      "code": "const [isProcessingSheets, setIsProcessingSheets] = useState(false); // FASE 8: Digitalizador"
+    },
+    {
+      "line": 11915,
+      "code": "const [isSheetPreviewOpen, setIsSheetPreviewOpen] = useState(false); // MODAL PREVIEW"
+    },
+    {
+      "line": 11916,
+      "code": "const [isMassImportInfoOpen, setIsMassImportInfoOpen] = useState(false);"
+    },
+    {
+      "line": 11917,
+      "code": "const [isStoreMassImportInfoOpen, setIsStoreMassImportInfoOpen] = useState(false);"
+    },
+    {
+      "line": 11920,
+      "code": "const [isConfirmingPayroll, setIsConfirmingPayroll] = useState(false);"
+    },
+    {
+      "line": 11921,
+      "code": "const [confirmPayrollProgress, setConfirmPayrollProgress] = useState(0);"
+    },
+    {
+      "line": 11922,
+      "code": "const [confirmPayrollStep, setConfirmPayrollStep] = useState(\"\");"
+    },
+    {
+      "line": 11923,
+      "code": "const [isConfirmPayrollFinished, setIsConfirmPayrollFinished] = useState(false);"
+    },
+    {
+      "line": 11926,
+      "code": "const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);"
+    },
+    {
+      "line": 11927,
+      "code": "const [billingFilterYear, setBillingFilterYear] = useState(new Date().getFullYear());"
+    },
+    {
+      "line": 11928,
+      "code": "const [isSyncingBilling, setIsSyncingBilling] = useState(false);"
+    },
+    {
+      "line": 11929,
+      "code": "const [isWOSOpen, setIsWOSOpen] = useState(false);"
+    },
+    {
+      "line": 11930,
+      "code": "const [selectedSpecialProjectInvoice, setSelectedSpecialProjectInvoice] = useState(null);"
+    },
+    {
+      "line": 11931,
+      "code": "const [isSpecialProjectInvoiceOpen, setIsSpecialProjectInvoiceOpen] = useState(false);"
+    },
+    {
+      "line": 11932,
+      "code": "const [isPayrollAdviceOpen, setIsPayrollAdviceOpen] = useState(false);"
+    },
+    {
+      "line": 11936,
+      "code": "const [billingManualRecords, setBillingManualRecords] = useState({});"
+    },
+    {
+      "line": 11937,
+      "code": "const [billingPEManualRecords, setBillingPEManualRecords] = useState({});"
+    },
+    {
+      "line": 11938,
+      "code": "const [specialProjectsHistoryData, setSpecialProjectsHistoryData] = useState([]); // FASE 10: Historial P.E"
+    },
+    {
+      "line": 11939,
+      "code": "const [wosHistoryData, setWosHistoryData] = useState([]); // FASE 12: Historial WOS"
+    }
+  ],
+  "functions": [
+    {
+      "line": 88,
+      "code": "const genAIClient = (key) => new GoogleGenerativeAI(key);"
+    },
+    {
+      "line": 109,
+      "code": "const parseCSVRow = (row) => {"
+    },
+    {
+      "line": 129,
+      "code": "const normalizeCSVHeaderKey = (header) => {"
+    },
+    {
+      "line": 139,
+      "code": "const createCSVRowObject = (headers, values) => {"
+    },
+    {
+      "line": 157,
+      "code": "const normalizeInvoice = (value) => {"
+    },
+    {
+      "line": 162,
+      "code": "const normalizeDate = (d) => {"
+    },
+    {
+      "line": 172,
+      "code": "const getWeekRange = (dateStr) => {"
+    },
+    {
+      "line": 193,
+      "code": "const fmt = (dt) => {"
+    },
+    {
+      "line": 203,
+      "code": "const normalizeName = (name) => {"
+    },
+    {
+      "line": 212,
+      "code": "const formatDateForInput = (dateStr) => {"
+    },
+    {
+      "line": 234,
+      "code": "const formatDateForDisplay = (dateStr) => {"
+    },
+    {
+      "line": 255,
+      "code": "const handleDateInputChange = (value, setter) => {"
+    },
+    {
+      "line": 267,
+      "code": "const getFormattedDateForDay = (baseDate, offset) => {"
+    },
+    {
+      "line": 289,
+      "code": "const getFullDateForDay = (baseDate, offset) => {"
+    },
+    {
+      "line": 308,
+      "code": "const handleNativeDateChange = (e, setter) => {"
+    },
+    {
+      "line": 315,
+      "code": "const getSplitInfo = (fechaDesde) => {"
+    },
+    {
+      "line": 330,
+      "code": "const formatDate = (date) => {"
+    },
+    {
+      "line": 352,
+      "code": "const csvRowToStore = (flat) => ({"
+    },
+    {
+      "line": 383,
+      "code": "const csvRowToEmployee = (flat) => {"
+    },
+    {
+      "line": 385,
+      "code": "const findValue = (keys) => {"
+    },
+    {
+      "line": 389,
+      "code": "const found = Object.keys(flat).find(key => key.toLowerCase().startsWith(k.toLowerCase().slice(0, 10)));"
+    },
+    {
+      "line": 436,
+      "code": "const csvRowToAdminEmployee = (flat) => ({"
+    },
+    {
+      "line": 459,
+      "code": "const compressImage = (base64Str, maxWidth = 300, quality = 0.7) => {"
+    },
+    {
+      "line": 483,
+      "code": "const LoginView = ({ onLogin }) => {"
+    },
+    {
+      "line": 496,
+      "code": "const handleSubmit = (e) => {"
+    },
+    {
+      "line": 498,
+      "code": "const matchedUser = authorizedUsers.find(u => u.name.toLowerCase() === selectedUser.trim().toLowerCase());"
+    },
+    {
+      "line": 580,
+      "code": "const SupportChat = ({ geminiApiKey, userName }) => {"
+    },
+    {
+      "line": 592,
+      "code": "const loadContext = async () => {"
+    },
+    {
+      "line": 612,
+      "code": "const handleSendMessage = async () => {"
+    },
+    {
+      "line": 785,
+      "code": "const formatDisplayDate = (dateValue) => {"
+    },
+    {
+      "line": 799,
+      "code": "const openDatePicker = (ref) => {"
+    },
+    {
+      "line": 819,
+      "code": "const isDateInRange = (dateStr) => {"
+    },
+    {
+      "line": 852,
+      "code": "const filteredNomina = useMemo(() => nominaHistoryData.filter(h => {"
+    },
+    {
+      "line": 858,
+      "code": "const hhmmToDecimal = (hhmm) => {"
+    },
+    {
+      "line": 868,
+      "code": "const derivedNominaHistoryEmployees = useMemo(() => {"
+    },
+    {
+      "line": 900,
+      "code": "const filteredDetail = useMemo(() => {"
+    },
+    {
+      "line": 910,
+      "code": "const filteredPE = useMemo(() => specialProjectsHistoryData.filter(pe => {"
+    },
+    {
+      "line": 916,
+      "code": "const filteredWOS = useMemo(() => wosHistoryData.filter(wos => {"
+    },
+    {
+      "line": 922,
+      "code": "const filteredCSG = useMemo(() => (csgServicesData || []).filter(s => {"
+    },
+    {
+      "line": 929,
+      "code": "const totalKBS_Nomina = filteredNomina.reduce((acc, curr) => acc + (parseFloat(curr.Pago_KBS) || 0), 0);"
+    },
+    {
+      "line": 930,
+      "code": "const totalLGM_Nomina = filteredNomina.reduce((acc, curr) => acc + (parseFloat(curr.Pago_LGM) || 0), 0);"
+    },
+    {
+      "line": 932,
+      "code": "const totalKBS_PE = filteredPE.reduce((acc, curr) => acc + (parseFloat(curr.pago_kbs || curr.Pago_KBS) || 0), 0);"
+    },
+    {
+      "line": 933,
+      "code": "const totalLGM_PE = filteredPE.reduce((acc, curr) => acc + (parseFloat(curr.pago_lgm || curr.Pago_LGM) || 0), 0);"
+    },
+    {
+      "line": 935,
+      "code": "const totalCSG_Ingresos = (filteredCSG || []).reduce((acc, curr) => acc + (parseFloat(curr.monto_csg) || 0), 0);"
+    },
+    {
+      "line": 936,
+      "code": "const totalCSG_Costos = (filteredCSG || []).reduce((acc, curr) => acc + (parseFloat(curr.monto_lgm) || 0), 0);"
+    },
+    {
+      "line": 943,
+      "code": "const pendientesWOS = filteredWOS.filter(w => w.Status !== 'Paid').reduce((acc, curr) => acc + (parseFloat(curr.Monto_WOS || 0)), 0);"
+    },
+    {
+      "line": 944,
+      "code": "const pendientesCSG = filteredCSG.filter(s => s.status !== 'Paid').reduce((acc, curr) => acc + (parseFloat(curr.monto_csg || 0)), 0);"
+    },
+    {
+      "line": 945,
+      "code": "const pendientesNomina = filteredNomina.filter(n => !n.Status || n.Status === 'Due').reduce((acc, curr) => acc + (parseFloat(curr.Pago_LGM) || 0), 0);"
+    },
+    {
+      "line": 948,
+      "code": "const storeStats = stores.map(store => {"
+    },
+    {
+      "line": 951,
+      "code": "const nStore = filteredNomina.filter(n => n.Tienda === store.nombre);"
+    }
+  ]
+}
