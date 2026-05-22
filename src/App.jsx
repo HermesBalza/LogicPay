@@ -17951,23 +17951,7 @@ function App() {
                                 onClick={() => {
                                     setIsStatusModalOpen(false);
                                     if (statusModalMessage.includes("Cálculo Semanal procesado")) {
-                                        setIsLoading(true);
-                                        
-                                        // Limpiar variables de caché
-                                        setKbsBillingTableData([]);
-                                        setEarningsTableData([]);
-                                        
-                                        Promise.all([
-                                            fetchNominaDetail(),
-                                            fetchNominaHistory(),
-                                            fetchEmployees()
-                                        ]).then(() => {
-                                            setTimeout(() => {
-                                                setIsLoading(false);
-                                            }, 2500);
-                                        }).catch(() => {
-                                            setTimeout(() => setIsLoading(false), 2500);
-                                        });
+                                        window.location.reload();
                                     }
                                 }}
                                 className={`w-full py-4 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 ${statusModalType === 'success' ? 'bg-[#303a7f] shadow-blue-900/10 hover:bg-[#252a5e]' : 'bg-red-500 shadow-red-900/10 hover:bg-red-600'}`}
