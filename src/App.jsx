@@ -9192,7 +9192,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                             <option value={CONSOLIDATED_STORE} style={{ fontWeight: 'black', color: '#6bbdb7' }}>
                                 ❇️ {CONSOLIDATED_STORE}
                             </option>
-                            {stores.filter(s => (s.cliente || 'KBS').toUpperCase() === 'KBS').map((s, idx) => (
+                            {stores.filter(s => (s.cliente || 'KBS').toUpperCase() === 'KBS').sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map((s, idx) => (
                                 <option key={s.codigo || `store-${idx}`} value={s.nombre}>{s.nombre}</option>
                             ))}
                         </select>
