@@ -16394,6 +16394,13 @@ function App() {
                                         className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
                                     />
                                 </div>
+                                <button
+                                    onClick={() => setStoreSearchTerm('')}
+                                    className="h-11 w-11 bg-white border-2 border-brand-primary/10 rounded-2xl flex items-center justify-center hover:border-[#303a7f]/20 hover:bg-[#303a7f]/5 transition-all group shadow-sm flex-shrink-0"
+                                    title="Limpiar búsqueda"
+                                >
+                                    <Eraser size={18} strokeWidth={2.5} className="text-gray-300 group-hover:text-red-500 transition-colors" />
+                                </button>
 
                                 <button
                                     onClick={() => setIsStoreStatsModalOpen(true)}
@@ -16512,7 +16519,13 @@ function App() {
                                         className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
                                     />
                                 </div>
-
+                                <button
+                                    onClick={() => setEmployeeSearchTerm('')}
+                                    className="h-11 w-11 bg-white border-2 border-brand-primary/10 rounded-2xl flex items-center justify-center hover:border-[#303a7f]/20 hover:bg-[#303a7f]/5 transition-all group shadow-sm flex-shrink-0"
+                                    title="Limpiar búsqueda"
+                                >
+                                    <Eraser size={18} strokeWidth={2.5} className="text-gray-300 group-hover:text-red-500 transition-colors" />
+                                </button>
                                 {/* Contador de Personal */}
                                 <button
                                     onClick={() => setIsEmployeeStatsModalOpen(true)}
