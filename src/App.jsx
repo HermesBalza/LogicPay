@@ -7841,12 +7841,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         // Cargar desde Nomina_Detalle si ya está confirmada
         const loadedConsId = `${period.store}_${period.range}`.replace(/\s+/g, '_');
         const loadedExistingDetail = (nominaDetailData || []).find(d =>
-            String(d.id_consolidacion || '').trim() === loadedConsId
+            String(d.ID_Consolidacion || d.id_consolidacion || '').trim() === loadedConsId
         );
 
-        if (loadedExistingDetail && loadedExistingDetail.data_json) {
+        if (loadedExistingDetail && (loadedExistingDetail.Data_JSON || loadedExistingDetail.data_json)) {
             try {
-                const savedData = JSON.parse(loadedExistingDetail.data_json);
+                const savedData = JSON.parse(loadedExistingDetail.Data_JSON || loadedExistingDetail.data_json);
                 const loaded = savedData.map(row => {
                     const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(row.empleado).trim().toLowerCase());
                     const fullAddress = dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '';
@@ -8104,7 +8104,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
     // FASE 9.8: Verificar si la nómina ya fue procesada (Persistencia en Variables de Nomina_Detalle)
     const isAlreadyProcessed = (nominaDetailData || []).some(d =>
-        String(d.id_consolidacion || '').trim() === `${period.store}_${period.range}`.replace(/\s+/g, '_')
+        String(d.ID_Consolidacion || d.id_consolidacion || '').trim() === `${period.store}_${period.range}`.replace(/\s+/g, '_')
     );
 
     // ─── LÓGICA DE ENVÍO DE RECIBOS DE PAGO (PAY STUBS) ───────────────────
@@ -9265,7 +9265,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                             const bothProcessed = isWeekProcessed(p.w1.start) && isWeekProcessed(p.w2.start);
                             const expectedId = `${selectedStore}_${p.w1.start}_-_${p.w2.end}`.replace(/\s+/g, '_');
                             const isProcessed = (nominaDetailData || []).some(d =>
-                                String(d.id_consolidacion || '').trim() === expectedId
+                                String(d.ID_Consolidacion || d.id_consolidacion || '').trim() === expectedId
                             );
                             return (
                                 <div
