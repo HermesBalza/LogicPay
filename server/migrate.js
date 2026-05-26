@@ -36,13 +36,17 @@ async function migrateFile(fileConfig) {
             .pipe(csv())
             .on('data', (data) => rows.push(data))
             .on('end', () => {
+                // REGLA: El DELETE debe ejecutarse SIEMPRE que el director lo ordene, incluso cuando el CSV está vacío.
+                // Esto garantiza que la base de datos refleje EXACTAMENTE el contenido del CSV:
+                //   - Si el CSV tiene datos → se borra lo anterior y se inserta lo nuevo.
+                //   - Si el CSV está vacío → se borra lo anterior y la tabla queda vacía.
+                // NO mover este DELETE después del chequeo de rows.length === 0.
+                db.prepare(`DELETE FROM ${fileConfig.table}`).run();
+
                 if (rows.length === 0) {
-                    console.log(`[Info] ${fileConfig.file} está vacío, omitiendo inserción.`);
+                    console.log(`[Info] ${fileConfig.file} está vacío, tabla ${fileConfig.table} limpiada.`);
                     return resolve();
                 }
-
-                // Limpiar tabla antes de insertar
-                db.prepare(`DELETE FROM ${fileConfig.table}`).run();
 
                 // Tomamos las claves (columnas) del primer registro
                 const keys = Object.keys(rows[0]);
