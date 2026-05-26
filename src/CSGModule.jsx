@@ -52,7 +52,7 @@ const compressStoreImage = (base64Str, maxWidth = 300, quality = 0.7) => {
 const fmtCurrency = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
 const fmtDate = (d) => d || '--';
 
-const CSG_NOMINA_CSV_URL = import.meta.env.VITE_SHEET_CSG_NOMINA_URL;
+const CSG_NOMINA_API_URL = 'http://localhost:3001/api/data/CSG_Nomina';
 
 // Parsea una fila CSV respetando campos entre comillas y comillas escapadas (indispensable para Data_JSON)
 const parseCSVRow = (row) => {
@@ -632,7 +632,7 @@ const CSGBiweekEmailModal = ({ isOpen, onClose, biweek, onSend, isSending }) => 
 };
 
 // ─── CSGBiweekDetailsModal: Ventana emergente con detalles de la bisemana ──────
-const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUrl, syncToSheets }) => {
+const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUrl, syncToDatabase }) => {
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isSending, setIsSending] = useState(false);
@@ -649,35 +649,24 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
             if (!isOpen || !biweek) return;
             setIsValidating(true);
             try {
-                // Añadimos un timestamp para evitar cache del navegador
-                const response = await fetch(`${CSG_NOMINA_CSV_URL}&t=${new Date().getTime()}`, { cache: 'no-store' });
+                const response = await fetch(CSG_NOMINA_API_URL, { cache: 'no-store' });
                 if (!response.ok) return;
-
-                const csvText = await response.text();
-                const lines = csvText.split('\n').filter(l => l.trim());
-                if (lines.length < 2) return;
+                const data = await response.json();
+                if (!data.length) return;
 
                 const currentId = String(biweek.id).trim();
+                const found = data.find(r => String(r.id_nomina).trim() === currentId);
 
-                // Buscamos en la primera columna (id_nomina)
-                const foundLine = lines.find((line, idx) => {
-                    if (idx === 0) return false; // Saltar encabezados
-                    const cols = parseCSVRowSimple(line);
-                    return cols[0] && String(cols[0]).replace(/"/g, '').trim() === currentId;
-                });
-
-                if (foundLine) {
+                if (found) {
                     setIsConfirmed(true);
-                    const cols = parseCSVRowSimple(foundLine);
-                    // Mapear los datos existentes para no perderlos en futuras actualizaciones
                     setExistingRecord({
-                        id_nomina: String(cols[0]).replace(/"/g, '').trim(),
-                        periodo: String(cols[1]).replace(/"/g, '').trim(),
-                        total_lgm: String(cols[2]).replace(/"/g, '').trim(),
-                        total_csg: String(cols[3]).replace(/"/g, '').trim(),
-                        fecha_confirmacion: String(cols[4]).replace(/"/g, '').trim(),
-                        correo_enviado: String(cols[5]).replace(/"/g, '').trim(),
-                        servicios_json: String(cols[6]).replace(/"/g, '').trim()
+                        id_nomina: String(found.id_nomina || '').trim(),
+                        periodo: String(found.periodo || '').trim(),
+                        total_lgm: String(found.total_lgm || '').trim(),
+                        total_csg: String(found.total_csg || '').trim(),
+                        fecha_confirmacion: String(found.fecha_confirmacion || '').trim(),
+                        correo_enviado: String(found.correo_enviado || '').trim(),
+                        servicios_json: String(found.servicios_json || '[]').trim()
                     });
                 }
             } catch (e) {
@@ -753,7 +742,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
             });
 
             // Actualizar estado de envío en la base de datos (Solicitado por Hermes)
-            if (syncToSheets) {
+            if (syncToDatabase) {
                 const totalCSG = biweek.services.reduce((acc, s) => acc + (s.monto_csg || 0), 0);
 
                 // Limpiar fotos base64 de los servicios para no saturar la BD (Solicitado por Hermes)
@@ -776,7 +765,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                     servicios_json: existingRecord?.servicios_json || JSON.stringify(cleanedServices)
                 };
 
-                await syncToSheets(
+                await syncToDatabase(
                     'upsert',
                     syncData,
                     'CSG_Nomina',
@@ -815,7 +804,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
         });
 
         try {
-            if (syncToSheets) {
+            if (syncToDatabase) {
                 // Limpiar fotos base64 de los servicios para no saturar la BD (Solicitado por Hermes)
                 const cleanedServices = biweek.services.map(s => {
                     const clean = { ...s };
@@ -837,7 +826,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
                     servicios_json: JSON.stringify(cleanedServices)
                 };
 
-                await syncToSheets(
+                await syncToDatabase(
                     'upsert',
                     syncData,
                     'CSG_Nomina',
@@ -1089,7 +1078,7 @@ const CSGBillingReportModal = ({ isOpen, onClose, onProcess }) => {
 };
 
 // ─── CSGWosView: Ventana a pantalla completa para el procesamiento de WOS CSG ───
-const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncToSheets, wosHistoryData = [], onRefreshHistory }) => {
+const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncToDatabase, wosHistoryData = [], onRefreshHistory }) => {
     const [wosData, setWosData] = useState({
         wosNumber: '',
         subcontractor: '',
@@ -1185,8 +1174,8 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
             };
 
             // Guardar en la nueva hoja WOS_CSG
-            if (syncToSheets) {
-                await syncToSheets('upsert', payload, 'WOS_CSG', false, ['WOS_Number']);
+            if (syncToDatabase) {
+                await syncToDatabase('upsert', payload, 'WOS_CSG', false, ['WOS_Number']);
                 console.log("[WOS CSG] Auto-guardado exitoso en WOS_CSG:", payload.WOS_Number);
                 if (onRefreshHistory) onRefreshHistory();
             }
@@ -1955,7 +1944,7 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
     );
 };
 
-const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets, csgNominaHistory = [] }) => {
+const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToDatabase, csgNominaHistory = [] }) => {
     const reportRef = useRef(null);
     const [selectedBiweekId, setSelectedBiweekId] = useState(null);
 
@@ -2089,7 +2078,7 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets, csgNomi
                 biweek={selectedBiweekData}
                 fmtCurrency={fmtCurrency}
                 mailApiUrl={mailApiUrl}
-                syncToSheets={syncToSheets}
+                syncToDatabase={syncToDatabase}
             />
         </div>
     );
@@ -2098,7 +2087,7 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToSheets, csgNomi
 
 
 // ─── CSGBillingView: Control de Conciliación de Pagos CSG ─────────────────────
-const CSGBillingView = ({ csgServicesData = [], syncToSheets, onRefresh }) => {
+const CSGBillingView = ({ csgServicesData = [], syncToDatabase, onRefresh }) => {
     const [filterFrom, setFilterFrom] = useState('');
     const [filterTo, setFilterTo] = useState('');
     const [search, setSearch] = useState('');
@@ -2141,7 +2130,7 @@ const CSGBillingView = ({ csgServicesData = [], syncToSheets, onRefresh }) => {
     }, [csgServicesData, filterFrom, filterTo, search]);
 
     const handleUpdateField = async (correlativo, field, value) => {
-        if (!syncToSheets) return;
+        if (!syncToDatabase) return;
         setIsUpdating(true);
         try {
             const service = reconciledData.find(s => s.correlativo === correlativo);
@@ -2193,7 +2182,7 @@ const CSGBillingView = ({ csgServicesData = [], syncToSheets, onRefresh }) => {
                 Status: field === 'status' ? finalValue : (localStatuses[correlativo] || service.Status || service.status || 'Due')
             };
 
-            await syncToSheets('upsert', dbPayload, 'CSG_Servicios', true, ['correlativo']);
+            await syncToDatabase('upsert', dbPayload, 'CSG_Servicios', true, ['correlativo']);
             
             if (onRefresh) onRefresh();
         } catch (error) {
@@ -2342,7 +2331,7 @@ const CSGBillingView = ({ csgServicesData = [], syncToSheets, onRefresh }) => {
 };
 
 // ─── CSGHistorialView: Historial de servicios con visor de fotos ──────────────
-const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, syncToSheets }) => {
+const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, syncToDatabase }) => {
     const [search, setSearch] = useState('');
     const [selectedService, setSelectedService] = useState(null);
     const filtered = useMemo(() => {
@@ -2422,7 +2411,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, sync
                     service={selectedService}
                     onClose={() => setSelectedService(null)}
                     mailApiUrl={mailApiUrl}
-                    syncToSheets={syncToSheets}
+                    syncToDatabase={syncToDatabase}
                 />
             )}
         </div>
@@ -2430,7 +2419,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, sync
 };
 
 // ─── CSGServiceDetailsModal: Ventana emergente con detalles completos ─────────
-const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) => {
+const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToDatabase }) => {
     if (!service) return null;
 
     const [activePhotoIdx, setActivePhotoIdx] = useState(null);
@@ -2473,7 +2462,7 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
             });
 
             // Sincronizar con la base de datos
-            if (syncToSheets) {
+            if (syncToDatabase) {
                 // Restauramos el objeto completo para evitar la pérdida de datos en el Sheet,
                 // pero filtramos las claves en minúsculas que inyectan columnas duplicadas.
                 const syncData = {
@@ -2494,7 +2483,7 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToSheets }) 
                     });
                 }
 
-                await syncToSheets(
+                await syncToDatabase(
                     'upsert',
                     syncData,
                     'CSG_Servicios',
@@ -3265,7 +3254,7 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
 };
 
 // ─── CSGView: Contenedor principal del módulo CSG ────────────────────────────
-const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToSheets, onRefresh, onUpdateCSGStatus, setIsAddingStore, setIsAddingEmployee, onAddStore, onAddEmployee, geminiApiKey, apiUrl, mailApiUrl }) => {
+const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToDatabase, onRefresh, onUpdateCSGStatus, setIsAddingStore, setIsAddingEmployee, onAddStore, onAddEmployee, geminiApiKey, apiUrl, mailApiUrl }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [isAddingCsgStore, setIsAddingCsgStore] = useState(false);
     const [isAddingCsgEmployee, setIsAddingCsgEmployee] = useState(false);
@@ -3283,27 +3272,13 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
     const fetchCSGWosHistory = async () => {
         setIsLoadingWosHistory(true);
         try {
-            const url = import.meta.env.VITE_SHEET_WOS_CSG_URL;
-            if (!url) return;
-            const response = await fetch(`${url}&t=${new Date().getTime()}`, { cache: 'no-store' });
+            const response = await fetch('http://localhost:3001/api/data/WOS_CSG', { cache: 'no-store' });
             if (!response.ok) return;
-            const csvText = await response.text();
-            const lines = csvText.split('\n').filter(l => l.trim());
-            if (lines.length < 2) {
+            const data = await response.json();
+            if (!data.length) {
                 setCsgWosHistoryData([]);
                 return;
             }
-
-            const headers = parseCSVRow(lines[0]);
-            const data = lines.slice(1).map(line => {
-                const cols = parseCSVRow(line);
-                const obj = {};
-                headers.forEach((h, i) => {
-                    const key = h.trim();
-                    obj[key] = cols[i] ? String(cols[i]).trim() : '';
-                });
-                return obj;
-            });
             setCsgWosHistoryData(data);
         } catch (error) {
             console.error("[CSG] Error fetching WOS history:", error);
@@ -3315,27 +3290,13 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
     const fetchNominaHistory = async () => {
         setIsLoadingNomina(true);
         try {
-            const url = import.meta.env.VITE_SHEET_CSG_NOMINA_URL;
-            if (!url) return;
-            const response = await fetch(`${url}&t=${new Date().getTime()}`, { cache: 'no-store' });
+            const response = await fetch('http://localhost:3001/api/data/CSG_Nomina', { cache: 'no-store' });
             if (!response.ok) return;
-            const csvText = await response.text();
-            const lines = csvText.split('\n').filter(l => l.trim());
-            if (lines.length < 2) {
+            const data = await response.json();
+            if (!data.length) {
                 setCsgNominaHistory([]);
                 return;
             }
-
-            const headers = parseCSVRow(lines[0]);
-            const data = lines.slice(1).map(line => {
-                const cols = parseCSVRow(line);
-                const obj = {};
-                headers.forEach((h, i) => {
-                    const key = h.trim();
-                    obj[key] = cols[i] ? String(cols[i]).replace(/"/g, '').trim() : '';
-                });
-                return obj;
-            });
             setCsgNominaHistory(data);
         } catch (error) {
             console.error("[CSG] Error fetching nomina history:", error);
@@ -3363,8 +3324,8 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             const autoDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
             payload['Fecha Rad.'] = autoDate;
 
-            // Guardar en la hoja CSG_Servicios de Google Sheets
-            await syncToSheets('upsert', payload, 'CSG_Servicios', true, ['correlativo']);
+            // Guardar en la tabla CSG_Servicios de SQLite
+            await syncToDatabase('upsert', payload, 'CSG_Servicios', true, ['correlativo']);
 
             setIsCsgFormOpen(false);
             setStatusModal({
@@ -3380,7 +3341,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             setStatusModal({
                 open: true,
                 title: 'Error de Guardado',
-                message: 'Ocurrió un error al intentar guardar el servicio en Google Sheets. Por favor, intente de nuevo.'
+                message: 'Ocurrió un error al intentar guardar el servicio en la base de datos. Por favor, intente de nuevo.'
             });
         } finally {
             setIsSaving(false);
@@ -3484,14 +3445,14 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                     csgServicesData={csgServicesData}
                     onViewPhotos={(s) => setPhotoModal({ open: true, fotos: s.fotos || [], title: `${s.tienda} — ${s.fecha}` })}
                     mailApiUrl={mailApiUrl}
-                    syncToSheets={syncToSheets}
+                    syncToDatabase={syncToDatabase}
                 />
             )}
-            {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} mailApiUrl={mailApiUrl} syncToSheets={syncToSheets} csgNominaHistory={csgNominaHistory} onRefreshNomina={fetchNominaHistory} />}
+            {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} mailApiUrl={mailApiUrl} syncToDatabase={syncToDatabase} csgNominaHistory={csgNominaHistory} onRefreshNomina={fetchNominaHistory} />}
             {activeCSGTab === 'facturacion' && (
                 <CSGBillingView
                     csgServicesData={csgServicesData}
-                    syncToSheets={syncToSheets}
+                    syncToDatabase={syncToDatabase}
                     onRefresh={onRefresh}
                 />
             )}
@@ -3544,7 +3505,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 onClose={() => setIsWosOpen(false)}
                 geminiApiKey={geminiApiKey}
                 csgServicesData={csgServicesData}
-                syncToSheets={syncToSheets}
+                syncToDatabase={syncToDatabase}
                 wosHistoryData={csgWosHistoryData}
                 onRefreshHistory={fetchCSGWosHistory}
             />

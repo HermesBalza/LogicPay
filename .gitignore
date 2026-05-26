@@ -12,3 +12,12 @@ yarn-error.log*
 
 # Reglas del Proyecto (Solo Local)
 PROJECT_RULES.md
+
+# Archivos temporales de SQLite
+*.db-shm
+*.db-wal
+
+# Logs de salida del servidor
+server_*.txt
+vite_*.txt
+full_app_output.txt

@@ -87,22 +87,23 @@ import { CSGView } from './CSGModule.jsx';
 // La API Key debe ser ingresada en la sección de Ajustes para evitar filtraciones.
 const genAIClient = (key) => new GoogleGenerativeAI(key);
 
-// ─── BASE DE DATOS: Google Sheets via Apps Script (escritura) ───────────────
-const API_URL = 'https://script.google.com/macros/s/AKfycbx3706uq0VSVMN7xDcW3A9qRWXNAUNN5DGWNxGnp4FI3uuZECDBdgi8mnNQU2xGfWI0IA/exec';
+// ─── BASE DE DATOS: SQLite via API local (escritura) ───────────────
+const API_URL = 'http://localhost:3001/api/write';
 const MAIL_API_URL = 'https://script.google.com/macros/s/AKfycbwJO2nSGQxA5TjaMUsuhlVUlZhksSFIm1oQihRsM3M9C6BJoMeBOu4mu7Nqxd56bVYunw/exec'; // Vincular con la URL del Script desplegado en la segunda cuenta de Gmail
 
-// ─── BASE DE DATOS: Google Sheets publicado como CSV (lectura) ───────────────
-const SHEETS_CSV_URL = import.meta.env.VITE_SHEET_TIENDAS_URL;
-const EMPLOYEES_CSV_URL = import.meta.env.VITE_SHEET_PERSONAL_URL;
-const NOMINA_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_NOMINA_HISTORICO_URL;
-const NOMINA_DETAIL_CSV_URL = import.meta.env.VITE_SHEET_NOMINA_DETALLE_URL;
-const SPECIAL_PROJECTS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_PROYECTOS_ESPECIALES_URL;
-const WOS_HISTORY_CSV_URL = import.meta.env.VITE_SHEET_WOS_URL;
-const VARIABLES_CSV_URL = import.meta.env.VITE_SHEET_VARIABLES_URL;
-const CSG_SERVICES_CSV_URL = import.meta.env.VITE_SHEET_CSG_SERVICIOS_URL;
-const CSG_NOMINA_CSV_URL = import.meta.env.VITE_SHEET_CSG_NOMINA_URL;
-const ADMIN_EMPLOYEES_CSV_URL = import.meta.env.VITE_SHEET_PERSONAL_ADMIN_URL;
-const ADMIN_NOMINA_HISTORICO_CSV_URL = import.meta.env.VITE_SHEET_ADMIN_NOMINA_HISTORICO_URL;
+// ─── BASE DE DATOS: SQLite Local (Lectura) ───────────────
+const LOCAL_API_BASE = 'http://localhost:3001/api/data';
+const STORES_API_URL = `${LOCAL_API_BASE}/Tiendas`;
+const EMPLOYEES_API_URL = `${LOCAL_API_BASE}/Personal`;
+const NOMINA_HISTORY_API_URL = `${LOCAL_API_BASE}/Nomina_Historico`;
+const NOMINA_DETAIL_API_URL = `${LOCAL_API_BASE}/Nomina_Detalle`;
+const SPECIAL_PROJECTS_API_URL = `${LOCAL_API_BASE}/Proyectos_Especiales`;
+const WOS_API_URL = `${LOCAL_API_BASE}/WOS`;
+const VARIABLES_API_URL = `${LOCAL_API_BASE}/Variables`;
+const CSG_SERVICES_API_URL = `${LOCAL_API_BASE}/CSG_Servicios`;
+const CSG_NOMINA_API_URL = `${LOCAL_API_BASE}/CSG_Nomina`;
+const ADMIN_EMPLOYEES_API_URL = `${LOCAL_API_BASE}/Personal_Admin`;
+const ADMIN_NOMINA_HISTORICO_API_URL = `${LOCAL_API_BASE}/Admin_Nomina_Historico`;
 const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
 
 // Parsea una fila CSV respetando campos entre comillas
@@ -152,6 +153,13 @@ const createCSVRowObject = (headers, values) => {
         }
     });
     return flat;
+};
+
+// Helper: fetch a la API local y devuelve JSON directamente
+const fetchTableData = async (url) => {
+  const response = await fetch(url, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return await response.json();
 };
 
 const normalizeInvoice = (value) => {
@@ -2572,7 +2580,7 @@ const StoreAddView = ({ onSave, onBack }) => {
 };
 
 
-const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], wosHistoryData = [], syncToSheets, onRefreshHistory, onAcceptPayment, setNotificationModal }) => {
+const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], wosHistoryData = [], syncToDatabase, onRefreshHistory, onAcceptPayment, setNotificationModal }) => {
     const fileInputRef = useRef(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isCrossing, setIsCrossing] = useState(false);
@@ -2689,7 +2697,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
             };
 
             // Sincronizar con la hoja 'WOS' usando WOS_Number como clave
-            await syncToSheets('upsert', payload, 'WOS', false, ['WOS_Number']);
+            await syncToDatabase('upsert', payload, 'WOS', false, ['WOS_Number']);
 
             // Refrescar historial global
             if (onRefreshHistory) onRefreshHistory();
@@ -3592,7 +3600,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Historial de WOS</h3>
-                                    <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Registro de auditorías almacenadas en Base de Datos (Google Sheets)</p>
+                                    <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Registro de auditorías almacenadas en Base de Datos (SQLite)</p>
                                 </div>
                             </div>
                             <button
@@ -11553,7 +11561,7 @@ const AdminPayrollView = ({
     setAdminPayrollHistory,
     searchTerm = '',
     setSearchTerm,
-    syncToSheets,
+    syncToDatabase,
     mailApiUrl,
     apiUrl,
     onRefresh,
@@ -11690,7 +11698,7 @@ const AdminPayrollView = ({
             setAdminPayrollHistory(prev => [newRecord, ...prev]);
 
             // Sincronizar a Sheets
-            await syncToSheets('upsert', {
+            await syncToDatabase('upsert', {
                 Periodo: selectedPeriod,
                 Fecha_Confirmacion: timestamp,
                 Total_Nomina: newRecord.total_nomina,
@@ -12530,10 +12538,10 @@ function App() {
         const presenceKey = `presence_${user.name.replace(/\s+/g, '_')}`;
 
         // Pulso inicial
-        syncVariableToSheets(presenceKey, new Date().toISOString());
+        syncVariableToDatabase(presenceKey, new Date().toISOString());
 
         const interval = setInterval(() => {
-            syncVariableToSheets(presenceKey, new Date().toISOString());
+            syncVariableToDatabase(presenceKey, new Date().toISOString());
             fetchVariables(true); // Refrescar solo presencia para optimizar
         }, 60000); // Cada 1 minuto
 
@@ -12545,14 +12553,14 @@ function App() {
     useEffect(() => {
         if (variablesLoaded && initialLoadApplied.current) {
             const timer = setTimeout(() => {
-                syncVariableToSheets('special_projects_data', specialProjectsData);
+                syncVariableToDatabase('special_projects_data', specialProjectsData);
             }, 1000);
             return () => clearTimeout(timer);
         }
     }, [specialProjectsData, variablesLoaded]);
 
     useEffect(() => {
-        if (variablesLoaded) syncVariableToSheets('next_invoice', nextInvoice);
+        if (variablesLoaded) syncVariableToDatabase('next_invoice', nextInvoice);
     }, [nextInvoice, variablesLoaded]);
 
     // --- EFECTO: SCROLL TO TOP AL CAMBIAR DE PESTAÑA O VISTA DE NÓMINA ---
@@ -12571,7 +12579,7 @@ function App() {
             userData = userNameOrData;
         }
         setUser(userData);
-        syncVariableToSheets('user', userData);
+        syncVariableToDatabase('user', userData);
     };
 
     const SplashLoader = () => (
@@ -12681,7 +12689,7 @@ function App() {
                         };
                     }
 
-                    await syncToSheets('update', payload, 'Proyectos_Especiales', false, ['Correlativo']);
+                    await syncToDatabase('update', payload, 'Proyectos_Especiales', false, ['Correlativo']);
                     console.log('[LogicPay] Sincronización Exitosa P.E (Cola):', payload.Correlativo);
                 }
             } catch (e) {
@@ -12981,11 +12989,11 @@ function App() {
 
         try {
             showProcessing('Registrando el Proyecto Especial en la base de datos.');
-            await syncToSheets('upsert', payload, 'Proyectos_Especiales');
+            await syncToDatabase('upsert', payload, 'Proyectos_Especiales');
             showSuccess('Proyecto Especial guardado en la base de datos.');
             return true;
         } catch (error) {
-            console.error('[SpecialProjects] Error guardando en Google Sheets:', error);
+            console.error('[SpecialProjects] Error guardando en SQLite:', error);
             showError('No se pudo guardar el Proyecto Especial en Proyectos_Especiales.');
             return false;
         }
@@ -13021,13 +13029,13 @@ function App() {
 
         try {
             showProcessing('Anulando Proyecto Especial en la base de datos...');
-            await syncToSheets('update', payload, 'Proyectos_Especiales', false, ['ID_Consolidacion']);
+            await syncToDatabase('update', payload, 'Proyectos_Especiales', false, ['ID_Consolidacion']);
             showSuccess('Proyecto Especial anulado correctamente.');
             // Refrescar el historial para que el cambio se refleje en la UI
             fetchSpecialProjectsHistory();
             return true;
         } catch (error) {
-            console.error('[SpecialProjects] Error anulando en Google Sheets:', error);
+            console.error('[SpecialProjects] Error anulando en SQLite:', error);
             showError('No se pudo anular el Proyecto Especial.');
             return false;
         }
@@ -13108,7 +13116,7 @@ function App() {
             if (highestInvoice >= nextInvoice) {
                 const next = highestInvoice + 1;
                 setNextInvoice(next);
-                syncVariableToSheets('next_invoice', String(next));
+                syncVariableToDatabase('next_invoice', String(next));
             }
         }
         setSpecialProjectsData(projects);
@@ -13282,7 +13290,7 @@ function App() {
             // 4. Sincronizar
             setConfirmPayrollProgress(60);
             setConfirmPayrollStep("Sincronizando Nómina Detalle...");
-            await syncToSheets('upsert', consolidatedNomina, 'Nomina_Detalle');
+            await syncToDatabase('upsert', consolidatedNomina, 'Nomina_Detalle');
 
             // Refrescar datos de detalle para que la vista los tenga actualizados
             await fetchNominaDetail();
@@ -13348,7 +13356,7 @@ function App() {
 
             for (let i = 0; i < newStores.length; i++) {
                 const store = newStores[i];
-                await syncToSheets('upsert', { ...store, codigo: `'${store.codigo}` });
+                await syncToDatabase('upsert', { ...store, codigo: `'${store.codigo}` });
                 setSyncProgress(i + 1);
             }
 
@@ -13636,7 +13644,7 @@ function App() {
             };
             const updatedDrafts = { ...payrollDrafts, [draftKey]: newDraft };
             setPayrollDrafts(updatedDrafts);
-            syncVariableToSheets('payroll_drafts', JSON.stringify(updatedDrafts));
+            syncVariableToDatabase('payroll_drafts', JSON.stringify(updatedDrafts));
 
             // --- AUTOMATIZACIÓN FASE 2: Iniciar procesamiento de IA inmediatamente ---
             if (biometricFile && geminiApiKey) {
@@ -14032,7 +14040,7 @@ function App() {
                         }
                     });
 
-                    // Mapeo riguroso de llaves para evitar duplicación de columnas en Google Sheets
+                    // Mapeo riguroso de llaves para evitar duplicación de columnas
                     const updatedEmp = { ...employee };
                     updatedEmp.tienda = payrollStore;
                     updatedEmp.codigo_empleado = `'${employee.codigo_empleado}`;
@@ -14052,7 +14060,7 @@ function App() {
                     delete updatedEmp.cliente;
                     delete updatedEmp.observaciones;
 
-                    await syncToSheets('upsert', updatedEmp, 'Personal', true, ['nombre', 'codigo_empleado']);
+                    await syncToDatabase('upsert', updatedEmp, 'Personal', true, ['nombre', 'codigo_empleado']);
                 }
                 setSyncProgress(i + 1);
             }
@@ -14148,7 +14156,7 @@ function App() {
             const draftKey = `${payrollStore}_${fechaDesde}_${fechaHasta}`.replace(/\s+/g, '_');
             const { [draftKey]: removedDraft, ...remainingDrafts } = payrollDrafts;
             setPayrollDrafts(remainingDrafts);
-            syncVariableToSheets('payroll_drafts', JSON.stringify(remainingDrafts));
+            syncVariableToDatabase('payroll_drafts', JSON.stringify(remainingDrafts));
 
             showSuccess("Cálculo Semanal procesado, Guardado en Historial y Personal actualizado exitosamente.");
             fetchEmployees();
@@ -14378,7 +14386,7 @@ function App() {
 
     // La navegación de pestañas ahora es local para evitar saltos automáticos no deseados
     // useEffect(() => {
-    //     if (variablesLoaded) syncVariableToSheets('active_tab', activeTab);
+    //     if (variablesLoaded) syncVariableToDatabase('active_tab', activeTab);
     // }, [activeTab, variablesLoaded]);
 
     // --- LÓGICA DE PERSISTENCIA DE NAVEGACIÓN (Nivel Dios) ---
@@ -14446,7 +14454,7 @@ function App() {
 
     const handleLogout = () => {
         setUser(null);
-        syncVariableToSheets('user', null);
+        syncVariableToDatabase('user', null);
         sessionStorage.clear(); // Limpiar rastro de navegación
     };
 
@@ -14842,33 +14850,21 @@ function App() {
         XLSX.writeFile(wb, fileName);
     };
 
-    // ─── API: Cargar todas las tiendas desde CSV público de Google Sheets ────
-    // Lee directamente la hoja publicada como CSV (sin CORS, sin Apps Script).
-    // Usa mapeo explícito de columnas para reconstruir la estructura de cada tienda.
+    // ─── API: Cargar todas las tiendas desde SQLite ────
     const fetchStores = async () => {
         setIsLoading(true);
         setDbStatus('sincronizando');
         try {
-            const response = await fetch(SHEETS_CSV_URL);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const csvText = await response.text();
-            const lines = csvText.trim().split('\n').filter(l => l.trim());
-            if (lines.length < 2) {
+            const data = await fetchTableData(STORES_API_URL);
+            if (!data.length) {
                 setStores([]);
                 setDbStatus('conectado');
                 return;
             }
-            const headers = parseCSVRow(lines[0]);
-            const loaded = lines.slice(1).map(line => {
-                const values = parseCSVRow(line);
-                const flat = {};
-                headers.forEach((h, i) => { flat[h.trim()] = (values[i] || '').trim(); });
-                return csvRowToStore(flat);
-            });
-            setStores(loaded);
+            setStores(data.map(csvRowToStore));
             setDbStatus('conectado');
         } catch (error) {
-            console.error('[LogicPay] Error cargando tiendas desde CSV:', error);
+            console.error('[LogicPay] Error cargando tiendas:', error);
             setDbStatus('desconectado');
         } finally {
             setIsLoading(false);
@@ -14879,25 +14875,15 @@ function App() {
         setIsLoading(true);
         setDbStatus('sincronizando');
         try {
-            // Bypass de caché mediante timestamp para obtener datos frescos de Google Sheets
-            const response = await fetch(`${EMPLOYEES_CSV_URL}&t=${Date.now()}`);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const csvText = await response.text();
-            const lines = csvText.trim().split('\n').filter(l => l.trim());
-            if (lines.length < 2) {
+            const data = await fetchTableData(EMPLOYEES_API_URL);
+            if (!data.length) {
                 setEmployees([]);
                 setDbStatus('conectado');
                 setIsLoading(false);
                 setIsSyncingEmployeeCSV(false);
                 return;
             }
-            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
-            const loaded = lines.slice(1).map(line => {
-                const values = parseCSVRow(line);
-                const obj = createCSVRowObject(headers, values);
-                // Permitir que csvRowToEmployee encuentre campos con variantes de nombre
-                return csvRowToEmployee(obj);
-            });
+            const loaded = data.map(csvRowToEmployee);
 
             // --- VERIFICACIÓN DE SINCRONIZACIÓN FRESCA DE DATOS ---
             const pendingSyncStr = localStorage.getItem('pending_employee_sync');
@@ -14919,16 +14905,16 @@ function App() {
                     });
 
                     if (!isSyncComplete && retryCount < 8) {
-                        console.warn(`[LogicPay] Google Sheets aún no propaga los cambios para ${pending.nombre}. Reintentando en 2.5s (Intento ${retryCount + 1}/8)...`);
+                        console.warn(`[LogicPay] La base de datos aún no propaga los cambios para ${pending.nombre}. Reintentando en 2.5s (Intento ${retryCount + 1}/8)...`);
                         setTimeout(() => {
                             fetchEmployees(retryCount + 1);
                         }, 2500);
-                        return; // Retornamos sin desactivar isSyncingEmployeeCSV ni isLoading
+                        return;
                     } else {
                         if (isSyncComplete) {
-                            console.log(`[LogicPay] ¡Sincronización confirmada de forma exitosa en Google Sheets para ${pending.nombre}!`);
+                            console.log(`[LogicPay] Sincronización confirmada para ${pending.nombre}!`);
                         } else {
-                            console.error(`[LogicPay] Se superó el límite de reintentos de propagación del CSV.`);
+                            console.error(`[LogicPay] Se superó el límite de reintentos de propagación.`);
                         }
                         localStorage.removeItem('pending_employee_sync');
                         setIsSyncingEmployeeCSV(false);
@@ -14944,7 +14930,7 @@ function App() {
             setDbStatus('conectado');
             setIsLoading(false);
         } catch (error) {
-            console.error('[LogicPay] Error cargando empleados desde CSV:', error);
+            console.error('[LogicPay] Error cargando empleados:', error);
             setDbStatus('desconectado');
             setIsLoading(false);
             setIsSyncingEmployeeCSV(false);
@@ -14953,23 +14939,17 @@ function App() {
 
     const fetchNominaHistory = async () => {
         try {
-            const response = await fetch(NOMINA_HISTORY_CSV_URL);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const csvText = await response.text();
-            const lines = csvText.trim().split('\n').filter(l => l.trim());
-            if (lines.length < 2) {
+            const data = await fetchTableData(NOMINA_HISTORY_API_URL);
+            if (!data.length) {
                 setNominaHistoryData([]);
                 return;
             }
-            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
-            const loaded = lines.slice(1).map(line => {
-                const values = parseCSVRow(line);
-                const obj = createCSVRowObject(headers, values);
+            const loaded = data.map(obj => {
                 if (obj.data_json) {
                     try {
-                        const data = JSON.parse(obj.data_json);
-                        obj.Pago_KBS = data.kbsBillingTableData ? data.kbsBillingTableData.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
-                        obj.Pago_LGM = data.earningsTableData ? data.earningsTableData.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
+                        const parsed = JSON.parse(obj.data_json);
+                        obj.Pago_KBS = parsed.kbsBillingTableData ? parsed.kbsBillingTableData.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
+                        obj.Pago_LGM = parsed.earningsTableData ? parsed.earningsTableData.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0) : 0;
                         obj.Tienda = obj.nombre;
                         obj.Fecha_Envio = obj['Fecha Rad.'];
                         obj.radicacion = obj['Fecha Rad.'] || obj['fecha rad.'] || '';
@@ -14989,23 +14969,17 @@ function App() {
 
     const fetchNominaDetail = async () => {
         try {
-            const response = await fetch(NOMINA_DETAIL_CSV_URL, { cache: 'no-store' });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const csvText = await response.text();
-            const lines = csvText.trim().split('\n').filter(l => l.trim());
-            if (lines.length < 2) {
+            const data = await fetchTableData(NOMINA_DETAIL_API_URL);
+            if (!data.length) {
                 setNominaDetailData([]);
                 return;
             }
-            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
-            const loaded = lines.slice(1).map(line => {
-                const values = parseCSVRow(line);
-                const obj = createCSVRowObject(headers, values);
+            const loaded = data.map(obj => {
                 if (obj.Data_JSON) {
                     try {
-                        const data = JSON.parse(obj.Data_JSON);
-                        if (typeof data === 'object' && !Array.isArray(data)) {
-                            Object.assign(obj, data);
+                        const parsed = JSON.parse(obj.Data_JSON);
+                        if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+                            Object.assign(obj, parsed);
                         }
                     } catch (e) {
                         console.error('Error parsing Data_JSON in nomina detail', e);
@@ -15021,18 +14995,12 @@ function App() {
 
     const fetchSpecialProjectsHistory = async () => {
         try {
-            const response = await fetch(SPECIAL_PROJECTS_HISTORY_CSV_URL, { cache: 'no-store' });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const csvText = await response.text();
-            const lines = csvText.trim().split('\n').filter(l => l.trim());
-            if (lines.length < 2) {
+            const data = await fetchTableData(SPECIAL_PROJECTS_API_URL);
+            if (!data.length) {
                 setSpecialProjectsHistoryData([]);
                 return [];
             }
-            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
-            const loaded = lines.slice(1).map(line => {
-                const values = parseCSVRow(line);
-                const obj = createCSVRowObject(headers, values);
+            const loaded = data.map(obj => {
                 const rawJson = obj.data_json || obj.Data_JSON || '';
                 if (rawJson) {
                     try {
@@ -15058,7 +15026,7 @@ function App() {
                 return obj;
             });
             setSpecialProjectsHistoryData(loaded);
-            return loaded; // Devolver para flujos asíncronos
+            return loaded;
         } catch (error) {
             console.error('[LogicPay] Error cargando Proyectos_Especiales History:', error);
             return [];
@@ -15067,29 +15035,20 @@ function App() {
 
     const fetchWosHistory = async () => {
         try {
-            const response = await fetch(WOS_HISTORY_CSV_URL, { cache: 'no-store' });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const csvText = await response.text();
-            const lines = csvText.trim().split('\n').filter(l => l.trim());
-            if (lines.length < 2) {
+            const data = await fetchTableData(WOS_API_URL);
+            if (!data.length) {
                 setWosHistoryData([]);
                 return [];
             }
 
-            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
-
-            const loaded = lines.slice(1).map(line => {
-                const values = parseCSVRow(line);
-                const obj = createCSVRowObject(headers, values);
+            const loaded = data.map(obj => {
                 if (obj.Data_JSON) {
                     try {
-                        const data = JSON.parse(obj.Data_JSON);
-                        if (typeof data === 'object' && !Array.isArray(data)) {
-                            Object.assign(obj, data);
+                        const parsed = JSON.parse(obj.Data_JSON);
+                        if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+                            Object.assign(obj, parsed);
                         }
                         obj.Fecha = obj.Date;
-                        obj.WOS_Data = obj.Data_JSON; // or something
                     } catch (e) {
                         console.error('Error parsing Data_JSON in WOS', e);
                     }
@@ -15107,21 +15066,11 @@ function App() {
 
     const fetchVariables = async (onlyPresence = false) => {
         try {
-            const response = await fetch(VARIABLES_CSV_URL, { cache: 'no-store' });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const csvText = await response.text();
-            const lines = csvText.trim().split('\n').filter(l => l.trim());
-            if (lines.length < 2) {
+            const data = await fetchTableData(VARIABLES_API_URL);
+            if (!data.length) {
                 if (!onlyPresence) setVariablesLoaded(true);
                 return;
             }
-            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, '').toLowerCase());
-            const data = lines.slice(1).map(line => {
-                const values = parseCSVRow(line);
-                const flat = {};
-                headers.forEach((h, i) => { if (h) flat[h] = (values[i] || '').trim(); });
-                return flat;
-            });
 
             const currentActiveUsers = [];
             const now = new Date();
@@ -15233,23 +15182,15 @@ function App() {
 
     // \u2500\u2500\u2500 API: Cargar servicios CSG desde CSV p\u00fablico de Google Sheets \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
     const fetchCSGServices = async () => {
-        if (!CSG_SERVICES_CSV_URL) return;
+        if (!CSG_SERVICES_API_URL) return;
         try {
-            const response = await fetch(`${CSG_SERVICES_CSV_URL}&t=${Date.now()}`);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const csvText = await response.text();
-            const lines = csvText.trim().split('\n').filter(l => l.trim());
-
-            if (lines.length < 2) {
+            const data = await fetchTableData(CSG_SERVICES_API_URL);
+            if (!data.length) {
                 setCsgServicesData([]);
                 return;
             }
 
-            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
-
-            const loaded = lines.slice(1).map(line => {
-                const values = parseCSVRow(line);
-                const obj = createCSVRowObject(headers, values);
+            const loaded = data.map(obj => {
 
                 // Extraer fotos (foto_1 ... foto_10) con búsqueda flexible
                 const fotos = [];
@@ -15307,29 +15248,22 @@ function App() {
     };
 
     const fetchCSGNomina = async () => {
-        if (!CSG_NOMINA_CSV_URL) return;
+        if (!CSG_NOMINA_API_URL) return;
         try {
-            const response = await fetch(`${CSG_NOMINA_CSV_URL}&t=${Date.now()}`);
-            const csvText = await response.text();
-            const lines = csvText.split('\n').filter(l => l.trim());
-            if (lines.length < 2) {
+            const data = await fetchTableData(CSG_NOMINA_API_URL);
+            if (!data.length) {
                 setCsgNominaData([]);
                 return;
             }
-            const headers = parseCSVRow(lines[0]).map(h => h.trim().replace(/^\ufeff/, ''));
-            const loaded = lines.slice(1).map(line => {
-                const values = parseCSVRow(line);
-                const obj = createCSVRowObject(headers, values);
-                return {
-                    id_nomina: obj.id_nomina || '',
-                    periodo: obj.periodo || '',
-                    total_lgm: parseFloat(obj.total_lgm) || 0,
-                    total_csg: parseFloat(obj.total_csg) || 0,
-                    fecha_confirmacion: obj.fecha_confirmacion || '',
-                    correo_enviado: obj.correo_enviado || '',
-                    servicios_json: obj.servicios_json || '[]'
-                };
-            });
+            const loaded = data.map(obj => ({
+                id_nomina: obj.id_nomina || '',
+                periodo: obj.periodo || '',
+                total_lgm: parseFloat(obj.total_lgm) || 0,
+                total_csg: parseFloat(obj.total_csg) || 0,
+                fecha_confirmacion: obj.fecha_confirmacion || '',
+                correo_enviado: obj.correo_enviado || '',
+                servicios_json: obj.servicios_json || '[]'
+            }));
             setCsgNominaData(loaded);
             console.log(`[CSG Nomina] ${loaded.length} registros cargados.`);
         } catch (error) {
@@ -15339,18 +15273,11 @@ function App() {
 
     // ─── Fetch: Personal Administrativo LGM ──────────────────────────────────
     const fetchAdminEmployees = async () => {
-        if (!ADMIN_EMPLOYEES_CSV_URL || ADMIN_EMPLOYEES_CSV_URL.includes('XXXXXXXXX')) return;
+        if (!ADMIN_EMPLOYEES_API_URL || ADMIN_EMPLOYEES_API_URL.includes('XXXXXXXXX')) return;
         try {
-            const response = await fetch(`${ADMIN_EMPLOYEES_CSV_URL}&t=${Date.now()}`);
-            const csvText = await response.text();
-            const lines = csvText.split('\n').filter(l => l.trim());
-            if (lines.length < 2) { setAdminEmployees([]); return; }
-            const headers = parseCSVRow(lines[0]);
-            const loaded = lines.slice(1).map(line => {
-                const values = parseCSVRow(line);
-                const flat = createCSVRowObject(headers, values);
-                return csvRowToAdminEmployee(flat);
-            }).filter(e => e.nombre.trim() !== '');
+            const data = await fetchTableData(ADMIN_EMPLOYEES_API_URL);
+            if (!data.length) { setAdminEmployees([]); return; }
+            const loaded = data.map(csvRowToAdminEmployee).filter(e => e.nombre.trim() !== '');
             setAdminEmployees(loaded);
             console.log(`[LogicPay LGM] ${loaded.length} empleados administrativos cargados.`);
         } catch (error) {
@@ -15359,23 +15286,16 @@ function App() {
     };
 
     const fetchAdminPayrollHistory = async () => {
-        if (!ADMIN_NOMINA_HISTORICO_CSV_URL || ADMIN_NOMINA_HISTORICO_CSV_URL.includes('XXXXXXXXX')) return;
+        if (!ADMIN_NOMINA_HISTORICO_API_URL || ADMIN_NOMINA_HISTORICO_API_URL.includes('XXXXXXXXX')) return;
         try {
-            const response = await fetch(`${ADMIN_NOMINA_HISTORICO_CSV_URL}&t=${Date.now()}`);
-            const csvText = await response.text();
-            const lines = csvText.split('\n').filter(l => l.trim());
-            if (lines.length < 2) { setAdminPayrollHistory([]); return; }
-            const headers = parseCSVRow(lines[0]);
-            const loaded = lines.slice(1).map(line => {
-                const values = parseCSVRow(line);
-                const flat = createCSVRowObject(headers, values);
-                return {
-                    periodo: flat.Periodo || flat.periodo,
-                    fecha_confirmacion: flat.Fecha_Confirmacion || flat.fecha_confirmacion,
-                    total_nomina: parseFloat(flat.Total_Nomina || flat.total_nomina) || 0,
-                    empleados: JSON.parse(flat.Empleados_JSON || flat.empleados_json || '[]')
-                };
-            });
+            const data = await fetchTableData(ADMIN_NOMINA_HISTORICO_API_URL);
+            if (!data.length) { setAdminPayrollHistory([]); return; }
+            const loaded = data.map(obj => ({
+                periodo: obj.Periodo || obj.periodo,
+                fecha_confirmacion: obj.Fecha_Confirmacion || obj.fecha_confirmacion,
+                total_nomina: parseFloat(obj.Total_Nomina || obj.total_nomina) || 0,
+                empleados: JSON.parse(obj.Empleados_JSON || obj.empleados_json || '[]')
+            }));
             setAdminPayrollHistory(loaded);
         } catch (error) {
             console.error('[AdminPayroll] Error cargando historial administrativo:', error);
@@ -15424,7 +15344,7 @@ function App() {
             const desiredNext = maxInvoice + 1;
             const next = Math.max(normalizedCurrent, desiredNext);
             if (next !== normalizedCurrent) {
-                syncVariableToSheets('next_invoice', String(next));
+                syncVariableToDatabase('next_invoice', String(next));
             }
             return next;
         });
@@ -15480,35 +15400,29 @@ function App() {
                 console.log('[Payroll] Auto-guardando borrador en la nube...');
                 const updatedDrafts = { ...payrollDrafts, [draftKey]: newDraft };
                 setPayrollDrafts(updatedDrafts);
-                syncVariableToSheets('payroll_drafts', JSON.stringify(updatedDrafts));
+                syncVariableToDatabase('payroll_drafts', JSON.stringify(updatedDrafts));
             }
         }, 3000);
 
         return () => clearTimeout(timer);
     }, [semanaTableData, biometricTableData, rawBiometricData, payrollResults, payrollStore, fechaDesde, fechaHasta, variablesLoaded, nominaHistoryData]);
 
-    // ─── API: Sincronizar cambios con Google Sheets ──────────────────────────
-    // Usa mode: 'no-cors' con Content-Type: 'text/plain' (CORS-safelisted).
-    // El Apps Script recibe el JSON en e.postData.contents y lo procesa.
-    // Tras un breve delay, recarga los datos para confirmar la escritura.
-    const syncToSheets = (action, data, sheetName = 'Tiendas', skipRefresh = false, matchKeys = []) => {
+    // ─── API: Sincronizar cambios con SQLite ──────────────────────────
+    const syncToDatabase = (action, data, sheetName = 'Tiendas', skipRefresh = false, matchKeys = []) => {
         setDbStatus('sincronizando');
         return fetch(API_URL, {
             method: 'POST',
-            mode: 'no-cors',
             keepalive: true,
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action, data, sheetName, matchKeys })
         })
             .then(() => {
                 if (!skipRefresh) {
-                    setTimeout(() => {
-                        fetchStores();
-                        if (sheetName === 'Personal') fetchEmployees();
-                        if (sheetName === 'CSG_Servicios') fetchCSGServices();
-                        if (sheetName === 'Personal_Admin') fetchAdminEmployees();
-                        if (sheetName === 'Admin_Nomina_Historico') fetchAdminPayrollHistory();
-                    }, 2000);
+                    fetchStores();
+                    if (sheetName === 'Personal') fetchEmployees();
+                    if (sheetName === 'CSG_Servicios') fetchCSGServices();
+                    if (sheetName === 'Personal_Admin') fetchAdminEmployees();
+                    if (sheetName === 'Admin_Nomina_Historico') fetchAdminPayrollHistory();
                 }
             })
             .catch(error => {
@@ -15517,14 +15431,13 @@ function App() {
             });
     };
 
-    const syncVariableToSheets = (key, value) => {
+    const syncVariableToDatabase = (key, value) => {
         const payload = {
             key: key,
             value: typeof value === 'object' ? JSON.stringify(value) : String(value)
         };
         return fetch(API_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action: 'upsert', data: payload, sheetName: 'Variables', matchKeys: ['key'] })
         }).catch(err => console.error(`[LogicPay] Error localizando Variable ${key}:`, err));
@@ -15538,7 +15451,7 @@ function App() {
         setStores(prev => prev.map(s => s.codigo === updatedStore.codigo ? updatedStore : s));
         setEditingStore(updatedStore);
         // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda e integridad de datos
-        syncToSheets('upsert', { ...updatedStore, codigo: `'${updatedStore.codigo}` });
+        syncToDatabase('upsert', { ...updatedStore, codigo: `'${updatedStore.codigo}` });
     };
 
     const handleDeleteStore = (storeCodigo) => {
@@ -15547,7 +15460,7 @@ function App() {
             setStores(prev => prev.filter(s => s.codigo !== storeCodigo));
             setEditingStore(null);
             // Enviamos Nombre + Código con prefijo ' para que el servidor localice el registro exacto
-            syncToSheets('delete', {
+            syncToDatabase('delete', {
                 nombre: storeToDelete.nombre,
                 codigo: `'${storeCodigo}`
             });
@@ -15558,7 +15471,7 @@ function App() {
         setStores(prev => [newStore, ...prev]);
         setIsAddingStore(false);
         // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda e integridad de datos
-        syncToSheets('upsert', { ...newStore, codigo: `'${newStore.codigo}` });
+        syncToDatabase('upsert', { ...newStore, codigo: `'${newStore.codigo}` });
     };
 
     const handleSaveEmployee = (updatedEmployee) => {
@@ -15572,7 +15485,7 @@ function App() {
             zip: updatedEmployee.zip ? `'${updatedEmployee.zip.toString().replace(/^'/, '')}` : '',
             site_code: updatedEmployee.site_code ? `'${updatedEmployee.site_code.toString().replace(/^'/, '')}` : '',
             cuenta_bancaria: updatedEmployee.cuenta_bancaria ? `'${updatedEmployee.cuenta_bancaria.toString().replace(/^'/, '')}` : '',
-            // Mapeo de llaves para Google Sheets (Nombres de Columnas Exactos)
+            // Mapeo de llaves (Nombres de Columnas Exactos)
             'Rate KBS': updatedEmployee.rateKBS || 0,
             'Rate LGM': updatedEmployee.rateLGM || 0,
             'Rate CSG': updatedEmployee.rate_csg || 0,
@@ -15587,7 +15500,7 @@ function App() {
         delete payload.cliente;
         delete payload.observaciones;
 
-        return syncToSheets('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
+        return syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
 
     };
 
@@ -15597,7 +15510,7 @@ function App() {
             setEmployees(prev => prev.filter(e => e.codigo_empleado !== empCodigo));
             setEditingEmployee(null);
             // Enviamos Nombre + Código con prefijo ' para cumplimiento de Llave Compuesta
-            syncToSheets('delete', {
+            syncToDatabase('delete', {
                 nombre: empToDelete.nombre,
                 codigo_empleado: `'${empCodigo}`
             }, 'Personal');
@@ -15631,7 +15544,7 @@ function App() {
         delete payload.cliente;
         delete payload.observaciones;
 
-        syncToSheets('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
+        syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
 
     };
 
@@ -15645,7 +15558,7 @@ function App() {
                 imagen: newEmp.imagen || '',
                 activo: 'TRUE'
             };
-            await syncToSheets('upsert', payload, 'Personal_Admin', false, ['nombre', 'codigo_empleado']);
+            await syncToDatabase('upsert', payload, 'Personal_Admin', false, ['nombre', 'codigo_empleado']);
             await fetchAdminEmployees();
             showSuccess(`Empleado ${newEmp.nombre} guardado exitosamente.`);
         } catch (error) {
@@ -15656,7 +15569,7 @@ function App() {
 
     const handleDeleteAdminEmployee = async (emp) => {
         try {
-            await syncToSheets('delete', {
+            await syncToDatabase('delete', {
                 nombre: emp.nombre,
                 codigo_empleado: `'${emp.codigo_empleado}`
             }, 'Personal_Admin', false, ['nombre', 'codigo_empleado']);
@@ -15812,7 +15725,7 @@ function App() {
                     // 1. Marcar como enviado
                     const updated = { ...vwhEmailsSent, [reportKey]: true };
                     setVwhEmailsSent(updated);
-                    // syncVariableToSheets('vwh_emails_sent', updated);
+                    // syncVariableToDatabase('vwh_emails_sent', updated);
 
                     // 2. Automatización Fecha Rad. (MM/DD/YYYY) y Creación de Factura Quincenal
                     if (vwhRecordId) {
@@ -17273,7 +17186,7 @@ function App() {
                             onServiceRegistered={() => {
                                 fetchCSGServices();
                             }}
-                            syncToSheets={syncToSheets}
+                            syncToDatabase={syncToDatabase}
                             onRefresh={() => {
                                 fetchCSGServices();
                                 fetchNominaHistory();
@@ -17310,7 +17223,7 @@ function App() {
                             setAdminPayrollHistory={setAdminPayrollHistory}
                             searchTerm={adminPayrollSearchTerm}
                             setSearchTerm={setAdminPayrollSearchTerm}
-                            syncToSheets={syncToSheets}
+                            syncToDatabase={syncToDatabase}
                             mailApiUrl={MAIL_API_URL}
                             apiUrl={API_URL}
                             onRefresh={fetchAdminEmployees}
@@ -17783,7 +17696,7 @@ function App() {
                 onEmailSent={(key) => {
                     const updated = { ...paEmailsSent, [key]: true };
                     setPaEmailsSent(updated);
-                    syncVariableToSheets('pa_emails_sent', updated);
+                    syncVariableToDatabase('pa_emails_sent', updated);
                 }}
                 MAIL_API_URL={MAIL_API_URL}
             />
@@ -17977,7 +17890,7 @@ function App() {
                     setNextInvoice={(val) => {
                         const normalized = normalizeInvoice(val);
                         setNextInvoice(normalized);
-                        syncVariableToSheets('next_invoice', String(normalized));
+                        syncVariableToDatabase('next_invoice', String(normalized));
                     }}
                     onSyncCorrelativo={handleSyncCorrelativo}
                     onReserveInvoice={handleReserveInvoice}
@@ -17987,7 +17900,7 @@ function App() {
                         // Agregar al estado local de empleados
                         setEmployees(prev => [newEmp, ...prev]);
 
-                        // Sincronizar con la hoja "Personal" de Google Sheets con mapeo correcto
+                        // Sincronizar con la tabla Personal con mapeo correcto
                         const payload = {
                             ...newEmp,
                             codigo_empleado: `'${newEmp.codigo_empleado}`,
@@ -17996,7 +17909,7 @@ function App() {
                             'Observaciones': newEmp.observaciones || ''
                         };
 
-                        // Mapeo de llaves para Google Sheets (Nombres de Columnas Exactos)
+                        // Mapeo de llaves (Nombres de Columnas Exactos)
                         payload['Rate KBS'] = payload.rateKBS || 0;
                         payload['Rate LGM'] = payload.rateLGM || 0;
                         payload['Rate CSG'] = payload.rate_csg || 0;
@@ -18010,7 +17923,7 @@ function App() {
                         delete payload.cliente;
                         delete payload.observaciones;
 
-                        syncToSheets('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
+                        syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
                     }}
                     onUpdateLocationHistory={(employeeName, newSegment) => {
                         setEmployees(prev => {
@@ -18036,7 +17949,7 @@ function App() {
                             const newEmployees = [...prev];
                             newEmployees[idx] = updatedEmp;
 
-                            // Sincronizar con Google Sheets con mapeo correcto
+                            // Sincronizar con SQLite con mapeo correcto
                             const payload = {
                                 ...updatedEmp,
                                 codigo_empleado: `'${updatedEmp.codigo_empleado}`,
@@ -18055,7 +17968,7 @@ function App() {
                             delete payload.cliente;
                             delete payload.observaciones;
 
-                            syncToSheets('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
+                            syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
 
                             return newEmployees;
                         });
@@ -18083,7 +17996,7 @@ function App() {
                     // 1. Marcar como enviado
                     const updated = { ...peEmailsSent, [invoice]: true };
                     setPeEmailsSent(updated);
-                    syncVariableToSheets('pe_emails_sent', updated);
+                    syncVariableToDatabase('pe_emails_sent', updated);
 
                     // 2. Automatización Fecha Rad. (MM/DD/YYYY)
                     if (selectedSpecialProjectInvoice) {
@@ -18116,7 +18029,7 @@ function App() {
                 specialProjectsHistoryData={specialProjectsHistoryData}
                 stores={stores}
                 wosHistoryData={wosHistoryData}
-                syncToSheets={syncToSheets}
+                syncToDatabase={syncToDatabase}
                 onRefreshHistory={fetchWosHistory}
                 onAcceptPayment={handleAcceptWOSPayment}
                 setNotificationModal={setNotificationModal}

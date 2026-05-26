@@ -10,14 +10,14 @@
 - `[x]` **Fase 3: Migración de Datos Existentes (CSV a SQLite)**
   - `[x]` Subfase 3.1: Desarrollar script de migración en Node.js
   - `[x]` Subfase 3.2: Ejecutar migración y poblar `database.db`
-- `[ ]` **Fase 4: Adaptación del Código Frontend (Lectura)**
-  - `[ ]` Subfase 4.1: Identificar `fetch` actuales a Sheets
-  - `[ ]` Subfase 4.2: Modificar peticiones `GET` a la API local
-  - `[ ]` Subfase 4.3: Probar carga de datos
-- `[ ]` **Fase 5: Adaptación del Código Frontend (Escritura)**
-  - `[ ]` Subfase 5.1: Identificar funciones de guardado
-  - `[ ]` Subfase 5.2: Implementar peticiones `POST`/`PUT`/`DELETE`
-  - `[ ]` Subfase 5.3: Validar eficiencia (cambios sin presionar F5)
-- `[ ]` **Fase 6: Limpieza y Pruebas Finales**
-  - `[ ]` Subfase 6.1: Flujo completo de pruebas
-  - `[ ]` Subfase 6.2: Eliminar código legado de Sheets
+- `[x]` **Fase 4: Adaptación del Código Frontend (Lectura)**
+  - `[x]` Subfase 4.1: Identificar `fetch` actuales a Sheets
+  - `[x]` Subfase 4.2: Modificar peticiones `GET` a la API local
+  - `[x]` Subfase 4.3: Probar carga de datos
+- `[x]` **Fase 5: Adaptación del Código Frontend (Escritura)**
+  - `[x]` Subfase 5.1: Identificar funciones de guardado
+  - `[x]` Subfase 5.2: Implementar peticiones `POST`/`PUT`/`DELETE`
+  - `[x]` Subfase 5.3: Validar eficiencia (cambios sin presionar F5)
+- `[x]` **Fase 6: Limpieza y Pruebas Finales**
+  - `[x]` Subfase 6.1: Flujo completo de pruebas
+  - `[x]` Subfase 6.2: Eliminar código legado de Sheets
