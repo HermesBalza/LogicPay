@@ -15514,15 +15514,15 @@ function App() {
     };
 
     const handleDeleteEmployee = (empCodigo) => {
-        const empToDelete = employees.find(e => e.codigo_empleado === empCodigo);
-        if (empToDelete) {
-            setEmployees(prev => prev.filter(e => e.codigo_empleado !== empCodigo));
+        const empToDelete = editingEmployee;
+        if (empToDelete && empToDelete.codigo_empleado === empCodigo) {
+            setEmployees(prev => prev.filter(e => e.codigo_empleado !== empCodigo || e.nombre !== empToDelete.nombre));
             setEditingEmployee(null);
-            // Enviamos Nombre + Código para cumplimiento de Llave Compuesta
             syncToDatabase('delete', {
                 nombre: empToDelete.nombre,
                 codigo_empleado: empCodigo
-            }, 'Personal', false, ['nombre', 'codigo_empleado']);
+            }, 'Personal', false, ['nombre', 'codigo_empleado'])
+            .catch(err => console.error('[handleDeleteEmployee] Error en syncToDatabase:', err));
         }
     };
 
