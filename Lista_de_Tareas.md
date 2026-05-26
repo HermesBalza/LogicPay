@@ -1,0 +1,23 @@
+# Tareas de Migración a SQLite
+
+- `[x]` **Fase 1: Preparación y Configuración del Entorno SQLite**
+  - `[x]` Subfase 1.1: Instalar dependencias (`express`, `cors`, `better-sqlite3`, `dotenv`, etc.)
+  - `[x]` Subfase 1.2: Crear la estructura del backend (`server/`) y configuración de conexión
+  - `[x]` Subfase 1.3: Implementar servidor Express básico
+- `[x]` **Fase 2: Diseño de la Base de Datos SQLite**
+  - `[x]` Subfase 2.1: Analizar estructura de CSVs
+  - `[x]` Subfase 2.2: Crear script de inicialización de tablas SQL
+- `[x]` **Fase 3: Migración de Datos Existentes (CSV a SQLite)**
+  - `[x]` Subfase 3.1: Desarrollar script de migración en Node.js
+  - `[x]` Subfase 3.2: Ejecutar migración y poblar `database.db`
+- `[ ]` **Fase 4: Adaptación del Código Frontend (Lectura)**
+  - `[ ]` Subfase 4.1: Identificar `fetch` actuales a Sheets
+  - `[ ]` Subfase 4.2: Modificar peticiones `GET` a la API local
+  - `[ ]` Subfase 4.3: Probar carga de datos
+- `[ ]` **Fase 5: Adaptación del Código Frontend (Escritura)**
+  - `[ ]` Subfase 5.1: Identificar funciones de guardado
+  - `[ ]` Subfase 5.2: Implementar peticiones `POST`/`PUT`/`DELETE`
+  - `[ ]` Subfase 5.3: Validar eficiencia (cambios sin presionar F5)
+- `[ ]` **Fase 6: Limpieza y Pruebas Finales**
+  - `[ ]` Subfase 6.1: Flujo completo de pruebas
+  - `[ ]` Subfase 6.2: Eliminar código legado de Sheets
