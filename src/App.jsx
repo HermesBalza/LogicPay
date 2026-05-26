@@ -14043,7 +14043,7 @@ function App() {
                     // Mapeo riguroso de llaves para evitar duplicación de columnas
                     const updatedEmp = { ...employee };
                     updatedEmp.tienda = payrollStore;
-                    updatedEmp.codigo_empleado = `'${employee.codigo_empleado}`;
+                    updatedEmp.codigo_empleado = employee.codigo_empleado;
                     updatedEmp.locationHistory = JSON.stringify(merged);
 
                     // Asegurar nombres exactos de columnas (Case Sensitive)
@@ -15416,7 +15416,11 @@ function App() {
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action, data, sheetName, matchKeys })
         })
-            .then(() => {
+            .then(async response => {
+                if (!response.ok) {
+                    const errorText = await response.text().catch(() => '');
+                    throw new Error(`Error ${response.status} al guardar en ${sheetName}: ${errorText}`);
+                }
                 if (!skipRefresh) {
                     fetchStores();
                     if (sheetName === 'Personal') fetchEmployees();
@@ -15450,8 +15454,8 @@ function App() {
     const handleSaveStore = (updatedStore) => {
         setStores(prev => prev.map(s => s.codigo === updatedStore.codigo ? updatedStore : s));
         setEditingStore(updatedStore);
-        // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda e integridad de datos
-        syncToDatabase('upsert', { ...updatedStore, codigo: `'${updatedStore.codigo}` });
+        // Enviamos a SQLite sin prefijo
+        syncToDatabase('upsert', { ...updatedStore, codigo: updatedStore.codigo });
     };
 
     const handleDeleteStore = (storeCodigo) => {
@@ -15459,10 +15463,10 @@ function App() {
         if (storeToDelete) {
             setStores(prev => prev.filter(s => s.codigo !== storeCodigo));
             setEditingStore(null);
-            // Enviamos Nombre + Código con prefijo ' para que el servidor localice el registro exacto
+            // Enviamos Nombre + Código para que el servidor localice el registro exacto
             syncToDatabase('delete', {
                 nombre: storeToDelete.nombre,
-                codigo: `'${storeCodigo}`
+                codigo: storeCodigo
             });
         }
     };
@@ -15470,21 +15474,21 @@ function App() {
     const handleCreateStore = (newStore) => {
         setStores(prev => [newStore, ...prev]);
         setIsAddingStore(false);
-        // Enviamos a Sheets con prefijo ' para preservar ceros a la izquierda e integridad de datos
-        syncToDatabase('upsert', { ...newStore, codigo: `'${newStore.codigo}` });
+        // Enviamos a SQLite sin prefijo
+        syncToDatabase('upsert', { ...newStore, codigo: newStore.codigo });
     };
 
     const handleSaveEmployee = (updatedEmployee) => {
         setEmployees(prev => prev.map(e => e.codigo_empleado === updatedEmployee.codigo_empleado ? updatedEmployee : e));
         setEditingEmployee(updatedEmployee);
-        // Enviamos a Sheets con prefijo ' para evitar formateo numérico
+        // Enviamos a SQLite sin prefijo
         const payload = {
             ...updatedEmployee,
-            codigo_empleado: `'${updatedEmployee.codigo_empleado}`,
-            tin: updatedEmployee.tin ? `'${updatedEmployee.tin.toString().replace(/^'/, '')}` : '',
-            zip: updatedEmployee.zip ? `'${updatedEmployee.zip.toString().replace(/^'/, '')}` : '',
-            site_code: updatedEmployee.site_code ? `'${updatedEmployee.site_code.toString().replace(/^'/, '')}` : '',
-            cuenta_bancaria: updatedEmployee.cuenta_bancaria ? `'${updatedEmployee.cuenta_bancaria.toString().replace(/^'/, '')}` : '',
+            codigo_empleado: updatedEmployee.codigo_empleado,
+            tin: updatedEmployee.tin ? updatedEmployee.tin.toString().replace(/^'/, '') : '',
+            zip: updatedEmployee.zip ? updatedEmployee.zip.toString().replace(/^'/, '') : '',
+            site_code: updatedEmployee.site_code ? updatedEmployee.site_code.toString().replace(/^'/, '') : '',
+            cuenta_bancaria: updatedEmployee.cuenta_bancaria ? updatedEmployee.cuenta_bancaria.toString().replace(/^'/, '') : '',
             // Mapeo de llaves (Nombres de Columnas Exactos)
             'Rate KBS': updatedEmployee.rateKBS || 0,
             'Rate LGM': updatedEmployee.rateLGM || 0,
@@ -15500,6 +15504,11 @@ function App() {
         delete payload.cliente;
         delete payload.observaciones;
 
+        // Asegurar que locationHistory sea string para SQLite
+        if (payload.locationHistory && typeof payload.locationHistory === 'object') {
+            payload.locationHistory = JSON.stringify(payload.locationHistory);
+        }
+
         return syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
 
     };
@@ -15509,10 +15518,10 @@ function App() {
         if (empToDelete) {
             setEmployees(prev => prev.filter(e => e.codigo_empleado !== empCodigo));
             setEditingEmployee(null);
-            // Enviamos Nombre + Código con prefijo ' para cumplimiento de Llave Compuesta
+            // Enviamos Nombre + Código para cumplimiento de Llave Compuesta
             syncToDatabase('delete', {
                 nombre: empToDelete.nombre,
-                codigo_empleado: `'${empCodigo}`
+                codigo_empleado: empCodigo
             }, 'Personal');
         }
     };
@@ -15520,14 +15529,14 @@ function App() {
     const handleCreateEmployee = (newEmp) => {
         setEmployees(prev => [newEmp, ...prev]);
         setIsAddingEmployee(false);
-        // Enviamos a Sheets con prefijo ' y mapeo de columnas exacto
+        // Enviamos a SQLite con mapeo de columnas exacto
         const payload = {
             ...newEmp,
-            codigo_empleado: `'${newEmp.codigo_empleado}`,
-            tin: newEmp.tin ? `'${newEmp.tin.toString().replace(/^'/, '')}` : '',
-            zip: newEmp.zip ? `'${newEmp.zip.toString().replace(/^'/, '')}` : '',
-            site_code: newEmp.site_code ? `'${newEmp.site_code.toString().replace(/^'/, '')}` : '',
-            cuenta_bancaria: newEmp.cuenta_bancaria ? `'${newEmp.cuenta_bancaria.toString().replace(/^'/, '')}` : '',
+            codigo_empleado: newEmp.codigo_empleado,
+            tin: newEmp.tin ? newEmp.tin.toString().replace(/^'/, '') : '',
+            zip: newEmp.zip ? newEmp.zip.toString().replace(/^'/, '') : '',
+            site_code: newEmp.site_code ? newEmp.site_code.toString().replace(/^'/, '') : '',
+            cuenta_bancaria: newEmp.cuenta_bancaria ? newEmp.cuenta_bancaria.toString().replace(/^'/, '') : '',
             'Rate KBS': newEmp.rateKBS || newEmp.rate_kbs || 0,
             'Rate LGM': newEmp.rateLGM || newEmp.rate_lgm || 0,
             'Rate CSG': newEmp.rate_csg || 0,
@@ -15543,6 +15552,11 @@ function App() {
         delete payload.rate_csg;
         delete payload.cliente;
         delete payload.observaciones;
+
+        // Asegurar que locationHistory sea string para SQLite
+        if (payload.locationHistory && typeof payload.locationHistory === 'object') {
+            payload.locationHistory = JSON.stringify(payload.locationHistory);
+        }
 
         syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
 
@@ -17903,7 +17917,7 @@ function App() {
                         // Sincronizar con la tabla Personal con mapeo correcto
                         const payload = {
                             ...newEmp,
-                            codigo_empleado: `'${newEmp.codigo_empleado}`,
+                            codigo_empleado: newEmp.codigo_empleado,
                             'Rate KBS': newEmp.rateKBS || 0,
                             'Rate LGM': newEmp.rateLGM || 0,
                             'Observaciones': newEmp.observaciones || ''
