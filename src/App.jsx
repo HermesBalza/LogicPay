@@ -15455,7 +15455,7 @@ function App() {
         setStores(prev => prev.map(s => s.codigo === updatedStore.codigo ? updatedStore : s));
         setEditingStore(updatedStore);
         // Enviamos a SQLite sin prefijo
-        syncToDatabase('upsert', { ...updatedStore, codigo: updatedStore.codigo });
+        syncToDatabase('upsert', { ...updatedStore, codigo: updatedStore.codigo }, 'Tiendas', false, ['nombre', 'codigo']);
     };
 
     const handleDeleteStore = (storeCodigo) => {
@@ -15475,7 +15475,7 @@ function App() {
         setStores(prev => [newStore, ...prev]);
         setIsAddingStore(false);
         // Enviamos a SQLite sin prefijo
-        syncToDatabase('upsert', { ...newStore, codigo: newStore.codigo });
+        syncToDatabase('upsert', { ...newStore, codigo: newStore.codigo }, 'Tiendas', false, ['nombre', 'codigo']);
     };
 
     const handleSaveEmployee = (updatedEmployee) => {
