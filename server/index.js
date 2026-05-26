@@ -13,6 +13,7 @@ app.use(express.json());
 app.use(express.text()); // Soporte para text/plain que enviaba el frontend a Google Sheets
 
 // Filtra las propiedades del objeto para incluir solo columnas que existen en la tabla
+// y normaliza valores (stringifica objetos, remueve prefijo ' de Google Sheets)
 function filterValidColumns(table, data) {
   const cols = db.prepare(`PRAGMA table_info("${table}")`).all();
   const validNames = new Set(cols.map(c => c.name));
@@ -22,6 +23,9 @@ function filterValidColumns(table, data) {
       let val = data[key];
       if (val !== null && typeof val === 'object') {
         val = JSON.stringify(val);
+      }
+      if (typeof val === 'string') {
+        val = val.replace(/^'/, '');
       }
       filtered[key] = val;
     }
