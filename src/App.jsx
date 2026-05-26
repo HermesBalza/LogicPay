@@ -15467,7 +15467,7 @@ function App() {
             syncToDatabase('delete', {
                 nombre: storeToDelete.nombre,
                 codigo: storeCodigo
-            });
+            }, 'Tiendas', false, ['nombre', 'codigo']);
         }
     };
 
@@ -15522,7 +15522,7 @@ function App() {
             syncToDatabase('delete', {
                 nombre: empToDelete.nombre,
                 codigo_empleado: empCodigo
-            }, 'Personal');
+            }, 'Personal', false, ['nombre', 'codigo_empleado']);
         }
     };
 
