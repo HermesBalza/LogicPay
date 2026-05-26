@@ -5850,11 +5850,11 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
         if (nominaDetailData && Array.isArray(nominaDetailData)) {
             nominaDetailData.forEach(record => {
                 try {
-                    if (!record || !record.periodo || !record.data_json) return;
-                    const year = getYearFromPeriod(record.periodo);
+                    if (!record || !(record.Periodo || record.periodo) || !(record.Data_JSON || record.data_json)) return;
+                    const year = getYearFromPeriod(record.Periodo || record.periodo);
                     if (year !== fiscalYear) return;
 
-                    const periodKey = record.periodo.trim();
+                    const periodKey = (record.Periodo || record.periodo).trim();
                     periodsFound.add(periodKey);
 
                     // Parsear límites de la bisemana
@@ -5868,7 +5868,7 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
                     }
 
                     // Procesar a TODOS los empleados en la nómina (KBS)
-                    const payload = typeof record.data_json === 'string' ? JSON.parse(record.data_json) : record.data_json;
+                    const payload = typeof (record.Data_JSON || record.data_json) === 'string' ? JSON.parse(record.Data_JSON || record.data_json) : (record.Data_JSON || record.data_json);
                     const rowsList = Array.isArray(payload) ? payload : [];
 
                     rowsList.forEach(empRow => {
