@@ -13088,7 +13088,7 @@ function App() {
             })
             .flatMap((record, recordIndex) => {
                 try {
-                    const parsed = JSON.parse(record.data_json || '{}');
+                    const parsed = JSON.parse(record.data_json || record.Data_JSON || '{}');
                     const items = Array.isArray(parsed) ? parsed : [parsed];
                     return items.map((item, itemIndex) => ({
                         id: `${record.id_consolidacion || record.ID_Consolidacion || recordIndex}-${itemIndex}`,
@@ -13138,7 +13138,7 @@ function App() {
         specialProjectsHistoryData.forEach(h => {
             if (foundProject) return;
             try {
-                const data = JSON.parse(h.data_json);
+                const data = JSON.parse(h.data_json || h.Data_JSON || '{}');
                 const projects = Array.isArray(data) ? data : [data];
                 const p = projects.find(item => String(item.invoice) === String(invoiceId));
                 if (p) {
@@ -15001,7 +15001,7 @@ function App() {
                 return [];
             }
             const loaded = data.map(obj => {
-                const rawJson = obj.data_json || obj.Data_JSON || '';
+                const rawJson = obj.Data_JSON || obj.data_json || '';
                 if (rawJson) {
                     try {
                         const parsed = JSON.parse(rawJson);
@@ -15019,6 +15019,12 @@ function App() {
                         obj.radicacion = obj['Fecha Rad.'] || obj['Fecha Rad'] || obj['fecha rad.'] || '';
                         obj.fecha = obj.Timestamp || obj.fecha || obj.periodo || obj.Periodo;
                         obj.Status = obj.Status || obj.status || 'Due';
+                        obj.tienda = obj.Tienda || obj.tienda || obj.nombre;
+                        obj.periodo = obj.Periodo || obj.periodo || '';
+                        obj.data_json = obj.Data_JSON || obj.data_json || '';
+                        obj.timestamp = obj.Timestamp || obj.timestamp || '';
+                        obj.status = obj.Status || obj.status || '';
+                        obj.correlativo = obj.Correlativo || obj.correlativo || '';
                     } catch (e) {
                         console.error('Error parsing Data_JSON en proyectos especiales', e);
                     }
@@ -15118,15 +15124,15 @@ function App() {
         let maxInvoice = 0;
         historyData.forEach(record => {
             // Intentamos obtener el correlativo de la nueva columna F
-            if (record.correlativo) {
-                const val = normalizeInvoice(record.correlativo);
+            if (record.Correlativo || record.correlativo) {
+                const val = normalizeInvoice(record.Correlativo || record.correlativo);
                 if (val > maxInvoice) maxInvoice = val;
             }
 
-            // Fallback al parseo de data_json (para compatibilidad con registros antiguos sin la columna F)
-            if (record.data_json) {
+            // Fallback al parseo de Data_JSON (para compatibilidad con registros antiguos sin la columna F)
+            if (record.Data_JSON || record.data_json) {
                 try {
-                    const parsed = JSON.parse(record.data_json);
+                    const parsed = JSON.parse(record.Data_JSON || record.data_json);
                     const items = Array.isArray(parsed) ? parsed : [parsed];
                     items.forEach(item => {
                         const invoiceValue = normalizeInvoice(item.invoice);
