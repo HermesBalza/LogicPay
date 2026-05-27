@@ -16,6 +16,7 @@ PROJECT_RULES.md
 # Archivos temporales de SQLite
 *.db-shm
 *.db-wal
+data/database.db
 
 # Logs de salida del servidor
 server_*.txt

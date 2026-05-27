@@ -12,4 +12,41 @@ const db = new Database(dbPath, { verbose: console.log });
 // Optimización para mejor concurrencia y velocidad en lecturas/escrituras
 db.pragma('journal_mode = WAL');
 
+// ------------------------------------------------------------
+// NOTE: Tabla para usuarios (si no existe ya)
+db.exec(`CREATE TABLE IF NOT EXISTS Usuarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    email TEXT UNIQUE,
+    UNIQUE(nombre)
+);`);
+
+// Tabla para notas (autor_id es TEXT = nombre del usuario)
+// Drop primero para migrar desde schema anterior con INTEGER
+db.exec(`DROP TABLE IF EXISTS NotasLeidas`);
+db.exec(`DROP TABLE IF EXISTS Notas`);
+db.exec(`CREATE TABLE Notas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    autor_id TEXT NOT NULL,
+    mensaje TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    edited_at TEXT,
+    parent_id INTEGER,
+    FOREIGN KEY (parent_id) REFERENCES Notas(id) ON DELETE CASCADE
+);`);
+
+// Tabla auxiliar para marcar notas leídas (usuario_id es TEXT = nombre del usuario)
+db.exec(`CREATE TABLE NotasLeidas (
+    nota_id INTEGER NOT NULL,
+    usuario_id TEXT NOT NULL,
+    leido_en TEXT NOT NULL,
+    PRIMARY KEY (nota_id, usuario_id)
+);`);
+
+// Índices de rendimiento
+db.exec(`CREATE INDEX IF NOT EXISTS idx_notas_autor ON Notas(autor_id);`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_notas_created ON Notas(created_at);`);
+
 export default db;
+
+

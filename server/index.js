@@ -1,3 +1,4 @@
+// server/index.js
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -37,11 +38,11 @@ function filterValidColumns(table, data) {
 app.get('/api/data/:table', (req, res) => {
   const table = req.params.table;
   const allowedTables = [
-    'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle', 
-    'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios', 
+    'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle',
+    'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
     'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG'
   ];
-  
+
   if (!allowedTables.includes(table)) {
     return res.status(404).json({ error: 'Tabla no encontrada o no permitida' });
   }
@@ -84,27 +85,27 @@ app.post('/api/write', (req, res) => {
          if (validMatchKeys.length === 0) {
            return res.status(400).json({ success: false, error: 'matchKeys no encontrados en los datos' });
          }
-         const whereClause = validMatchKeys.map(k => `"${k}" = ?`).join(' AND ');
+         const whereClause = validMatchKeys.map(k => `\"${k}\" = ?`).join(' AND ');
          const whereValues = validMatchKeys.map(k => data[k]);
          const exists = db.prepare(`SELECT 1 FROM ${sheetName} WHERE ${whereClause}`).get(whereValues);
 
          if (exists) {
             const keysToUpdate = Object.keys(data).filter(k => !validMatchKeys.includes(k));
             if (keysToUpdate.length > 0) {
-              const setClause = keysToUpdate.map(k => `"${k}" = ?`).join(', ');
+              const setClause = keysToUpdate.map(k => `\"${k}\" = ?`).join(', ');
               const setValues = keysToUpdate.map(k => data[k]);
               db.prepare(`UPDATE ${sheetName} SET ${setClause} WHERE ${whereClause}`).run([...setValues, ...whereValues]);
             }
          } else {
             const keys = Object.keys(data);
-            const quotedKeys = keys.map(k => `"${k}"`).join(', ');
+            const quotedKeys = keys.map(k => `\"${k}\"`).join(', ');
             const placeholders = keys.map(() => '?').join(', ');
             const values = keys.map(k => data[k]);
             db.prepare(`INSERT INTO ${sheetName} (${quotedKeys}) VALUES (${placeholders})`).run(values);
          }
       } else {
          const keys = Object.keys(data);
-         const quotedKeys = keys.map(k => `"${k}"`).join(', ');
+         const quotedKeys = keys.map(k => `\"${k}\"`).join(', ');
          const placeholders = keys.map(() => '?').join(', ');
          const values = keys.map(k => data[k]);
          db.prepare(`INSERT INTO ${sheetName} (${quotedKeys}) VALUES (${placeholders})`).run(values);
@@ -116,7 +117,7 @@ app.post('/api/write', (req, res) => {
        if (!matchKeys || matchKeys.length === 0) return res.status(400).send('Missing matchKeys for delete');
        const validMatchKeys = matchKeys.filter(k => data[k] !== undefined);
        if (validMatchKeys.length === 0) return res.status(400).send('matchKeys no encontrados en los datos');
-       const whereClause = validMatchKeys.map(k => `"${k}" = ?`).join(' AND ');
+       const whereClause = validMatchKeys.map(k => `\"${k}\" = ?`).join(' AND ');
        const whereValues = validMatchKeys.map(k => data[k]);
        db.prepare(`DELETE FROM ${sheetName} WHERE ${whereClause}`).run(whereValues);
        return res.json({ success: true });
@@ -129,6 +130,135 @@ app.post('/api/write', (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------
+// Notes API Endpoints
+// ---------------------------------------------------------------------
+
+// Helper to get current timestamp in ISO format
+const nowISO = () => new Date().toISOString();
+
+// GET all notes (autor_id almacena el nombre del usuario directamente)
+app.get('/api/notas', (req, res) => {
+  try {
+    const userId = req.query.userId; // string – nombre del usuario
+    const notesStmt = db.prepare(`
+      SELECT n.id, n.autor_id, n.mensaje, n.created_at, n.edited_at, n.parent_id
+      FROM Notas n
+      ORDER BY n.created_at ASC
+    `);
+    const notes = notesStmt.all();
+
+    // Setear autor_nombre a partir de autor_id (almacena el nombre)
+    notes.forEach(n => {
+      n.autor_nombre = n.autor_id;
+    });
+
+    if (userId) {
+      const readStmt = db.prepare('SELECT nota_id FROM NotasLeidas WHERE usuario_id = ?');
+      const readRows = readStmt.all(userId);
+      const readSet = new Set(readRows.map(r => r.nota_id));
+      notes.forEach(n => {
+        n.leido = readSet.has(n.id);
+      });
+    }
+    res.json(notes);
+  } catch (error) {
+    console.error('Error fetching notes:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// GET unread count for a user
+app.get('/api/notas/unread/:userId', (req, res) => {
+  try {
+    const userId = req.params.userId; // string – nombre del usuario
+    const countStmt = db.prepare(`
+      SELECT COUNT(*) as cnt FROM Notas n
+      LEFT JOIN NotasLeidas nl ON n.id = nl.nota_id AND nl.usuario_id = ?
+      WHERE n.autor_id <> ? AND nl.nota_id IS NULL
+    `);
+    const result = countStmt.get(userId, userId);
+    res.json({ count: result.cnt });
+  } catch (error) {
+    console.error('Error counting unread notes:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// POST create a new note
+app.post('/api/notas', (req, res) => {
+  try {
+    const { autorId, mensaje, parentId } = req.body;
+    if (!autorId || !mensaje) {
+      return res.status(400).json({ error: 'autorId y mensaje son obligatorios' });
+    }
+    const insertStmt = db.prepare(`
+      INSERT INTO Notas (autor_id, mensaje, created_at, parent_id)
+      VALUES (?, ?, ?, ?)
+    `);
+    const info = insertStmt.run(autorId, mensaje, nowISO(), parentId || null);
+    res.status(201).json({ id: info.lastInsertRowid });
+  } catch (error) {
+    console.error('Error creating note:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PUT update a note's message
+app.put('/api/notas/:id', (req, res) => {
+  try {
+    const noteId = parseInt(req.params.id, 10);
+    const { mensaje } = req.body;
+    if (!mensaje) {
+      return res.status(400).json({ error: 'mensaje es obligatorio' });
+    }
+    const updateStmt = db.prepare(`
+      UPDATE Notas SET mensaje = ?, edited_at = ? WHERE id = ?
+    `);
+    updateStmt.run(mensaje, nowISO(), noteId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating note:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// DELETE a note (cascade deletion of children via foreign key)
+app.delete('/api/notas/:id', (req, res) => {
+  try {
+    const noteId = parseInt(req.params.id, 10);
+    const delStmt = db.prepare('DELETE FROM Notas WHERE id = ?');
+    delStmt.run(noteId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting note:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// POST mark note as read for a user
+app.post('/api/notas/:id/read', (req, res) => {
+  try {
+    const noteId = parseInt(req.params.id, 10);
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId es requerido' });
+    }
+    const insertStmt = db.prepare(`
+      INSERT OR IGNORE INTO NotasLeidas (nota_id, usuario_id, leido_en)
+      VALUES (?, ?, ?)
+    `);
+    insertStmt.run(noteId, userId, nowISO());
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking note as read:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ---------------------------------------------------------------------
+// Start server
+// ---------------------------------------------------------------------
 app.listen(PORT, () => {
   console.log(`Servidor Backend escuchando en el puerto ${PORT}`);
 });
