@@ -13442,20 +13442,28 @@ function App() {
 
         const prompt = `
             Eres un experto en nómina. Tu tarea es corregir un reporte de asistencia (JSON AOA) basándote en resoluciones manuales.
-            
+
             REPORTE ORIGINAL:
             ${JSON.stringify(data)}
-            
+
             RESOLUCIONES:
             ${JSON.stringify(mapping)}
-            
-            TAREA:
-            1. Analiza cada fila del REPORTE ORIGINAL. 
+
+            INSTRUCCIONES ESTRICTAS:
+            1. Analiza cada fila del REPORTE ORIGINAL.
             2. Si encuentras una fila de empleado que coincida con una RESOLUCIÓN (por nombre o código previo):
                - Si la resolución indica "isExcluded": true, ELIMINA LA FILA COMPLETA del reporte resultante.
                - Si NO está excluido, reemplaza el nombre y el código por los OFICIALES.
             3. NO CAMBIES NINGÚN OTRO DATO (Horas, Cargos, Totales, Encabezados) de las filas que no son eliminadas.
-            4. Retorna el REPORTE COMPLETO como un JSON Array of Arrays corregido, sin las filas marcadas como excluidas.
+
+            REGLA CRÍTICA - VALIDA ANTES DE RESPONDER:
+            Antes de entregar el resultado final, haz lo siguiente:
+               a) Construye el JSON Array of Arrays completo.
+               b) Verifica que todos los strings estén correctamente escapados, sin comillas sin cerrar, sin comas sueltas ni caracteres corruptos.
+               c) Cuenta las filas: el original tiene ${data.length} filas. Verifica que el resultado tenga las filas correctas después de aplicar exclusiones.
+               d) Confirma mentalmente que el JSON se puede parsear sin errores.
+
+            Devuelve ÚNICAMENTE el JSON Array of Arrays, sin etiquetas, sin markdown, sin explicaciones.
         `;
 
         const result = await model.generateContent(prompt);
