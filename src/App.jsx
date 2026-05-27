@@ -12512,6 +12512,8 @@ function App() {
     const [isEmployeeStatsModalOpen, setIsEmployeeStatsModalOpen] = useState(false);
     const [isStoreStatsModalOpen, setIsStoreStatsModalOpen] = useState(false);
     const [isConfirmApproveModalOpen, setIsConfirmApproveModalOpen] = useState(false);
+    const [isZeroRateModalOpen, setIsZeroRateModalOpen] = useState(false);
+    const [zeroRateEmployees, setZeroRateEmployees] = useState([]);
     const [isHoursReportEmailModalOpen, setIsHoursReportEmailModalOpen] = useState(false);
     const [isSendingHoursReport, setIsSendingHoursReport] = useState(false);
     const [hoursReportPdfBase64, setHoursReportPdfBase64] = useState(null);
@@ -17133,7 +17135,29 @@ function App() {
                                                             <Mail size={14} /> Enviar Reporte de Horas
                                                         </button>
                                                         <button
-                                                            onClick={() => setIsConfirmApproveModalOpen(true)}
+                                                            onClick={() => {
+                                                                const employeesWithZeroRates = semanaTableData
+                                                                    .map(emp => {
+                                                                        const employee = employees.find(e =>
+                                                                            String(e.codigo_empleado).trim() === String(emp.codigo).replace(/^'+/, '').trim() &&
+                                                                            String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()
+                                                                        );
+                                                                        return {
+                                                                            nombre: emp.nombre,
+                                                                            codigo: emp.codigo,
+                                                                            cargo: emp.cargo,
+                                                                            kbsRate: employee?.rateKBS || 0,
+                                                                            lgmRate: employee?.rateLGM || 0
+                                                                        };
+                                                                    })
+                                                                    .filter(emp => emp.kbsRate === 0 || emp.lgmRate === 0);
+                                                                if (employeesWithZeroRates.length > 0) {
+                                                                    setZeroRateEmployees(employeesWithZeroRates);
+                                                                    setIsZeroRateModalOpen(true);
+                                                                } else {
+                                                                    setIsConfirmApproveModalOpen(true);
+                                                                }
+                                                            }}
                                                             disabled={isLoading || isCurrentWeekApproved}
                                                             className={`px-8 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2 ${isCurrentWeekApproved
                                                                 ? 'bg-green-600 text-white cursor-not-allowed shadow-green-900/10'
@@ -17143,6 +17167,51 @@ function App() {
                                                             {isCurrentWeekApproved ? <CheckCircle size={14} /> : <CreditCard size={14} />}
                                                             {isCurrentWeekApproved ? 'Semana Aprobada' : 'Aprobar Semana'}
                                                         </button>
+
+                                                        {isZeroRateModalOpen && (
+                                                            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#f9f9f9]/80 backdrop-blur-sm p-4">
+                                                                <div className="w-full max-w-lg bg-white rounded-[2rem] p-8 shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-300">
+                                                                    <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center mb-6 shadow-inner border border-amber-100 mx-auto">
+                                                                        <AlertTriangle size={32} className="text-amber-500" />
+                                                                    </div>
+                                                                    <h3 className="text-2xl font-black text-[#303a7f] mb-1 text-center tracking-tight">RATES EN 0</h3>
+                                                                    <p className="text-center text-gray-500 text-xs font-bold uppercase tracking-wider mb-6">
+                                                                        Los siguientes empleados tienen rates sin configurar
+                                                                    </p>
+                                                                    <div className="max-h-48 overflow-y-auto space-y-2 mb-6">
+                                                                        {zeroRateEmployees.map((emp, idx) => (
+                                                                            <div key={idx} className="flex items-center justify-between p-3 bg-amber-50/50 rounded-xl border border-amber-100">
+                                                                                <div className="flex flex-col overflow-hidden">
+                                                                                    <span className="text-[11px] font-black text-amber-800 uppercase truncate">{emp.nombre}</span>
+                                                                                    <span className="text-[9px] font-bold text-amber-600">ID: {emp.codigo} | {emp.cargo}</span>
+                                                                                </div>
+                                                                                <div className="flex gap-2 shrink-0 ml-3">
+                                                                                    {emp.kbsRate === 0 && <span className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[8px] font-black uppercase">KBS 0</span>}
+                                                                                    {emp.lgmRate === 0 && <span className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[8px] font-black uppercase">LGM 0</span>}
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                    <div className="flex gap-4 w-full">
+                                                                        <button
+                                                                            onClick={() => setIsZeroRateModalOpen(false)}
+                                                                            className="flex-1 py-4 bg-gray-50 hover:bg-gray-100 text-gray-600 font-black rounded-2xl transition-all border border-gray-200 uppercase text-[10px] tracking-widest active:scale-95"
+                                                                        >
+                                                                            Cancelar
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setIsZeroRateModalOpen(false);
+                                                                                setIsConfirmApproveModalOpen(true);
+                                                                            }}
+                                                                            className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-2xl transition-all shadow-lg shadow-amber-900/20 uppercase text-[10px] tracking-widest active:scale-95 flex justify-center items-center gap-2"
+                                                                        >
+                                                                            <CheckCircle size={14} /> Proceder de todas formas
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
 
                                                         {isConfirmApproveModalOpen && (
                                                             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#f9f9f9]/80 backdrop-blur-sm p-4">
