@@ -3092,6 +3092,10 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
             alert('Por favor complete los campos obligatorios: Nombre, Apellido e Identificador.');
             return;
         }
+        if (!/^\d{4}$/.test(newEmp.codigo_empleado)) {
+            alert('El Código de Empleado debe ser exactamente 4 dígitos numéricos.');
+            return;
+        }
         const payload = {
             ...newEmp,
             rate_csg: parseFloat(newEmp.rate_csg) || 0,
@@ -3145,7 +3149,7 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
                             <div className="mt-8 w-full space-y-4">
                                 <div>
                                     <label className={labelCls}>Identificador (SSN/ITIN/ID)</label>
-                                    <input type="text" placeholder="Ej: 453-14-7402" value={newEmp.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className={inputCls} />
+                                    <input type="text" placeholder="Ej: 0123" value={newEmp.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className={inputCls} maxLength={4} pattern="\d{4}" inputMode="numeric" />
                                 </div>
                                 <div>
                                     <label className={labelCls}>Cargo</label>

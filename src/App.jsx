@@ -4335,7 +4335,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
     );
 };
 
-const EmployeeAddView = ({ stores, onSave, onBack }) => {
+const EmployeeAddView = ({ stores, onSave, onBack, onError }) => {
     const [newEmployee, setNewEmployee] = useState({
         nombre: '',
         codigo_empleado: '',
@@ -4394,7 +4394,11 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
 
     const handleSave = () => {
         if (!newEmployee.nombre.trim() || !newEmployee.codigo_empleado.trim()) {
-            showError("Nombre y Código son obligatorios.");
+            if (onError) onError("Nombre y Código son obligatorios.");
+            return;
+        }
+        if (!/^\d{4}$/.test(newEmployee.codigo_empleado)) {
+            if (onError) onError("El Código de Empleado debe ser exactamente 4 dígitos numéricos.");
             return;
         }
         const formattedEmployee = {
@@ -4430,7 +4434,7 @@ const EmployeeAddView = ({ stores, onSave, onBack }) => {
                                 </div>
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Código de Empleado</label>
-                                    <input type="text" value={newEmployee.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Ej: EMP-001" />
+                                    <input type="text" value={newEmployee.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Ej: 0123" maxLength={4} pattern="\d{4}" inputMode="numeric" />
                                 </div>
                             </div>
                         </section>
@@ -11045,9 +11049,13 @@ const BillingView = ({
             utilidad: (row.facturacion || 0) - (row.costos || 0)
         };
     }).sort((a, b) => {
-        const invA = parseInt(rowTotalToNumber(a.invoice)) || 0;
-        const invB = parseInt(rowTotalToNumber(b.invoice)) || 0;
-        return invA - invB;
+        const parseDate = (str) => {
+            if (!str || str === '--/--/--') return 0;
+            const parts = str.split('/');
+            if (parts.length !== 3) return 0;
+            return parseInt(parts[2]) * 10000 + parseInt(parts[0]) * 100 + parseInt(parts[1]);
+        };
+        return parseDate(a.fecha) - parseDate(b.fecha);
     });
 
     const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -11217,20 +11225,27 @@ const BillingView = ({
                 <table className="w-full border-collapse table-auto mb-6">
                     <thead className="sticky top-0 z-20">
                         <tr className="bg-white border-b border-gray-100 shadow-sm">
-                            {['Fecha Rad.', 'Nombre del Proyecto', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Status'].map((h, i) => (
+                            {['Fecha Rad.', 'Fecha', 'Nombre del Proyecto', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Status'].map((h, i) => (
                                 <th key={i} className="px-2 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {peTableData.length === 0 ? (
-                            <tr><td colSpan={10} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros de Proyectos Especiales.</td></tr>
+                            <tr><td colSpan={11} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros de Proyectos Especiales.</td></tr>
                         ) : peTableData.map((row) => (
                             <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
                                 <td className="px-3 py-4 text-center">
                                     <div className="inline-block w-24">
                                         <span className={`text-[10px] font-bold uppercase tracking-wider ${row.radicacion ? 'text-[#303a7f]' : 'text-gray-300'}`}>
                                             {row.radicacion || '--/--/--'}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td className="px-3 py-4 text-center">
+                                    <div className="inline-block w-24">
+                                        <span className="text-[10px] font-bold text-[#333333]">
+                                            {row.fecha || '--/--/--'}
                                         </span>
                                     </div>
                                 </td>
@@ -11362,6 +11377,10 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
             alert('Por favor complete los campos obligatorios: Nombre, Apellido e Identificador.');
             return;
         }
+        if (!/^\d{4}$/.test(newEmp.codigo_empleado)) {
+            alert('El Código de Empleado debe ser exactamente 4 dígitos numéricos.');
+            return;
+        }
         onSave(newEmp);
     };
 
@@ -11416,7 +11435,7 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
                             <div className="mt-8 w-full space-y-4">
                                 <div>
                                     <label className={labelCls}>Identificador (SSN/ITIN/ID)</label>
-                                    <input type="text" placeholder="Ej: 453-14-7402" value={newEmp.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className={inputCls} />
+                                    <input type="text" placeholder="Ej: 0123" value={newEmp.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className={inputCls} maxLength={4} pattern="\d{4}" inputMode="numeric" />
                                 </div>
                                 <div>
                                     <label className={labelCls}>Cargo Administrativo</label>
@@ -15671,6 +15690,7 @@ function App() {
                     stores={stores}
                     onSave={handleCreateEmployee}
                     onBack={() => setIsAddingEmployee(false)}
+                    onError={showError}
                 />
             )}
 
