@@ -29,11 +29,15 @@ db.exec(`CREATE TABLE Notas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     autor_id TEXT NOT NULL,
     mensaje TEXT NOT NULL,
+    adjuntos TEXT,
     created_at TEXT NOT NULL,
     edited_at TEXT,
     parent_id INTEGER,
     FOREIGN KEY (parent_id) REFERENCES Notas(id) ON DELETE CASCADE
 );`);
+
+// Migración segura: agrega columna adjuntos si no existe (útil si la tabla no se recreó)
+try { db.exec(`ALTER TABLE Notas ADD COLUMN adjuntos TEXT`); } catch (_) {}
 
 // Tabla auxiliar para marcar notas leídas (usuario_id es TEXT = nombre del usuario)
 db.exec(`CREATE TABLE NotasLeidas (

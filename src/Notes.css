@@ -172,6 +172,144 @@
   margin-top: 6px;
 }
 
+/* Toolbar */
+.notes-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px;
+  position: relative;
+}
+.toolbar-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #888;
+  transition: background 0.15s, color 0.15s;
+}
+.toolbar-btn:hover {
+  background: #f0f0f0;
+  color: #303a7f;
+}
+
+/* Emoji picker */
+.emoji-picker {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(48,58,127,0.15);
+  border: 1px solid #edf0f7;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 100;
+  margin-bottom: 8px;
+}
+.emoji-picker button {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  transition: background 0.1s;
+  line-height: 1;
+}
+.emoji-picker button:hover {
+  background: #f0f2f8;
+}
+
+/* Attachments in form */
+.notes-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 24px;
+}
+.notes-attachment {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8f9fc;
+  border: 1px solid #edf0f7;
+  border-radius: 10px;
+  padding: 6px 10px 6px 6px;
+  font-size: 11px;
+  color: #444;
+}
+.notes-attachment img {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+.attachment-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.remove-attachment {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  border: 2px solid #fff;
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.remove-attachment:hover {
+  background: #dc2626;
+}
+
+/* Attachments in note body */
+.note-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.note-attachment-img {
+  width: 120px;
+  height: 90px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid #edf0f7;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.note-attachment-img:hover {
+  transform: scale(1.03);
+}
+.note-attachment-file {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f0f2f8;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 10px;
+  color: #303a7f;
+}
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; }

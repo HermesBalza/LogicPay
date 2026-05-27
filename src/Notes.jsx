@@ -1,7 +1,7 @@
 // src/Notes.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { StickyNote } from 'lucide-react';
+import { StickyNote, Paperclip, Smile, X, FileText } from 'lucide-react';
 import './Notes.css';
 
 // Helper to format dates: US format and Venezuela time (UTC‑4)
@@ -17,6 +17,8 @@ function formatNoteDate(isoStr) {
   return `${usDate} – ${veTime}`;
 }
 
+const EMOJIS = ['😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😌','😍','🥰','😘','😗','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤔','🤐','😐','😑','😶','😏','😒','🙄','😬','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','🥸','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','👍','👎','👊','✊','🤛','🤜','👋','🤚','🖐','✋','👌','✌','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','💕','💞','💓','💗','💖','💘','💝','💟','🙏','💪','🔥','⭐','✨','🎉','🎊','🎈','🎁','🎀','✅','❌','❗','❓','💯','🔴','🟢','🟡','🟠','🟣','🟤','🔵'];
+
 export default function Notes({ currentUser }) {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState([]);
@@ -26,6 +28,24 @@ export default function Notes({ currentUser }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [editingText, setEditingText] = useState('');
+  const notesListRef = useRef(null);
+  const shouldAutoScroll = useRef(false);
+  const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [attachments, setAttachments] = useState([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  const scrollToBottom = () => {
+    const el = notesListRef.current;
+    if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 0);
+  };
+
+  useEffect(() => {
+    if (shouldAutoScroll.current) {
+      scrollToBottom();
+      shouldAutoScroll.current = false;
+    }
+  }, [notes]);
 
   // ---------------------------------------------------------------------
   // API helpers (Axios is used for convenience – already a dependency of the project)
@@ -72,7 +92,8 @@ export default function Notes({ currentUser }) {
     const payload = {
       autorId: currentUser.id,
       mensaje: newMessage,
-      parentId: replyTo ? replyTo.id : undefined
+      parentId: replyTo ? replyTo.id : undefined,
+      adjuntos: attachments.length > 0 ? JSON.stringify(attachments) : undefined
     };
     try {
       const res = await fetch('/api/notas', {
@@ -86,11 +107,61 @@ export default function Notes({ currentUser }) {
       }
       setNewMessage('');
       setReplyTo(null);
+      setAttachments([]);
+      shouldAutoScroll.current = true;
       await loadNotes();
       await loadUnread();
     } catch (e) {
       console.error('Error creating note', e);
     }
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setAttachments(prev => [...prev, { name: file.name, type: file.type, data: ev.target.result }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const removeAttachment = (idx) => {
+    setAttachments(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (!file) continue;
+        e.preventDefault();
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          setAttachments(prev => [...prev, { name: `Captura (${new Date().toLocaleTimeString()})`, type: file.type, data: ev.target.result }]);
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  };
+
+  const insertEmoji = (emoji) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    setNewMessage(newMessage.slice(0, start) + emoji + newMessage.slice(end));
+    setTimeout(() => {
+      el.selectionStart = el.selectionEnd = start + emoji.length;
+      el.focus();
+    }, 0);
+    setShowEmojiPicker(false);
   };
 
   const deleteNote = async (id) => {
@@ -131,6 +202,7 @@ export default function Notes({ currentUser }) {
   // When modal opens, refresh notes and mark as read; lock body scroll
   useEffect(() => {
     if (open) {
+      shouldAutoScroll.current = true;
       loadNotes();
       markAllRead();
       document.body.style.overflow = 'hidden';
@@ -197,7 +269,22 @@ export default function Notes({ currentUser }) {
           </div>
         </div>
       ) : (
-        <div className="note-body">{note.mensaje}</div>
+        <div className="note-body">{note.mensaje}
+          {note.adjuntos && (() => {
+            try {
+              const files = JSON.parse(note.adjuntos);
+              return (
+                <div className="note-attachments">
+                  {files.map((f, i) => (
+                    f.type?.startsWith('image/')
+                      ? <img key={i} src={f.data} alt={f.name} className="note-attachment-img" onClick={() => window.open(f.data, '_blank')} />
+                      : <div key={i} className="note-attachment-file"><FileText size={14} /><span>{f.name}</span></div>
+                  ))}
+                </div>
+              );
+            } catch { return null; }
+          })()}
+        </div>
       )}
       {note.children && note.children.map(child => renderNote(child, depth + 1))}
     </div>
@@ -227,18 +314,59 @@ export default function Notes({ currentUser }) {
               <h2>Bloc de notas</h2>
               <button onClick={() => setOpen(false)} className="close-btn">✖️</button>
             </header>
-            <section className="notes-list">
+            <section className="notes-list" ref={notesListRef}>
               {buildTree(notes).map(root => renderNote(root))}
             </section>
             <form className="notes-form" onSubmit={submitNote}>
+              {attachments.length > 0 && (
+                <div className="notes-attachments">
+                  {attachments.map((att, i) => (
+                    <div key={i} className="notes-attachment">
+                      {att.type.startsWith('image/') ? (
+                        <img src={att.data} alt={att.name} />
+                      ) : (
+                        <FileText size={20} className="text-gray-400 shrink-0" />
+                      )}
+                      <span className="attachment-name">{att.name.length > 22 ? att.name.slice(0, 19) + '...' : att.name}</span>
+                      <button type="button" className="remove-attachment" onClick={() => removeAttachment(i)}>
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <textarea
+                ref={textareaRef}
                 placeholder={replyTo ? `Responder a ${replyTo.autor_nombre || 'usuario'}...` : 'Nueva nota...'}
                 value={newMessage}
                 onChange={e => setNewMessage(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    submitNote(e);
+                  }
+                }}
+                onPaste={handlePaste}
                 rows={3}
                 required
                 className="note-textarea"
               />
+              <div className="notes-toolbar">
+                <button type="button" className="toolbar-btn" onClick={() => fileInputRef.current.click()} title="Adjuntar archivo">
+                  <Paperclip size={16} />
+                </button>
+                <button type="button" className="toolbar-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)} title="Emoji">
+                  <Smile size={16} />
+                </button>
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" className="hidden" />
+                {showEmojiPicker && (
+                  <div className="emoji-picker">
+                    {EMOJIS.map(emoji => (
+                      <button key={emoji} type="button" onClick={() => insertEmoji(emoji)}>{emoji}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="notes-form-actions">
                 <button type="submit" className="btn btn-primary">Enviar</button>
                 {replyTo && (

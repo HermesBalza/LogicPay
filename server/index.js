@@ -10,7 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 app.use(express.text()); // Soporte para text/plain que enviaba el frontend a Google Sheets
 
 // Filtra las propiedades del objeto para incluir solo columnas que existen en la tabla
@@ -142,7 +142,7 @@ app.get('/api/notas', (req, res) => {
   try {
     const userId = req.query.userId; // string – nombre del usuario
     const notesStmt = db.prepare(`
-      SELECT n.id, n.autor_id, n.mensaje, n.created_at, n.edited_at, n.parent_id
+      SELECT n.id, n.autor_id, n.mensaje, n.adjuntos, n.created_at, n.edited_at, n.parent_id
       FROM Notas n
       ORDER BY n.created_at ASC
     `);
@@ -188,15 +188,15 @@ app.get('/api/notas/unread/:userId', (req, res) => {
 // POST create a new note
 app.post('/api/notas', (req, res) => {
   try {
-    const { autorId, mensaje, parentId } = req.body;
+    const { autorId, mensaje, parentId, adjuntos } = req.body;
     if (!autorId || !mensaje) {
       return res.status(400).json({ error: 'autorId y mensaje son obligatorios' });
     }
     const insertStmt = db.prepare(`
-      INSERT INTO Notas (autor_id, mensaje, created_at, parent_id)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO Notas (autor_id, mensaje, adjuntos, created_at, parent_id)
+      VALUES (?, ?, ?, ?, ?)
     `);
-    const info = insertStmt.run(autorId, mensaje, nowISO(), parentId || null);
+    const info = insertStmt.run(autorId, mensaje, adjuntos || null, nowISO(), parentId || null);
     res.status(201).json({ id: info.lastInsertRowid });
   } catch (error) {
     console.error('Error creating note:', error);
