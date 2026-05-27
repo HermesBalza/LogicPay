@@ -15380,7 +15380,7 @@ function App() {
             setRawBiometricData([]);
             setPayrollResults([]);
         }
-    }, [payrollStore, fechaDesde, fechaHasta, variablesLoaded, payrollDrafts, nominaHistoryData]);
+    }, [payrollStore, fechaDesde, fechaHasta, variablesLoaded, payrollDrafts, nominaHistoryData, payrollView]);
 
     // Efecto para AUTO-GUARDADO de borradores al detectar cambios
     useEffect(() => {
