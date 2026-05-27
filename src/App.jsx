@@ -7011,7 +7011,7 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                 {/* Buscador de Empleados Manual */}
                 {searchingIdx !== null && (
                     <div className="absolute inset-0 z-[100] flex items-center justify-center p-12 backdrop-blur-md bg-[#303a7f]/40 animate-in fade-in duration-300">
-                        <div className="bg-white w-full max-w-2xl h-[70vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.5)] border-2 border-[#6bbdb7]/20 flex flex-col overflow-hidden">
+                        <div className="bg-white w-full max-w-4xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.5)] border-2 border-[#6bbdb7]/20 flex flex-col overflow-hidden">
                             <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between">
                                 <div className="flex items-center gap-4">
                                     <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
