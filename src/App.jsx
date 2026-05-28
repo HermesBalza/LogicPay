@@ -16195,7 +16195,7 @@ function App() {
             )}
 
             {/* Logo y Status Bar Superior */}
-            <header className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-b-2 border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
+            <header id="main-header" className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-b-2 border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-6">
                     <img
                         src="/Logo Logic Group Management.png"
@@ -16893,7 +16893,7 @@ function App() {
                             {/* Tablas de Resultados por Fases */}
                             {/* TABLA MAESTRA: SEMANA (Visible por defecto) */}
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-12 duration-1000">
-                                <section className="bg-white rounded-[2.5rem] px-5 py-8 shadow-2xl shadow-blue-900/[0.04] border-2 border-brand-primary/5 min-h-[400px]">
+                                <section id="asistencia-semanal" className="bg-white rounded-[2.5rem] px-5 py-8 shadow-2xl shadow-blue-900/[0.04] border-2 border-brand-primary/5 min-h-[400px]" style={{ scrollMarginTop: 80 }}>
                                     <div className="flex items-center justify-between mb-8">
                                         <div className="flex items-center gap-4">
                                             <div className="p-3 bg-[#303a7f]/5 rounded-xl">
@@ -17984,6 +17984,11 @@ function App() {
                                     setIsStatusModalOpen(false);
                                     if (statusModalMessage.includes("Cálculo Semanal procesado")) {
                                         window.location.reload();
+                                    }
+                                    if (statusModalMessage.includes("data del supervisor")) {
+                                        setTimeout(() => {
+                                            document.getElementById('asistencia-semanal')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }, 150);
                                     }
                                 }}
                                 className={`w-full py-4 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 ${statusModalType === 'success' ? 'bg-[#303a7f] shadow-blue-900/10 hover:bg-[#252a5e]' : 'bg-red-500 shadow-red-900/10 hover:bg-red-600'}`}
