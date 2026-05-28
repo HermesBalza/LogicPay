@@ -9071,7 +9071,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     );
 };
 
-const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [], onOpenBilling = () => { }, onOpenWOS = () => { }, nominaDetailData = [] }) => {
+const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [], onOpenBilling = () => { }, onOpenWOS = () => { }, nominaDetailData = [], payrollDrafts = {} }) => {
     const [selectedYear, setSelectedYear] = useState(2026);
     if (!isOpen) return null;
 
@@ -9296,13 +9296,17 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                                     <div className="grid grid-cols-2 gap-3">
                                         {[p.w1, p.w2].map((w, idx) => {
                                             const processed = isWeekProcessed(w.start);
+                                            const draftKey = `${selectedStore}_${w.start}_${w.end}`.replace(/\s+/g, '_');
+                                            const hasDraft = !processed && payrollDrafts && payrollDrafts[draftKey];
                                             return (
                                                 <button
                                                     key={idx}
                                                     onClick={() => selectedStore !== CONSOLIDATED_STORE && onSelectWeek(w.start, w.end)}
                                                     className={`group/week transition-all duration-300 p-3.5 rounded-2xl border-2 text-left relative overflow-hidden ${selectedStore !== CONSOLIDATED_STORE ? 'active:scale-95' : 'cursor-not-allowed opacity-40 grayscale-[0.5]'} ${processed
                                                         ? 'bg-[#6bbdb7] hover:bg-[#59aba5] border-[#59aba5] shadow-lg shadow-teal-900/20'
-                                                        : selectedStore !== CONSOLIDATED_STORE ? 'bg-gray-50/50 hover:bg-[#303a7f] border-transparent hover:border-[#303a7f]' : 'bg-gray-50/50 border-transparent'
+                                                        : hasDraft
+                                                            ? 'bg-gray-50/50 hover:bg-[#303a7f] border-[#6bbdb7] hover:border-[#303a7f]'
+                                                            : selectedStore !== CONSOLIDATED_STORE ? 'bg-gray-50/50 hover:bg-[#303a7f] border-transparent hover:border-[#303a7f]' : 'bg-gray-50/50 border-transparent'
                                                         }`}
                                                 >
                                                     <div className="relative z-10">
@@ -16650,6 +16654,7 @@ function App() {
                                 historyData={nominaHistoryData}
                                 processedBiweeks={processedBiweeks}
                                 nominaDetailData={nominaDetailData}
+                                payrollDrafts={payrollDrafts}
                                 onOpenBilling={(year) => { setBillingFilterYear(year); setIsBillingModalOpen(true); }}
                                 onOpenWOS={() => setIsWOSOpen(true)}
                                 manualData={billingManualRecords}
@@ -17418,6 +17423,7 @@ function App() {
                 historyData={nominaHistoryData}
                 processedBiweeks={processedBiweeks}
                 nominaDetailData={nominaDetailData}
+                payrollDrafts={payrollDrafts}
                 onOpenBilling={() => setIsBillingModalOpen(true)}
                 onOpenWOS={() => setIsWOSOpen(true)}
                 manualData={billingManualRecords}
