@@ -17139,7 +17139,7 @@ function App() {
                                     </div>
 
                                     {(semanaTableData.length > 0 || specialProjectsData.length > 0) && (
-                                        <div className="mt-10 flex justify-end gap-4 border-t-2 border-gray-50 pt-8">
+                                        <div className="mt-2 flex justify-end gap-4 border-t-2 border-gray-50 pt-3">
                                             {/* Botón Aprobar Semana — pasa a estado verde irreversible una vez aprobada */}
                                             {(() => {
                                                 const isCurrentWeekApproved = (nominaHistoryData || []).some(h =>
