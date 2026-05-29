@@ -293,7 +293,8 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                 inlineData: { data: f.base64, mimeType: "image/jpeg" }
             }));
 
-            const prompt = "Analiza estas fotos de evidencia de un servicio de limpieza y extrae la fecha en que se realizó el servicio basándote EXCLUSIVAMENTE en los timestamps o marcas de tiempo (fecha/hora) visibles en las imágenes. Responde ÚNICAMENTE con la fecha en formato MM/DD/YYYY. Si no detectas ninguna fecha clara o marca de tiempo legible, responde 'ERROR'.";
+            const currentYear = new Date().getFullYear();
+            const prompt = `Analiza estas fotos de evidencia de un servicio de limpieza y extrae la fecha en que se realizó el servicio basándote EXCLUSIVAMENTE en los timestamps o marcas de tiempo (fecha/hora) visibles en las imágenes. El año actual es ${currentYear} y TODOS los servicios registrados pertenecen a este año. Si el timestamp muestra un año diferente a ${currentYear} (como 2024 o anterior), IGNÓRALO y usa ${currentYear} como año correcto. Responde ÚNICAMENTE con la fecha en formato MM/DD/YYYY. Si no detectas ninguna fecha clara o marca de tiempo legible, responde 'ERROR'.`;
 
             const result = await model.generateContent([prompt, ...imageParts]);
             const text = result.response.text().trim();
