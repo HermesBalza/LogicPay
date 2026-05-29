@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     ArrowLeft,
     BarChart3,
@@ -7,7 +7,10 @@ import {
     DollarSign,
     Store as StoreIcon,
     Building2,
-    Target
+    Target,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -101,11 +104,44 @@ const ResumenView = ({
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
 
-    const year = currentYear;
+    const [selectedYear, setSelectedYear] = useState(currentYear);
+    const [expandedMonths, setExpandedMonths] = useState(new Set());
+
+    const availableYears = useMemo(() => {
+        const years = new Set();
+        nominaHistoryData.forEach(n => {
+            const y = getYearFromDate(n.fecha_inicio);
+            if (y) years.add(y);
+        });
+        specialProjectsHistoryData.forEach(pe => {
+            const y = getPEYear(pe);
+            if (y) years.add(y);
+        });
+        csgServicesData.forEach(cs => {
+            const y = getYearFromDate(cs.fecha);
+            if (y) years.add(y);
+        });
+        if (!years.has(currentYear)) years.add(currentYear);
+        return [...years].sort((a, b) => b - a);
+    }, [nominaHistoryData, specialProjectsHistoryData, csgServicesData, currentYear]);
+
+    const toggleMonth = (monthIndex) => {
+        setExpandedMonths(prev => {
+            const next = new Set(prev);
+            if (next.has(monthIndex)) {
+                next.delete(monthIndex);
+            } else {
+                next.add(monthIndex);
+            }
+            return next;
+        });
+    };
+
+    const monthsToShow = selectedYear === currentYear ? currentMonth : 11;
 
     const monthlyData = useMemo(() => {
         const result = [];
-        for (let m = 0; m <= currentMonth; m++) {
+        for (let m = 0; m <= monthsToShow; m++) {
             const monthName = MESES[m];
             const tiendas = [];
             let totalIngresos = 0;
@@ -118,7 +154,7 @@ const ResumenView = ({
 
                 const nominaRecords = nominaHistoryData.filter(n =>
                     n.Tienda === storeName &&
-                    getYearFromDate(n.fecha_inicio) === year &&
+                    getYearFromDate(n.fecha_inicio) === selectedYear &&
                     getMonthFromDate(n.fecha_inicio) === m
                 );
                 nominaRecords.forEach(n => {
@@ -128,7 +164,7 @@ const ResumenView = ({
 
                 const peRecords = specialProjectsHistoryData.filter(pe =>
                     (pe.Tienda === storeName || pe.tienda === storeName) &&
-                    getPEYear(pe) === year &&
+                    getPEYear(pe) === selectedYear &&
                     getPEMonth(pe) === m
                 );
                 peRecords.forEach(pe => {
@@ -138,7 +174,7 @@ const ResumenView = ({
 
                 const csgRecords = csgServicesData.filter(cs =>
                     cs.tienda === storeName &&
-                    getYearFromDate(cs.fecha) === year &&
+                    getYearFromDate(cs.fecha) === selectedYear &&
                     getMonthFromDate(cs.fecha) === m
                 );
                 csgRecords.forEach(cs => {
@@ -170,7 +206,7 @@ const ResumenView = ({
             });
         }
         return result;
-    }, [nominaHistoryData, specialProjectsHistoryData, csgServicesData, stores, currentMonth, year]);
+    }, [nominaHistoryData, specialProjectsHistoryData, csgServicesData, stores, selectedYear, monthsToShow]);
 
     const totalesAnuales = useMemo(() => {
         let ingresos = 0;
@@ -208,8 +244,28 @@ const ResumenView = ({
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <span className="bg-[#303a7f] text-white text-xs font-black px-4 py-2 rounded-xl tracking-wider">{year}</span>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => {
+                            const idx = availableYears.indexOf(selectedYear);
+                            if (idx < availableYears.length - 1) setSelectedYear(availableYears[idx + 1]);
+                        }}
+                        disabled={availableYears.indexOf(selectedYear) >= availableYears.length - 1}
+                        className="p-2 bg-[#f9f9f9] rounded-xl border border-gray-200 text-[#303a7f] hover:bg-[#303a7f] hover:text-white transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                        <ChevronLeft size={16} />
+                    </button>
+                    <span className="bg-[#303a7f] text-white text-xs font-black px-5 py-2 rounded-xl tracking-wider min-w-[70px] text-center">{selectedYear}</span>
+                    <button
+                        onClick={() => {
+                            const idx = availableYears.indexOf(selectedYear);
+                            if (idx > 0) setSelectedYear(availableYears[idx - 1]);
+                        }}
+                        disabled={availableYears.indexOf(selectedYear) <= 0}
+                        className="p-2 bg-[#f9f9f9] rounded-xl border border-gray-200 text-[#303a7f] hover:bg-[#303a7f] hover:text-white transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                        <ChevronRight size={16} />
+                    </button>
                 </div>
             </header>
 
@@ -224,7 +280,7 @@ const ResumenView = ({
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest leading-none mb-1">Total Ingresos</p>
-                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Acumulado {year}</p>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Acumulado {selectedYear}</p>
                         </div>
                     </div>
 
@@ -237,7 +293,7 @@ const ResumenView = ({
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest leading-none mb-1">Total Gastos</p>
-                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Acumulado {year}</p>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Acumulado {selectedYear}</p>
                         </div>
                     </div>
 
@@ -272,10 +328,19 @@ const ResumenView = ({
                     </div>
                 </div>
 
-                {monthlyData.map((mesData, idx) => (
+                {monthlyData.map((mesData, idx) => {
+                    const isExpanded = expandedMonths.has(mesData.mesIndex);
+                    return (
                     <div key={idx} className="bg-white rounded-[2rem] shadow-xl shadow-blue-900/[0.03] border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${idx * 80}ms` }}>
-                        <div className="px-6 py-5 bg-gradient-to-r from-[#303a7f]/5 to-transparent border-b border-gray-100 flex items-center justify-between">
+                        <button
+                            onClick={() => toggleMonth(mesData.mesIndex)}
+                            className="w-full px-6 py-5 bg-gradient-to-r from-[#303a7f]/5 to-transparent border-b border-gray-100 flex items-center justify-between hover:from-[#303a7f]/10 transition-colors text-left cursor-pointer"
+                        >
                             <div className="flex items-center gap-3">
+                                <ChevronDown
+                                    size={16}
+                                    className={`text-[#303a7f] transition-transform duration-300 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
+                                />
                                 <div className="p-2 bg-[#303a7f]/5 rounded-xl text-[#303a7f]">
                                     <BarChart3 size={16} />
                                 </div>
@@ -297,105 +362,48 @@ const ResumenView = ({
                                     </span>
                                 </div>
                             </div>
-                        </div>
+                        </button>
 
-                        <div className="px-6 py-2 bg-gray-50/50 border-b border-gray-100">
-                            <div className="grid grid-cols-[1fr_0.6fr_0.6fr_0.6fr] gap-4 px-4 py-2">
-                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Tienda</span>
-                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Ingresos</span>
-                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Gastos</span>
-                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Utilidad</span>
+                        {isExpanded && (
+                            <>
+                            <div className="px-6 py-2 bg-gray-50/50 border-b border-gray-100">
+                                <div className="grid grid-cols-[1fr_0.6fr_0.6fr_0.6fr] gap-4 px-4 py-2">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Tienda</span>
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Ingresos</span>
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Gastos</span>
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Utilidad</span>
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="px-6 py-3 space-y-1">
-                            {mesData.tiendas.map((t, ti) => (
+                            <div className="px-6 py-3 space-y-1">
+                                {mesData.tiendas.map((t, ti) => (
+                                    <Row
+                                        key={`${mesData.mesIndex}-${ti}`}
+                                        label={t.nombre}
+                                        ingresos={t.ingresos}
+                                        gastos={t.gastos}
+                                        utilidad={t.utilidad}
+                                        cliente={t.cliente}
+                                    />
+                                ))}
+                            </div>
+
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gradient-to-r from-[#303a7f]/5 to-transparent">
                                 <Row
-                                    key={`${mesData.mesIndex}-${ti}`}
-                                    label={t.nombre}
-                                    ingresos={t.ingresos}
-                                    gastos={t.gastos}
-                                    utilidad={t.utilidad}
-                                    cliente={t.cliente}
+                                    label={`Total ${mesData.mes}`}
+                                    ingresos={mesData.totalIngresos}
+                                    gastos={mesData.totalGastos}
+                                    utilidad={mesData.totalUtilidad}
+                                    isTotal
                                 />
-                            ))}
-                        </div>
-
-                        <div className="px-6 py-4 border-t border-gray-100 bg-gradient-to-r from-[#303a7f]/5 to-transparent">
-                            <Row
-                                label={`Total ${mesData.mes}`}
-                                ingresos={mesData.totalIngresos}
-                                gastos={mesData.totalGastos}
-                                utilidad={mesData.totalUtilidad}
-                                isTotal
-                            />
-                        </div>
+                            </div>
+                            </>
+                        )}
                     </div>
-                ))}
+                    );
+                })}
 
-                {monthlyData.length > 0 && (
-                    <div className="bg-gradient-to-br from-[#303a7f] to-[#252a5e] rounded-[2rem] shadow-2xl shadow-blue-900/20 p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-white/10 rounded-xl text-white">
-                                <Target size={20} />
-                            </div>
-                            <div>
-                                <h2 className="text-sm font-black text-white uppercase tracking-tighter">Resumen Anual {year}</h2>
-                                <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Totales Consolidados</p>
-                            </div>
-                        </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                            <div className="bg-white/10 rounded-2xl p-5 backdrop-blur-sm border border-white/10">
-                                <p className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-2">Total Ingresos</p>
-                                <p className="text-2xl font-black text-white tracking-tighter">{formatMoney(totalesAnuales.totalIngresos)}</p>
-                                <div className="mt-3 flex items-center gap-2">
-                                    <TrendingUp size={14} className="text-green-400" />
-                                    <span className="text-[10px] font-bold text-green-400 uppercase tracking-wider">Facturación Total</span>
-                                </div>
-                            </div>
-                            <div className="bg-white/10 rounded-2xl p-5 backdrop-blur-sm border border-white/10">
-                                <p className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-2">Total Gastos</p>
-                                <p className="text-2xl font-black text-white tracking-tighter">{formatMoney(totalesAnuales.totalGastos)}</p>
-                                <div className="mt-3 flex items-center gap-2">
-                                    <TrendingDown size={14} className="text-red-400" />
-                                    <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider">Costos Operativos</span>
-                                </div>
-                            </div>
-                            <div className="bg-white/10 rounded-2xl p-5 backdrop-blur-sm border border-white/10">
-                                <p className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-2">Utilidad Neta</p>
-                                <p className={`text-2xl font-black tracking-tighter ${totalesAnuales.totalUtilidad >= 0 ? 'text-[#6bbdb7]' : 'text-red-400'}`}>
-                                    {formatMoney(totalesAnuales.totalUtilidad)}
-                                </p>
-                                <div className="mt-3 flex items-center gap-2">
-                                    <DollarSign size={14} className={totalesAnuales.totalUtilidad >= 0 ? 'text-[#6bbdb7]' : 'text-red-400'} />
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${totalesAnuales.totalUtilidad >= 0 ? 'text-[#6bbdb7]' : 'text-red-400'}`}>
-                                        {totalesAnuales.totalUtilidad >= 0 ? 'Ganancia Neta' : 'Pérdida Neta'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-6 pt-6 border-t border-white/10 flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-[#303a7f] border-2 border-white/20" />
-                                    <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Tiendas KBS</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-[#6bbdb7] border-2 border-white/20" />
-                                    <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Tiendas CSG</span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Margen de Utilidad</span>
-                                <span className={`text-sm font-black ${parseFloat(roiAnual) >= 0 ? 'text-[#6bbdb7]' : 'text-red-400'}`}>
-                                    {roiAnual}%
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );
