@@ -22,10 +22,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS Usuarios (
 );`);
 
 // Tabla para notas (autor_id es TEXT = nombre del usuario)
-// Drop primero para migrar desde schema anterior con INTEGER
-db.exec(`DROP TABLE IF EXISTS NotasLeidas`);
-db.exec(`DROP TABLE IF EXISTS Notas`);
-db.exec(`CREATE TABLE Notas (
+db.exec(`CREATE TABLE IF NOT EXISTS Notas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     autor_id TEXT NOT NULL,
     mensaje TEXT NOT NULL,
@@ -40,7 +37,7 @@ db.exec(`CREATE TABLE Notas (
 try { db.exec(`ALTER TABLE Notas ADD COLUMN adjuntos TEXT`); } catch (_) {}
 
 // Tabla auxiliar para marcar notas leídas (usuario_id es TEXT = nombre del usuario)
-db.exec(`CREATE TABLE NotasLeidas (
+db.exec(`CREATE TABLE IF NOT EXISTS NotasLeidas (
     nota_id INTEGER NOT NULL,
     usuario_id TEXT NOT NULL,
     leido_en TEXT NOT NULL,
