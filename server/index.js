@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use(express.text()); // Soporte para text/plain que enviaba el frontend a Google Sheets
+app.use(express.text({ limit: '50mb' })); // Soporte para text/plain que enviaba el frontend a Google Sheets
 
 // Filtra las propiedades del objeto para incluir solo columnas que existen en la tabla
 // y normaliza valores (stringifica objetos, remueve prefijo ' de Google Sheets)

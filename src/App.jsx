@@ -15452,8 +15452,7 @@ function App() {
         setDbStatus('sincronizando');
         return fetch(API_URL, {
             method: 'POST',
-            keepalive: true,
-            headers: { 'Content-Type': 'text/plain' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action, data, sheetName, matchKeys })
         })
             .then(async response => {
