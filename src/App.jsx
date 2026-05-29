@@ -71,7 +71,8 @@ import {
     Eraser,
     Layers,
     Copy,
-    Paperclip
+    Paperclip,
+    Briefcase
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -83,6 +84,7 @@ import {
 import { CSGView } from './CSGModule.jsx';
 import Notes from './Notes.jsx';
 import ResumenView from './ResumenView.jsx';
+import CRMView from './CRMView.jsx';
 
 
 // ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
@@ -15666,6 +15668,7 @@ function App() {
         { id: 'tax_center', label: '1099-NEC', icon: ShieldCheck },
         { id: 'csg', label: 'CSG', icon: Sparkles },
         { id: 'lgm', label: 'LGM', icon: Target },
+        { id: 'crm', label: 'CRM', icon: Briefcase },
         { id: 'settings', label: 'Ajustes', icon: Settings },
     ];
 
@@ -16236,14 +16239,15 @@ function App() {
                             {navItems.find(i => i.id === activeTab)?.icon && React.createElement(navItems.find(i => i.id === activeTab).icon, { size: 14 })}
                         </div>
                         <h2 className="text-xs font-black text-[#303a7f] tracking-tighter uppercase leading-none m-0">
-                            {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : activeTab === 'tax_center' ? 'Centro 1099-NEC' : activeTab === 'billing' ? 'Gestión de Facturación' : activeTab === 'settings' ? 'Configuración' : activeTab === 'csg' ? 'Módulo Cleaning Services Group' : activeTab === 'lgm' ? 'Nómina Administrativa' : 'Dashboard'}
+                            {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : activeTab === 'tax_center' ? 'Centro 1099-NEC' : activeTab === 'billing' ? 'Gestión de Facturación' : activeTab === 'settings' ? 'Configuración' : activeTab === 'csg' ? 'Módulo Cleaning Services Group' : activeTab === 'lgm' ? 'Nómina Administrativa' : activeTab === 'crm' ? 'CRM' : 'Dashboard'}
                         </h2>
                     </div>
 
                 </div>
 
-                {/* Notes & Manual de Uso & User Card */}
+                {/* CRM, Notes & Manual de Uso & User Card */}
                 <div className="flex items-center gap-4 ml-auto">
+                    {user && <button onClick={() => setActiveTab('crm')} className="flex items-center gap-2 px-3 py-2 bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm" title="CRM"><Briefcase size={16} className="group-hover:scale-110 transition-transform" /><span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">CRM</span></button>}
                     {user && <Notes currentUser={{ id: user.name, autor_nombre: user.name }} />}
                     <button
                         onClick={() => setIsManualModalOpen(true)}
@@ -17378,8 +17382,11 @@ function App() {
                         />
                     )}
 
+                    {/* VISTA CRM */}
+                    {activeTab === 'crm' && <CRMView />}
+
                     {/* VISTA DEL DASHBOARD */}
-                    {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'csg' && activeTab !== 'settings' && activeTab !== 'lgm')) && !showResumen && (
+                    {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'csg' && activeTab !== 'settings' && activeTab !== 'lgm' && activeTab !== 'crm')) && !showResumen && (
                         <DashboardView
                             nominaHistoryData={nominaHistoryData}
                             nominaDetailData={nominaDetailData}

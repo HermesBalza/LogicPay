@@ -40,7 +40,8 @@ app.get('/api/data/:table', (req, res) => {
   const allowedTables = [
     'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle',
     'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
-    'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG'
+    'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
+    'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones'
   ];
 
   if (!allowedTables.includes(table)) {

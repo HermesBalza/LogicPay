@@ -299,10 +299,11 @@ export default function Notes({ currentUser }) {
       <button
         id="notesBtn"
         onClick={() => setOpen(!open)}
-        className="flex items-center justify-center w-[38px] h-[38px] bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm relative"
+        className="flex items-center gap-2 px-3 py-2 bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm relative"
         title="Bloc de Notas"
       >
         <StickyNote size={16} className="group-hover:rotate-12 transition-transform" />
+        <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">Notas</span>
         {unreadCount > 0 && <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-[4px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-black leading-none border-2 border-white">{unreadCount}</span>}
       </button>
 
