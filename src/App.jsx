@@ -82,6 +82,7 @@ import {
 } from 'recharts';
 import { CSGView } from './CSGModule.jsx';
 import Notes from './Notes.jsx';
+import ResumenView from './ResumenView.jsx';
 
 
 // ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
@@ -780,7 +781,8 @@ const DashboardView = ({
     wosHistoryData = [],
     csgServicesData = [],
     stores = [],
-    employees = []
+    employees = [],
+    onShowResumen
 }) => {
     const [dateFrom, setDateFrom] = useState(null);
     const [dateTo, setDateTo] = useState(null);
@@ -1201,6 +1203,15 @@ const DashboardView = ({
                                 )}
                             </select>
                         </div>
+
+                        <button
+                            onClick={onShowResumen}
+                            className="flex items-center gap-2 px-4 py-2 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 shadow-lg shadow-blue-900/20 group"
+                            title="Ver Resumen de Ingresos y Gastos"
+                        >
+                            <BarChart3 size={14} className="group-hover:scale-110 transition-transform" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Resumen</span>
+                        </button>
                     </div>
                 </div>
 
@@ -12446,6 +12457,7 @@ function App() {
     const [variablesLoaded, setVariablesLoaded] = useState(false);
     const initialLoadApplied = useRef(false);
     const [activeTab, setActiveTab] = useState(sessionStorage.getItem('activeTab') || 'dashboard');
+    const [showResumen, setShowResumen] = useState(false);
     const [isSidebarOpen, setSidebarOpen] = useState(true);
     const [storeSearchTerm, setStoreSearchTerm] = useState(sessionStorage.getItem('storeSearchTerm') || '');
     const [employeeSearchTerm, setEmployeeSearchTerm] = useState(sessionStorage.getItem('employeeSearchTerm') || '');
@@ -17367,7 +17379,7 @@ function App() {
                     )}
 
                     {/* VISTA DEL DASHBOARD */}
-                    {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'csg' && activeTab !== 'settings' && activeTab !== 'lgm')) && (
+                    {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'csg' && activeTab !== 'settings' && activeTab !== 'lgm')) && !showResumen && (
                         <DashboardView
                             nominaHistoryData={nominaHistoryData}
                             nominaDetailData={nominaDetailData}
@@ -17376,9 +17388,22 @@ function App() {
                             csgServicesData={csgServicesData}
                             stores={stores}
                             employees={employees}
+                            onShowResumen={() => setShowResumen(true)}
                         />
                     )}
                 </div>
+
+                {showResumen && activeTab === 'dashboard' && (
+                    <div className="absolute inset-x-0 bottom-0 top-0 z-[60] bg-[#f9f9f9] animate-in fade-in duration-300">
+                        <ResumenView
+                            nominaHistoryData={nominaHistoryData}
+                            specialProjectsHistoryData={specialProjectsHistoryData}
+                            csgServicesData={csgServicesData}
+                            stores={stores}
+                            onClose={() => setShowResumen(false)}
+                        />
+                    </div>
+                )}
             </main>
 
             {/* HISTORIAL DE NÓMINA (FASE 7.5: 2026 History) */}
