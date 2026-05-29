@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
 import {
     ArrowLeft,
     BarChart3,
@@ -10,8 +10,13 @@ import {
     Target,
     ChevronDown,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    FileSpreadsheet,
+    Download
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
@@ -222,6 +227,111 @@ const ResumenView = ({
         ? ((totalesAnuales.totalUtilidad / totalesAnuales.totalIngresos) * 100).toFixed(1)
         : '0.0';
 
+    const reportRef = useRef(null);
+
+    const handleExportExcel = useCallback(() => {
+        const rows = [];
+        monthlyData.forEach(mes => {
+            mes.tiendas.forEach(t => {
+                rows.push({
+                    'Mes': mes.mes,
+                    'Tienda': t.nombre,
+                    'Tipo': t.cliente,
+                    'Ingresos': t.ingresos,
+                    'Gastos': t.gastos,
+                    'Utilidad': t.utilidad
+                });
+            });
+            rows.push({
+                'Mes': '',
+                'Tienda': `Total ${mes.mes}`,
+                'Tipo': '',
+                'Ingresos': mes.totalIngresos,
+                'Gastos': mes.totalGastos,
+                'Utilidad': mes.totalUtilidad
+            });
+            rows.push({});
+        });
+        rows.push({
+            'Mes': 'RESUMEN ANUAL',
+            'Tienda': '',
+            'Tipo': '',
+            'Ingresos': totalesAnuales.totalIngresos,
+            'Gastos': totalesAnuales.totalGastos,
+            'Utilidad': totalesAnuales.totalUtilidad
+        });
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [
+            { wch: 18 }, { wch: 30 }, { wch: 6 },
+            { wch: 16 }, { wch: 16 }, { wch: 16 }
+        ];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Resumen');
+        XLSX.writeFile(wb, `Resumen_Ingresos_Gastos_${selectedYear}_LogicPay.xlsx`);
+    }, [monthlyData, totalesAnuales, selectedYear]);
+
+    const handleExportPDF = useCallback(async () => {
+        const element = reportRef.current;
+        if (!element) return;
+        try {
+            const clone = element.cloneNode(true);
+            clone.style.position = 'absolute';
+            clone.style.left = '-9999px';
+            clone.style.top = '0';
+            clone.style.width = '1200px';
+            clone.style.height = 'auto';
+            clone.style.maxHeight = 'none';
+            clone.style.overflow = 'visible';
+            const titleContainer = document.createElement('div');
+            titleContainer.style.cssText = 'display:flex;align-items:center;gap:12px;padding:24px 32px;background:#ffffff;border-bottom:2px solid #e5e7eb;margin-bottom:24px;';
+            const iconWrap = document.createElement('div');
+            iconWrap.style.cssText = 'display:flex;align-items:center;justify-content:center;width:40px;height:40px;background:rgba(48,58,127,0.05);border-radius:12px;';
+            iconWrap.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#303a7f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>';
+            const textWrap = document.createElement('div');
+            textWrap.style.cssText = 'display:flex;flex-direction:column;';
+            const title = document.createElement('span');
+            title.style.cssText = 'font-size:16px;font-weight:900;color:#303a7f;text-transform:uppercase;letter-spacing:-0.05em;line-height:1.2;';
+            title.textContent = 'Resumen de Ingresos y Gastos';
+            const subtitle = document.createElement('span');
+            subtitle.style.cssText = 'font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.2em;margin-top:2px;';
+            subtitle.textContent = `An\u00e1lisis Financiero Mensual - ${selectedYear}`;
+            textWrap.appendChild(title);
+            textWrap.appendChild(subtitle);
+            titleContainer.appendChild(iconWrap);
+            titleContainer.appendChild(textWrap);
+            clone.insertBefore(titleContainer, clone.firstChild);
+            document.body.appendChild(clone);
+            const canvas = await html2canvas(clone, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#f9f9f9',
+                width: 1200,
+                height: clone.scrollHeight,
+                windowWidth: 1400,
+                windowHeight: clone.scrollHeight
+            });
+            document.body.removeChild(clone);
+            const imgData = canvas.toDataURL('image/png');
+            const imgWidth = 210;
+            const pageHeight = 297;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            let heightLeft = imgHeight;
+            let position = 0;
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+            while (heightLeft > 0) {
+                position -= pageHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+            pdf.save(`Resumen_Ingresos_Gastos_${selectedYear}_LogicPay.pdf`);
+        } catch (e) {
+            console.error('Error exporting PDF:', e);
+        }
+    }, [selectedYear]);
+
     return (
         <div className="h-full flex flex-col animate-in fade-in duration-500 bg-[#f9f9f9]">
             <header className="flex-shrink-0 bg-white border-b-2 border-gray-100 px-8 py-4 flex items-center justify-between shadow-sm">
@@ -243,6 +353,24 @@ const ResumenView = ({
                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Análisis Financiero Mensual</p>
                         </div>
                     </div>
+                </div>
+                <div className="flex items-center gap-2 mr-4">
+                    <button
+                        onClick={handleExportExcel}
+                        className="flex items-center gap-2 px-4 py-2 bg-[#6bbdb7] text-white rounded-xl hover:bg-[#59aba5] transition-all active:scale-95 shadow-lg shadow-teal-900/20 group"
+                        title="Exportar a Excel"
+                    >
+                        <FileSpreadsheet size={14} className="group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Excel</span>
+                    </button>
+                    <button
+                        onClick={handleExportPDF}
+                        className="flex items-center gap-2 px-4 py-2 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 shadow-lg shadow-blue-900/20 group"
+                        title="Exportar a PDF"
+                    >
+                        <Download size={14} className="group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">PDF</span>
+                    </button>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
@@ -269,7 +397,7 @@ const ResumenView = ({
                 </div>
             </header>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-6 space-y-8">
+            <div ref={reportRef} className="flex-1 overflow-y-auto custom-scrollbar px-8 py-6 space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-white rounded-[1.5rem] p-5 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col gap-2 hover:-translate-y-1 transition-transform">
                         <div className="flex items-center gap-3">
