@@ -11008,6 +11008,17 @@ const BillingView = ({
             const projectsRaw = JSON.parse(h.data_json);
             const projects = Array.isArray(projectsRaw) ? projectsRaw : [projectsRaw];
 
+            const normalizeFecha = (val) => {
+                if (!val) return '--/--/--';
+                const s = String(val).trim();
+                if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+                    const [y, m, d] = s.split('-');
+                    return `${m}/${d.substring(0, 2)}/${y}`;
+                }
+                if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) return s;
+                return s;
+            };
+
             projects.forEach(p => {
                 if (!p) return;
                 const projectDate = parseProjectDate(p.fecha);
@@ -11021,7 +11032,7 @@ const BillingView = ({
                         correlativo: correlativoKey,
                         invoice: p.invoice || 'N/A',
                         nombre: p.proyecto || p.nombre || 'Proyecto Especial',
-                        fecha: p.fecha || '--/--/--',
+                        fecha: normalizeFecha(p.fecha),
                         horas: 0,
                         facturacion: 0,
                         costos: 0,
