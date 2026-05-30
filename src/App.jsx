@@ -2812,6 +2812,27 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
 
         setIsCrossing(true);
         try {
+            // Calcular rango de fechas del WOS desde serviceDates usando valor numérico YYYYMMDD
+            const toNum = (str) => {
+                const p = str.split('/');
+                return parseInt(p[2] + p[0].padStart(2,'0') + p[1].padStart(2,'0'), 10);
+            };
+            let minWOS = Infinity, maxWOS = -Infinity;
+            (wosServices || []).forEach(svc => {
+                (svc.serviceDates || '').split(' - ').forEach(d => {
+                    const t = d.trim();
+                    if (t && t.includes('/')) {
+                        const n = toNum(t);
+                        if (!isNaN(n)) {
+                            if (n < minWOS) minWOS = n;
+                            if (n > maxWOS) maxWOS = n;
+                        }
+                    }
+                });
+            });
+            console.log('[WOS Filter] Date range detected:', minWOS, '-', maxWOS);
+            const hasRange = isFinite(minWOS) && isFinite(maxWOS);
+
             // Filtrar solo facturas "Due" para el contexto de la IA
             const dueNomina = nominaHistoryData.filter(h => {
                 if (h.Status && h.Status !== 'Due') return false;
@@ -2825,9 +2846,32 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                     }
                 }
                 
+                // Filtrar por rango de fechas del WOS (traslape de semana)
+                if (hasRange && h.fecha_inicio && h.fecha_fin) {
+                    const iniN = toNum(h.fecha_inicio);
+                    const finN = toNum(h.fecha_fin);
+                    if (isNaN(iniN) || isNaN(finN)) return false;
+                    if (finN < minWOS || iniN > maxWOS) return false;
+                }
+                
                 return (!h.Status || h.Status === 'Due');
             });
-            const duePE = specialProjectsHistoryData.filter(h => !h.Status || h.Status === 'Due');
+            const duePE = specialProjectsHistoryData.filter(h => {
+                if (h.Status && h.Status !== 'Due') return false;
+                
+                // Filtrar por rango de fechas del WOS
+                if (hasRange) {
+                    const fechaStr = h.timestamp || h.Timestamp || h.fecha || h.periodo || '';
+                    const firstDate = fechaStr.split(' - ')[0] || fechaStr;
+                    if (firstDate && firstDate.includes('/')) {
+                        const n = toNum(firstDate);
+                        if (!isNaN(n) && (n < minWOS || n > maxWOS)) return false;
+                    }
+                }
+                
+                return (!h.Status || h.Status === 'Due');
+            });
+            console.log('[WOS Filter] dueNomina:', dueNomina.length, 'duePE:', duePE.length);
 
             const genAI = new GoogleGenerativeAI(geminiApiKey);
             const model = genAI.getGenerativeModel({
