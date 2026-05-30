@@ -37,6 +37,7 @@ import {
     UserPlus,
     ChevronDown,
     Lock,
+    Unlock,
     LogOut,
     LayoutGrid,
     List,
@@ -9086,6 +9087,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
 const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [], onOpenBilling = () => { }, onOpenWOS = () => { }, nominaDetailData = [], payrollDrafts = {} }) => {
     const [selectedYear, setSelectedYear] = useState(2026);
+    const [forcedBiweeks, setForcedBiweeks] = useState({});
     if (!isOpen) return null;
 
     const isWeekProcessed = (fechaInicio) => {
@@ -9303,6 +9305,13 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                                                 </span>
                                             </div>
                                         </div>
+                                        <button
+                                            onClick={() => setForcedBiweeks(prev => ({ ...prev, [p.periodNum]: !prev[p.periodNum] }))}
+                                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90 ${forcedBiweeks[p.periodNum] ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-red-100 text-red-500 hover:bg-red-200'}`}
+                                            title={forcedBiweeks[p.periodNum] ? 'Desbloqueado - Forzar bloqueo' : 'Bloqueado - Forzar desbloqueo'}
+                                        >
+                                            {forcedBiweeks[p.periodNum] ? <Unlock size={13} /> : <Lock size={13} />}
+                                        </button>
                                     </div>
 
                                     {/* Contenedor de Semanas (Lado a Lado) */}
@@ -9341,10 +9350,10 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                                     <div className="mt-5 pt-4 border-t border-gray-50">
                                         <button
                                             onClick={() => onProcessBiweekly(p)}
-                                            disabled={!bothProcessed}
+                                            disabled={!bothProcessed && !forcedBiweeks[p.periodNum]}
                                             className={`w-full py-2.5 rounded-xl font-black text-[9px] uppercase tracking-[0.15em] transition-all duration-300 border-2 active:scale-95 flex items-center justify-center gap-2 group ${isProcessed
                                                 ? 'bg-[#303a7f] text-white border-[#303a7f] shadow-lg shadow-blue-900/10'
-                                                : bothProcessed
+                                                : bothProcessed || forcedBiweeks[p.periodNum]
                                                     ? 'bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white border-[#303a7f]/5 hover:border-[#303a7f] hover:shadow-lg hover:shadow-blue-900/10'
                                                     : 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed opacity-60'
                                                 }`}
@@ -9352,7 +9361,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                                             {isProcessed ? (
                                                 <CheckCircle size={14} className="text-white" />
                                             ) : (
-                                                <Cpu size={14} className={`${bothProcessed ? 'text-[#6bbdb7] group-hover:text-white' : 'text-gray-300'} transition-colors`} />
+                                                <Cpu size={14} className={`${bothProcessed || forcedBiweeks[p.periodNum] ? 'text-[#6bbdb7] group-hover:text-white' : 'text-gray-300'} transition-colors`} />
                                             )}
                                             {isProcessed ? 'Nómina Procesada' : 'Procesar Nómina'}
                                         </button>
