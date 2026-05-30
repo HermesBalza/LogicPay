@@ -17173,7 +17173,14 @@ function App() {
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+                                {(() => {
+                                    const isCurrentWeekApproved = (nominaHistoryData || []).some(h =>
+                                        String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                                        h.fecha_inicio === fechaDesde
+                                    );
+                                    return !isCurrentWeekApproved && (
+                                    <>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
                                     {/* Control 0.5: Digitalizador de Planillas (IA) */}
                                     <div className={`rounded-xl border transition-all duration-300 p-4 flex flex-col justify-between gap-4 ${sheetFiles.length > 0 ? 'border-[#6bbdb7]/40 bg-teal-50/20' : 'border-gray-200 bg-[#fbfbfb] hover:border-[#303a7f]/20 hover:bg-white hover:shadow-sm'}`}>
                                         <div className="flex items-center justify-between">
@@ -17328,6 +17335,9 @@ function App() {
                                         )}
                                     </button>
                                 </div>
+                                    </>
+                                    );
+                                })()}
                             </section>
 
                             {/* Tablas de Resultados por Fases */}
