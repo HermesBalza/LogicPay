@@ -2638,7 +2638,8 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
         signByDate: '',
         period: '',
         servicesThrough: '',
-        paymentDueDate: ''
+        paymentDueDate: '',
+        auditedLgmIds: []
     });
     const [wosServices, setWosServices] = useState([]);
     const [acceptedKeys, setAcceptedKeys] = useState(new Set());
@@ -3443,9 +3444,15 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {wosServices.map((service, index) => (
-                                        <tr key={index} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors group">
-                                            <td className="px-4 py-4 text-[10px] font-black text-[#303a7f] uppercase break-words">{service.customer}</td>
+                                    {wosServices.map((service, index) => {
+                                        const auditedList = wosData.auditedLgmIds || [];
+                                        const svcAccepted = service.matchedLgmId && auditedList.includes(service.matchedLgmId);
+                                        return (
+                                        <tr key={index} className={`border-b border-gray-50 transition-colors group ${svcAccepted ? 'bg-emerald-100 border-l-4 border-emerald-500' : 'hover:bg-gray-50/50 border-l-4 border-transparent'}`}>
+                                            <td className="px-4 py-4 text-[10px] font-black text-[#303a7f] uppercase break-words">
+                                                {svcAccepted && <CheckCircle size={14} className="inline-block mr-1.5 text-emerald-600 align-middle" />}
+                                                {service.customer}
+                                            </td>
                                             <td className="px-4 py-4 text-[10px] font-black text-gray-500 uppercase break-words">{service.locationId}</td>
                                             <td className="px-4 py-4 text-[10px] font-bold text-gray-400 tabular-nums break-words">{service.salesOrder}</td>
                                             <td className="px-4 py-4 text-[10px] font-bold text-gray-400 tabular-nums break-words">{service.purchaseOrder}</td>
@@ -3458,7 +3465,8 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                                 ${parseFloat(service.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </td>
                                         </tr>
-                                    ))}
+                                    );
+                                })}
                                 </tbody>
                                 <tfoot>
                                     <tr className="bg-gray-50/80">
@@ -3515,10 +3523,24 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                             <th className="px-2 py-3 text-[9px] font-black uppercase tracking-widest text-right">Amount</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                        {(selectedWosGroup.rawServices || []).map((s, idx) => (
-                                            <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                                                <td className="px-2 py-3 text-[9px] font-black text-[#303a7f] uppercase truncate max-w-[120px]" title={s.customer}>{s.customer || '---'}</td>
+                                     <tbody className="divide-y divide-gray-50">
+                                        {(selectedWosGroup.rawServices || []).map((s, idx) => {
+                                            const auditedList = wosData.auditedLgmIds || [];
+                                            const svcAudited = s.matchedLgmId ? auditedList.includes(s.matchedLgmId) : false;
+                                            let recordAudited = false;
+                                            if (selectedWosGroup.matchedLgmId && !svcAudited) {
+                                                const [pfx, idxStr] = selectedWosGroup.matchedLgmId.split('-');
+                                                const ridx = parseInt(idxStr);
+                                                if (pfx === 'N') recordAudited = !!(nominaHistoryData[ridx]?.wos || nominaHistoryData[ridx]?.WOS);
+                                                else if (pfx === 'S') recordAudited = !!(specialProjectsHistoryData[ridx]?.wos || specialProjectsHistoryData[ridx]?.WOS);
+                                            }
+                                            const isAccepted = svcAudited || recordAudited;
+                                            return (
+                                            <tr key={idx} className={`${isAccepted ? 'bg-emerald-100 border-l-4 border-emerald-500' : 'hover:bg-gray-50/50 border-l-4 border-transparent'} transition-all`}>
+                                                <td className="px-2 py-3 text-[9px] font-black text-[#303a7f] uppercase truncate max-w-[120px]" title={s.customer}>
+                                                    {isAccepted && <CheckCircle size={14} className="inline-block mr-1.5 text-emerald-600 align-middle" />}
+                                                    {s.customer || '---'}
+                                                </td>
                                                 <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center truncate max-w-[100px]" title={s.locationId}>{s.locationId || '---'}</td>
                                                 <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center tabular-nums">{s.salesOrder || '---'}</td>
                                                 <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center tabular-nums">{s.purchaseOrder || '---'}</td>
@@ -3531,7 +3553,8 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                                     ${parseFloat(s.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 </td>
                                             </tr>
-                                        ))}
+                                            );
+                                        })}
                                     </tbody>
                                     <tfoot className="bg-[#303a7f]/5">
                                         <tr>
@@ -15249,6 +15272,27 @@ function App() {
             });
 
             setIsSyncingPE(true);
+        }
+
+        // Persistir la auditoría en la tabla WOS (Data_JSON.metadata.auditedLgmIds)
+        const matchedLgmId = row.key;
+        if (matchedLgmId && (matchedLgmId.startsWith('N-') || matchedLgmId.startsWith('S-'))) {
+            const currentAudited = wosData.auditedLgmIds || [];
+            if (!currentAudited.includes(matchedLgmId)) {
+                const newAudited = [...currentAudited, matchedLgmId];
+                setWosData(prev => ({ ...prev, auditedLgmIds: newAudited }));
+                syncToDatabase('upsert', {
+                    "WOS_Number": wosNumber,
+                    "Subcontractor": wosData.subcontractor || 'Unknown',
+                    "Date": wosData.wosDate || '',
+                    "Data_JSON": JSON.stringify({
+                        metadata: { ...wosData, auditedLgmIds: newAudited },
+                        services: wosServices,
+                        auditDate: new Date().toLocaleString()
+                    })
+                }, 'WOS', false, ['WOS_Number'])
+                .catch(err => console.error('[WOS] Error guardando auditoría:', err));
+            }
         }
     };
 
