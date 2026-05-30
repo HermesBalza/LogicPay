@@ -3452,7 +3452,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
             {/* VENTANA EMERGENTE: DESGLOSE DE DATOS WOS (CROSS-MATCH) */}
             {selectedWosGroup && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 backdrop-blur-md bg-[#303a7f]/10 animate-in fade-in duration-300">
-                    <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
+                    <div className="bg-white w-full max-w-7xl rounded-[2.5rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
                         {/* Header del Desglose */}
                         <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
                             <div className="flex items-center gap-5">
@@ -3478,19 +3478,31 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                 <table className="w-full text-left border-collapse">
                                     <thead>
                                         <tr className="bg-gray-50 text-gray-400">
-                                            <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest">Descripción del Servicio</th>
-                                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-widest text-center">Sales Order</th>
-                                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-widest text-center">Reference #</th>
-                                            <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-right">Monto</th>
+                                            <th className="px-2 py-3 text-[9px] font-black uppercase tracking-widest">Customer / KBS ID</th>
+                                            <th className="px-2 py-3 text-[9px] font-black uppercase tracking-widest text-center">Location ID</th>
+                                            <th className="px-2 py-3 text-[9px] font-black uppercase tracking-widest text-center">Sales Order</th>
+                                            <th className="px-2 py-3 text-[9px] font-black uppercase tracking-widest text-center">Purchase Order</th>
+                                            <th className="px-2 py-3 text-[9px] font-black uppercase tracking-widest text-center">Reference #</th>
+                                            <th className="px-2 py-3 text-[9px] font-black uppercase tracking-widest text-center">Service Dates</th>
+                                            <th className="px-2 py-3 text-[9px] font-black uppercase tracking-widest text-center">City, State</th>
+                                            <th className="px-2 py-3 text-[9px] font-black uppercase tracking-widest text-center">Credit Reason</th>
+                                            <th className="px-2 py-3 text-[9px] font-black uppercase tracking-widest">Description</th>
+                                            <th className="px-2 py-3 text-[9px] font-black uppercase tracking-widest text-right">Amount</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
                                         {(selectedWosGroup.rawServices || []).map((s, idx) => (
                                             <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                                                <td className="px-6 py-5 text-[10px] font-black text-[#303a7f] uppercase">{s.serviceDescription}</td>
-                                                <td className="px-4 py-5 text-[10px] font-bold text-gray-500 text-center tabular-nums">{s.salesOrder || '---'}</td>
-                                                <td className="px-4 py-5 text-[9px] font-medium text-gray-400 text-center truncate max-w-[120px]">{s.reference || '---'}</td>
-                                                <td className="px-6 py-5 text-[11px] font-black text-[#6bbdb7] text-right tabular-nums">
+                                                <td className="px-2 py-3 text-[9px] font-black text-[#303a7f] uppercase truncate max-w-[120px]" title={s.customer}>{s.customer || '---'}</td>
+                                                <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center truncate max-w-[100px]" title={s.locationId}>{s.locationId || '---'}</td>
+                                                <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center tabular-nums">{s.salesOrder || '---'}</td>
+                                                <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center tabular-nums">{s.purchaseOrder || '---'}</td>
+                                                <td className="px-2 py-3 text-[8px] font-medium text-gray-400 text-center truncate max-w-[90px]" title={s.reference}>{s.reference || '---'}</td>
+                                                <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center whitespace-nowrap">{s.serviceDates || '---'}</td>
+                                                <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center truncate max-w-[90px]" title={s.cityState}>{s.cityState || '---'}</td>
+                                                <td className="px-2 py-3 text-[8px] font-medium text-gray-400 text-center italic truncate max-w-[100px]" title={s.vendorCreditReason}>{s.vendorCreditReason || '---'}</td>
+                                                <td className="px-2 py-3 text-[9px] font-black text-[#303a7f] uppercase truncate max-w-[150px]" title={s.serviceDescription}>{s.serviceDescription}</td>
+                                                <td className="px-2 py-3 text-[10px] font-black text-[#6bbdb7] text-right tabular-nums whitespace-nowrap">
                                                     ${parseFloat(s.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 </td>
                                             </tr>
@@ -3498,8 +3510,8 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                     </tbody>
                                     <tfoot className="bg-[#303a7f]/5">
                                         <tr>
-                                            <td colSpan={3} className="px-6 py-4 text-right text-[10px] font-black text-[#303a7f] uppercase tracking-widest">Total Anunciado KBS</td>
-                                            <td className="px-6 py-4 text-lg font-black text-[#303a7f] text-right tabular-nums">
+                                            <td colSpan={9} className="px-6 py-3 text-right text-[10px] font-black text-[#303a7f] uppercase tracking-widest">Total Anunciado KBS</td>
+                                            <td className="px-2 py-3 text-base font-black text-[#303a7f] text-right tabular-nums">
                                                 ${parseFloat(selectedWosGroup.kbsAnnounced || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </td>
                                         </tr>
