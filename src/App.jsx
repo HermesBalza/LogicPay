@@ -16245,9 +16245,8 @@ function App() {
 
                 </div>
 
-                {/* CRM, Notes & Manual de Uso & User Card */}
+                {/* Notes & Manual de Uso & User Card */}
                 <div className="flex items-center gap-4 ml-auto">
-                    {user && <button onClick={() => setActiveTab('crm')} className="flex items-center gap-2 px-3 py-2 bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm" title="CRM"><Briefcase size={16} className="group-hover:scale-110 transition-transform" /><span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">CRM</span></button>}
                     {user && <Notes currentUser={{ id: user.name, autor_nombre: user.name }} />}
                     <button
                         onClick={() => setIsManualModalOpen(true)}
