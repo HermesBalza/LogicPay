@@ -2873,6 +2873,27 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
             });
             console.log('[WOS Filter] dueNomina:', dueNomina.length, 'duePE:', duePE.length);
 
+            // Resolver tienda exacta de cada servicio del WOS y cada factura LGM
+            // usando el código que aparece después de ":" en Customer / KBS ID (ej. "UPS CBRE:116767")
+            const storeMap = {};
+            const reverseStoreMap = {};
+            (stores || []).forEach(s => {
+                const code = String(s.codigo).trim();
+                const name = s.nombre;
+                if (code) storeMap[code] = name;
+                if (name) reverseStoreMap[name] = code;
+            });
+            const wosWithStore = wosServices.map(svc => {
+                const customer = String(svc.customer || '');
+                const colonIdx = customer.lastIndexOf(':');
+                let storeCode = '', storeName = '';
+                if (colonIdx >= 0) {
+                    storeCode = customer.slice(colonIdx + 1).trim();
+                    storeName = storeMap[storeCode] || '';
+                }
+                return { ...svc, _storeCode: storeCode, _storeName: storeName };
+            });
+
             const genAI = new GoogleGenerativeAI(geminiApiKey);
             const model = genAI.getGenerativeModel({
                 model: "gemini-3-flash-preview",
@@ -2884,13 +2905,17 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                 y el historial de facturación "Due" de LogicPay. Quiero que uses tu razonamiento analítico y tu capacidad de interpretación profunda.
 
                 DATOS DE ENTRADA:
-                1. WOS Services (Lo que KBS pagó o reportó): ${JSON.stringify(wosServices)}
-                2. LGM Nomina (Due) (Lo que LGM reportó que se debe cobrar): ${JSON.stringify(dueNomina.map((h, i) => ({ id: 'N-' + nominaHistoryData.indexOf(h), store: h.nombre, start: h.fecha_inicio, end: h.fecha_fin, expected_kbs_payment: getKBSFromNomina(h) })))}
+                1. WOS Services (Lo que KBS pagó o reportó): ${JSON.stringify(wosWithStore)}
+                2. LGM Nomina (Due) (Lo que LGM reportó que se debe cobrar): ${JSON.stringify(dueNomina.map((h, i) => ({ id: 'N-' + nominaHistoryData.indexOf(h), store: h.nombre, storeCode: reverseStoreMap[h.nombre] || '', start: h.fecha_inicio, end: h.fecha_fin, expected_kbs_payment: getKBSFromNomina(h) })))}
                 3. LGM Projects (Due) (Proyectos Especiales): ${JSON.stringify(duePE.map((h, i) => ({ id: 'S-' + specialProjectsHistoryData.indexOf(h), store: h.tienda, period: h.periodo, expected_kbs_payment: getKBSFromPE(h) })))}
 
                 INSTRUCCIONES DE CRUCE (Razonamiento Humano):
                 - Compórtate como un humano: analiza las ambigüedades, asocia nombres similares (ej. "Sysco" con "Sysco Arizona", o truncados).
                 - Evalúa los MONTOS Y FECHAS: Un auditor humano cruzaría las facturas guiándose fuertemente por la similitud entre el 'amount' del WOS y el 'expected_kbs_payment'. Utiliza el monto para desempatar tiendas o asociar de forma contundente.
+                - El campo "_storeCode" en WOS Services contiene el código único de tienda (número después de ":" en Customer / KBS ID).
+                  El campo "storeCode" en LGM Nomina contiene el código de tienda resuelto desde la base de datos.
+                  PRIORIDAD ABSOLUTA: Debes asociar cada servicio del WOS con su factura LGM correspondiente usando "_storeCode" === "storeCode".
+                  Solo si no encuentras el código exacto, usa el nombre de tienda o el monto como respaldo.
                 - Si varios servicios del WOS suman el monto exacto o muy cercano a la factura de LGM, corresponden al mismo ID de LGM. Agrúpalos lógicamente en tu mente.
                 - Devuelve el array original de servicios del WOS añadiendo exactamente la propiedad "matchedLgmId".
                 - matchedLgmId debe ser el ID evaluado (ej. "N-0", "S-2") o null si tras tu interpretación concluyes que está huérfano.
