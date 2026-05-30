@@ -2885,8 +2885,8 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
 
                 DATOS DE ENTRADA:
                 1. WOS Services (Lo que KBS pagó o reportó): ${JSON.stringify(wosServices)}
-                2. LGM Nomina (Due) (Lo que LGM reportó que se debe cobrar): ${JSON.stringify(dueNomina.map((h, i) => ({ id: 'N-' + i, store: h.nombre, start: h.fecha_inicio, end: h.fecha_fin, expected_kbs_payment: getKBSFromNomina(h) })))}
-                3. LGM Projects (Due) (Proyectos Especiales): ${JSON.stringify(duePE.map((h, i) => ({ id: 'S-' + i, store: h.tienda, period: h.periodo, expected_kbs_payment: getKBSFromPE(h) })))}
+                2. LGM Nomina (Due) (Lo que LGM reportó que se debe cobrar): ${JSON.stringify(dueNomina.map((h, i) => ({ id: 'N-' + nominaHistoryData.indexOf(h), store: h.nombre, start: h.fecha_inicio, end: h.fecha_fin, expected_kbs_payment: getKBSFromNomina(h) })))}
+                3. LGM Projects (Due) (Proyectos Especiales): ${JSON.stringify(duePE.map((h, i) => ({ id: 'S-' + specialProjectsHistoryData.indexOf(h), store: h.tienda, period: h.periodo, expected_kbs_payment: getKBSFromPE(h) })))}
 
                 INSTRUCCIONES DE CRUCE (Razonamiento Humano):
                 - Compórtate como un humano: analiza las ambigüedades, asocia nombres similares (ej. "Sysco" con "Sysco Arizona", o truncados).
