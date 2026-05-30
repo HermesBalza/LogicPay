@@ -3348,7 +3348,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                                                         </button>
 
                                                         {isAccepted ? (
-                                                            <div className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-400 px-4 py-2 rounded-xl border border-gray-200 min-w-[100px] justify-center opacity-70 cursor-not-allowed">
+                                                            <div className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl border border-emerald-200 min-w-[100px] justify-center cursor-not-allowed">
                                                                 <CheckCircle size={12} />
                                                                 <span className="text-[9px] font-black uppercase tracking-widest">Confirmado</span>
                                                             </div>
