@@ -31,6 +31,7 @@ import {
     Trash2,
     Camera,
     Calendar,
+    CalendarClock,
     ArrowLeft,
     ArrowLeftRight,
     ArrowRight,
@@ -109,6 +110,7 @@ const CSG_SERVICES_API_URL = `${LOCAL_API_BASE}/CSG_Servicios`;
 const CSG_NOMINA_API_URL = `${LOCAL_API_BASE}/CSG_Nomina`;
 const ADMIN_EMPLOYEES_API_URL = `${LOCAL_API_BASE}/Personal_Admin`;
 const ADMIN_NOMINA_HISTORICO_API_URL = `${LOCAL_API_BASE}/Admin_Nomina_Historico`;
+const VASCHEDULE_API_URL = `${LOCAL_API_BASE}/VASchedule`;
 const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
 
 // Parsea una fila CSV respetando campos entre comillas
@@ -4795,6 +4797,175 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                         className="px-12 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
                     >
                         Cerrar Manual
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const VirtualAssistantScheduleModal = ({ isOpen, onClose, vaSchedule = [] }) => {
+    if (!isOpen) return null;
+
+    const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+    const assistants = [
+        { key: 'david', name: 'David', color: '#303a7f' },
+        { key: 'nirvana', name: 'Nirvana', color: '#6bbdb7' },
+        { key: 'samuel', name: 'Samuel', color: '#f59e0b' },
+    ];
+
+    const scheduleData = useMemo(() => {
+        return daysOfWeek.map((day, idx) => {
+            const row = { day, icon: idx < 2 ? '📋' : '' };
+            assistants.forEach(a => {
+                const entry = (vaSchedule || []).find(
+                    e => String(e.asistente || '').toLowerCase() === a.key &&
+                         String(e.dia_semana || '').toLowerCase() === day.toLowerCase()
+                );
+                if (entry) {
+                    if (entry.es_descanso) {
+                        row[a.key] = '🌴 Día Libre';
+                    } else {
+                        const hInicio = entry.hora_inicio || '';
+                        const hFin = entry.hora_fin || '';
+                        const bInicio = entry.break_inicio || '';
+                        const bFin = entry.break_fin || '';
+                        const horas = `${hInicio} – ${hFin}`;
+                        const breakText = bInicio && bFin ? `(Break: ${bInicio} - ${bFin})` : '';
+                        row[a.key] = breakText ? `${horas}\n${breakText}` : horas;
+                    }
+                } else {
+                    row[a.key] = '';
+                }
+            });
+            return row;
+        });
+    }, [vaSchedule]);
+
+    const isOff = (val) => val && val.includes('Día Libre');
+    const isEmpty = (val) => !val || val.trim() === '';
+
+    return (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 sm:p-6 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-6xl h-[90vh] rounded-[3rem] shadow-[0_40px_120px_-20px_rgba(48,58,127,0.4)] border-2 border-white/50 flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
+                {/* Header */}
+                <div className="px-10 py-7 border-b-2 border-gray-50 bg-gradient-to-r from-gray-50/50 to-transparent flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <CalendarClock size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Horario de Asistentes Virtuales</h2>
+                            <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">AdWisers LLC — Logic Group Management</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent active:scale-95"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-8 lg:p-10 custom-scrollbar bg-white">
+                    <div className="max-w-5xl mx-auto">
+                        {/* Tabla */}
+                        <div className="overflow-x-auto rounded-[2rem] border-2 border-gray-100 shadow-sm">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-[#303a7f]">
+                                        <th className="px-5 py-4 text-[10px] font-black text-white uppercase tracking-[0.2em] border-r border-white/10 w-[120px]">Día</th>
+                                        {assistants.map(a => (
+                                            <th key={a.key} className="px-5 py-4 text-[10px] font-black text-white uppercase tracking-[0.2em] border-r last:border-r-0 border-white/10">
+                                                <div className="flex items-center gap-2">
+                                                    <div
+                                                        className="w-2.5 h-2.5 rounded-full"
+                                                        style={{ backgroundColor: a.color }}
+                                                    />
+                                                    {a.name}
+                                                </div>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {scheduleData.map((row, idx) => (
+                                        <tr
+                                            key={row.day}
+                                            className={`transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-[#303a7f]/5`}
+                                        >
+                                            <td className="px-5 py-4 border-b border-gray-100 border-r border-gray-100">
+                                                <div className="flex items-center gap-2">
+                                                    {row.icon && (
+                                                        <span className="text-sm">{row.icon}</span>
+                                                    )}
+                                                    <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-tight">{row.day}</span>
+                                                </div>
+                                            </td>
+                                            {assistants.map(a => {
+                                                const val = row[a.key];
+                                                const cellOff = isOff(val);
+                                                const cellEmpty = isEmpty(val);
+                                                return (
+                                                    <td key={a.key} className="px-5 py-4 border-b border-gray-100 border-r last:border-r-0 border-gray-100">
+                                                        {cellEmpty ? (
+                                                            <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest italic">—</span>
+                                                        ) : cellOff ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-sm">🌴</span>
+                                                                 <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Día Libre</span>
+                                                             </div>
+                                                         ) : (
+                                                             <div className="space-y-0.5">
+                                                                 <p className="text-[11px] font-bold text-[#303a7f]">{val.split('\n')[0]}</p>
+                                                                <p className="text-[8px] font-bold text-[#6bbdb7] uppercase tracking-widest">{val.split('\n')[1]}</p>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Leyenda */}
+                        <div className="mt-6 flex flex-wrap items-center gap-6 px-6 py-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm">🌴</span>
+                                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Día Libre</span>
+                                <span className="text-[9px] text-gray-400 ml-1">= Día no laboral</span>
+                            </div>
+                            <div className="h-4 w-px bg-gray-200" />
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-[#303a7f]" />
+                                <span className="text-[9px] font-bold text-[#303a7f]">David</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-[#6bbdb7]" />
+                                <span className="text-[9px] font-bold text-[#6bbdb7]">Nirvana</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />
+                                <span className="text-[9px] font-bold text-amber-500">Samuel</span>
+                            </div>
+                            <div className="h-4 w-px bg-gray-200" />
+                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Break = Tiempo de descanso</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-10 py-6 border-t-2 border-gray-50 bg-gray-50/10 flex items-center justify-between shrink-0">
+                    <p className="text-[8px] font-bold text-gray-300 uppercase tracking-widest">Horario sujeto a cambios según disponibilidad</p>
+                    <button
+                        onClick={onClose}
+                        className="px-10 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
+                    >
+                        Cerrar
                     </button>
                 </div>
             </div>
@@ -12051,9 +12222,212 @@ const AdminPayrollView = ({
 
 // --- CONFIGURACIÓN VIEW (MAESTRO) ---
 // --- CONFIGURACIÓN VIEW (MAESTRO) ---
-const SettingsView = () => {
+const VAScheduleSettings = ({ vaSchedule = [], onSave }) => {
+    const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const assistants = [
+        { key: 'david', name: 'David', color: '#303a7f' },
+        { key: 'nirvana', name: 'Nirvana', color: '#6bbdb7' },
+        { key: 'samuel', name: 'Samuel', color: '#f59e0b' },
+    ];
+
+    const [localData, setLocalData] = useState(() => {
+        const initial = {};
+        daysOfWeek.forEach(day => {
+            assistants.forEach(a => {
+                const key = `${a.key}_${day}`;
+                const existing = (vaSchedule || []).find(
+                    e => String(e.asistente || '').toLowerCase() === a.key &&
+                         String(e.dia_semana || '').toLowerCase() === day.toLowerCase()
+                );
+                initial[key] = {
+                    id: existing?.id || null,
+                    asistente: a.key,
+                    dia_semana: day,
+                    hora_inicio: existing?.hora_inicio || '',
+                    hora_fin: existing?.hora_fin || '',
+                    break_inicio: existing?.break_inicio || '',
+                    break_fin: existing?.break_fin || '',
+                    es_descanso: existing?.es_descanso ? 1 : 0,
+                };
+            });
+        });
+        return initial;
+    });
+
+    useEffect(() => {
+        const newData = {};
+        daysOfWeek.forEach(day => {
+            assistants.forEach(a => {
+                const key = `${a.key}_${day}`;
+                const existing = (vaSchedule || []).find(
+                    e => String(e.asistente || '').toLowerCase() === a.key &&
+                         String(e.dia_semana || '').toLowerCase() === day.toLowerCase()
+                );
+                newData[key] = {
+                    id: existing?.id || null,
+                    asistente: a.key,
+                    dia_semana: day,
+                    hora_inicio: existing?.hora_inicio || '',
+                    hora_fin: existing?.hora_fin || '',
+                    break_inicio: existing?.break_inicio || '',
+                    break_fin: existing?.break_fin || '',
+                    es_descanso: existing?.es_descanso ? 1 : 0,
+                };
+            });
+        });
+        setLocalData(newData);
+    }, [vaSchedule]);
+
+    const updateField = (key, field, value) => {
+        setLocalData(prev => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
+    };
+
+    const handleSave = async () => {
+        for (const key of Object.keys(localData)) {
+            const entry = localData[key];
+            const payload = {
+                asistente: entry.asistente,
+                dia_semana: entry.dia_semana,
+                hora_inicio: entry.hora_inicio || null,
+                hora_fin: entry.hora_fin || null,
+                break_inicio: entry.break_inicio || null,
+                break_fin: entry.break_fin || null,
+                es_descanso: entry.es_descanso ? 1 : 0,
+            };
+            await onSave(payload, entry.id ? ['asistente', 'dia_semana'] : []);
+        }
+    };
+
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    const handleSaveAll = async () => {
+        setSaving(true);
+        setSaved(false);
+        try {
+            await handleSave();
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+        } catch (e) {
+            console.error('[VASchedule] Error saving:', e);
+        } finally {
+            setSaving(false);
+        }
+    };
+
     return (
-        <div className="w-full h-full bg-white animate-in fade-in duration-700" />
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase">Horario Asistentes Virtuales</h3>
+                    <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">AdWisers LLC — Gestionar horario semanal</p>
+                </div>
+                <button
+                    onClick={handleSaveAll}
+                    disabled={saving}
+                    className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-2 ${saved
+                        ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
+                        : 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/20 hover:bg-[#252a5e]'
+                    }`}
+                >
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : <Save size={14} />}
+                    {saving ? 'Guardando...' : saved ? 'Guardado' : 'Guardar Horario'}
+                </button>
+            </div>
+
+            <div className="overflow-x-auto rounded-[2rem] border-2 border-gray-100 shadow-sm">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="bg-[#303a7f]">
+                            <th className="px-4 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r border-white/10">Asistente</th>
+                            {daysOfWeek.map(d => (
+                                <th key={d} className="px-3 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r last:border-r-0 border-white/10 min-w-[140px]">{d}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {assistants.map(a => (
+                            <tr key={a.key} className="hover:bg-[#303a7f]/5 transition-colors">
+                                <td className="px-4 py-3 border-b border-gray-100 border-r border-gray-100">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: a.color }} />
+                                        <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-tight">{a.name}</span>
+                                    </div>
+                                </td>
+                                {daysOfWeek.map(day => {
+                                    const key = `${a.key}_${day}`;
+                                    const entry = localData[key] || {};
+                                    const isDayOff = entry.es_descanso;
+                                    return (
+                                        <td key={day} className="px-3 py-3 border-b border-gray-100 border-r last:border-r-0 border-gray-100">
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!isDayOff}
+                                                        onChange={(e) => updateField(key, 'es_descanso', e.target.checked ? 1 : 0)}
+                                                        className="w-3.5 h-3.5 rounded border-gray-300 text-[#303a7f] focus:ring-[#303a7f]/30 cursor-pointer"
+                                                    />
+                                                    <span className="text-[8px] font-bold text-amber-500 uppercase tracking-widest">Día Libre</span>
+                                                </label>
+                                                {!isDayOff && (
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center gap-1">
+                                                            <input
+                                                                type="text"
+                                                                value={entry.hora_inicio || ''}
+                                                                onChange={(e) => updateField(key, 'hora_inicio', e.target.value)}
+                                                                placeholder="Inicio"
+                                                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-[9px] font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all"
+                                                            />
+                                                            <span className="text-[8px] text-gray-300 font-black">–</span>
+                                                            <input
+                                                                type="text"
+                                                                value={entry.hora_fin || ''}
+                                                                onChange={(e) => updateField(key, 'hora_fin', e.target.value)}
+                                                                placeholder="Fin"
+                                                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-[9px] font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all"
+                                                            />
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <input
+                                                                type="text"
+                                                                value={entry.break_inicio || ''}
+                                                                onChange={(e) => updateField(key, 'break_inicio', e.target.value)}
+                                                                placeholder="Break inicio"
+                                                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-[8px] font-bold text-[#6bbdb7] outline-none focus:border-[#6bbdb7]/30 transition-all"
+                                                            />
+                                                            <span className="text-[8px] text-gray-300 font-black">–</span>
+                                                            <input
+                                                                type="text"
+                                                                value={entry.break_fin || ''}
+                                                                onChange={(e) => updateField(key, 'break_fin', e.target.value)}
+                                                                placeholder="Break fin"
+                                                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-[8px] font-bold text-[#6bbdb7] outline-none focus:border-[#6bbdb7]/30 transition-all"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+const SettingsView = ({ vaSchedule, onSaveVASchedule }) => {
+    return (
+        <div className="w-full h-full bg-white animate-in fade-in duration-700 overflow-y-auto custom-scrollbar">
+            <div className="max-w-6xl mx-auto p-8 lg:p-10">
+                <VAScheduleSettings vaSchedule={vaSchedule} onSave={onSaveVASchedule} />
+            </div>
+        </div>
     );
 };
 
@@ -12519,6 +12893,7 @@ function App() {
     const [statusModalMessage, setStatusModalMessage] = useState('');
     const [statusModalTitle, setStatusModalTitle] = useState('');
     const [isManualModalOpen, setIsManualModalOpen] = useState(false); // Manual de Uso
+    const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false); // Horario Asistentes Virtuales
     const supervisorFileInputRef = useRef(null); // Ref para limpiar el cargador de supervisor
 
     const [statusModalType, setStatusModalType] = useState('success'); // 'success' | 'error'
@@ -12579,6 +12954,7 @@ function App() {
 
     const [specialProjectsData, setSpecialProjectsData] = useState([]);
     const [payrollDrafts, setPayrollDrafts] = useState({});
+    const [vaSchedule, setVASchedule] = useState([]);
 
     // Contador global de invoices para Proyectos Especiales (empieza desde 100)
     const [nextInvoice, setNextInvoice] = useState(100);
@@ -15376,6 +15752,17 @@ function App() {
         }
     };
 
+    const fetchVASchedule = async () => {
+        if (!VASCHEDULE_API_URL) return;
+        try {
+            const data = await fetchTableData(VASCHEDULE_API_URL);
+            setVASchedule(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('[VASchedule] Error cargando horario:', error);
+            setVASchedule([]);
+        }
+    };
+
     useEffect(() => {
         fetchStores();
         fetchEmployees();
@@ -15388,6 +15775,7 @@ function App() {
         fetchCSGNomina();
         fetchAdminEmployees();
         fetchAdminPayrollHistory();
+        fetchVASchedule();
     }, []);
 
     useEffect(() => {
@@ -15500,12 +15888,17 @@ function App() {
                     if (sheetName === 'CSG_Servicios') fetchCSGServices();
                     if (sheetName === 'Personal_Admin') fetchAdminEmployees();
                     if (sheetName === 'Admin_Nomina_Historico') fetchAdminPayrollHistory();
+                    if (sheetName === 'VASchedule') fetchVASchedule();
                 }
             })
             .catch(error => {
                 console.error(`[LogicPay] Error en POST a ${sheetName}:`, error);
                 throw error;
             });
+    };
+
+    const onSaveVASchedule = async (data, matchKeys) => {
+        await syncToDatabase('upsert', data, 'VASchedule', false, matchKeys);
     };
 
     const syncVariableToDatabase = (key, value) => {
@@ -16257,6 +16650,14 @@ function App() {
                 {/* Notes & Manual de Uso & User Card */}
                 <div className="flex items-center gap-4 ml-auto">
                     {user && <Notes currentUser={{ id: user.name, autor_nombre: user.name }} />}
+                    <button
+                        onClick={() => setIsScheduleModalOpen(true)}
+                        className="flex items-center gap-2 px-3 py-2 bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm"
+                        title="Horario de Asistentes Virtuales"
+                    >
+                        <CalendarClock size={16} className="group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">Horario</span>
+                    </button>
                     <button
                         onClick={() => setIsManualModalOpen(true)}
                         className="flex items-center gap-2 px-3 py-2 bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm"
@@ -17328,7 +17729,7 @@ function App() {
                     )}
 
                     {activeTab === 'settings' && (
-                        <SettingsView />
+                        <SettingsView vaSchedule={vaSchedule} onSaveVASchedule={onSaveVASchedule} />
                     )}
 
                     {/* VISTA DEL MÓDULO CSG */}
@@ -18219,6 +18620,14 @@ function App() {
                 <ManualUsageModal
                     isOpen={isManualModalOpen}
                     onClose={() => setIsManualModalOpen(false)}
+                />
+            )}
+
+            {isScheduleModalOpen && (
+                <VirtualAssistantScheduleModal
+                    isOpen={isScheduleModalOpen}
+                    onClose={() => setIsScheduleModalOpen(false)}
+                    vaSchedule={vaSchedule}
                 />
             )}
 

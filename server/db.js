@@ -110,6 +110,63 @@ db.exec(`CREATE TABLE IF NOT EXISTS CRM_Cotizaciones (
     FOREIGN KEY (proveedor_id) REFERENCES CRM_Proveedores(id)
 );`);
 
+// ------------------------------------------------------------
+// Tabla de Horario de Asistentes Virtuales
+// ------------------------------------------------------------
+db.exec(`CREATE TABLE IF NOT EXISTS VASchedule (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asistente TEXT NOT NULL,
+    dia_semana TEXT NOT NULL,
+    hora_inicio TEXT,
+    hora_fin TEXT,
+    break_inicio TEXT,
+    break_fin TEXT,
+    es_descanso INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now','localtime')),
+    updated_at TEXT DEFAULT (datetime('now','localtime'))
+);`);
+
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_va_asistente_dia ON VASchedule(asistente, dia_semana);`);
+
+// Sembrado inicial solo si la tabla está vacía
+const existingCount = db.prepare(`SELECT COUNT(*) AS cnt FROM VASchedule`).get();
+if (existingCount.cnt === 0) {
+    const insert = db.prepare(`INSERT OR IGNORE INTO VASchedule (asistente, dia_semana, hora_inicio, hora_fin, break_inicio, break_fin, es_descanso) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+    const defaultSchedule = [
+        // David
+        ['david', 'Domingo', '8:00 AM', '5:00 PM', '1:00 PM', '2:00 PM', 0],
+        ['david', 'Lunes', '8:00 AM', '5:00 PM', '1:00 PM', '2:00 PM', 0],
+        ['david', 'Martes', '8:00 AM', '5:00 PM', '1:00 PM', '2:00 PM', 0],
+        ['david', 'Miércoles', null, null, null, null, 1],
+        ['david', 'Jueves', '8:00 AM', '5:00 PM', '1:00 PM', '2:00 PM', 0],
+        ['david', 'Viernes', null, null, null, null, 1],
+        ['david', 'Sábado', '8:00 AM', '5:00 PM', '1:00 PM', '2:00 PM', 0],
+        // Nirvana
+        ['nirvana', 'Domingo', '10:00 AM', '7:00 PM', '2:00 PM', '3:00 PM', 0],
+        ['nirvana', 'Lunes', '10:00 AM', '7:00 PM', '2:00 PM', '3:00 PM', 0],
+        ['nirvana', 'Martes', '10:00 AM', '7:00 PM', '2:00 PM', '3:00 PM', 0],
+        ['nirvana', 'Miércoles', '10:00 AM', '7:00 PM', '2:00 PM', '3:00 PM', 0],
+        ['nirvana', 'Jueves', null, null, null, null, 1],
+        ['nirvana', 'Viernes', '10:00 AM', '7:00 PM', '2:00 PM', '3:00 PM', 0],
+        ['nirvana', 'Sábado', null, null, null, null, 1],
+        // Samuel
+        ['samuel', 'Domingo', '8:00 AM', '5:00 PM', '12:00 PM', '1:00 PM', 0],
+        ['samuel', 'Lunes', '8:00 AM', '5:00 PM', '12:00 PM', '1:00 PM', 0],
+        ['samuel', 'Martes', null, null, null, null, 1],
+        ['samuel', 'Miércoles', '8:00 AM', '5:00 PM', '12:00 PM', '1:00 PM', 0],
+        ['samuel', 'Jueves', '8:00 AM', '5:00 PM', '12:00 PM', '1:00 PM', 0],
+        ['samuel', 'Viernes', '8:00 AM', '5:00 PM', '12:00 PM', '1:00 PM', 0],
+        ['samuel', 'Sábado', null, null, null, null, 1],
+    ];
+    const tx = db.transaction(() => {
+        for (const row of defaultSchedule) {
+            insert.run(...row);
+        }
+    });
+    tx();
+    console.log('[VASchedule] Datos iniciales sembrados correctamente.');
+}
+
 export default db;
 
 

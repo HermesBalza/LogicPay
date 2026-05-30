@@ -41,7 +41,8 @@ app.get('/api/data/:table', (req, res) => {
     'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle',
     'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
     'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
-    'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones'
+    'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
+    'VASchedule'
   ];
 
   if (!allowedTables.includes(table)) {
