@@ -2838,15 +2838,6 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
             const dueNomina = nominaHistoryData.filter(h => {
                 if (h.Status && h.Status !== 'Due') return false;
                 
-                const storeName = String(h.nombre).trim().toUpperCase();
-                if (storeName === 'UNITED PARCEL SERVICE AZPEN') {
-                    // Para AZPEN, SOLO enviamos las facturaciones radicadas quincenales (las que inician con Q-)
-                    // y omitimos las semanales para evitar confusión a la IA.
-                    if (!String(h.codigo).startsWith('Q-')) {
-                        return false;
-                    }
-                }
-                
                 // Filtrar por rango de fechas del WOS (traslape de semana)
                 if (hasRange && h.fecha_inicio && h.fecha_fin) {
                     const iniN = toNum(h.fecha_inicio);
@@ -2862,7 +2853,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                 
                 // Filtrar por rango de fechas del WOS
                 if (hasRange) {
-                    const fechaStr = h.timestamp || h.Timestamp || h.fecha || h.periodo || '';
+                    const fechaStr = h.periodo || h.fecha || h.timestamp || h.Timestamp || '';
                     const firstDate = fechaStr.split(' - ')[0] || fechaStr;
                     if (firstDate && firstDate.includes('/')) {
                         const n = toNum(firstDate);
