@@ -2,6 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 import db from './db.js';
 
 dotenv.config();
@@ -42,7 +43,7 @@ app.get('/api/data/:table', (req, res) => {
     'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
     'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
     'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
-    'VASchedule'
+    'VASchedule', 'Usuarios'
   ];
 
   if (!allowedTables.includes(table)) {
@@ -186,6 +187,82 @@ app.post('/api/alter-table', (req, res) => {
     console.error('Error alterando tabla:', error);
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// ---------------------------------------------------------------------
+// Auth API Endpoints
+// ---------------------------------------------------------------------
+
+// Seed usuarios iniciales si la tabla está vacía
+const userCount = db.prepare(`SELECT COUNT(*) AS cnt FROM Usuarios`).get();
+if (userCount.cnt === 0) {
+    const defaultPassword = bcrypt.hashSync('admin', 10);
+    const insertUser = db.prepare(`INSERT INTO Usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)`);
+    const users = [
+        ['David Torres', 'david@logicgroup.com', defaultPassword, 'Asistente'],
+        ['Nirvana Márquez', 'nirvana@logicgroup.com', defaultPassword, 'Asistente'],
+        ['Luis Rojas', 'luis@logicgroup.com', defaultPassword, 'CEO'],
+        ['Reynaldo González', 'reynaldo@logicgroup.com', defaultPassword, 'CEO'],
+        ['Hermes Balza', 'hermes@logicgroup.com', defaultPassword, 'Desarrollador'],
+    ];
+    const tx = db.transaction(() => {
+        for (const u of users) insertUser.run(...u);
+    });
+    tx();
+    console.log('[Usuarios] Datos iniciales sembrados correctamente.');
+}
+
+// POST /api/login — autenticación de usuarios
+app.post('/api/login', (req, res) => {
+    try {
+        const { nombre, password } = req.body;
+        if (!nombre || !password) {
+            return res.status(400).json({ success: false, error: 'Nombre y contraseña requeridos' });
+        }
+
+        const user = db.prepare(`SELECT * FROM Usuarios WHERE LOWER(nombre) = LOWER(?)`).get(nombre.trim());
+        if (!user) {
+            return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
+        }
+
+        const valid = bcrypt.compareSync(password, user.password_hash || '');
+        if (!valid) {
+            return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
+        }
+
+        res.json({
+            success: true,
+            user: {
+                id: user.id,
+                nombre: user.nombre,
+                email: user.email,
+                rol: user.rol,
+                foto: user.foto || null,
+            }
+        });
+    } catch (error) {
+        console.error('Error en login:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// POST /api/change-password — cambiar contraseña de un usuario
+app.post('/api/change-password', (req, res) => {
+    try {
+        const { userId, newPassword } = req.body;
+        if (!userId || !newPassword) {
+            return res.status(400).json({ success: false, error: 'userId y newPassword requeridos' });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({ success: false, error: 'La contraseña debe tener al menos 6 caracteres' });
+        }
+        const hash = bcrypt.hashSync(newPassword, 10);
+        db.prepare(`UPDATE Usuarios SET password_hash = ? WHERE id = ?`).run(hash, userId);
+        res.json({ success: true, message: 'Contraseña actualizada correctamente' });
+    } catch (error) {
+        console.error('Error cambiando contraseña:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 // ---------------------------------------------------------------------

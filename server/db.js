@@ -18,8 +18,18 @@ db.exec(`CREATE TABLE IF NOT EXISTS Usuarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
     email TEXT UNIQUE,
+    password_hash TEXT,
+    rol TEXT DEFAULT 'Asistente',
+    foto TEXT,
+    created_at TEXT DEFAULT (datetime('now','localtime')),
     UNIQUE(nombre)
 );`);
+
+// Migración segura: agregar columnas nuevas si no existen (para BD existentes)
+try { db.exec(`ALTER TABLE Usuarios ADD COLUMN password_hash TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE Usuarios ADD COLUMN rol TEXT DEFAULT 'Asistente'`); } catch (_) {}
+try { db.exec(`ALTER TABLE Usuarios ADD COLUMN foto TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE Usuarios ADD COLUMN created_at TEXT DEFAULT (datetime('now','localtime'))`); } catch (_) {}
 
 // Tabla para notas (autor_id es TEXT = nombre del usuario)
 db.exec(`CREATE TABLE IF NOT EXISTS Notas (

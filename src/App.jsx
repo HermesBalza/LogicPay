@@ -500,23 +500,34 @@ const LoginView = ({ onLogin }) => {
     const [selectedUser, setSelectedUser] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState(false);
+    const [isLogging, setIsLogging] = useState(false);
 
-    const authorizedUsers = [
-        { name: "David Torres", role: "Asistente" },
-        { name: "Nirvana Márquez", role: "Asistente" },
-        { name: "Luis Rojas", role: "CEO" },
-        { name: "Reynaldo González", role: "CEO" },
-        { name: "Hermes Balza", role: "Desarrollador" },
-    ];
-
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const matchedUser = authorizedUsers.find(u => u.name.toLowerCase() === selectedUser.trim().toLowerCase());
-        if (matchedUser && password === 'admin') {
-            onLogin(matchedUser.name);
-        } else {
+        if (!selectedUser.trim() || !password) {
             setError(true);
             setTimeout(() => setError(false), 2000);
+            return;
+        }
+        setIsLogging(true);
+        try {
+            const res = await fetch('http://localhost:3001/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nombre: selectedUser.trim(), password })
+            });
+            const data = await res.json();
+            if (data.success) {
+                onLogin(data.user);
+            } else {
+                setError(true);
+                setTimeout(() => setError(false), 2000);
+            }
+        } catch (e) {
+            setError(true);
+            setTimeout(() => setError(false), 2000);
+        } finally {
+            setIsLogging(false);
         }
     };
 
@@ -12522,7 +12533,7 @@ const ALLOWED_TABLES = [
     'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
     'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
     'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
-    'VASchedule'
+    'VASchedule', 'Usuarios'
 ];
 
 const DB_DATA_API = 'http://localhost:3001/api/data';
@@ -12901,7 +12912,405 @@ const DatabaseExplorer = () => {
     );
 };
 
-const SettingsView = ({ vaSchedule, onSaveVASchedule }) => {
+const UserManager = ({ currentUser }) => {
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showNewUser, setShowNewUser] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(null);
+    const [confirmDelete, setConfirmDelete] = useState(null);
+    const [deleting, setDeleting] = useState(false);
+    const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+
+    // Formulario nuevo usuario
+    const [newUserForm, setNewUserForm] = useState({ nombre: '', email: '', password: '', confirmPassword: '', rol: 'Asistente', foto: '' });
+    const [savingNew, setSavingNew] = useState(false);
+
+    // Cambio de contraseña
+    const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '' });
+    const [savingPassword, setSavingPassword] = useState(false);
+
+    const showNotif = (message, type = 'success') => {
+        setNotification({ show: true, message, type });
+        setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
+    };
+
+    const fetchUsers = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('http://localhost:3001/api/data/Usuarios', { cache: 'no-store' });
+            if (res.ok) {
+                const data = await res.json();
+                setUsers(data);
+            }
+        } catch (e) { console.error(e); }
+        finally { setLoading(false); }
+    };
+
+    useEffect(() => { fetchUsers(); }, []);
+
+    const handleSaveNewUser = async () => {
+        if (!newUserForm.nombre.trim()) { showNotif('El nombre es obligatorio', 'error'); return; }
+        if (newUserForm.password.length < 6) { showNotif('La contraseña debe tener al menos 6 caracteres', 'error'); return; }
+        if (newUserForm.password !== newUserForm.confirmPassword) { showNotif('Las contraseñas no coinciden', 'error'); return; }
+        setSavingNew(true);
+        try {
+            const bcrypt = await import('bcryptjs');
+            // Generar hash en cliente es mala práctica, mandamos password al backend
+            const res = await fetch('http://localhost:3001/api/write', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'upsert',
+                    sheetName: 'Usuarios',
+                    data: {
+                        nombre: newUserForm.nombre.trim(),
+                        email: newUserForm.email.trim() || null,
+                        password_hash: '', // placeholder, lo actualizamos aparte
+                        rol: newUserForm.rol,
+                        foto: newUserForm.foto || null,
+                    },
+                    matchKeys: ['nombre']
+                })
+            });
+            if (!res.ok) throw new Error('Error al crear usuario');
+            const result = await res.json();
+            // Ahora cambiar la contraseña via API
+            // Primero obtenemos el ID del usuario creado
+            const usersRes = await fetch('http://localhost:3001/api/data/Usuarios', { cache: 'no-store' });
+            const allUsers = await usersRes.json();
+            const created = allUsers.find(u => u.nombre === newUserForm.nombre.trim());
+            if (created) {
+                await fetch('http://localhost:3001/api/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: created.id, newPassword: newUserForm.password })
+                });
+            }
+            showNotif(`Usuario "${newUserForm.nombre}" creado`);
+            setShowNewUser(false);
+            setNewUserForm({ nombre: '', email: '', password: '', confirmPassword: '', rol: 'Asistente', foto: '' });
+            fetchUsers();
+        } catch (e) {
+            showNotif(`Error: ${e.message}`, 'error');
+        } finally { setSavingNew(false); }
+    };
+
+    const handleEditField = async (userId, field, value) => {
+        try {
+            const res = await fetch('http://localhost:3001/api/write', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'upsert',
+                    sheetName: 'Usuarios',
+                    data: { id: userId, [field]: value },
+                    matchKeys: ['id']
+                })
+            });
+            if (!res.ok) throw new Error('Error al actualizar');
+            showNotif('Usuario actualizado');
+            fetchUsers();
+        } catch (e) {
+            showNotif(`Error: ${e.message}`, 'error');
+        }
+    };
+
+    const handleDeleteUser = async () => {
+        if (!confirmDelete) return;
+        setDeleting(true);
+        try {
+            const res = await fetch('http://localhost:3001/api/write', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'delete',
+                    sheetName: 'Usuarios',
+                    data: { id: confirmDelete.id },
+                    matchKeys: ['id']
+                })
+            });
+            if (!res.ok) throw new Error('Error al eliminar');
+            showNotif(`Usuario "${confirmDelete.nombre}" eliminado`);
+            setConfirmDelete(null);
+            fetchUsers();
+        } catch (e) {
+            showNotif(`Error: ${e.message}`, 'error');
+        } finally { setDeleting(false); }
+    };
+
+    const handleChangePassword = async () => {
+        if (!passwordForm.newPassword || passwordForm.newPassword.length < 6) { showNotif('Mínimo 6 caracteres', 'error'); return; }
+        if (passwordForm.newPassword !== passwordForm.confirmPassword) { showNotif('Las contraseñas no coinciden', 'error'); return; }
+        setSavingPassword(true);
+        try {
+            const res = await fetch('http://localhost:3001/api/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: showPasswordModal.id, newPassword: passwordForm.newPassword })
+            });
+            if (!res.ok) throw new Error('Error al cambiar contraseña');
+            showNotif('Contraseña actualizada');
+            setShowPasswordModal(null);
+            setPasswordForm({ newPassword: '', confirmPassword: '' });
+        } catch (e) {
+            showNotif(`Error: ${e.message}`, 'error');
+        } finally { setSavingPassword(false); }
+    };
+
+    const handleFotoUpload = (userId) => (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 500;
+                canvas.height = 500;
+                const ctx = canvas.getContext('2d');
+                const s = Math.min(img.width, img.height);
+                const sx = (img.width - s) / 2;
+                const sy = (img.height - s) / 2;
+                ctx.drawImage(img, sx, sy, s, s, 0, 0, 500, 500);
+                const base64 = canvas.toDataURL('image/jpeg', 0.9);
+                handleEditField(userId, 'foto', base64);
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    };
+
+    const rolColors = { Asistente: 'text-[#6bbdb7]', CEO: 'text-[#303a7f]', Desarrollador: 'text-amber-500' };
+
+    return (
+        <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm overflow-hidden animate-in fade-in duration-500">
+            {notification.show && (
+                <div className={`fixed top-6 right-6 z-[200] px-6 py-4 rounded-[1.5rem] shadow-2xl animate-in slide-in-from-top-4 duration-300 flex items-center gap-3 ${notification.type === 'error' ? 'bg-red-50 border-2 border-red-100' : 'bg-green-50 border-2 border-green-100'}`}>
+                    {notification.type === 'error' ? <AlertCircle size={18} className="text-red-500" /> : <CheckCircle size={18} className="text-green-500" />}
+                    <span className={`text-[11px] font-black uppercase tracking-wider ${notification.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>{notification.message}</span>
+                </div>
+            )}
+
+            <div className="px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-[#303a7f]/5 to-transparent">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase">Gestión de Usuarios</h3>
+                        <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-1">{users.length} usuario(s) registrados</p>
+                    </div>
+                    <button onClick={() => setShowNewUser(true)} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 hover:bg-[#252a5e] shadow-lg shadow-blue-900/20">
+                        <UserPlus size={14} /> Nuevo Usuario
+                    </button>
+                </div>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="bg-[#303a7f] sticky top-0 z-10">
+                            <th className="px-4 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r border-white/10 w-10">#</th>
+                            <th className="px-4 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r border-white/10 w-16">Foto</th>
+                            <th className="px-4 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r border-white/10">Nombre</th>
+                            <th className="px-4 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r border-white/10">Email</th>
+                            <th className="px-4 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r border-white/10">Rol</th>
+                            <th className="px-4 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r border-white/10">Contraseña</th>
+                            <th className="px-4 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] w-12">Eliminar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {loading ? (
+                            <tr><td colSpan={7} className="text-center py-16"><Loader2 size={24} className="animate-spin mx-auto text-[#6bbdb7]" /></td></tr>
+                        ) : users.length === 0 ? (
+                            <tr><td colSpan={7} className="text-center py-16 text-gray-300 text-[10px] font-black uppercase tracking-widest">No hay usuarios registrados</td></tr>
+                        ) : users.map((u, idx) => (
+                            <tr key={u.id} className="hover:bg-[#303a7f]/5 transition-colors border-b border-gray-50 group">
+                                <td className="px-4 py-3 text-[9px] font-black text-gray-400 border-r border-gray-50 text-center">{idx + 1}</td>
+                                <td className="px-4 py-3 border-r border-gray-50">
+                                    <div className="relative w-12 h-12">
+                                        {u.foto ? (
+                                            <img src={u.foto} alt={u.nombre} className="w-12 h-12 rounded-xl object-cover border-2 border-gray-100" />
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-xl bg-gray-50 border-2 border-gray-100 flex items-center justify-center">
+                                                <Users size={18} className="text-gray-300" />
+                                            </div>
+                                        )}
+                                        <label className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full border border-gray-200 flex items-center justify-center cursor-pointer hover:bg-[#6bbdb7] hover:text-white transition-all shadow-sm">
+                                            <Camera size={10} />
+                                            <input type="file" accept="image/*" onChange={handleFotoUpload(u.id)} className="hidden" />
+                                        </label>
+                                    </div>
+                                </td>
+                                <td className="px-4 py-3 border-r border-gray-50">
+                                    <InlineEdit value={u.nombre} onSave={(v) => handleEditField(u.id, 'nombre', v)} />
+                                </td>
+                                <td className="px-4 py-3 border-r border-gray-50">
+                                    <InlineEdit value={u.email || ''} onSave={(v) => handleEditField(u.id, 'email', v || null)} />
+                                </td>
+                                <td className="px-4 py-3 border-r border-gray-50">
+                                    <select
+                                        value={u.rol || 'Asistente'}
+                                        onChange={(e) => handleEditField(u.id, 'rol', e.target.value)}
+                                        className={`text-[11px] font-black uppercase tracking-wider bg-transparent border-2 border-transparent hover:border-[#6bbdb7]/30 rounded-lg px-2 py-1 outline-none focus:border-[#6bbdb7] transition-all cursor-pointer ${rolColors[u.rol] || 'text-gray-500'}`}
+                                    >
+                                        <option value="Asistente">Asistente</option>
+                                        <option value="CEO">CEO</option>
+                                        <option value="Desarrollador">Desarrollador</option>
+                                    </select>
+                                </td>
+                                <td className="px-4 py-3 border-r border-gray-50">
+                                    <button onClick={() => { setShowPasswordModal(u); setPasswordForm({ newPassword: '', confirmPassword: '' }); }} className="text-[9px] font-black text-gray-300 hover:text-[#303a7f] uppercase tracking-widest transition-all flex items-center gap-1.5">
+                                        <Lock size={11} /> Cambiar
+                                    </button>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                    {u.nombre !== currentUser?.nombre && (
+                                        <button onClick={() => setConfirmDelete(u)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100" title="Eliminar usuario">
+                                            <Trash2 size={13} />
+                                        </button>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Modal Nuevo Usuario */}
+            {showNewUser && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => !savingNew && setShowNewUser(false)}>
+                    <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-8 flex flex-col animate-in zoom-in-95 duration-300 border-2 border-white" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-8">
+                            <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase">Nuevo Usuario</h3>
+                            <button onClick={() => setShowNewUser(false)} className="text-gray-300 hover:text-red-500 transition-colors"><X size={20} /></button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Nombre</label>
+                                <input type="text" value={newUserForm.nombre} onChange={e => setNewUserForm(f => ({ ...f, nombre: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="Nombre completo" />
+                            </div>
+                            <div>
+                                <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Email</label>
+                                <input type="email" value={newUserForm.email} onChange={e => setNewUserForm(f => ({ ...f, email: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="email@ejemplo.com" />
+                            </div>
+                            <div>
+                                <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Rol</label>
+                                <select value={newUserForm.rol} onChange={e => setNewUserForm(f => ({ ...f, rol: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all">
+                                    <option value="Asistente">Asistente</option>
+                                    <option value="CEO">CEO</option>
+                                    <option value="Desarrollador">Desarrollador</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Contraseña (mín. 6 caracteres)</label>
+                                <input type="password" value={newUserForm.password} onChange={e => setNewUserForm(f => ({ ...f, password: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="••••••••" />
+                            </div>
+                            <div>
+                                <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Confirmar Contraseña</label>
+                                <input type="password" value={newUserForm.confirmPassword} onChange={e => setNewUserForm(f => ({ ...f, confirmPassword: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="••••••••" />
+                            </div>
+                        </div>
+                        <div className="flex gap-3 mt-8">
+                            <button onClick={() => setShowNewUser(false)} disabled={savingNew} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-gray-200 disabled:opacity-50">Cancelar</button>
+                            <button onClick={handleSaveNewUser} disabled={savingNew} className="flex-1 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 transition-all active:scale-95 hover:bg-[#252a5e] disabled:opacity-50 flex items-center justify-center gap-2">
+                                {savingNew ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                                {savingNew ? 'Creando...' : 'Crear Usuario'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Cambiar Contraseña */}
+            {showPasswordModal && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => !savingPassword && setShowPasswordModal(null)}>
+                    <div className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-8 animate-in zoom-in-95 duration-300 border-2 border-white" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase">Cambiar Contraseña</h3>
+                                <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">{showPasswordModal.nombre}</p>
+                            </div>
+                            <button onClick={() => setShowPasswordModal(null)} className="text-gray-300 hover:text-red-500 transition-colors"><X size={20} /></button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Nueva Contraseña</label>
+                                <input type="password" value={passwordForm.newPassword} onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="mín. 6 caracteres" />
+                            </div>
+                            <div>
+                                <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Confirmar Contraseña</label>
+                                <input type="password" value={passwordForm.confirmPassword} onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="••••••••" />
+                            </div>
+                        </div>
+                        <div className="flex gap-3 mt-8">
+                            <button onClick={() => setShowPasswordModal(null)} disabled={savingPassword} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-gray-200 disabled:opacity-50">Cancelar</button>
+                            <button onClick={handleChangePassword} disabled={savingPassword} className="flex-1 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 transition-all active:scale-95 hover:bg-[#252a5e] disabled:opacity-50 flex items-center justify-center gap-2">
+                                {savingPassword ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
+                                {savingPassword ? 'Guardando...' : 'Guardar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Confirmar Eliminación */}
+            {confirmDelete && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => !deleting && setConfirmDelete(null)}>
+                    <div className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-10 flex flex-col items-center text-center animate-in zoom-in-95 duration-300 border-2 border-white relative overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="w-20 h-20 rounded-[1.8rem] flex items-center justify-center mb-8 shadow-2xl bg-red-500 text-white shadow-red-900/20"><Trash2 size={32} /></div>
+                        <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-4">¿Eliminar usuario?</h3>
+                        <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-6 uppercase tracking-[0.1em]">Se eliminará permanentemente a <span className="text-[#303a7f]">{confirmDelete.nombre}</span></p>
+                        <div className="flex gap-3 w-full">
+                            <button onClick={() => setConfirmDelete(null)} disabled={deleting} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-gray-200 disabled:opacity-50">Cancelar</button>
+                            <button onClick={handleDeleteUser} disabled={deleting} className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-red-900/20 transition-all active:scale-95 hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2">
+                                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                {deleting ? 'Eliminando...' : 'Eliminar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Componente auxiliar para edición inline de texto
+const InlineEdit = ({ value, onSave }) => {
+    const [editing, setEditing] = useState(false);
+    const [editVal, setEditVal] = useState(value);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => { setEditVal(value); }, [value]);
+
+    const handleSave = async () => {
+        if (editVal !== value && editVal.trim()) {
+            setSaving(true);
+            await onSave(editVal.trim());
+            setSaving(false);
+        }
+        setEditing(false);
+    };
+
+    if (editing) {
+        return (
+            <div className="flex items-center gap-1 animate-in fade-in duration-100">
+                <input type="text" value={editVal} onChange={e => setEditVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') { setEditVal(value); setEditing(false); } }}
+                    className="w-full bg-white border-2 border-[#6bbdb7] rounded-lg px-2 py-1 text-[11px] font-bold text-[#303a7f] outline-none" autoFocus
+                    onBlur={() => { if (!saving) { setEditVal(value); setEditing(false); } }} />
+                {saving && <Loader2 size={12} className="animate-spin text-[#6bbdb7] flex-shrink-0" />}
+            </div>
+        );
+    }
+
+    return (
+        <div className="cursor-pointer hover:bg-[#6bbdb7]/10 rounded px-1 -mx-1 transition-colors flex items-center gap-1 group/cell" onClick={() => { setEditVal(value); setEditing(true); }}>
+            <span className="text-[11px] font-bold text-[#333333] truncate max-w-[150px]">{value || <span className="text-gray-200 italic">vacío</span>}</span>
+            <Edit2 size={10} className="text-gray-200 group-hover/cell:text-[#6bbdb7] transition-colors flex-shrink-0 opacity-0 group-hover/cell:opacity-100" />
+        </div>
+    );
+};
+
+const SettingsView = ({ vaSchedule, onSaveVASchedule, currentUser }) => {
     const [settingsTab, setSettingsTab] = useState('schedule');
 
     return (
@@ -12911,6 +13320,9 @@ const SettingsView = ({ vaSchedule, onSaveVASchedule }) => {
                     <button onClick={() => setSettingsTab('schedule')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${settingsTab === 'schedule' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-white'}`}>
                         <Clock size={14} /> Horario Asistentes
                     </button>
+                    <button onClick={() => setSettingsTab('users')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${settingsTab === 'users' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-white'}`}>
+                        <Users size={14} /> Usuarios
+                    </button>
                     <button onClick={() => setSettingsTab('database')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${settingsTab === 'database' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-white'}`}>
                         <Database size={14} /> Base de Datos
                     </button>
@@ -12918,6 +13330,9 @@ const SettingsView = ({ vaSchedule, onSaveVASchedule }) => {
 
                 {settingsTab === 'schedule' && (
                     <VAScheduleSettings vaSchedule={vaSchedule} onSave={onSaveVASchedule} />
+                )}
+                {settingsTab === 'users' && (
+                    <UserManager currentUser={currentUser} />
                 )}
                 {settingsTab === 'database' && (
                     <DatabaseExplorer />
@@ -13467,7 +13882,7 @@ function App() {
     useEffect(() => {
         if (!user) return;
 
-        const presenceKey = `presence_${user.name.replace(/\s+/g, '_')}`;
+        const presenceKey = `presence_${(user.nombre || user.name || '').replace(/\s+/g, '_')}`;
 
         // Pulso inicial
         syncVariableToDatabase(presenceKey, new Date().toISOString());
@@ -13502,14 +13917,7 @@ function App() {
         }
     }, [activeTab, payrollView]);
 
-    const handleLogin = (userNameOrData) => {
-        let userData;
-        if (typeof userNameOrData === 'string') {
-            const found = USER_REGISTRY.find(u => u.name === userNameOrData);
-            userData = { name: userNameOrData, role: found?.role || 'Invitado' };
-        } else {
-            userData = userNameOrData;
-        }
+    const handleLogin = (userData) => {
         setUser(userData);
         syncVariableToDatabase('user', userData);
     };
@@ -17166,7 +17574,7 @@ function App() {
 
                 {/* Notes & Manual de Uso & User Card */}
                 <div className="flex items-center gap-4 ml-auto">
-                    {user && <Notes currentUser={{ id: user.name, autor_nombre: user.name }} />}
+                    {user && <Notes currentUser={{ id: user.nombre || user.name, autor_nombre: user.nombre || user.name }} />}
                     <button
                         onClick={() => setIsScheduleModalOpen(true)}
                         className="flex items-center gap-2 px-3 py-2 bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm"
@@ -17234,11 +17642,16 @@ function App() {
                     </div>
 
                     <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-2xl border-2 border-gray-100 group relative">
-                        <div className="h-7 w-7 bg-white rounded-lg flex items-center justify-center border-2 border-gray-100 flex-shrink-0">
-                            <Users size={14} className="text-[#303a7f]" />
+                        <div className="h-8 w-8 rounded-xl overflow-hidden bg-white border-2 border-gray-100 flex-shrink-0 flex items-center justify-center">
+                            {user?.foto ? (
+                                <img src={user.foto} alt={user.nombre} className="w-full h-full object-cover" />
+                            ) : (
+                                <Users size={14} className="text-[#303a7f]" />
+                            )}
                         </div>
                         <div className="pr-6">
-                            <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-tighter leading-none">{user?.name || 'Invitado'}</p>
+                            <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-tighter leading-none">{user?.nombre || 'Invitado'}</p>
+                            <p className="text-[7px] font-black text-[#6bbdb7] uppercase tracking-widest">{user?.rol || ''}</p>
                         </div>
                         <button
                             onClick={handleLogout}
@@ -18256,7 +18669,7 @@ function App() {
                     )}
 
                     {activeTab === 'settings' && (
-                        <SettingsView vaSchedule={vaSchedule} onSaveVASchedule={onSaveVASchedule} />
+                        <SettingsView vaSchedule={vaSchedule} onSaveVASchedule={onSaveVASchedule} currentUser={user} />
                     )}
 
                     {/* VISTA DEL MÓDULO CSG */}
@@ -19298,7 +19711,7 @@ function App() {
             />
 
             {/* Soporte Técnico - Ventana de Chat vinculada con Gemini AI */}
-            <SupportChat geminiApiKey={geminiApiKey} userName={user?.name} />
+            <SupportChat geminiApiKey={geminiApiKey} userName={user?.nombre || user?.name} />
             <EmailNotificationModal isOpen={notificationModal.isOpen} type={notificationModal.type} message={notificationModal.message} onOk={() => setNotificationModal({ ...notificationModal, isOpen: false })} />
         </div>
     );
