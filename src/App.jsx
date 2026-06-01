@@ -74,7 +74,8 @@ import {
     Layers,
     Copy,
     Paperclip,
-    Briefcase
+    Briefcase,
+    Database
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -12516,11 +12517,178 @@ const VAScheduleSettings = ({ vaSchedule = [], onSave }) => {
     );
 };
 
-const SettingsView = ({ vaSchedule, onSaveVASchedule }) => {
+const ALLOWED_TABLES = [
+    'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle',
+    'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
+    'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
+    'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
+    'VASchedule'
+];
+
+const DB_DATA_API = 'http://localhost:3001/api/data';
+
+const DatabaseExplorer = () => {
+    const [selectedTable, setSelectedTable] = useState('');
+    const [columns, setColumns] = useState([]);
+    const [rows, setRows] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const fetchTableData = async (table) => {
+        if (!table) return;
+        setLoading(true);
+        setError('');
+        try {
+            const res = await fetch(`${DB_DATA_API}/${table}`, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data.length > 0) {
+                setColumns(Object.keys(data[0]));
+            } else {
+                setColumns([]);
+            }
+            setRows(data);
+        } catch (e) {
+            setError(`Error al cargar datos: ${e.message}`);
+            setColumns([]);
+            setRows([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchTableData(selectedTable);
+    }, [selectedTable]);
+
+    const formatCellValue = (val) => {
+        if (val === null || val === undefined) return '—';
+        const str = String(val);
+        if (str.length > 120) return str.slice(0, 120) + '...';
+        return str;
+    };
+
     return (
-        <div className="w-full h-full bg-white animate-in fade-in duration-700 overflow-y-auto custom-scrollbar">
-            <div className="max-w-6xl mx-auto p-8 lg:p-10">
-                <VAScheduleSettings vaSchedule={vaSchedule} onSave={onSaveVASchedule} />
+        <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm overflow-hidden animate-in fade-in duration-500">
+            <div className="px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-[#303a7f]/5 to-transparent">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase">Explorador de Base de Datos</h3>
+                        <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-1">Visualizar tablas y registros</p>
+                    </div>
+                    <div className="relative min-w-[240px]">
+                        <select
+                            value={selectedTable}
+                            onChange={(e) => setSelectedTable(e.target.value)}
+                            className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all appearance-none cursor-pointer"
+                        >
+                            <option value="">Seleccionar tabla...</option>
+                            {ALLOWED_TABLES.map(t => (
+                                <option key={t} value={t}>{t}</option>
+                            ))}
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-300">
+                            <ChevronDown size={16} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="p-0">
+                {!selectedTable && (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <Database size={48} className="text-gray-100 mb-6" />
+                        <p className="text-sm font-black text-gray-300 uppercase tracking-wider">Seleccione una tabla para visualizar sus datos</p>
+                    </div>
+                )}
+
+                {loading && (
+                    <div className="flex items-center justify-center py-20">
+                        <Loader2 size={32} className="text-[#303a7f] animate-spin" />
+                    </div>
+                )}
+
+                {error && (
+                    <div className="mx-8 my-6 p-4 bg-red-50 rounded-2xl border border-red-100 flex items-center gap-3">
+                        <AlertCircle size={18} className="text-red-500 flex-shrink-0" />
+                        <span className="text-xs font-bold text-red-600">{error}</span>
+                    </div>
+                )}
+
+                {selectedTable && !loading && !error && rows.length === 0 && columns.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <Database size={48} className="text-gray-100 mb-6" />
+                        <p className="text-sm font-black text-gray-300 uppercase tracking-wider">La tabla está vacía</p>
+                    </div>
+                )}
+
+                {selectedTable && !loading && columns.length > 0 && (
+                    <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-[#303a7f] sticky top-0 z-10">
+                                    <th className="px-4 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r border-white/10 w-10">#</th>
+                                    {columns.map(col => (
+                                        <th key={col} className="px-4 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r last:border-r-0 border-white/10 whitespace-nowrap min-w-[120px]">
+                                            {col}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.map((row, idx) => (
+                                    <tr key={idx} className="hover:bg-[#303a7f]/5 transition-colors border-b border-gray-50">
+                                        <td className="px-4 py-2.5 text-[9px] font-black text-gray-400 border-r border-gray-50 text-center">
+                                            {idx + 1}
+                                        </td>
+                                        {columns.map(col => (
+                                            <td key={col} className="px-4 py-2.5 text-[11px] font-bold text-[#333333] border-r last:border-r-0 border-gray-50 max-w-[300px] truncate" title={String(row[col] || '')}>
+                                                {formatCellValue(row[col])}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {selectedTable && !loading && rows.length > 0 && (
+                    <div className="px-6 py-3 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
+                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                            {rows.length} registro(s) · {columns.length} columna(s)
+                        </span>
+                        <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">
+                            {selectedTable}
+                        </span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const SettingsView = ({ vaSchedule, onSaveVASchedule }) => {
+    const [settingsTab, setSettingsTab] = useState('schedule');
+
+    return (
+        <div className="w-full h-full bg-[#f9f9f9] animate-in fade-in duration-700 overflow-y-auto custom-scrollbar">
+            <div className="p-6 lg:p-8">
+                <div className="flex gap-1 mb-6 p-1 bg-white rounded-[1.5rem] border border-gray-100 w-fit shadow-sm">
+                    <button onClick={() => setSettingsTab('schedule')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${settingsTab === 'schedule' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-white'}`}>
+                        <Clock size={14} /> Horario Asistentes
+                    </button>
+                    <button onClick={() => setSettingsTab('database')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${settingsTab === 'database' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-white'}`}>
+                        <Database size={14} /> Base de Datos
+                    </button>
+                </div>
+
+                {settingsTab === 'schedule' && (
+                    <VAScheduleSettings vaSchedule={vaSchedule} onSave={onSaveVASchedule} />
+                )}
+                {settingsTab === 'database' && (
+                    <DatabaseExplorer />
+                )}
             </div>
         </div>
     );
