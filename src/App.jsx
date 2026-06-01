@@ -12912,7 +12912,7 @@ const DatabaseExplorer = () => {
     );
 };
 
-const UserManager = ({ currentUser }) => {
+const UserManager = ({ currentUser, onUserUpdate }) => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showNewUser, setShowNewUser] = useState(false);
@@ -13036,6 +13036,7 @@ const UserManager = ({ currentUser }) => {
             if (!res.ok) throw new Error('Error al actualizar');
             showNotif('Usuario actualizado');
             fetchUsers();
+            if (onUserUpdate && currentUser?.id === userId) onUserUpdate();
         } catch (e) {
             showNotif(`Error: ${e.message}`, 'error');
         }
@@ -13360,7 +13361,7 @@ const InlineEdit = ({ value, onSave }) => {
     );
 };
 
-const SettingsView = ({ vaSchedule, onSaveVASchedule, currentUser }) => {
+const SettingsView = ({ vaSchedule, onSaveVASchedule, currentUser, onUserUpdate }) => {
     const [settingsTab, setSettingsTab] = useState('schedule');
 
     return (
@@ -13382,7 +13383,7 @@ const SettingsView = ({ vaSchedule, onSaveVASchedule, currentUser }) => {
                     <VAScheduleSettings vaSchedule={vaSchedule} onSave={onSaveVASchedule} />
                 )}
                 {settingsTab === 'users' && (
-                    <UserManager currentUser={currentUser} />
+                    <UserManager currentUser={currentUser} onUserUpdate={onUserUpdate} />
                 )}
                 {settingsTab === 'database' && (
                     <DatabaseExplorer />
@@ -15864,6 +15865,29 @@ function App() {
         sessionStorage.clear(); // Limpiar rastro de navegación
     };
 
+    const refreshCurrentUser = async () => {
+        if (!user?.id && !user?.nombre) return;
+        try {
+            const res = await fetch('http://localhost:3001/api/data/Usuarios', { cache: 'no-store' });
+            if (res.ok) {
+                const users = await res.json();
+                const updated = users.find(u => u.id === user.id || (user.nombre && u.nombre === user.nombre));
+                if (updated) {
+                    const newUser = { id: updated.id, nombre: updated.nombre, email: updated.email, rol: updated.rol, foto: updated.foto || null };
+                    setUser(newUser);
+                    syncVariableToDatabase('user', newUser);
+                }
+            }
+        } catch (e) { console.error('Error refrescando usuario:', e); }
+    };
+
+    // Refrescar datos del usuario al cargar si ya hay uno en Variables
+    useEffect(() => {
+        if (user && variablesLoaded) {
+            refreshCurrentUser();
+        }
+    }, [variablesLoaded]);
+
     const processSheetImagesWithAI = async () => {
         if (!sheetFiles.length || !geminiApiKey) {
             showError("Faltan imágenes o clave de API para procesar.");
@@ -17633,7 +17657,7 @@ function App() {
 
                 {/* Notes & Manual de Uso & User Card */}
                 <div className="flex items-center gap-4 ml-auto">
-                    {user && <Notes currentUser={{ id: user.nombre || user.name, autor_nombre: user.nombre || user.name }} />}
+                    {user && (user.rol === 'Asistente' || user.rol === 'Desarrollador') && <Notes currentUser={{ id: user.nombre || user.name, autor_nombre: user.nombre || user.name }} />}
                     <button
                         onClick={() => setIsScheduleModalOpen(true)}
                         className="flex items-center gap-2 px-3 py-2 bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm"
@@ -18732,7 +18756,7 @@ function App() {
                     )}
 
                     {activeTab === 'settings' && (
-                        <SettingsView vaSchedule={vaSchedule} onSaveVASchedule={onSaveVASchedule} currentUser={user} />
+                        <SettingsView vaSchedule={vaSchedule} onSaveVASchedule={onSaveVASchedule} currentUser={user} onUserUpdate={refreshCurrentUser} />
                     )}
 
                     {/* VISTA DEL MÓDULO CSG */}
