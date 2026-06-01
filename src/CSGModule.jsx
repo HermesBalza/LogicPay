@@ -1,6 +1,35 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+
+const CSG_GEMINI_API_URL = 'http://localhost:3001/api/gemini/generate';
+const CSG_EMAIL_API_URL = 'http://localhost:3001/api/send-email';
+
+const callGeminiCSG = async (prompt, { model = 'gemini-3-flash-preview', generationConfig, contents } = {}) => {
+  const body = { model, generationConfig };
+  if (contents) {
+    body.contents = contents;
+  } else {
+    body.prompt = prompt;
+  }
+  const res = await fetch(CSG_GEMINI_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Error al llamar a Gemini');
+  return data.text;
+};
+
+const sendEmailCSG = async (purpose, { to, cc, subject, body, attachments } = {}) => {
+  const res = await fetch(CSG_EMAIL_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ purpose, to, cc, subject, body, attachments }),
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Error al enviar email');
+};
 import { X, Upload, Camera, Check, ChevronLeft, ChevronRight, Plus, Download, RefreshCw, FileText, DollarSign, Users, Sparkles, Calendar, Eye, Trash2, AlertCircle, ArrowLeft, MapPin, Mail, Settings, CheckCircle, Edit2, Store as StoreIcon, CreditCard, Send, Receipt, Loader2, ShieldCheck, LayoutGrid, History, Clock, Zap, Cpu, ArrowLeftRight, Bug } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -211,7 +240,7 @@ const CSGReviewModal = ({ isOpen, onClose, onConfirm, payload }) => {
 };
 
 // ─── CSGServiceForm: Formulario de registro de servicio ──────────────────────
-const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSaving = false, geminiApiKey, setStatusModal }) => {
+const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSaving = false, setStatusModal }) => {
     const [tiendaSeleccionada, setTiendaSeleccionada] = useState(null);
     const [empleadoSearch, setEmpleadoSearch] = useState('');
     const [empleadoSel, setEmpleadoSel] = useState(null);
@@ -286,18 +315,16 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
 
         // --- Inteligencia Artificial: Detección de Fecha ---
         try {
-            const genAI = new GoogleGenerativeAI(geminiApiKey);
-            const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+            const currentYear = new Date().getFullYear();
+            const prompt = `Analiza estas fotos de evidencia de un servicio de limpieza y extrae la fecha en que se realizó el servicio basándote EXCLUSIVAMENTE en los timestamps o marcas de tiempo (fecha/hora) visibles en las imágenes. El año actual es ${currentYear} y TODOS los servicios registrados pertenecen a este año. Si el timestamp muestra un año diferente a ${currentYear} (como 2024 o anterior), IGNÓRALO y usa ${currentYear} como año correcto. Responde ÚNICAMENTE con la fecha en formato MM/DD/YYYY. Si no detectas ninguna fecha clara o marca de tiempo legible, responde 'ERROR'.`;
 
             const imageParts = fotos.slice(0, 3).map(f => ({
                 inlineData: { data: f.base64, mimeType: "image/jpeg" }
             }));
-
-            const currentYear = new Date().getFullYear();
-            const prompt = `Analiza estas fotos de evidencia de un servicio de limpieza y extrae la fecha en que se realizó el servicio basándote EXCLUSIVAMENTE en los timestamps o marcas de tiempo (fecha/hora) visibles en las imágenes. El año actual es ${currentYear} y TODOS los servicios registrados pertenecen a este año. Si el timestamp muestra un año diferente a ${currentYear} (como 2024 o anterior), IGNÓRALO y usa ${currentYear} como año correcto. Responde ÚNICAMENTE con la fecha en formato MM/DD/YYYY. Si no detectas ninguna fecha clara o marca de tiempo legible, responde 'ERROR'.`;
-
-            const result = await model.generateContent([prompt, ...imageParts]);
-            const text = result.response.text().trim();
+            const geminiResult = await callGeminiCSG(prompt, {
+                contents: [prompt, ...imageParts]
+            }).catch(() => 'ERROR');
+            const text = geminiResult.trim();
 
             if (text && text !== 'ERROR' && text.includes('/')) {
                 detectedDate = text;
@@ -633,7 +660,7 @@ const CSGBiweekEmailModal = ({ isOpen, onClose, biweek, onSend, isSending }) => 
 };
 
 // ─── CSGBiweekDetailsModal: Ventana emergente con detalles de la bisemana ──────
-const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUrl, syncToDatabase }) => {
+const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, syncToDatabase }) => {
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isSending, setIsSending] = useState(false);
@@ -717,7 +744,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
     };
 
     const handleSendEmail = async (emailData) => {
-        if (!mailApiUrl || !pdfBase64) return;
+        if (!pdfBase64) return;
 
         setNotificationModal({
             isOpen: true,
@@ -726,20 +753,15 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, mailApiUr
         });
 
         try {
-            await fetch(mailApiUrl, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({
-                    to: emailData.to,
-                    subject: emailData.subject,
-                    body: emailData.body,
-                    attachments: [{
-                        name: `${emailData.subject}.pdf`,
-                        type: 'application/pdf',
-                        base64: pdfBase64
-                    }]
-                })
+            await sendEmailCSG('general', {
+                to: emailData.to,
+                subject: emailData.subject,
+                body: emailData.body,
+                attachments: [{
+                    name: `${emailData.subject}.pdf`,
+                    type: 'application/pdf',
+                    base64: pdfBase64
+                }]
             });
 
             // Actualizar estado de envío en la base de datos (Solicitado por Hermes)
@@ -1079,7 +1101,7 @@ const CSGBillingReportModal = ({ isOpen, onClose, onProcess }) => {
 };
 
 // ─── CSGWosView: Ventana a pantalla completa para el procesamiento de WOS CSG ───
-const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncToDatabase, wosHistoryData = [], onRefreshHistory }) => {
+const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wosHistoryData = [], onRefreshHistory }) => {
     const [wosData, setWosData] = useState({
         wosNumber: '',
         subcontractor: '',
@@ -1186,7 +1208,7 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
     };
 
     const handleAICrossMatch = async () => {
-        if (!wosServices.length || !geminiApiKey) return;
+        if (!wosServices.length) return;
 
         setIsCrossing(true);
         try {
@@ -1200,12 +1222,6 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                 monto_csg: s.monto_csg,
                 wos: s.wos
             }));
-
-            const genAI = new GoogleGenerativeAI(geminiApiKey);
-            const model = genAI.getGenerativeModel({
-                model: "gemini-3-flash-preview",
-                generationConfig: { responseMimeType: "application/json" }
-            });
 
             const prompt = `
                 Eres un auditor financiero corporativo experto y humano. Tu tarea es realizar el cruce entre los servicios facturados en un WOS (Work Order Summary) de CSG (Cleaning Services Group) y las facturas pendientes de cobro en LGM (Cleaning Services). 
@@ -1230,8 +1246,9 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                 }
             `;
 
-            const result = await model.generateContent(prompt);
-            const responseText = result.response.text();
+            const responseText = await callGeminiCSG(prompt, {
+                generationConfig: { responseMimeType: "application/json" }
+            });
             const resultData = JSON.parse(responseText);
 
             if (resultData.matchedServices) {
@@ -1251,10 +1268,6 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
     const handleUploadWOS = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (!geminiApiKey) {
-            setNotification({ open: true, type: 'error', message: 'Por favor, configure su API Key de Gemini en Ajustes.' });
-            return;
-        }
 
         setIsUploading(true);
         try {
@@ -1263,12 +1276,6 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                 reader.onload = (event) => resolve(event.target.result);
                 reader.onerror = (error) => reject(error);
                 reader.readAsText(file);
-            });
-
-            const genAI = new GoogleGenerativeAI(geminiApiKey);
-            const model = genAI.getGenerativeModel({
-                model: "gemini-3-flash-preview",
-                generationConfig: { responseMimeType: "application/json" }
             });
 
             const prompt = `
@@ -1320,8 +1327,9 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
                 ${fileContent}
             `;
 
-            const result = await model.generateContent(prompt);
-            const responseText = result.response.text();
+            const responseText = await callGeminiCSG(prompt, {
+                generationConfig: { responseMimeType: "application/json" }
+            });
             const cleanJson = JSON.parse(responseText);
 
             setWosData(cleanJson.metadata);
@@ -1945,7 +1953,7 @@ const CSGWosView = ({ isOpen, onClose, geminiApiKey, csgServicesData = [], syncT
     );
 };
 
-const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToDatabase, csgNominaHistory = [] }) => {
+const CSGNominaView = ({ csgServicesData = [], syncToDatabase, csgNominaHistory = [] }) => {
     const reportRef = useRef(null);
     const [selectedBiweekId, setSelectedBiweekId] = useState(null);
 
@@ -2078,7 +2086,6 @@ const CSGNominaView = ({ csgServicesData = [], mailApiUrl, syncToDatabase, csgNo
                 onClose={() => setSelectedBiweekId(null)}
                 biweek={selectedBiweekData}
                 fmtCurrency={fmtCurrency}
-                mailApiUrl={mailApiUrl}
                 syncToDatabase={syncToDatabase}
             />
         </div>
@@ -2332,7 +2339,7 @@ const CSGBillingView = ({ csgServicesData = [], syncToDatabase, onRefresh }) => 
 };
 
 // ─── CSGHistorialView: Historial de servicios con visor de fotos ──────────────
-const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, syncToDatabase }) => {
+const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, syncToDatabase }) => {
     const [search, setSearch] = useState('');
     const [selectedService, setSelectedService] = useState(null);
     const filtered = useMemo(() => {
@@ -2411,7 +2418,6 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, sync
                 <CSGServiceDetailsModal
                     service={selectedService}
                     onClose={() => setSelectedService(null)}
-                    mailApiUrl={mailApiUrl}
                     syncToDatabase={syncToDatabase}
                 />
             )}
@@ -2420,7 +2426,7 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, mailApiUrl, sync
 };
 
 // ─── CSGServiceDetailsModal: Ventana emergente con detalles completos ─────────
-const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToDatabase }) => {
+const CSGServiceDetailsModal = ({ service, onClose, syncToDatabase }) => {
     if (!service) return null;
 
     const [activePhotoIdx, setActivePhotoIdx] = useState(null);
@@ -2430,15 +2436,6 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToDatabase }
     const isAlreadySent = service.correo_enviado === 'Enviado';
 
     const handleSendEmail = async (emailData) => {
-        if (!mailApiUrl) {
-            setNotificationModal({
-                isOpen: true,
-                type: 'success',
-                message: "Error: No se ha configurado la URL de la API de Correo (MAIL_API_URL)."
-            });
-            return;
-        }
-
         setNotificationModal({
             isOpen: true,
             type: 'loading',
@@ -2446,20 +2443,15 @@ const CSGServiceDetailsModal = ({ service, onClose, mailApiUrl, syncToDatabase }
         });
 
         try {
-            await fetch(mailApiUrl, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({
-                    to: emailData.to,
-                    subject: emailData.subject,
-                    body: emailData.body,
-                    attachments: (service.fotos || []).map((f, i) => ({
-                        name: `${service.tienda} - ${service.fecha} - img${i + 1}.jpg`,
-                        type: 'image/jpeg',
-                        base64: f
-                    }))
-                })
+            await sendEmailCSG('general', {
+                to: emailData.to,
+                subject: emailData.subject,
+                body: emailData.body,
+                attachments: (service.fotos || []).map((f, i) => ({
+                    name: `${service.tienda} - ${service.fecha} - img${i + 1}.jpg`,
+                    type: 'image/jpeg',
+                    base64: f
+                }))
             });
 
             // Sincronizar con la base de datos
@@ -3259,7 +3251,7 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
 };
 
 // ─── CSGView: Contenedor principal del módulo CSG ────────────────────────────
-const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToDatabase, onRefresh, onUpdateCSGStatus, setIsAddingStore, setIsAddingEmployee, onAddStore, onAddEmployee, geminiApiKey, apiUrl, mailApiUrl }) => {
+const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGTab, setActiveCSGTab, isCsgFormOpen, setIsCsgFormOpen, onServiceRegistered, syncToDatabase, onRefresh, onUpdateCSGStatus, setIsAddingStore, setIsAddingEmployee, onAddStore, onAddEmployee, apiUrl }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [isAddingCsgStore, setIsAddingCsgStore] = useState(false);
     const [isAddingCsgEmployee, setIsAddingCsgEmployee] = useState(false);
@@ -3449,11 +3441,10 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 <CSGHistorialView
                     csgServicesData={csgServicesData}
                     onViewPhotos={(s) => setPhotoModal({ open: true, fotos: s.fotos || [], title: `${s.tienda} — ${s.fecha}` })}
-                    mailApiUrl={mailApiUrl}
                     syncToDatabase={syncToDatabase}
                 />
             )}
-            {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} mailApiUrl={mailApiUrl} syncToDatabase={syncToDatabase} csgNominaHistory={csgNominaHistory} onRefreshNomina={fetchNominaHistory} />}
+            {activeCSGTab === 'nomina' && <CSGNominaView csgServicesData={csgServicesData} syncToDatabase={syncToDatabase} csgNominaHistory={csgNominaHistory} onRefreshNomina={fetchNominaHistory} />}
             {activeCSGTab === 'facturacion' && (
                 <CSGBillingView
                     csgServicesData={csgServicesData}
@@ -3464,7 +3455,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
 
             {/* Form Modal */}
             {isCsgFormOpen && (
-                <CSGServiceForm csgStores={csgStores} employees={employees} onClose={() => setIsCsgFormOpen(false)} onSave={handleSave} isSaving={isSaving} geminiApiKey={geminiApiKey} setStatusModal={setStatusModal} />
+                <CSGServiceForm csgStores={csgStores} employees={employees} onClose={() => setIsCsgFormOpen(false)} onSave={handleSave} isSaving={isSaving} setStatusModal={setStatusModal} />
             )}
 
             {/* CSG Store Add View */}
@@ -3508,7 +3499,6 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             <CSGWosView
                 isOpen={isWosOpen}
                 onClose={() => setIsWosOpen(false)}
-                geminiApiKey={geminiApiKey}
                 csgServicesData={csgServicesData}
                 syncToDatabase={syncToDatabase}
                 wosHistoryData={csgWosHistoryData}

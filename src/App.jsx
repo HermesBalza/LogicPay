@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as XLSX from 'xlsx';
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
     MessageSquare,
     Headset,
@@ -93,11 +92,42 @@ import CRMView from './CRMView.jsx';
 
 // ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
 // La API Key debe ser ingresada en la sección de Ajustes para evitar filtraciones.
-const genAIClient = (key) => new GoogleGenerativeAI(key);
-
 // ─── BASE DE DATOS: SQLite via API local (escritura) ───────────────
 const API_URL = 'http://localhost:3001/api/write';
-const MAIL_API_URL = 'https://script.google.com/macros/s/AKfycbwJO2nSGQxA5TjaMUsuhlVUlZhksSFIm1oQihRsM3M9C6BJoMeBOu4mu7Nqxd56bVYunw/exec'; // Vincular con la URL del Script desplegado en la segunda cuenta de Gmail
+const GEMINI_API_URL = 'http://localhost:3001/api/gemini/generate';
+const SEND_EMAIL_API_URL = 'http://localhost:3001/api/send-email';
+
+// Helper: llama a Gemini a través del backend (la API Key nunca sale del servidor)
+// Uso simple: await callGemini("text prompt")
+// Uso multimodal: await callGemini("text", { contents: ["text", { inlineData: { data, mimeType } }] })
+// Uso chat: await callGemini("message", { systemPrompt: "...", history: [...] })
+const callGemini = async (prompt, { model = 'gemini-3-flash-preview', systemPrompt, generationConfig, history, contents } = {}) => {
+  const body = { model, systemPrompt, generationConfig, history };
+  if (contents) {
+    body.contents = contents;
+  } else {
+    body.prompt = prompt;
+  }
+  const res = await fetch(GEMINI_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Error al llamar a Gemini');
+  return data.text;
+};
+
+// Helper: envía email a través del backend (la URL del webhook nunca sale del servidor)
+const sendEmail = async (purpose, { to, cc, subject, body, attachments } = {}) => {
+  const res = await fetch(SEND_EMAIL_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ purpose, to, cc, subject, body, attachments }),
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Error al enviar email');
+};
 
 // ─── BASE DE DATOS: SQLite Local (Lectura) ───────────────
 const LOCAL_API_BASE = 'http://localhost:3001/api/data';
@@ -605,7 +635,7 @@ const LoginView = ({ onLogin }) => {
     );
 };
 
-const SupportChat = ({ geminiApiKey, userName }) => {
+const SupportChat = ({ userName }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [message, setMessage] = useState('');
     const [systemContext, setSystemContext] = useState('');
@@ -639,10 +669,6 @@ const SupportChat = ({ geminiApiKey, userName }) => {
 
     const handleSendMessage = async () => {
         if (!message.trim() || isTyping) return;
-        if (!geminiApiKey) {
-            alert("Por favor, configure su API Key de Gemini en la sección de Ajustes para usar el soporte con IA.");
-            return;
-        }
 
         const userMsg = message.trim();
         setMessage('');
@@ -650,12 +676,6 @@ const SupportChat = ({ geminiApiKey, userName }) => {
         setIsTyping(true);
 
         try {
-            const genAI = new GoogleGenerativeAI(geminiApiKey);
-            const model = genAI.getGenerativeModel({
-                model: "gemini-3-flash-preview"
-            });
-
-            // Contexto Maestro del Sistema para Gemini
             const systemPrompt = `
 Eres AdWis AI, el experto de soporte funcional de Logic Group Management (LogicPay). 
 El usuario actual con el que hablas se llama **${userName || "Usuario"}**. Salúdalo por su nombre de forma cordial al inicio de tu respuesta.
@@ -670,22 +690,16 @@ CÓDIGO FUENTE DEL SISTEMA (BASE DE CONOCIMIENTO):
 ${systemContext || "Contexto cargando..."}
 `;
 
-            const chat = model.startChat({
+            const text = await callGemini(userMsg, {
+                systemPrompt,
                 history: chatHistory
-                    .filter((msg, index) => index > 0) // Saltamos el saludo inicial del modelo
+                    .filter((msg, index) => index > 0)
                     .map(msg => ({
                         role: msg.role === 'user' ? 'user' : 'model',
                         parts: [{ text: msg.text }],
                     })),
-                generationConfig: {
-                    maxOutputTokens: 4000,
-                },
+                generationConfig: { maxOutputTokens: 4000 },
             });
-
-            const prompt = `${systemPrompt}\n\nPregunta del usuario: ${userMsg}`;
-            const result = await chat.sendMessage(prompt);
-            const response = await result.response;
-            const text = response.text();
 
             setChatHistory(prev => [...prev, { role: 'model', text }]);
         } catch (error) {
@@ -2610,7 +2624,7 @@ const StoreAddView = ({ onSave, onBack }) => {
 };
 
 
-const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], wosHistoryData = [], syncToDatabase, onRefreshHistory, onAcceptPayment, setNotificationModal }) => {
+const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], wosHistoryData = [], syncToDatabase, onRefreshHistory, onAcceptPayment, setNotificationModal }) => {
     const fileInputRef = useRef(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isCrossing, setIsCrossing] = useState(false);
@@ -2664,15 +2678,6 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
 
     // --- Lógica de Envío de Ticket (Reclamos) ---
     const handleSendTicketEmail = async (emailData) => {
-        if (!MAIL_API_URL) {
-            setNotificationModal({
-                isOpen: true,
-                type: 'success',
-                message: "Error: No se ha configurado la URL del Script de Correo (MAIL_API_URL). Por favor vincule la cuenta primero."
-            });
-            return;
-        }
-
         setIsSendingTicket(true);
         setNotificationModal({
             isOpen: true,
@@ -2681,19 +2686,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
         });
 
         try {
-            const payload = {
-                to: emailData.to,
-                subject: emailData.subject,
-                body: emailData.body,
-                attachments: emailData.attachments || []
-            };
-
-            await fetch(MAIL_API_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify(payload)
-            });
+            await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: emailData.attachments || [] });
 
             setNotificationModal({
                 isOpen: true,
@@ -2751,20 +2744,10 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
     const handleUploadWOS = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (!geminiApiKey) {
-            alert("Por favor, configure su API Key de Gemini en Ajustes.");
-            return;
-        }
 
         setIsUploading(true);
         try {
             const base64Data = await convertToBase64(file);
-            const genAI = new GoogleGenerativeAI(geminiApiKey);
-            const model = genAI.getGenerativeModel({
-                model: "gemini-3-flash-preview",
-                generationConfig: { responseMimeType: "application/json" }
-            });
-
             const prompt = `
                 Eres un experto en procesamiento de documentos corporativos. Tienes un archivo PDF de un "WORK ORDER SUMMARY" (WOS).
                 
@@ -2801,12 +2784,13 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                 }
             `;
 
-            const result = await model.generateContent([
-                prompt,
-                { inlineData: { data: base64Data, mimeType: "application/pdf" } }
-            ]);
-
-            const responseText = result.response.text();
+            const responseText = await callGemini(prompt, {
+                contents: [
+                    prompt,
+                    { inlineData: { data: base64Data, mimeType: "application/pdf" } }
+                ],
+                generationConfig: { responseMimeType: "application/json" }
+            });
             const cleanJson = JSON.parse(responseText);
 
             setWosData(cleanJson.metadata);
@@ -2822,7 +2806,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
     };
 
     const handleAICrossMatch = async () => {
-        if (!wosServices.length || !geminiApiKey) return;
+        if (!wosServices.length) return;
 
         setIsCrossing(true);
         try {
@@ -2899,13 +2883,7 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                 return { ...svc, _storeCode: storeCode, _storeName: storeName };
             });
 
-            const genAI = new GoogleGenerativeAI(geminiApiKey);
-            const model = genAI.getGenerativeModel({
-                model: "gemini-3-flash-preview",
-                generationConfig: { responseMimeType: "application/json" }
-            });
-
-            const prompt = `
+            const responseText = await callGemini(`
                 Eres un auditor financiero corporativo experto y humano. Tu tarea excluyente es realizar el cruce entre los servicios facturados en un WOS (Work Order Summary) de KBS 
                 y el historial de facturación "Due" de LogicPay. Quiero que uses tu razonamiento analítico y tu capacidad de interpretación profunda.
 
@@ -2932,10 +2910,9 @@ const WOSView = ({ isOpen, onClose, geminiApiKey, nominaHistoryData = [], specia
                         { ...campos_originales_del_wos, "matchedLgmId": "ID_O_NULL" }
                     ]
                 }
-            `;
-
-            const result = await model.generateContent(prompt);
-            const responseText = result.response.text();
+            `, {
+                generationConfig: { responseMimeType: "application/json" }
+            });
 
             // Clean up any potential markdown before parsing
             const cleanResponseText = responseText.replace(/^```json/g, '').replace(/```$/g, '').trim();
@@ -5433,15 +5410,6 @@ const VWHTableModal = (props) => {
     if (!isOpen) return null;
 
     const handleSendEmail = async (emailData) => {
-        if (!MAIL_API_URL) {
-            setNotificationModal({
-                isOpen: true,
-                type: 'success', // Usamos éxito con botón para mostrar errores críticos de config
-                message: "Error: No se ha configurado la URL del Script de Correo (MAIL_API_URL). Por favor vincule la cuenta primero."
-            });
-            return;
-        }
-
         const element = reportRef.current;
         if (!element) return;
 
@@ -5487,22 +5455,7 @@ const VWHTableModal = (props) => {
 
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
-            await fetch(MAIL_API_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({
-                    to: emailData.to,
-                    cc: emailData.cc,
-                    subject: emailData.subject,
-                    body: emailData.body,
-                    attachments: [{
-                        name: `${emailData.subject}.pdf`,
-                        type: 'application/pdf',
-                        base64: pdfBase64
-                    }]
-                })
-            });
+            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
 
             const reportKey = normalizeKey(recordId || `${payrollStore}_${currentStartDate}_${currentEndDate}`);
             if (onEmailSent) onEmailSent(reportKey);
@@ -6519,7 +6472,7 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
     );
 };
 
-const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDetailData, csgNominaData, employees, stores, specialProjectsData, adminPayrollHistory, adminEmployees, paEmailsSent, onEmailSent, MAIL_API_URL }) => {
+const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDetailData, csgNominaData, employees, stores, specialProjectsData, adminPayrollHistory, adminEmployees, paEmailsSent, onEmailSent }) => {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [selectedPeriod, setSelectedPeriod] = useState(null);
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
@@ -6799,20 +6752,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
             try {
                 const pdfResult = await generatePayStubPDF(emp.id);
                 if (pdfResult?.error) throw new Error(pdfResult.error);
-                await fetch(MAIL_API_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify({
-                        to: email,
-                        subject: `Payment Advice - ${selectedPeriod.range}`,
-                        body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`,
-                        attachments: [{
-                            name: `Recibo_${emp.nombre.replace(/\s+/g, '_')}.pdf`,
-                            type: 'application/pdf',
-                            base64: pdfResult
-                        }]
-                    })
-                });
+                await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`, attachments: [{ name: `Recibo_${emp.nombre.replace(/\s+/g, '_')}.pdf`, type: 'application/pdf', base64: pdfResult }] });
                 setSendingProgress(prev => ({ ...prev, logs: [`✅ Enviado a ${email}`, ...prev.logs] }));
 
                 if (onEmailSent) {
@@ -6833,20 +6773,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
         setNotificationModal({ isOpen: true, type: 'loading', message: `Enviando a ${emp.nombre}...` });
         try {
             const pdfBase64 = await generatePayStubPDF(emp.id);
-            await fetch(MAIL_API_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify({
-                    to: email,
-                    subject: `Payment Advice - ${selectedPeriod.range}`,
-                    body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`,
-                    attachments: [{
-                        name: `Recibo_${emp.nombre}.pdf`,
-                        type: 'application/pdf',
-                        base64: pdfBase64
-                    }]
-                })
-            });
+            await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`, attachments: [{ name: `Recibo_${emp.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
             setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
             if (onEmailSent) {
                 const persistentKey = `${selectedPeriod.range.replace(/\s+/g, '')}#${emp.id}`;
@@ -8450,13 +8377,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     }]
                 };
 
-                const response = await fetch(MAIL_API_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    cache: 'no-cache',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(emailPayload)
-                });
+                await sendEmail('payroll', emailPayload);
 
                 setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
                 setSendingProgress(prev => ({ ...prev, logs: [`✅ Enviado con éxito a ${email}`, ...prev.logs] }));
@@ -8505,13 +8426,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 }]
             };
 
-            await fetch(MAIL_API_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                cache: 'no-cache',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(emailPayload)
-            });
+            await sendEmail('payroll', emailPayload);
 
             setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
             setSendingProgress(prev => ({ ...prev, status: 'finished', logs: [`✅ Recibo enviado con éxito a ${email}`, ...prev.logs] }));
@@ -8539,15 +8454,6 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     };
 
     const handleSendNominaEmail = async (emailData) => {
-        if (!MAIL_API_URL) {
-            setNotificationModal({
-                isOpen: true,
-                type: 'success',
-                message: "Error: No se ha configurado la URL del Script de Correo (MAIL_API_URL). Por favor vincule la cuenta primero."
-            });
-            return;
-        }
-
         const element = biweeklyReportRef.current;
         if (!element) return;
 
@@ -8634,21 +8540,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
-            await fetch(MAIL_API_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({
-                    to: emailData.to,
-                    subject: emailData.subject,
-                    body: emailData.body,
-                    attachments: [{
-                        name: `${emailData.subject}.pdf`,
-                        type: 'application/pdf',
-                        base64: pdfBase64
-                    }]
-                })
-            });
+            await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
 
             setNotificationModal({
                 isOpen: true,
@@ -10644,15 +10536,6 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
     const isActuallySent = !!isRadicated;
 
     const handleSendEmail = async (emailData) => {
-        if (!MAIL_API_URL) {
-            setNotificationModal({
-                isOpen: true,
-                type: 'success',
-                message: "Error: No se ha configurado la URL del Script de Correo (MAIL_API_URL). Por favor vincule la cuenta primero."
-            });
-            return;
-        }
-
         const element = reportRef.current;
         if (!element) return;
 
@@ -10680,21 +10563,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
 
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
-            await fetch(MAIL_API_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({
-                    to: emailData.to,
-                    subject: emailData.subject,
-                    body: emailData.body,
-                    attachments: [{
-                        name: `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`,
-                        type: 'application/pdf',
-                        base64: pdfBase64
-                    }]
-                })
-            });
+            await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: [{ name: `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
 
             const reportKey = normalizeKey(project.invoice);
             if (onEmailSent) onEmailSent(reportKey);
@@ -11905,7 +11774,6 @@ const AdminPayrollView = ({
     searchTerm = '',
     setSearchTerm,
     syncToDatabase,
-    mailApiUrl,
     apiUrl,
     onRefresh,
     onAddEmployee,
@@ -13398,32 +13266,159 @@ const InlineEdit = ({ value, onSave }) => {
     );
 };
 
+const CONFIG_KEYS = [
+    { key: 'gemini_api_key', label: 'API Key de Gemini', icon: Zap, type: 'password', description: 'Clave para el motor de inteligencia artificial Gemini.' },
+    { key: 'mail_api_url_general', label: 'Webhook General', icon: Mail, type: 'url', description: 'URL del Script de Google Apps para correos generales (reportes, facturas, WOS).' },
+    { key: 'mail_api_url_payroll', label: 'Webhook Recibos de Pago', icon: Receipt, type: 'url', description: 'URL del Script de Google Apps para enviar recibos de nómina a empleados.' },
+];
+
+const GeneralSettings = () => {
+    const [config, setConfig] = useState({});
+    const [dirty, setDirty] = useState({});
+    const [saving, setSaving] = useState({});
+    const [showSecrets, setShowSecrets] = useState({});
+    const [notification, setNotification] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    const fetchConfig = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch('http://localhost:3001/api/config');
+            const data = await res.json();
+            if (data.success) {
+                setConfig(data.config);
+            }
+        } catch (e) {
+            setNotification({ type: 'error', message: 'Error al cargar configuración' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchConfig(); }, []);
+
+    const handleSave = async (key) => {
+        try {
+            setSaving(prev => ({ ...prev, [key]: true }));
+            const res = await fetch('http://localhost:3001/api/config/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, value: dirty[key] || config[key] }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setNotification({ type: 'success', message: `${CONFIG_KEYS.find(k => k.key === key).label} guardado.` });
+                setDirty(prev => ({ ...prev, [key]: undefined }));
+                await fetchConfig();
+            } else {
+                setNotification({ type: 'error', message: data.error || 'Error al guardar' });
+            }
+        } catch (e) {
+            setNotification({ type: 'error', message: 'Error al guardar' });
+        } finally {
+            setSaving(prev => ({ ...prev, [key]: false }));
+        }
+    };
+
+    const getDisplayValue = (key) => {
+        if (dirty[key] !== undefined) return dirty[key];
+        return config[key] || '';
+    };
+
+    return (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {notification && (
+                <div className={`mb-4 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${notification.type === 'success' ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                    {notification.type === 'success' ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
+                    {notification.message}
+                    <button onClick={() => setNotification(null)} className="ml-auto"><X size={12} /></button>
+                </div>
+            )}
+
+            {loading ? (
+                <div className="flex items-center gap-3 text-gray-400 py-12 justify-center">
+                    <Loader2 size={16} className="animate-spin" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Cargando configuración...</span>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {CONFIG_KEYS.map(({ key, label, icon: Icon, type, description }) => (
+                        <div key={key} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className="p-2 bg-[#303a7f]/5 rounded-xl text-[#303a7f]">
+                                    <Icon size={14} />
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[#303a7f] block">{label}</span>
+                                    <span className="text-[8px] text-gray-400 font-bold uppercase tracking-wider mt-0.5 block">{description}</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="relative flex-1">
+                                    <input
+                                        type={showSecrets[key] ? 'text' : type === 'password' ? 'password' : 'text'}
+                                        value={getDisplayValue(key)}
+                                        onChange={e => setDirty(prev => ({ ...prev, [key]: e.target.value }))}
+                                        placeholder={type === 'password' ? '••••••••••••••••' : 'https://script.google.com/...'}
+                                        className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-3 py-2.5 text-[11px] font-bold text-[#333] outline-none focus:border-[#6bbdb7] transition-colors pr-8"
+                                    />
+                                    {type === 'password' && (
+                                        <button
+                                            onClick={() => setShowSecrets(prev => ({ ...prev, [key]: !prev[key] }))}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-[#303a7f] transition-colors"
+                                        >
+                                            {showSecrets[key] ? <EyeOff size={14} /> : <Eye size={14} />}
+                                        </button>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={() => handleSave(key)}
+                                    disabled={saving[key]}
+                                    className="h-[38px] px-4 bg-[#303a7f] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5 shadow-lg shrink-0"
+                                >
+                                    {saving[key] ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                                    Guardar
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+        </div>
+    );
+};
+
 const SettingsView = ({ vaSchedule, onSaveVASchedule, currentUser, onUserUpdate }) => {
-    const [settingsTab, setSettingsTab] = useState('schedule');
+    const [settingsTab, setSettingsTab] = useState('general');
 
     return (
         <div className="w-full h-full bg-[#f9f9f9] animate-in fade-in duration-700 overflow-y-auto custom-scrollbar">
-            <div className="p-6 lg:p-8">
+            <div className="px-6 lg:px-8">
                 <div className="flex gap-1 mb-6 p-1 bg-white rounded-[1.5rem] border border-gray-100 w-fit shadow-sm">
-                    <button onClick={() => setSettingsTab('schedule')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${settingsTab === 'schedule' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-white'}`}>
-                        <Clock size={14} /> Horario Asistentes
-                    </button>
-                    <button onClick={() => setSettingsTab('users')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${settingsTab === 'users' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-white'}`}>
-                        <Users size={14} /> Usuarios
+                    <button onClick={() => setSettingsTab('general')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${settingsTab === 'general' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-white'}`}>
+                        <Settings size={14} /> General
                     </button>
                     <button onClick={() => setSettingsTab('database')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${settingsTab === 'database' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-white'}`}>
                         <Database size={14} /> Base de Datos
                     </button>
+                    <button onClick={() => setSettingsTab('users')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${settingsTab === 'users' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-white'}`}>
+                        <Users size={14} /> Usuarios
+                    </button>
+                    <button onClick={() => setSettingsTab('schedule')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${settingsTab === 'schedule' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-white'}`}>
+                        <Clock size={14} /> Horario Asistentes
+                    </button>
                 </div>
 
-                {settingsTab === 'schedule' && (
-                    <VAScheduleSettings vaSchedule={vaSchedule} onSave={onSaveVASchedule} />
+                {settingsTab === 'general' && <GeneralSettings />}
+                {settingsTab === 'database' && (
+                    <DatabaseExplorer />
                 )}
                 {settingsTab === 'users' && (
                     <UserManager currentUser={currentUser} onUserUpdate={onUserUpdate} />
                 )}
-                {settingsTab === 'database' && (
-                    <DatabaseExplorer />
+                {settingsTab === 'schedule' && (
+                    <VAScheduleSettings vaSchedule={vaSchedule} onSave={onSaveVASchedule} />
                 )}
             </div>
         </div>
@@ -13555,10 +13550,6 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
     };
 
     const handleSendEmail = async (emailData) => {
-        if (!MAIL_API_URL) {
-            setNotificationModal({ isOpen: true, type: 'success', message: "Error: MAIL_API_URL no configurado." });
-            return;
-        }
         const element = reportRef.current;
         if (!element) return;
         setIsSendingEmail(true);
@@ -13571,13 +13562,7 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
-            await fetch(MAIL_API_URL, {
-                method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({
-                    to: emailData.to, subject: emailData.subject, body: emailData.body,
-                    attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }]
-                })
-            });
+            await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
             setNotificationModal({ isOpen: true, type: 'success', message: `Reporte enviado con éxito a ${emailData.to}.` });
             setIsEmailModalOpen(false);
         } catch (error) {
@@ -13882,7 +13867,6 @@ function App() {
     const [payrollResults, setPayrollResults] = useState([]);
     const [isProcessingPayroll, setIsProcessingPayroll] = useState(false);
     const [isProcessingIA, setIsProcessingIA] = useState(false);
-    const [geminiApiKey, setGeminiApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || '');
     const [verificationResults, setVerificationResults] = useState([]); // FASE 4: Resultados de verificación
     const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false); // FASE 4: Control del modal
     const [isSyncingBatch, setIsSyncingBatch] = useState(false); // FASE 4.8: Estado de sincronización masiva
@@ -14853,10 +14837,6 @@ function App() {
 
     // --- Nueva Lógica: Corrección de Excel asistida por Gemini AI ---
     const runAIExcelCorrection = async (resolutions) => {
-        if (!geminiApiKey) {
-            throw new Error("Clave de API de Gemini no encontrada. Por favor, configúrela en Ajustes.");
-        }
-
         const wb = activeWorkbookRef.current;
         const wsName = activeSheetNameRef.current;
         if (!wb || !wsName) throw new Error("No hay un reporte activo para corregir.");
@@ -14872,12 +14852,6 @@ function App() {
             officialCode: res.resolvedEmployee ? res.resolvedEmployee.codigo_empleado : res.tempCodigo,
             isExcluded: res.isExcluded || false
         }));
-
-        const genAI = new GoogleGenerativeAI(geminiApiKey);
-        const model = genAI.getGenerativeModel({
-            model: "gemini-3-flash-preview",
-            generationConfig: { responseMimeType: "application/json" }
-        });
 
         const prompt = `
             Eres un experto en nómina. Tu tarea es corregir un reporte de asistencia (JSON AOA) basándote en resoluciones manuales.
@@ -14905,9 +14879,9 @@ function App() {
             Devuelve ÚNICAMENTE el JSON Array of Arrays, sin etiquetas, sin markdown, sin explicaciones.
         `;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+        const text = await callGemini(prompt, {
+            generationConfig: { responseMimeType: "application/json" }
+        });
         const cleanedText = text.replace(/```json|```/g, '').trim();
         return JSON.parse(cleanedText);
     };
@@ -14987,10 +14961,6 @@ function App() {
             return;
         }
         if (!supervisorFile && biometricFile) {
-            if (!geminiApiKey) {
-                showError('Para procesar el Reporte IVR debe ingresar su clave de Gemini en Ajustes.');
-                return;
-            }
             setIsProcessingPayroll(true);
             document.body.style.overflow = 'hidden';
             await runAICrossoverInternal();
@@ -15095,7 +15065,7 @@ function App() {
             syncVariableToDatabase('payroll_drafts', JSON.stringify(updatedDrafts));
 
             // --- AUTOMATIZACIÓN FASE 2: Iniciar procesamiento de IA inmediatamente ---
-            if (biometricFile && geminiApiKey) {
+            if (biometricFile) {
                 console.log('[Payroll] Iniciando Fase 2 (IA) automáticamente...');
                 // Llamamos a la lógica de la IA sin bloquear el estado de carga principal si se prefiere, 
                 // pero por consistencia lo haremos parte del mismo flujo.
@@ -15175,13 +15145,6 @@ function App() {
         }
     };
     const handleSendHoursReportEmail = async (emailData) => {
-        if (!MAIL_API_URL) {
-            setStatusModalTitle("Error de Configuración");
-            setStatusModalMessage("Error: No se ha configurado la URL del Script de Correo (MAIL_API_URL). Por favor vincule la cuenta primero.");
-            setStatusModalType("error");
-            setIsStatusModalOpen(true);
-            return;
-        }
         setIsSendingHoursReport(true);
         try {
             // Sanitizar nombres para el archivo adjunto
@@ -15329,18 +15292,7 @@ function App() {
                 });
             }
 
-            await fetch(MAIL_API_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({
-                    to: emailData.to,
-                    cc: emailData.cc,
-                    subject: emailData.subject,
-                    body: emailData.body,
-                    attachments: attachments
-                })
-            });
+            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments });
 
             setStatusModalTitle("Envío Exitoso");
             setStatusModalMessage(`El reporte de horas ha sido enviado correctamente a ${emailData.to}.`);
@@ -15660,17 +15612,9 @@ function App() {
                 return recordDate >= weekStart && recordDate <= weekEnd;
             });
 
-            setRawBiometricData(biometricData); // Guardamos la data cruda para el modal de detalles
+            setRawBiometricData(biometricData);
 
-            const genAI = new GoogleGenerativeAI(geminiApiKey);
-            const model = genAI.getGenerativeModel({
-                model: "gemini-3-flash-preview",
-                generationConfig: { responseMimeType: "application/json" }
-            });
-
-            console.log("Sincronización con Motor Gemini 3 Flash establecida correctamente");
-
-            const prompt = `
+            const text = await callGemini(`
                 Eres un motor de procesamiento de nómina especializado. Tengo registros de ponches biométricos en JSON.
                 TAREA CRÍTICA:
                 1. Agrupa por ID de empleado (Crew ID).
@@ -15697,12 +15641,10 @@ function App() {
                     }
                   ] 
                 }
-            `;
-
-            const result = await model.generateContent(prompt);
+            `, {
+                generationConfig: { responseMimeType: "application/json" }
+            });
             setPayrollProgress(75);
-            const response = await result.response;
-            const text = response.text();
             const aiData = JSON.parse(text.replace(/```json|```/g, '').trim());
 
             if (aiData && aiData.rows) {
@@ -15967,7 +15909,7 @@ function App() {
     }, [variablesLoaded]);
 
     const processSheetImagesWithAI = async () => {
-        if (!sheetFiles.length || !geminiApiKey) {
+        if (!sheetFiles.length) {
             showError("Faltan imágenes o clave de API para procesar.");
             return;
         }
@@ -15996,14 +15938,6 @@ function App() {
                     }
                 ];
             }));
-
-            const genAI = new GoogleGenerativeAI(geminiApiKey);
-            const model = genAI.getGenerativeModel({
-                model: "gemini-3-flash-preview",
-                generationConfig: { responseMimeType: "application/json" }
-            });
-
-            console.log("Sincronización con Motor Gemini 3 Flash establecida correctamente");
 
             // Obtener lista de empleados de la tienda actual para contexto (Fuzzy Matching)
             const storeEmployees = employees
@@ -16045,10 +15979,10 @@ function App() {
                 }
             `;
 
-            const flattenedParts = [{ text: prompt }, ...imageParts.flat()];
-            const result = await model.generateContent(flattenedParts);
-            const response = await result.response;
-            const text = response.text();
+            const text = await callGemini(prompt, {
+                contents: [{ text: prompt }, ...imageParts.flat()],
+                generationConfig: { responseMimeType: "application/json" }
+            });
             const aiData = JSON.parse(text.replace(/```json|```/g, '').trim());
 
             if (aiData && aiData.employees) {
@@ -18337,22 +18271,6 @@ function App() {
                                             <span className="text-[9px] font-black uppercase tracking-widest leading-none truncate lg:hidden">Volver al Historial</span>
                                         </button>
                                     </div>
-
-                                    {!geminiApiKey && (
-                                        <div className="md:col-span-12 mt-2">
-                                            <div className="w-full p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in duration-500 mb-0">
-                                                <div className="p-2 bg-amber-100 rounded-xl text-amber-600 shrink-0">
-                                                    <Lock size={14} />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-[9px] font-black text-amber-700 uppercase tracking-tight truncate">IA OFF</p>
-                                                    <p className="text-[8px] text-amber-600 font-bold leading-tight">
-                                                        Configure su nueva clave en <button onClick={() => setActiveTab('settings')} className="underline font-black hover:text-amber-800 transition-colors tracking-tight">Ajustes</button> para activar el cruce inteligente.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
 
                                 {(() => {
@@ -18999,9 +18917,7 @@ function App() {
                             setIsAddingEmployee={setIsAddingEmployee}
                             onAddStore={handleCreateStore}
                             onAddEmployee={handleCreateEmployee}
-                            geminiApiKey={geminiApiKey}
                             apiUrl={API_URL}
-                            mailApiUrl={MAIL_API_URL}
                         />
                     )}
 
@@ -19014,7 +18930,6 @@ function App() {
                             searchTerm={adminPayrollSearchTerm}
                             setSearchTerm={setAdminPayrollSearchTerm}
                             syncToDatabase={syncToDatabase}
-                            mailApiUrl={MAIL_API_URL}
                             apiUrl={API_URL}
                             onRefresh={fetchAdminEmployees}
                             onAddEmployee={handleCreateAdminEmployee}
@@ -19505,7 +19420,6 @@ function App() {
                     setPaEmailsSent(updated);
                     syncVariableToDatabase('pa_emails_sent', updated);
                 }}
-                MAIL_API_URL={MAIL_API_URL}
             />
 
             {/* FASE 8: MODAL DE PREVIEW DE PLANILLAS */}
@@ -19836,7 +19750,6 @@ function App() {
             <WOSView
                 isOpen={isWOSOpen}
                 onClose={() => setIsWOSOpen(false)}
-                geminiApiKey={geminiApiKey}
                 nominaHistoryData={nominaHistoryData}
                 specialProjectsHistoryData={specialProjectsHistoryData}
                 stores={stores}
@@ -20002,7 +19915,7 @@ function App() {
             />
 
             {/* Soporte Técnico - Ventana de Chat vinculada con Gemini AI */}
-            <SupportChat geminiApiKey={geminiApiKey} userName={user?.nombre || user?.name} />
+            <SupportChat userName={user?.nombre || user?.name} />
             <EmailNotificationModal isOpen={notificationModal.isOpen} type={notificationModal.type} message={notificationModal.message} onOk={() => setNotificationModal({ ...notificationModal, isOpen: false })} />
         </div>
     );

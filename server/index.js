@@ -398,6 +398,134 @@ app.post('/api/notas/:id/read', (req, res) => {
 });
 
 // ---------------------------------------------------------------------
+// Config Management Endpoints (General Settings)
+// ---------------------------------------------------------------------
+
+// Helper: seed config values into Variables if they don't exist
+function seedConfigVariables() {
+  // Ensure Variables table exists
+  db.exec(`CREATE TABLE IF NOT EXISTS Variables ("key" TEXT PRIMARY KEY, "value" TEXT);`);
+  const seedData = [
+    { key: 'gemini_api_key', value: process.env.VITE_GEMINI_API_KEY || '' },
+    { key: 'mail_api_url_general', value: 'https://script.google.com/macros/s/AKfycbwJO2nSGQxA5TjaMUsuhlVUlZhksSFIm1oQihRsM3M9C6BJoMeBOu4mu7Nqxd56bVYunw/exec' },
+    { key: 'mail_api_url_payroll', value: '' },
+  ];
+  for (const { key, value } of seedData) {
+    const exists = db.prepare("SELECT 1 FROM Variables WHERE \"key\" = ?").get(key);
+    if (!exists && value) {
+      db.prepare("INSERT INTO Variables (\"key\", \"value\") VALUES (?, ?)").run(key, value);
+      console.log(`[Config] Seeded ${key}`);
+    }
+  }
+}
+seedConfigVariables();
+
+// GET /api/config — returns all config with masked values for display
+app.get('/api/config', (req, res) => {
+  try {
+    const rows = db.prepare("SELECT \"key\", \"value\" FROM Variables WHERE \"key\" IN ('gemini_api_key', 'mail_api_url_general', 'mail_api_url_payroll')").all();
+    const config = {};
+    for (const row of rows) {
+      const val = row.value || '';
+      if (val.length <= 8) {
+        config[row.key] = val.replace(/./g, '*');
+      } else {
+        config[row.key] = val.slice(0, 4) + '*'.repeat(val.length - 8) + val.slice(-4);
+      }
+    }
+    res.json({ success: true, config });
+  } catch (error) {
+    console.error('Error reading config:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/config/save — saves a config value to Variables
+app.post('/api/config/save', (req, res) => {
+  try {
+    const { key, value } = req.body;
+    const allowedKeys = ['gemini_api_key', 'mail_api_url_general', 'mail_api_url_payroll'];
+    if (!allowedKeys.includes(key)) {
+      return res.status(400).json({ success: false, error: 'Clave no permitida' });
+    }
+    db.prepare("INSERT OR REPLACE INTO Variables (\"key\", \"value\") VALUES (?, ?)").run(key, String(value));
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving config:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/gemini/generate — proxies Gemini API calls securely (key never leaves server)
+app.post('/api/gemini/generate', async (req, res) => {
+  try {
+    const { prompt, contents, model: modelName, systemPrompt, generationConfig, history } = req.body;
+    const keyRow = db.prepare("SELECT value FROM Variables WHERE key = 'gemini_api_key'").get();
+    if (!keyRow || !keyRow.value) {
+      return res.status(400).json({ success: false, error: 'API Key de Gemini no configurada. Ve a Ajustes > General.' });
+    }
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(keyRow.value);
+    const model = genAI.getGenerativeModel({
+      model: modelName || 'gemini-3-flash-preview',
+      generationConfig: generationConfig || undefined,
+    });
+
+    let result;
+    if (systemPrompt) {
+      // Support chat with system instruction + optional history
+      const chat = model.startChat({
+        history: history || [],
+        systemInstruction: systemPrompt,
+        generationConfig: generationConfig || undefined,
+      });
+      result = await chat.sendMessage(prompt);
+    } else if (history && Array.isArray(history) && history.length > 0) {
+      const chat = model.startChat({ history, generationConfig: generationConfig || undefined });
+      result = await chat.sendMessage(prompt);
+    } else if (contents && Array.isArray(contents)) {
+      // Multimodal content (text + images/PDFs)
+      result = await model.generateContent(contents);
+    } else {
+      result = await model.generateContent(prompt);
+    }
+    const text = result.response.text();
+    res.json({ success: true, text });
+  } catch (error) {
+    console.error('Gemini API error:', error.message);
+    const detail = error.message || 'Error al comunicarse con Gemini';
+    res.status(500).json({ success: false, error: detail });
+  }
+});
+
+// POST /api/send-email — proxies email sending via Google Apps Script (webhook URLs never exposed to frontend)
+app.post('/api/send-email', async (req, res) => {
+  try {
+    const { purpose, to, cc, subject, body, attachments } = req.body;
+    if (!to || !subject || !body) {
+      return res.status(400).json({ success: false, error: 'Faltan campos requeridos (to, subject, body)' });
+    }
+    const urlKey = purpose === 'payroll' ? 'mail_api_url_payroll' : 'mail_api_url_general';
+    const urlRow = db.prepare("SELECT value FROM Variables WHERE key = ?").get(urlKey);
+    if (!urlRow || !urlRow.value) {
+      return res.status(400).json({ success: false, error: `URL de webhook ${purpose === 'payroll' ? 'de Recibos de Pago' : 'general'} no configurada. Ve a Ajustes > General.` });
+    }
+    const webhookUrl = urlRow.value;
+    const payload = { to, cc, subject, body, attachments };
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload),
+    });
+    // Google Apps Script web apps may return empty or opaque responses
+    res.json({ success: true, status: response.status });
+  } catch (error) {
+    console.error('Email send error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ---------------------------------------------------------------------
 // Backup endpoint
 // ---------------------------------------------------------------------
 app.get('/api/backup', (req, res) => {
