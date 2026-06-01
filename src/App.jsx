@@ -18698,6 +18698,7 @@ function App() {
                                                                                 String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
                                                                                 h.fecha_inicio === fechaDesde
                                                                             ) && (
+                                                                                <>
                                                                                 <button
                                                                                     onClick={() => { setEmployeeSelectorMode('replace'); setEmployeeSelectorRowIdx(idx); setEmployeeSearchQuery(''); setIsEmployeeSelectorOpen(true); }}
                                                                                     className="w-5 h-5 rounded-full bg-gray-100 text-gray-400 hover:bg-amber-100 hover:text-amber-600 transition-all flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100"
@@ -18705,6 +18706,14 @@ function App() {
                                                                                 >
                                                                                     <Pencil size={10} />
                                                                                 </button>
+                                                                                <button
+                                                                                    onClick={() => setSemanaTableData(prev => prev.filter((r, j) => j !== idx))}
+                                                                                    className="w-5 h-5 rounded-full bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-500 transition-all flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100"
+                                                                                    title="Eliminar empleado"
+                                                                                >
+                                                                                    <Trash2 size={10} />
+                                                                                </button>
+                                                                                </>
                                                                             )}
                                                                         </div>
                                                                         <span className="text-[9px] font-black text-[#6bbdb7] tabular-nums tracking-[0.1em] mt-1">ID: {row.codigo || '----'}</span>
