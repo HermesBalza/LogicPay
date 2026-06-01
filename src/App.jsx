@@ -12923,6 +12923,7 @@ const UserManager = ({ currentUser }) => {
 
     // Formulario nuevo usuario
     const [newUserForm, setNewUserForm] = useState({ nombre: '', email: '', password: '', confirmPassword: '', rol: 'Asistente', foto: '' });
+    const [newUserFotoPreview, setNewUserFotoPreview] = useState(null);
     const [savingNew, setSavingNew] = useState(false);
 
     // Cambio de contraseña
@@ -12947,6 +12948,31 @@ const UserManager = ({ currentUser }) => {
     };
 
     useEffect(() => { fetchUsers(); }, []);
+
+    const handleNewUserFoto = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 500;
+                canvas.height = 500;
+                const ctx = canvas.getContext('2d');
+                const s = Math.min(img.width, img.height);
+                const sx = (img.width - s) / 2;
+                const sy = (img.height - s) / 2;
+                ctx.drawImage(img, sx, sy, s, s, 0, 0, 500, 500);
+                const base64 = canvas.toDataURL('image/jpeg', 0.9);
+                setNewUserForm(f => ({ ...f, foto: base64 }));
+                setNewUserFotoPreview(base64);
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    };
 
     const handleSaveNewUser = async () => {
         if (!newUserForm.nombre.trim()) { showNotif('El nombre es obligatorio', 'error'); return; }
@@ -13178,35 +13204,57 @@ const UserManager = ({ currentUser }) => {
             {/* Modal Nuevo Usuario */}
             {showNewUser && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => !savingNew && setShowNewUser(false)}>
-                    <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-8 flex flex-col animate-in zoom-in-95 duration-300 border-2 border-white" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-8 animate-in zoom-in-95 duration-300 border-2 border-white" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-8">
                             <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase">Nuevo Usuario</h3>
                             <button onClick={() => setShowNewUser(false)} className="text-gray-300 hover:text-red-500 transition-colors"><X size={20} /></button>
                         </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Nombre</label>
-                                <input type="text" value={newUserForm.nombre} onChange={e => setNewUserForm(f => ({ ...f, nombre: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="Nombre completo" />
+                        <div className="flex gap-8">
+                            <div className="flex flex-col items-center gap-4 w-48 flex-shrink-0">
+                                <div className="w-40 h-40 rounded-[2rem] overflow-hidden border-2 border-gray-100 bg-[#f9f9f9] flex items-center justify-center shadow-inner">
+                                    {newUserFotoPreview ? (
+                                        <img src={newUserFotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <Camera size={48} className="text-gray-200" />
+                                    )}
+                                </div>
+                                <label className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#f9f9f9] border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer hover:border-[#6bbdb7] hover:bg-[#6bbdb7]/5 transition-all font-bold text-[10px] text-gray-400 uppercase tracking-widest">
+                                    <Camera size={14} /> {newUserFotoPreview ? 'Cambiar foto' : 'Subir foto'}
+                                    <input type="file" accept="image/*" onChange={handleNewUserFoto} className="hidden" />
+                                </label>
+                                {newUserFotoPreview && (
+                                    <button onClick={() => { setNewUserForm(f => ({ ...f, foto: '' })); setNewUserFotoPreview(null); }} className="text-[9px] font-black text-red-300 hover:text-red-500 uppercase tracking-widest transition-colors">
+                                        Eliminar foto
+                                    </button>
+                                )}
                             </div>
-                            <div>
-                                <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Email</label>
-                                <input type="email" value={newUserForm.email} onChange={e => setNewUserForm(f => ({ ...f, email: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="email@ejemplo.com" />
-                            </div>
-                            <div>
-                                <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Rol</label>
-                                <select value={newUserForm.rol} onChange={e => setNewUserForm(f => ({ ...f, rol: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all">
-                                    <option value="Asistente">Asistente</option>
-                                    <option value="CEO">CEO</option>
-                                    <option value="Desarrollador">Desarrollador</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Contraseña (mín. 6 caracteres)</label>
-                                <input type="password" value={newUserForm.password} onChange={e => setNewUserForm(f => ({ ...f, password: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="••••••••" />
-                            </div>
-                            <div>
-                                <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Confirmar Contraseña</label>
-                                <input type="password" value={newUserForm.confirmPassword} onChange={e => setNewUserForm(f => ({ ...f, confirmPassword: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="••••••••" />
+                            <div className="flex-1 space-y-4">
+                                <div>
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Nombre</label>
+                                    <input type="text" value={newUserForm.nombre} onChange={e => setNewUserForm(f => ({ ...f, nombre: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="Nombre completo" />
+                                </div>
+                                <div>
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Email</label>
+                                    <input type="email" value={newUserForm.email} onChange={e => setNewUserForm(f => ({ ...f, email: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="email@ejemplo.com" />
+                                </div>
+                                <div>
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Rol</label>
+                                    <select value={newUserForm.rol} onChange={e => setNewUserForm(f => ({ ...f, rol: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all">
+                                        <option value="Asistente">Asistente</option>
+                                        <option value="CEO">CEO</option>
+                                        <option value="Desarrollador">Desarrollador</option>
+                                    </select>
+                                </div>
+                                <div className="flex gap-3">
+                                    <div className="flex-1">
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Contraseña</label>
+                                        <input type="password" value={newUserForm.password} onChange={e => setNewUserForm(f => ({ ...f, password: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="mín. 6 caracteres" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest ml-1 mb-1.5 block">Confirmar</label>
+                                        <input type="password" value={newUserForm.confirmPassword} onChange={e => setNewUserForm(f => ({ ...f, confirmPassword: e.target.value }))} className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all" placeholder="••••••••" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div className="flex gap-3 mt-8">
