@@ -12533,21 +12533,50 @@ const DatabaseExplorer = () => {
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [pkColumns, setPkColumns] = useState([]);
+    const [editingCell, setEditingCell] = useState({ row: null, col: null });
+    const [editValue, setEditValue] = useState('');
+    const [savingCell, setSavingCell] = useState(false);
+    const [confirmDeleteRow, setConfirmDeleteRow] = useState(null);
+    const [deletingRow, setDeletingRow] = useState(false);
+    const [showColumnManager, setShowColumnManager] = useState(false);
+    const [columnInfo, setColumnInfo] = useState([]);
+    const [selectedColsToDelete, setSelectedColsToDelete] = useState([]);
+    const [deletingCol, setDeletingCol] = useState(false);
+    const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+
+    const showNotif = (message, type = 'success') => {
+        setNotification({ show: true, message, type });
+        setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
+    };
 
     const fetchTableData = async (table) => {
         if (!table) return;
         setLoading(true);
         setError('');
+        setEditingCell({ row: null, col: null });
+        setConfirmDeleteRow(null);
         try {
-            const res = await fetch(`${DB_DATA_API}/${table}`, { cache: 'no-store' });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
+            const [dataRes, infoRes] = await Promise.all([
+                fetch(`${DB_DATA_API}/${table}`, { cache: 'no-store' }),
+                fetch(`http://localhost:3001/api/table-info/${table}`, { cache: 'no-store' })
+            ]);
+            if (!dataRes.ok) throw new Error(`HTTP ${dataRes.status}`);
+            const data = await dataRes.json();
             if (data.length > 0) {
                 setColumns(Object.keys(data[0]));
             } else {
                 setColumns([]);
             }
             setRows(data);
+            if (infoRes.ok) {
+                const info = await infoRes.json();
+                setPkColumns(info.pkColumns || []);
+                setColumnInfo(info.columns || []);
+            } else {
+                setPkColumns([]);
+                setColumnInfo([]);
+            }
         } catch (e) {
             setError(`Error al cargar datos: ${e.message}`);
             setColumns([]);
@@ -12561,6 +12590,91 @@ const DatabaseExplorer = () => {
         fetchTableData(selectedTable);
     }, [selectedTable]);
 
+    const getMatchKeys = () => {
+        if (pkColumns.length > 0) return pkColumns;
+        if (columns.includes('id')) return ['id'];
+        if (columns.includes('key')) return ['key'];
+        return columns.length > 0 ? [columns[0]] : [];
+    };
+
+    const handleCellSave = async (row, col) => {
+        const matchKeys = getMatchKeys();
+        if (!matchKeys.length) {
+            showNotif('No se puede identificar una clave única para esta tabla', 'error');
+            return;
+        }
+        const data = { ...row, [col]: editValue };
+        setSavingCell(true);
+        try {
+            const res = await fetch('http://localhost:3001/api/write', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'upsert', sheetName: selectedTable, data, matchKeys })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            showNotif(`Celda "${col}" actualizada`);
+            setEditingCell({ row: null, col: null });
+            fetchTableData(selectedTable);
+        } catch (e) {
+            showNotif(`Error al guardar: ${e.message}`, 'error');
+        } finally {
+            setSavingCell(false);
+        }
+    };
+
+    const handleDeleteRow = async (row) => {
+        const matchKeys = getMatchKeys();
+        if (!matchKeys.length) {
+            showNotif('No se puede eliminar: no hay clave única', 'error');
+            setConfirmDeleteRow(null);
+            return;
+        }
+        const data = {};
+        matchKeys.forEach(k => { data[k] = row[k]; });
+        setDeletingRow(true);
+        try {
+            const res = await fetch('http://localhost:3001/api/write', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'delete', sheetName: selectedTable, data, matchKeys })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            showNotif('Fila eliminada correctamente');
+            setConfirmDeleteRow(null);
+            fetchTableData(selectedTable);
+        } catch (e) {
+            showNotif(`Error al eliminar: ${e.message}`, 'error');
+        } finally {
+            setDeletingRow(false);
+        }
+    };
+
+    const handleDeleteColumns = async () => {
+        if (!selectedColsToDelete.length) return;
+        setDeletingCol(true);
+        try {
+            for (const col of selectedColsToDelete) {
+                const res = await fetch('http://localhost:3001/api/alter-table', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ table: selectedTable, action: 'dropColumn', columnName: col })
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || `Error eliminando columna "${col}"`);
+                }
+            }
+            showNotif(`${selectedColsToDelete.length} columna(s) eliminada(s)`);
+            setSelectedColsToDelete([]);
+            setShowColumnManager(false);
+            fetchTableData(selectedTable);
+        } catch (e) {
+            showNotif(`Error: ${e.message}`, 'error');
+        } finally {
+            setDeletingCol(false);
+        }
+    };
+
     const formatCellValue = (val) => {
         if (val === null || val === undefined) return '—';
         const str = String(val);
@@ -12568,31 +12682,87 @@ const DatabaseExplorer = () => {
         return str;
     };
 
+    const matchKeys = getMatchKeys();
+
     return (
         <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm overflow-hidden animate-in fade-in duration-500">
+            {notification.show && (
+                <div className={`fixed top-6 right-6 z-[200] px-6 py-4 rounded-[1.5rem] shadow-2xl animate-in slide-in-from-top-4 duration-300 flex items-center gap-3 ${notification.type === 'error' ? 'bg-red-50 border-2 border-red-100' : 'bg-green-50 border-2 border-green-100'}`}>
+                    {notification.type === 'error' ? <AlertCircle size={18} className="text-red-500" /> : <CheckCircle size={18} className="text-green-500" />}
+                    <span className={`text-[11px] font-black uppercase tracking-wider ${notification.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>{notification.message}</span>
+                </div>
+            )}
+
             <div className="px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-[#303a7f]/5 to-transparent">
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase">Explorador de Base de Datos</h3>
-                        <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-1">Visualizar tablas y registros</p>
+                        <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-1">Visualizar y editar tablas y registros</p>
                     </div>
-                    <div className="relative min-w-[240px]">
-                        <select
-                            value={selectedTable}
-                            onChange={(e) => setSelectedTable(e.target.value)}
-                            className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all appearance-none cursor-pointer"
-                        >
-                            <option value="">Seleccionar tabla...</option>
-                            {ALLOWED_TABLES.map(t => (
-                                <option key={t} value={t}>{t}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-300">
-                            <ChevronDown size={16} />
+                    <div className="flex items-center gap-3">
+                        {selectedTable && columns.length > 0 && (
+                            <button onClick={() => { setShowColumnManager(!showColumnManager); setSelectedColsToDelete([]); }} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all border ${showColumnManager ? 'bg-[#303a7f] text-white border-[#303a7f]' : 'bg-white text-gray-500 border-gray-200 hover:border-[#303a7f]/30 hover:text-[#303a7f]'}`}>
+                                <Settings size={13} /> Columnas
+                            </button>
+                        )}
+                        <div className="relative min-w-[220px]">
+                            <select
+                                value={selectedTable}
+                                onChange={(e) => setSelectedTable(e.target.value)}
+                                className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all appearance-none cursor-pointer"
+                            >
+                                <option value="">Seleccionar tabla...</option>
+                                {ALLOWED_TABLES.map(t => (
+                                    <option key={t} value={t}>{t}</option>
+                                ))}
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-300">
+                                <ChevronDown size={16} />
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {showColumnManager && columnInfo.length > 0 && (
+                <div className="mx-6 my-4 p-5 bg-[#f9f9f9] rounded-2xl border border-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider">Administrar Columnas</h4>
+                        <button onClick={() => { setShowColumnManager(false); setSelectedColsToDelete([]); }} className="text-gray-400 hover:text-red-500 transition-colors"><X size={16} /></button>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 mb-4 max-h-[200px] overflow-y-auto">
+                        {columnInfo.map(col => (
+                            <label key={col.name} className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border border-gray-100 cursor-pointer hover:border-red-200 transition-colors text-[10px] font-bold text-[#333333]">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedColsToDelete.includes(col.name)}
+                                    onChange={(e) => {
+                                        if (col.pk > 0) return;
+                                        setSelectedColsToDelete(prev =>
+                                            e.target.checked ? [...prev, col.name] : prev.filter(c => c !== col.name)
+                                        );
+                                    }}
+                                    disabled={col.pk > 0}
+                                    className="w-3.5 h-3.5 rounded border-gray-300 text-red-500 focus:ring-red-200 cursor-pointer"
+                                />
+                                <span className="truncate">{col.name}</span>
+                                {col.pk > 0 && <span className="text-[8px] font-black text-[#6bbdb7] uppercase ml-auto">PK</span>}
+                            </label>
+                        ))}
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleDeleteColumns}
+                            disabled={!selectedColsToDelete.length || deletingCol}
+                            className={`px-5 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 ${selectedColsToDelete.length && !deletingCol ? 'bg-red-500 text-white shadow-lg shadow-red-900/20 hover:bg-red-600' : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}
+                        >
+                            {deletingCol ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                            {deletingCol ? 'Eliminando...' : `Eliminar ${selectedColsToDelete.length} columna(s)`}
+                        </button>
+                        <span className="text-[9px] text-gray-400 font-bold">Las columnas PK no se pueden eliminar</span>
+                    </div>
+                </div>
+            )}
 
             <div className="p-0">
                 {!selectedTable && (
@@ -12627,25 +12797,68 @@ const DatabaseExplorer = () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-[#303a7f] sticky top-0 z-10">
-                                    <th className="px-4 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r border-white/10 w-10">#</th>
+                                    <th className="px-3 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r border-white/10 w-8">#</th>
                                     {columns.map(col => (
-                                        <th key={col} className="px-4 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r last:border-r-0 border-white/10 whitespace-nowrap min-w-[120px]">
-                                            {col}
+                                        <th key={col} className="px-3 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r last:border-r-0 border-white/10 whitespace-nowrap min-w-[100px]">
+                                            <div className="flex items-center gap-1">
+                                                <span>{col}</span>
+                                                {pkColumns.includes(col) && <span className="text-[8px] text-[#6bbdb7] font-black">PK</span>}
+                                            </div>
                                         </th>
                                     ))}
+                                    <th className="px-3 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] w-12">Acción</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {rows.map((row, idx) => (
-                                    <tr key={idx} className="hover:bg-[#303a7f]/5 transition-colors border-b border-gray-50">
-                                        <td className="px-4 py-2.5 text-[9px] font-black text-gray-400 border-r border-gray-50 text-center">
+                                    <tr key={idx} className="hover:bg-[#303a7f]/5 transition-colors border-b border-gray-50 group">
+                                        <td className="px-3 py-2.5 text-[9px] font-black text-gray-400 border-r border-gray-50 text-center">
                                             {idx + 1}
                                         </td>
                                         {columns.map(col => (
-                                            <td key={col} className="px-4 py-2.5 text-[11px] font-bold text-[#333333] border-r last:border-r-0 border-gray-50 max-w-[300px] truncate" title={String(row[col] || '')}>
-                                                {formatCellValue(row[col])}
+                                            <td key={col} className="px-3 py-2.5 text-[11px] font-bold text-[#333333] border-r last:border-r-0 border-gray-50 max-w-[250px] relative">
+                                                {editingCell.row === idx && editingCell.col === col ? (
+                                                    <div className="flex items-center gap-1 animate-in fade-in duration-100">
+                                                        <input
+                                                            type="text"
+                                                            value={editValue}
+                                                            onChange={(e) => setEditValue(e.target.value)}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') handleCellSave(row, col);
+                                                                if (e.key === 'Escape') setEditingCell({ row: null, col: null });
+                                                            }}
+                                                            className="w-full bg-white border-2 border-[#6bbdb7] rounded-lg px-2 py-1 text-[11px] font-bold text-[#303a7f] outline-none"
+                                                            autoFocus
+                                                            onBlur={() => {
+                                                                if (!savingCell) setEditingCell({ row: null, col: null });
+                                                            }}
+                                                        />
+                                                        {savingCell && <Loader2 size={12} className="animate-spin text-[#6bbdb7] flex-shrink-0" />}
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        className="cursor-pointer hover:bg-[#6bbdb7]/10 rounded px-1 -mx-1 transition-colors truncate flex items-center gap-1 group/cell"
+                                                        onClick={() => {
+                                                            setEditingCell({ row: idx, col });
+                                                            setEditValue(row[col] !== null && row[col] !== undefined ? String(row[col]) : '');
+                                                        }}
+                                                        title="Click para editar"
+                                                    >
+                                                        <span className="truncate">{formatCellValue(row[col])}</span>
+                                                        <Edit2 size={10} className="text-gray-200 group-hover/cell:text-[#6bbdb7] transition-colors flex-shrink-0 opacity-0 group-hover/cell:opacity-100" />
+                                                    </div>
+                                                )}
                                             </td>
                                         ))}
+                                        <td className="px-3 py-2.5 border-l border-gray-50 text-center">
+                                            <button
+                                                onClick={() => setConfirmDeleteRow({ row, idx })}
+                                                className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                title="Eliminar fila"
+                                            >
+                                                <Trash2 size={13} />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -12664,6 +12877,26 @@ const DatabaseExplorer = () => {
                     </div>
                 )}
             </div>
+
+            {/* Modal confirmar eliminación de fila */}
+            {confirmDeleteRow && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => !deletingRow && setConfirmDeleteRow(null)}>
+                    <div className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-10 flex flex-col items-center text-center animate-in zoom-in-95 duration-300 border-2 border-white relative overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="w-20 h-20 rounded-[1.8rem] flex items-center justify-center mb-8 shadow-2xl bg-red-500 text-white shadow-red-900/20">
+                            <Trash2 size={32} />
+                        </div>
+                        <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-4">¿Eliminar fila?</h3>
+                        <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-6 uppercase tracking-[0.1em]">Esta acción no se puede deshacer.</p>
+                        <div className="flex gap-3 w-full">
+                            <button onClick={() => setConfirmDeleteRow(null)} disabled={deletingRow} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-gray-200 disabled:opacity-50">Cancelar</button>
+                            <button onClick={() => handleDeleteRow(confirmDeleteRow.row)} disabled={deletingRow} className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-red-900/20 transition-all active:scale-95 hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2">
+                                {deletingRow ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                {deletingRow ? 'Eliminando...' : 'Eliminar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

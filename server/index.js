@@ -132,6 +132,62 @@ app.post('/api/write', (req, res) => {
   }
 });
 
+// Endpoint para obtener información de columnas de una tabla (PRAGMA table_info)
+app.get('/api/table-info/:table', (req, res) => {
+  const table = req.params.table;
+  const allowedTables = [
+    'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle',
+    'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
+    'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
+    'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
+    'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios'
+  ];
+
+  if (!allowedTables.includes(table)) {
+    return res.status(404).json({ error: 'Tabla no encontrada o no permitida' });
+  }
+
+  try {
+    const columns = db.prepare(`PRAGMA table_info("${table}")`).all();
+    const pkColumns = columns.filter(c => c.pk > 0).map(c => c.name);
+    res.json({ columns, pkColumns });
+  } catch (error) {
+    console.error(`Error obteniendo info de ${table}:`, error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Endpoint para alterar tabla (DROP COLUMN)
+app.post('/api/alter-table', (req, res) => {
+  try {
+    const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const { table, action, columnName } = payload;
+
+    const allowedTables = [
+      'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle',
+      'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
+      'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
+      'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
+      'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios'
+    ];
+
+    if (!allowedTables.includes(table)) {
+      return res.status(404).json({ error: 'Tabla no encontrada o no permitida' });
+    }
+
+    if (action === 'dropColumn') {
+      if (!columnName) return res.status(400).json({ error: 'columnName es requerido' });
+      db.prepare(`ALTER TABLE "${table}" DROP COLUMN "${columnName}"`).run();
+      return res.json({ success: true, message: `Columna "${columnName}" eliminada de "${table}"` });
+    }
+
+    res.status(400).json({ error: 'Acción no soportada' });
+  } catch (error) {
+    console.error('Error alterando tabla:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ---------------------------------------------------------------------
 // Notes API Endpoints
 // ---------------------------------------------------------------------
