@@ -5421,7 +5421,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
 };
 
 const VWHTableModal = (props) => {
-    const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId, employees = [], isRadicated = false, onOpenUPSConsolidated } = props;
+    const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId, employees = [], isRadicated = false, onOpenUPSConsolidated, historyKbsData = [] } = props;
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -5602,6 +5602,13 @@ const VWHTableModal = (props) => {
     const totalHours = data.reduce((acc, emp) => acc + hhmmToDecimal(emp.total.final), 0);
 
     const getKbsRate = (cargo, nombre) => {
+        // Si hay datos históricos de KBS (semana aprobada), usar esos rates primero
+        if (historyKbsData.length > 0) {
+            const histRow = historyKbsData.find(e =>
+                String(e.nombre).trim().toLowerCase() === String(nombre || '').trim().toLowerCase()
+            );
+            if (histRow && histRow.rate) return histRow.rate;
+        }
         // Fuente única de verdad: Rate Personal KBS del Empleado
         const employeeInfo = employees.find(e =>
             String(e.nombre).trim().toLowerCase() === String(nombre || '').trim().toLowerCase()
@@ -17201,7 +17208,16 @@ function App() {
             <VWHTableModal
                 isOpen={isVWHModalOpen}
                 onClose={() => setIsVWHModalOpen(false)}
-                data={semanaTableData}
+                data={(() => {
+                    const _ar = nominaHistoryData.find(h => String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === fechaDesde);
+                    if (_ar?.data_json) { try { const _p = JSON.parse(_ar.data_json); if (_p.semanaTableData?.length) return _p.semanaTableData; } catch(_e) {} }
+                    return semanaTableData;
+                })()}
+                historyKbsData={(() => {
+                    const _ar = nominaHistoryData.find(h => String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === fechaDesde);
+                    if (_ar?.data_json) { try { const _p = JSON.parse(_ar.data_json); if (_p.kbsBillingTableData?.length) return _p.kbsBillingTableData; } catch(_e) {} }
+                    return [];
+                })()}
                 payrollStore={payrollStore}
                 stores={stores}
                 employees={employees}
@@ -17325,7 +17341,11 @@ function App() {
 
             <SheetProgressModal isOpen={isProcessingSheets} />
 
-            {isAttendanceEyeModalOpen && (
+            {isAttendanceEyeModalOpen && (() => {
+                const _approvedRecord = nominaHistoryData.find(h => String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === fechaDesde);
+                let modalSemanaData = semanaTableData, modalKbsData = kbsBillingTableData, modalEarningsData = earningsTableData;
+                if (_approvedRecord?.data_json) { try { const _p = JSON.parse(_approvedRecord.data_json); if (_p.semanaTableData?.length) modalSemanaData = _p.semanaTableData; if (_p.kbsBillingTableData?.length) modalKbsData = _p.kbsBillingTableData; if (_p.earningsTableData?.length) modalEarningsData = _p.earningsTableData; } catch(_e) {} }
+                return (
                 <div className="fixed inset-0 z-[150] bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
                     <div className="bg-slate-50 w-full h-full max-w-[98vw] max-h-[96vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
                         {/* Header */}
@@ -17361,13 +17381,13 @@ function App() {
                                 let totalKBS = 0;
                                 let totalLGM = 0;
 
-                                semanaTableData.forEach(row => {
+                                modalSemanaData.forEach(row => {
                                     const hDec = hhmmToDecimal(row.total.final);
                                     totalHours += hDec;
 
                                     const empId = `${String(row.nombre).trim().toLowerCase()}_${String(row.codigo).replace(/^'+/, '').trim()}`;
-                                    const kbsRow = (kbsBillingTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
-                                    const lgmRow = (earningsTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+                                    const kbsRow = (modalKbsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+                                    const lgmRow = (modalEarningsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
 
                                     const employeeInfo = employees.find(e =>
                                         String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
@@ -17479,17 +17499,17 @@ function App() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {semanaTableData.length === 0 ? (
+                                            {modalSemanaData.length === 0 ? (
                                                 <tr>
                                                     <td colSpan="14" className="py-24 text-center text-slate-300 font-extrabold uppercase text-xs tracking-[0.3em] italic">
                                                         No hay datos de asistencia cargados en esta semana.
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                semanaTableData.map((row, idx) => {
+                                                modalSemanaData.map((row, idx) => {
                                                     const empId = `${String(row.nombre).trim().toLowerCase()}_${String(row.codigo).replace(/^'+/, '').trim()}`;
-                                                    const kbsRow = (kbsBillingTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
-                                                    const lgmRow = (earningsTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+                                                    const kbsRow = (modalKbsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+                                                    const lgmRow = (modalEarningsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
 
                                                     const employeeInfo = employees.find(e =>
                                                         String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
@@ -17550,7 +17570,9 @@ function App() {
                         </div>
                     </div>
                 </div>
-            )}
+                );
+            })()
+            }
 
             <SheetProgressModal isOpen={isProcessingSheets} />
 
@@ -18526,7 +18548,7 @@ function App() {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y-[3px] divide-gray-200">
-                                                {semanaTableData.length === 0 ? (
+                                            {semanaTableData.length === 0 ? (
                                                     <tr>
                                                         <td colSpan="10" className="py-24 text-center text-gray-300 font-extrabold uppercase text-xs tracking-[0.3em] italic">
                                                             Esperando el despliegue de datos del supervisor...
