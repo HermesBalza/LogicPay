@@ -17756,6 +17756,14 @@ function App() {
 
                 {/* Notes & Manual de Uso & User Card */}
                 <div className="flex items-center gap-4 ml-auto">
+                    <button
+                        onClick={() => {}}
+                        className="flex items-center gap-2 px-3 py-2 bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm"
+                        title="Correo"
+                    >
+                        <Mail size={16} className="group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">Correo</span>
+                    </button>
                     {user && (user.rol === 'Asistente' || user.rol === 'Desarrollador') && <Notes currentUser={{ id: user.nombre || user.name, autor_nombre: user.nombre || user.name }} />}
                     <button
                         onClick={() => setIsScheduleModalOpen(true)}
