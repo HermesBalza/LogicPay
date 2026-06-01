@@ -12914,7 +12914,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                 await fetch('http://localhost:3001/api/change-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: created.id, newPassword: newUserForm.password })
+                    body: JSON.stringify({ userId: created.id, newPassword: newUserForm.password, userName: currentUser?.nombre })
                 });
             }
             showNotif(`Usuario "${newUserForm.nombre}" creado`);
@@ -12978,7 +12978,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
             const res = await fetch('http://localhost:3001/api/change-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: showPasswordModal.id, newPassword: passwordForm.newPassword })
+                body: JSON.stringify({ userId: showPasswordModal.id, newPassword: passwordForm.newPassword, userName: currentUser?.nombre })
             });
             if (!res.ok) throw new Error('Error al cambiar contraseña');
             showNotif('Contraseña actualizada');
@@ -13272,7 +13272,7 @@ const CONFIG_KEYS = [
     { key: 'mail_api_url_payroll', label: 'Webhook Recibos de Pago', icon: Receipt, type: 'url', description: 'URL del Script de Google Apps para enviar recibos de nómina a empleados.' },
 ];
 
-const GeneralSettings = () => {
+const GeneralSettings = ({ currentUser }) => {
     const [config, setConfig] = useState({});
     const [dirty, setDirty] = useState({});
     const [saving, setSaving] = useState({});
@@ -13303,7 +13303,7 @@ const GeneralSettings = () => {
             const res = await fetch('http://localhost:3001/api/config/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key, value: dirty[key] || config[key] }),
+                body: JSON.stringify({ key, value: dirty[key] || config[key], userId: currentUser?.id, userName: currentUser?.nombre }),
             });
             const data = await res.json();
             if (data.success) {
@@ -13410,17 +13410,161 @@ const SettingsView = ({ vaSchedule, onSaveVASchedule, currentUser, onUserUpdate 
                     </button>
                 </div>
 
-                {settingsTab === 'general' && <GeneralSettings />}
+                {settingsTab === 'general' && <GeneralSettings currentUser={currentUser} />}
                 {settingsTab === 'database' && (
                     <DatabaseExplorer />
                 )}
                 {settingsTab === 'users' && (
-                    <UserManager currentUser={currentUser} onUserUpdate={onUserUpdate} />
+                    <>
+                        <UserManager currentUser={currentUser} onUserUpdate={onUserUpdate} />
+                        <HistorialActividad currentUser={currentUser} />
+                    </>
                 )}
                 {settingsTab === 'schedule' && (
                     <VAScheduleSettings vaSchedule={vaSchedule} onSave={onSaveVASchedule} />
                 )}
             </div>
+        </div>
+    );
+};
+
+// ─── HISTORIAL DE ACTIVIDAD (Audit Log) ────────────────────────────────────
+const HistorialActividad = ({ currentUser }) => {
+    const HISTORIAL_API = 'http://localhost:3001/api/audit-log';
+    const USUARIOS_API = 'http://localhost:3001/api/data/Usuarios';
+    const LIMIT = 50;
+
+    const [logs, setLogs] = useState([]);
+    const [total, setTotal] = useState(0);
+    const [offset, setOffset] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [users, setUsers] = useState([]);
+    const [filterUserId, setFilterUserId] = useState('');
+    const [hasMore, setHasMore] = useState(true);
+
+    useEffect(() => {
+        fetch(USUARIOS_API)
+            .then(r => r.json())
+            .then(data => setUsers(data))
+            .catch(() => {});
+    }, []);
+
+    const fetchLogs = useCallback(async (reset = false) => {
+        setLoading(true);
+        try {
+            const params = new URLSearchParams({ limit: LIMIT, offset: reset ? 0 : offset });
+            if (filterUserId) params.set('userId', filterUserId);
+            const res = await fetch(`${HISTORIAL_API}?${params}`);
+            const data = await res.json();
+            if (reset) {
+                setLogs(data.rows || []);
+                setOffset(LIMIT);
+            } else {
+                setLogs(prev => [...prev, ...(data.rows || [])]);
+                setOffset(prev => prev + LIMIT);
+            }
+            setTotal(data.total || 0);
+            setHasMore((reset ? 0 : offset) + LIMIT < (data.total || 0));
+        } catch (e) {
+            console.error('Error fetching audit log', e);
+        } finally {
+            setLoading(false);
+        }
+    }, [offset, filterUserId]);
+
+    useEffect(() => {
+        fetchLogs(true);
+    }, [filterUserId]);
+
+    useEffect(() => {
+        const interval = setInterval(() => { fetchLogs(true); }, 30000);
+        return () => clearInterval(interval);
+    }, [filterUserId]);
+
+    const formatDateTime = (isoStr) => {
+        if (!isoStr) return { date: '', time: '' };
+        const d = new Date(isoStr + (isoStr.endsWith('Z') || isoStr.includes('+') ? '' : 'Z'));
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const dateStr = d.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const timeStr = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+        return { date: dateStr, time: timeStr, isToday: d.toDateString() === today.toDateString(), isYesterday: d.toDateString() === yesterday.toDateString() };
+    };
+
+    const groupedLogs = useMemo(() => {
+        const groups = {};
+        for (const log of logs) {
+            const { date, isToday, isYesterday } = formatDateTime(log.created_at);
+            let label = date;
+            if (isToday) label = `Hoy — ${date}`;
+            else if (isYesterday) label = `Ayer — ${date}`;
+            if (!groups[label]) groups[label] = [];
+            groups[label].push(log);
+        }
+        return groups;
+    }, [logs]);
+
+    return (
+        <div className="mt-8 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#303a7f]/5 flex items-center justify-center">
+                        <History size={18} className="text-[#303a7f]" />
+                    </div>
+                    <h2 className="font-black text-[10px] uppercase tracking-widest text-gray-600">Historial de Actividad</h2>
+                    {total > 0 && <span className="text-[10px] font-bold text-gray-400">({total})</span>}
+                </div>
+                <select
+                    value={filterUserId}
+                    onChange={e => { setFilterUserId(e.target.value); setOffset(0); }}
+                    className="text-[10px] font-bold tracking-wider px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#303a7f]/20 focus:border-[#303a7f]"
+                >
+                    <option value="">Todos los usuarios</option>
+                    {users.map(u => (
+                        <option key={u.id} value={u.id}>{u.nombre}</option>
+                    ))}
+                </select>
+            </div>
+
+            <div className="divide-y divide-gray-50">
+                {Object.entries(groupedLogs).map(([label, entries]) => (
+                    <div key={label}>
+                        <div className="px-6 py-2 bg-gray-50/50">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{label}</span>
+                        </div>
+                        {entries.map(log => {
+                            const { time } = formatDateTime(log.created_at);
+                            return (
+                                <div key={log.id} className="px-6 py-3 hover:bg-gray-50/50 transition-colors flex items-start gap-4">
+                                    <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap min-w-[16]">{time}</span>
+                                    <span className="text-[10px] font-bold text-[#303a7f] whitespace-nowrap min-w-[16]">{log.user_name}</span>
+                                    <span className="text-[10px] text-gray-600">{log.accion}</span>
+                                    {log.entidad && <span className="text-[10px] font-bold text-gray-500">{log.entidad}{log.entidad_nombre ? `: ${log.entidad_nombre}` : ''}</span>}
+                                </div>
+                            );
+                        })}
+                    </div>
+                ))}
+                {logs.length === 0 && !loading && (
+                    <div className="px-6 py-12 text-center">
+                        <History size={32} className="mx-auto text-gray-200 mb-3" />
+                        <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Sin actividad registrada</p>
+                    </div>
+                )}
+            </div>
+
+            {hasMore && (
+                <div className="px-6 py-4 border-t border-gray-100 text-center">
+                    <button
+                        onClick={() => fetchLogs(false)}
+                        disabled={loading}
+                        className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-[#303a7f] bg-[#303a7f]/5 rounded-xl hover:bg-[#303a7f]/10 transition-all disabled:opacity-50"
+                    >
+                        {loading ? 'Cargando...' : 'Cargar más'}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
@@ -13999,7 +14143,7 @@ function App() {
 
     const handleLogin = (userData) => {
         setUser(userData);
-        syncVariableToDatabase('user', userData);
+        syncVariableToDatabase('user', userData, userData);
     };
 
     const SplashLoader = () => (
@@ -16632,7 +16776,7 @@ function App() {
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action: 'reserveInvoice' })
+                body: JSON.stringify({ action: 'reserveInvoice', userId: user?.id, userName: user?.nombre })
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const result = await response.json();
@@ -16894,7 +17038,7 @@ function App() {
         return fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, data, sheetName, matchKeys })
+            body: JSON.stringify({ action, data, sheetName, matchKeys, userId: user?.id, userName: user?.nombre })
         })
             .then(async response => {
                 if (!response.ok) {
@@ -16920,15 +17064,19 @@ function App() {
         await syncToDatabase('upsert', data, 'VASchedule', false, matchKeys);
     };
 
-    const syncVariableToDatabase = (key, value) => {
+    const syncVariableToDatabase = (key, value, auditUser = null) => {
         const payload = {
             key: key,
             value: typeof value === 'object' ? JSON.stringify(value) : String(value)
         };
+        const u = auditUser || user;
         return fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'upsert', data: payload, sheetName: 'Variables', matchKeys: ['key'] })
+            body: JSON.stringify({
+                action: 'upsert', data: payload, sheetName: 'Variables', matchKeys: ['key'],
+                userId: u?.id, userName: u?.nombre
+            })
         }).catch(err => console.error(`[LogicPay] Error localizando Variable ${key}:`, err));
     };
 
@@ -17764,7 +17912,7 @@ function App() {
                         <Mail size={16} className="group-hover:scale-110 transition-transform" />
                         <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">Correo</span>
                     </button>
-                    {user && (user.rol === 'Asistente' || user.rol === 'Desarrollador') && <Notes currentUser={{ id: user.nombre || user.name, autor_nombre: user.nombre || user.name }} />}
+                    {user && (user.rol === 'Asistente' || user.rol === 'Desarrollador') && <Notes currentUser={{ id: user.nombre || user.name, autor_nombre: user.nombre || user.name, userId: user.id, userName: user.nombre }} />}
                     <button
                         onClick={() => setIsScheduleModalOpen(true)}
                         className="flex items-center gap-2 px-3 py-2 bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm"
@@ -18946,7 +19094,7 @@ function App() {
                     )}
 
                     {/* VISTA CRM */}
-                    {activeTab === 'crm' && <CRMView />}
+                    {activeTab === 'crm' && <CRMView currentUser={user} />}
 
                     {/* VISTA DEL DASHBOARD */}
                     {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'csg' && activeTab !== 'settings' && activeTab !== 'lgm' && activeTab !== 'crm')) && !showResumen && (

@@ -59,6 +59,21 @@ db.exec(`CREATE INDEX IF NOT EXISTS idx_notas_autor ON Notas(autor_id);`);
 db.exec(`CREATE INDEX IF NOT EXISTS idx_notas_created ON Notas(created_at);`);
 
 // ------------------------------------------------------------
+// Tabla de Historial de Actividad (Audit Log)
+// ------------------------------------------------------------
+db.exec(`CREATE TABLE IF NOT EXISTS AuditLog (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    user_name TEXT NOT NULL,
+    accion TEXT NOT NULL,
+    entidad TEXT,
+    entidad_nombre TEXT,
+    detalles TEXT,
+    created_at TEXT DEFAULT (datetime('now','localtime'))
+);`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_auditlog_created ON AuditLog(created_at DESC);`);
+
+// ------------------------------------------------------------
 // Tablas del CRM
 // ------------------------------------------------------------
 db.exec(`CREATE TABLE IF NOT EXISTS CRM_Candidatos (

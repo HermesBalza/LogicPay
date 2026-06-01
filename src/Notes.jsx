@@ -99,7 +99,7 @@ export default function Notes({ currentUser }) {
       const res = await fetch('/api/notas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ ...payload, userId: currentUser.userId, userName: currentUser.userName })
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -166,7 +166,7 @@ export default function Notes({ currentUser }) {
 
   const deleteNote = async (id) => {
     try {
-      await fetch(`/api/notas/${id}`, { method: 'DELETE' });
+      await fetch(`/api/notas/${id}?userId=${currentUser.userId}&userName=${encodeURIComponent(currentUser.userName || '')}`, { method: 'DELETE' });
       setConfirmDeleteId(null);
       loadNotes();
       loadUnread();
@@ -180,7 +180,7 @@ export default function Notes({ currentUser }) {
       await fetch(`/api/notas/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mensaje: newText })
+        body: JSON.stringify({ mensaje: newText, userId: currentUser.userId, userName: currentUser.userName })
       });
       setEditingNoteId(null);
       setEditingText('');

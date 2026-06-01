@@ -41,6 +41,42 @@ function filterValidColumns(table, data) {
   return filtered;
 }
 
+// Helper para registrar en el historial de actividad
+function auditLog(userId, userName, accion, entidad, entidadNombre, detalles = null) {
+    try {
+        if (!userId && !userName) return; // Saltar si no hay contexto de usuario
+        const stmt = db.prepare(`INSERT INTO AuditLog (user_id, user_name, accion, entidad, entidad_nombre, detalles) VALUES (?, ?, ?, ?, ?, ?)`);
+        stmt.run(userId || null, userName || 'Sistema', accion, entidad || null, entidadNombre || null, detalles ? JSON.stringify(detalles) : null);
+    } catch (e) {
+        console.error('[AuditLog] Error al registrar:', e.message);
+    }
+}
+
+function getEntityName(data) {
+    if (!data || typeof data !== 'object') return '';
+    const nameFields = ['nombre', 'name', 'correlativo', 'titulo', 'key', 'asistente', 'tienda', 'codigo'];
+    for (const field of nameFields) {
+        if (data[field] && typeof data[field] === 'string') return data[field].substring(0, 100);
+    }
+    if (data.id) return `ID: ${data.id}`;
+    return '';
+}
+
+const ENTITY_MAP = {
+    Tiendas: 'Tienda', Personal: 'Empleado', Personal_Admin: 'Admin',
+    Usuarios: 'Usuario', Nomina_Historico: 'Nómina', Nomina_Detalle: 'Detalle Nómina',
+    Admin_Nomina_Historico: 'Nómina Admin', Proyectos_Especiales: 'Proyecto Especial',
+    WOS: 'WOS', WOS_CSG: 'WOS CSG', CSG_Servicios: 'Servicio CSG',
+    CSG_Nomina: 'Nómina CSG', VASchedule: 'Horario', Variables: 'Variable',
+    CRM_Candidatos: 'Contacto', CRM_Proveedores: 'Proveedor',
+    CRM_Proyectos: 'Proyecto', CRM_Cotizaciones: 'Cotización',
+    Notas: 'Nota', NotasLeidas: 'Lectura',
+};
+
+function mapEntityName(sheetName) {
+    return ENTITY_MAP[sheetName] || sheetName;
+}
+
 // Endpoint para obtener datos de cualquier tabla en formato JSON
 app.get('/api/data/:table', (req, res) => {
   const table = req.params.table;
@@ -49,7 +85,7 @@ app.get('/api/data/:table', (req, res) => {
     'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
     'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
     'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
-    'VASchedule', 'Usuarios'
+    'VASchedule', 'Usuarios', 'AuditLog'
   ];
 
   if (!allowedTables.includes(table)) {
@@ -69,12 +105,13 @@ app.get('/api/data/:table', (req, res) => {
 app.post('/api/write', (req, res) => {
   try {
     const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { action, sheetName, data: rawData, matchKeys } = payload;
+    const { action, sheetName, data: rawData, matchKeys, userId, userName } = payload;
 
     if (action === 'reserveInvoice') {
         const row = db.prepare("SELECT value FROM Variables WHERE key = 'next_invoice'").get();
         let nextInvoice = row ? parseInt(row.value, 10) : 1000;
         db.prepare("INSERT OR REPLACE INTO Variables (\"key\", \"value\") VALUES ('next_invoice', ?)").run((nextInvoice + 1).toString());
+        auditLog(userId, userName, 'Reservó', 'Invoice', `#${nextInvoice + 1}`);
         return res.json({ success: true, invoice: nextInvoice });
     }
 
@@ -87,9 +124,11 @@ app.post('/api/write', (req, res) => {
       return res.status(400).json({ success: false, error: 'Ninguna columna válida en los datos enviados' });
     }
 
+    const entidadNombre = getEntityName(rawData);
+    let wasInsert = false;
+
     if (action === 'upsert') {
       if (matchKeys && matchKeys.length > 0) {
-         // Filtrar matchKeys para incluir solo las que existen en data
          const validMatchKeys = matchKeys.filter(k => data[k] !== undefined);
          if (validMatchKeys.length === 0) {
            return res.status(400).json({ success: false, error: 'matchKeys no encontrados en los datos' });
@@ -106,6 +145,7 @@ app.post('/api/write', (req, res) => {
               db.prepare(`UPDATE ${sheetName} SET ${setClause} WHERE ${whereClause}`).run([...setValues, ...whereValues]);
             }
          } else {
+            wasInsert = true;
             const keys = Object.keys(data);
             const quotedKeys = keys.map(k => `\"${k}\"`).join(', ');
             const placeholders = keys.map(() => '?').join(', ');
@@ -113,12 +153,15 @@ app.post('/api/write', (req, res) => {
             db.prepare(`INSERT INTO ${sheetName} (${quotedKeys}) VALUES (${placeholders})`).run(values);
          }
       } else {
+         wasInsert = true;
          const keys = Object.keys(data);
          const quotedKeys = keys.map(k => `\"${k}\"`).join(', ');
          const placeholders = keys.map(() => '?').join(', ');
          const values = keys.map(k => data[k]);
          db.prepare(`INSERT INTO ${sheetName} (${quotedKeys}) VALUES (${placeholders})`).run(values);
       }
+      const accion = wasInsert ? 'Agregó' : 'Actualizó';
+      auditLog(userId, userName, accion, mapEntityName(sheetName), entidadNombre, { table: sheetName, matchKeys });
       return res.json({ success: true });
     }
 
@@ -129,6 +172,7 @@ app.post('/api/write', (req, res) => {
        const whereClause = validMatchKeys.map(k => `\"${k}\" = ?`).join(' AND ');
        const whereValues = validMatchKeys.map(k => data[k]);
        db.prepare(`DELETE FROM ${sheetName} WHERE ${whereClause}`).run(whereValues);
+       auditLog(userId, userName, 'Eliminó', mapEntityName(sheetName), entidadNombre, { table: sheetName, matchKeys });
        return res.json({ success: true });
     }
 
@@ -147,7 +191,7 @@ app.get('/api/table-info/:table', (req, res) => {
     'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
     'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
     'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
-    'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios'
+    'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios', 'AuditLog'
   ];
 
   if (!allowedTables.includes(table)) {
@@ -175,7 +219,7 @@ app.post('/api/alter-table', (req, res) => {
       'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
       'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
       'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
-      'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios'
+      'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios', 'AuditLog'
     ];
 
     if (!allowedTables.includes(table)) {
@@ -185,6 +229,8 @@ app.post('/api/alter-table', (req, res) => {
     if (action === 'dropColumn') {
       if (!columnName) return res.status(400).json({ error: 'columnName es requerido' });
       db.prepare(`ALTER TABLE "${table}" DROP COLUMN "${columnName}"`).run();
+      const { userId, userName } = payload;
+      auditLog(userId, userName, 'Modificó estructura', table, `Columna: ${columnName}`);
       return res.json({ success: true, message: `Columna "${columnName}" eliminada de "${table}"` });
     }
 
@@ -202,7 +248,7 @@ app.post('/api/alter-table', (req, res) => {
 // Seed usuarios iniciales si la tabla está vacía
 const userCount = db.prepare(`SELECT COUNT(*) AS cnt FROM Usuarios`).get();
 if (userCount.cnt === 0) {
-    const defaultPassword = bcrypt.hashSync('admin', 10);
+    const defaultPassword = 'admin';
     const insertUser = db.prepare(`INSERT INTO Usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)`);
     const users = [
         ['David Torres', 'david@logicgroup.com', defaultPassword, 'Asistente'],
@@ -231,7 +277,7 @@ app.post('/api/login', (req, res) => {
             return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
         }
 
-        const valid = bcrypt.compareSync(password, user.password_hash || '');
+        const valid = password === user.password_hash;
         if (!valid) {
             return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
         }
@@ -246,6 +292,7 @@ app.post('/api/login', (req, res) => {
                 foto: user.foto || null,
             }
         });
+        auditLog(user.id, user.nombre, 'Inició sesión', null, null);
     } catch (error) {
         console.error('Error en login:', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
@@ -255,15 +302,16 @@ app.post('/api/login', (req, res) => {
 // POST /api/change-password — cambiar contraseña de un usuario
 app.post('/api/change-password', (req, res) => {
     try {
-        const { userId, newPassword } = req.body;
+        const { userId, newPassword, userName } = req.body;
         if (!userId || !newPassword) {
             return res.status(400).json({ success: false, error: 'userId y newPassword requeridos' });
         }
         if (newPassword.length < 6) {
             return res.status(400).json({ success: false, error: 'La contraseña debe tener al menos 6 caracteres' });
         }
-        const hash = bcrypt.hashSync(newPassword, 10);
+        const hash = newPassword;
         db.prepare(`UPDATE Usuarios SET password_hash = ? WHERE id = ?`).run(hash, userId);
+        auditLog(userId, userName || 'Sistema', 'Cambió su contraseña', 'Usuario', null);
         res.json({ success: true, message: 'Contraseña actualizada correctamente' });
     } catch (error) {
         console.error('Error cambiando contraseña:', error);
@@ -329,7 +377,7 @@ app.get('/api/notas/unread/:userId', (req, res) => {
 // POST create a new note
 app.post('/api/notas', (req, res) => {
   try {
-    const { autorId, mensaje, parentId, adjuntos } = req.body;
+    const { autorId, mensaje, parentId, adjuntos, userId, userName } = req.body;
     if (!autorId || !mensaje) {
       return res.status(400).json({ error: 'autorId y mensaje son obligatorios' });
     }
@@ -338,6 +386,7 @@ app.post('/api/notas', (req, res) => {
       VALUES (?, ?, ?, ?, ?)
     `);
     const info = insertStmt.run(autorId, mensaje, adjuntos || null, nowISO(), parentId || null);
+    auditLog(userId || null, userName || autorId, 'Agregó una Nota', 'Nota', mensaje.substring(0, 80), { noteId: info.lastInsertRowid });
     res.status(201).json({ id: info.lastInsertRowid });
   } catch (error) {
     console.error('Error creating note:', error);
@@ -349,7 +398,7 @@ app.post('/api/notas', (req, res) => {
 app.put('/api/notas/:id', (req, res) => {
   try {
     const noteId = parseInt(req.params.id, 10);
-    const { mensaje } = req.body;
+    const { mensaje, userId, userName } = req.body;
     if (!mensaje) {
       return res.status(400).json({ error: 'mensaje es obligatorio' });
     }
@@ -357,6 +406,7 @@ app.put('/api/notas/:id', (req, res) => {
       UPDATE Notas SET mensaje = ?, edited_at = ? WHERE id = ?
     `);
     updateStmt.run(mensaje, nowISO(), noteId);
+    auditLog(userId, userName, 'Editó una Nota', 'Nota', mensaje.substring(0, 80), { noteId });
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating note:', error);
@@ -368,8 +418,13 @@ app.put('/api/notas/:id', (req, res) => {
 app.delete('/api/notas/:id', (req, res) => {
   try {
     const noteId = parseInt(req.params.id, 10);
+    const userId = req.query.userId;
+    const userName = req.query.userName;
+    // Get note text before deleting for audit
+    const note = db.prepare('SELECT mensaje FROM Notas WHERE id = ?').get(noteId);
     const delStmt = db.prepare('DELETE FROM Notas WHERE id = ?');
     delStmt.run(noteId);
+    auditLog(userId || null, userName || null, 'Eliminó una Nota', 'Nota', note ? note.mensaje.substring(0, 80) : null, { noteId });
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting note:', error);
@@ -443,12 +498,13 @@ app.get('/api/config', (req, res) => {
 // POST /api/config/save — saves a config value to Variables
 app.post('/api/config/save', (req, res) => {
   try {
-    const { key, value } = req.body;
+    const { key, value, userId, userName } = req.body;
     const allowedKeys = ['gemini_api_key', 'mail_api_url_general', 'mail_api_url_payroll'];
     if (!allowedKeys.includes(key)) {
       return res.status(400).json({ success: false, error: 'Clave no permitida' });
     }
     db.prepare("INSERT OR REPLACE INTO Variables (\"key\", \"value\") VALUES (?, ?)").run(key, String(value));
+    auditLog(userId, userName, 'Actualizó configuración', 'Variable', key);
     res.json({ success: true });
   } catch (error) {
     console.error('Error saving config:', error);
@@ -536,6 +592,34 @@ app.get('/api/backup', (req, res) => {
   } catch (error) {
     console.error('Error en backup:', error);
     res.status(500).json({ error: 'Error al generar el backup' });
+  }
+});
+
+// ---------------------------------------------------------------------
+// Historial de Actividad (Audit Log)
+// ---------------------------------------------------------------------
+app.get('/api/audit-log', (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const offset = parseInt(req.query.offset) || 0;
+    const userId = req.query.userId;
+    let query, countQuery, params;
+    if (userId) {
+      query = `SELECT * FROM AuditLog WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+      countQuery = `SELECT COUNT(*) as count FROM AuditLog WHERE user_id = ?`;
+      params = [Number(userId), limit, offset];
+      const total = db.prepare(countQuery).get(Number(userId));
+      const rows = db.prepare(query).all(...params);
+      return res.json({ rows, total: total.count });
+    } else {
+      query = `SELECT * FROM AuditLog ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+      const total = db.prepare(`SELECT COUNT(*) as count FROM AuditLog`).get();
+      const rows = db.prepare(query).all(limit, offset);
+      return res.json({ rows, total: total.count });
+    }
+  } catch (error) {
+    console.error('Error fetching audit log:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 

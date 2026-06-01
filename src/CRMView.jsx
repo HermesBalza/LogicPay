@@ -35,7 +35,7 @@ function Badge({ estado }) {
 const inputCls = 'w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300';
 const selectCls = 'w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all appearance-none cursor-pointer';
 
-export default function CRMView() {
+export default function CRMView({ currentUser }) {
   const [activeTab, setActiveTab] = useState('candidatos');
   const [proveedoresSubTab, setProveedoresSubTab] = useState('proyectos');
 
@@ -101,7 +101,7 @@ export default function CRMView() {
       const res = await fetch(API_WRITE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, data, sheetName, matchKeys })
+        body: JSON.stringify({ action, data, sheetName, matchKeys, userId: currentUser?.id, userName: currentUser?.nombre })
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
