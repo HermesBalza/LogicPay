@@ -75,7 +75,8 @@ import {
     Copy,
     Paperclip,
     Briefcase,
-    Database
+    Database,
+    Pencil
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -14043,6 +14044,10 @@ function App() {
     const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
     const [billingFilterYear, setBillingFilterYear] = useState(new Date().getFullYear());
     const [isSyncingBilling, setIsSyncingBilling] = useState(false);
+    const [isEmployeeSelectorOpen, setIsEmployeeSelectorOpen] = useState(false);
+    const [employeeSelectorMode, setEmployeeSelectorMode] = useState('replace');
+    const [employeeSelectorRowIdx, setEmployeeSelectorRowIdx] = useState(null);
+    const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
     const [isWOSOpen, setIsWOSOpen] = useState(false);
     const [selectedSpecialProjectInvoice, setSelectedSpecialProjectInvoice] = useState(null);
     const [isSpecialProjectInvoiceOpen, setIsSpecialProjectInvoiceOpen] = useState(false);
@@ -15626,9 +15631,21 @@ function App() {
                 });
             };
 
-            const csvContent = await readAsText(biometricFile);
-            const rows = csvContent.split('\n').filter(line => line.trim()).map(line => line.split(','));
+            const rawContent = await readAsText(biometricFile);
+            const firstLine = rawContent.split('\n')[0] || '';
+            const delimiter = firstLine.includes('\t') ? '\t' : ',';
+            const rows = rawContent.split('\n').filter(line => line.trim()).map(line => line.split(delimiter));
             if (rows.length < 1) throw new Error("Archivo vacío.");
+
+            const parseDateMMDD = (str) => {
+                if (!str) return '';
+                const parts = str.split('/');
+                if (parts.length === 3) return `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+                return '';
+            };
+            const weekStart = parseDateMMDD(fechaDesde);
+            const weekEnd = parseDateMMDD(fechaHasta);
+            const parseDateISO = (str) => { if (!str) return ''; return str.trim().split(' ')[0]; };
 
             const biometricData = rows.slice(1).map(r => ({
                 id: r[6]?.trim() || 'Desconocido',
@@ -15636,7 +15653,12 @@ function App() {
                 salida: r[9]?.trim() || '',
                 status: r[10]?.trim() || '',
                 duracion: r[11]?.trim() || '00:00'
-            })).filter(r => r.id !== 'Desconocido' && r.duracion !== '00:00');
+            })).filter(r => {
+                if (r.id === 'Desconocido' || r.duracion === '00:00') return false;
+                const recordDate = parseDateISO(r.entrada);
+                if (!recordDate || !weekStart || !weekEnd) return true;
+                return recordDate >= weekStart && recordDate <= weekEnd;
+            });
 
             setRawBiometricData(biometricData); // Guardamos la data cruda para el modal de detalles
 
@@ -15654,7 +15676,7 @@ function App() {
                 1. Agrupa por ID de empleado (Crew ID).
                 2. Para cada ID, suma las duraciones exactas por cada día de la semana.
                 3. IMPORTANTE: Un empleado puede marcar varias veces al día (ej: almuerzo, salida anticipada). DEBES sumar todas las duraciones del mismo día.
-                4. El formato de fecha en "Entrada" es MM/DD/YYYY o DD/MM/YYYY. Identifica el día de la semana (Lunes, Martes, etc.).
+                4. El formato de fecha en "Entrada" es YYYY-MM-DD (ISO). Identifica el día de la semana (Lunes, Martes, etc.) según esa fecha.
                 5. FORMATO DE SALIDA: Todas las horas deben estar en formato "HH:MM" (ej: "08:30" o "05:00"). Si un día no tiene horas, pon "0:00".
                 
                 DATOS DE ENTRADA: ${JSON.stringify(biometricData)}
@@ -15690,26 +15712,46 @@ function App() {
                 setPayrollStep('crossover');
                 setPayrollProgress(0);
 
-                setSemanaTableData(prev => prev.map((emp, idx) => {
-                    const aiRow = aiData.rows.find(r => r.nombre.toString().trim() === emp.codigo.toString().trim());
-
-                    if (idx % 5 === 0) setPayrollProgress(idx);
-
-                    if (aiRow) {
-                        return {
-                            ...emp,
-                            domingo: { ...emp.domingo, bio: aiRow.domingo },
-                            lunes: { ...emp.lunes, bio: aiRow.lunes },
-                            martes: { ...emp.martes, bio: aiRow.martes },
-                            miercoles: { ...emp.miercoles, bio: aiRow.miercoles },
-                            jueves: { ...emp.jueves, bio: aiRow.jueves },
-                            viernes: { ...emp.viernes, bio: aiRow.viernes },
-                            sabado: { ...emp.sabado, bio: aiRow.sabado },
-                            total: { ...emp.total, bio: aiRow.total }
-                        };
+                setSemanaTableData(prev => {
+                    if (prev.length > 0) {
+                        return prev.map((emp, idx) => {
+                            const aiRow = aiData.rows.find(r => r.nombre.toString().trim() === emp.codigo.toString().trim());
+                            if (idx % 5 === 0) setPayrollProgress(idx);
+                            if (aiRow) {
+                                return {
+                                    ...emp,
+                                    domingo: { ...emp.domingo, bio: aiRow.domingo },
+                                    lunes: { ...emp.lunes, bio: aiRow.lunes },
+                                    martes: { ...emp.martes, bio: aiRow.martes },
+                                    miercoles: { ...emp.miercoles, bio: aiRow.miercoles },
+                                    jueves: { ...emp.jueves, bio: aiRow.jueves },
+                                    viernes: { ...emp.viernes, bio: aiRow.viernes },
+                                    sabado: { ...emp.sabado, bio: aiRow.sabado },
+                                    total: { ...emp.total, bio: aiRow.total }
+                                };
+                            }
+                            return emp;
+                        });
                     }
-                    return emp; // Mantiene 'X' si no hay coincidencia
-                }));
+                    return aiData.rows.map(aiRow => {
+                        const empInfo = employees.find(e => String(e.codigo_empleado).trim() === aiRow.nombre.toString().trim());
+                        const base = (day) => aiRow[day] || '0:00';
+                        return {
+                            nombre: empInfo?.nombre || aiRow.nombre,
+                            codigo: aiRow.nombre,
+                            cargo: empInfo?.cargo || 'N/A',
+                            domingo: { sup: 'X', bio: base('domingo'), final: base('domingo') },
+                            lunes: { sup: 'X', bio: base('lunes'), final: base('lunes') },
+                            martes: { sup: 'X', bio: base('martes'), final: base('martes') },
+                            miercoles: { sup: 'X', bio: base('miercoles'), final: base('miercoles') },
+                            jueves: { sup: 'X', bio: base('jueves'), final: base('jueves') },
+                            viernes: { sup: 'X', bio: base('viernes'), final: base('viernes') },
+                            sabado: { sup: 'X', bio: base('sabado'), final: base('sabado') },
+                            total: { sup: 'X', bio: aiRow.total || '0:00', final: aiRow.total || '0:00' },
+                            auditSource: 'bio'
+                        };
+                    });
+                });
 
                 setPayrollProgress(semanaTableData.length);
                 showSuccess("¡Procesamiento Exitoso! El cruce de datos con IA se ha realizado correctamente.");
@@ -17576,6 +17618,78 @@ function App() {
 
             <SheetProgressModal isOpen={isProcessingSheets} />
 
+            {isEmployeeSelectorOpen && (
+                <div className="fixed inset-0 z-[150] bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="px-6 py-5 bg-white border-b border-slate-100 flex items-center justify-between">
+                            <h3 className="text-base font-black text-slate-800 tracking-tight">
+                                {employeeSelectorMode === 'replace' ? 'Reemplazar Empleado' : 'Agregar Empleado'}
+                            </h3>
+                            <button onClick={() => setIsEmployeeSelectorOpen(false)} className="p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all">
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <input
+                                type="text"
+                                autoFocus
+                                placeholder="Buscar empleado..."
+                                value={employeeSearchQuery}
+                                onChange={(e) => setEmployeeSearchQuery(e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 text-sm font-bold text-slate-700 outline-none focus:border-[#303a7f] focus:bg-white transition-all placeholder:text-gray-300"
+                            />
+                        </div>
+                        <div className="px-6 pb-6 max-h-80 overflow-y-auto space-y-1">
+                            {employees
+                                .filter(e => {
+                                    const q = employeeSearchQuery.toLowerCase().trim();
+                                    if (!q) return true;
+                                    return String(e.nombre).toLowerCase().includes(q) || String(e.codigo_empleado).toLowerCase().includes(q);
+                                })
+                                .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)))
+                                .map((emp, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => {
+                                            if (employeeSelectorMode === 'replace' && employeeSelectorRowIdx !== null) {
+                                                setSemanaTableData(prev => prev.map((r, ri) =>
+                                                    ri === employeeSelectorRowIdx
+                                                        ? { ...r, nombre: emp.nombre, codigo: emp.codigo_empleado, cargo: emp.cargo || r.cargo }
+                                                        : r
+                                                ));
+                                            } else if (employeeSelectorMode === 'add') {
+                                                const zeroDay = { sup: '0:00', bio: '0:00', final: '0:00' };
+                                                setSemanaTableData(prev => [...prev, {
+                                                    nombre: emp.nombre,
+                                                    codigo: emp.codigo_empleado,
+                                                    cargo: emp.cargo || 'N/A',
+                                                    domingo: { ...zeroDay },
+                                                    lunes: { ...zeroDay },
+                                                    martes: { ...zeroDay },
+                                                    miercoles: { ...zeroDay },
+                                                    jueves: { ...zeroDay },
+                                                    viernes: { ...zeroDay },
+                                                    sabado: { ...zeroDay },
+                                                    total: { ...zeroDay },
+                                                    auditSource: 'manual'
+                                                }]);
+                                            }
+                                            setIsEmployeeSelectorOpen(false);
+                                        }}
+                                        className="w-full text-left px-4 py-3 rounded-xl hover:bg-[#303a7f]/5 transition-all flex items-center justify-between group"
+                                    >
+                                        <div className="flex flex-col">
+                                            <span className="text-[12px] font-black text-slate-700 uppercase leading-tight">{emp.nombre}</span>
+                                            <span className="text-[9px] font-bold text-slate-400 mt-0.5">ID: {emp.codigo_empleado}</span>
+                                        </div>
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase bg-slate-100 px-2 py-1 rounded-md">{emp.cargo || 'N/A'}</span>
+                                    </button>
+                                ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {isEmployeeStatsModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm" onClick={() => setIsEmployeeStatsModalOpen(false)} />
@@ -18577,8 +18691,22 @@ function App() {
                                                                                 >B</button>
                                                                             </div>
                                                                         )}
-                                                                    <div className="flex flex-col">
-                                                                        <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
+                                                                        <div className="flex flex-col">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
+                                                                            {!(nominaHistoryData || []).some(h =>
+                                                                                String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                                                                                h.fecha_inicio === fechaDesde
+                                                                            ) && (
+                                                                                <button
+                                                                                    onClick={() => { setEmployeeSelectorMode('replace'); setEmployeeSelectorRowIdx(idx); setEmployeeSearchQuery(''); setIsEmployeeSelectorOpen(true); }}
+                                                                                    className="w-5 h-5 rounded-full bg-gray-100 text-gray-400 hover:bg-amber-100 hover:text-amber-600 transition-all flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100"
+                                                                                    title="Reemplazar empleado"
+                                                                                >
+                                                                                    <Pencil size={10} />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
                                                                         <span className="text-[9px] font-black text-[#6bbdb7] tabular-nums tracking-[0.1em] mt-1">ID: {row.codigo || '----'}</span>
                                                                     </div>
                                                                 </div>
@@ -18655,6 +18783,22 @@ function App() {
                                             </tbody>
                                         </table>
                                     </div>
+
+                                    {/* Botón Agregar Empleado Manual */}
+                                    {!(nominaHistoryData || []).some(h =>
+                                        String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                                        h.fecha_inicio === fechaDesde
+                                    ) && (
+                                        <div className="mt-3 flex justify-center">
+                                            <button
+                                                onClick={() => { setEmployeeSelectorMode('add'); setEmployeeSelectorRowIdx(null); setEmployeeSearchQuery(''); setIsEmployeeSelectorOpen(true); }}
+                                                className="px-5 py-2 rounded-xl border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#6bbdb7] hover:text-[#6bbdb7] hover:bg-teal-50/30 transition-all text-[9px] font-black uppercase tracking-widest flex items-center gap-2 active:scale-95"
+                                            >
+                                                <Plus size={14} />
+                                                Agregar Empleado
+                                            </button>
+                                        </div>
+                                    )}
 
                                     {(semanaTableData.length > 0 || specialProjectsData.length > 0) && (
                                         <div className="mt-2 flex justify-end gap-4 border-t-2 border-gray-50 pt-3">
