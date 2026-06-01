@@ -12538,6 +12538,34 @@ const ALLOWED_TABLES = [
 
 const DB_DATA_API = 'http://localhost:3001/api/data';
 
+const BackupButton = () => {
+    const [downloading, setDownloading] = useState(false);
+    const handleBackup = async () => {
+        setDownloading(true);
+        try {
+            const res = await fetch('/api/backup');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `LogicPay_BackUp_${new Date().toISOString().split('T')[0]}.db`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            alert('Error al descargar backup: ' + e.message);
+        } finally { setDownloading(false); }
+    };
+    return (
+        <button onClick={handleBackup} disabled={downloading} className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all border bg-white text-gray-500 border-gray-200 hover:border-emerald-400/30 hover:text-emerald-600 hover:bg-emerald-50/50 disabled:opacity-50">
+            {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+            {downloading ? 'Descargando...' : 'BackUp DB'}
+        </button>
+    );
+};
+
 const DatabaseExplorer = () => {
     const [selectedTable, setSelectedTable] = useState('');
     const [columns, setColumns] = useState([]);
@@ -12711,6 +12739,7 @@ const DatabaseExplorer = () => {
                         <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-1">Visualizar y editar tablas y registros</p>
                     </div>
                     <div className="flex items-center gap-3">
+                        <BackupButton />
                         {selectedTable && columns.length > 0 && (
                             <button onClick={() => { setShowColumnManager(!showColumnManager); setSelectedColsToDelete([]); }} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all border ${showColumnManager ? 'bg-[#303a7f] text-white border-[#303a7f]' : 'bg-white text-gray-500 border-gray-200 hover:border-[#303a7f]/30 hover:text-[#303a7f]'}`}>
                                 <Settings size={13} /> Columnas

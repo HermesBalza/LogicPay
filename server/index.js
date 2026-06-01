@@ -2,8 +2,14 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 import db from './db.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'database.db');
 
 dotenv.config();
 
@@ -388,6 +394,20 @@ app.post('/api/notas/:id/read', (req, res) => {
   } catch (error) {
     console.error('Error marking note as read:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ---------------------------------------------------------------------
+// Backup endpoint
+// ---------------------------------------------------------------------
+app.get('/api/backup', (req, res) => {
+  try {
+    const date = new Date().toISOString().split('T')[0];
+    const filename = `LogicPay_BackUp_${date}.db`;
+    res.download(dbPath, filename);
+  } catch (error) {
+    console.error('Error en backup:', error);
+    res.status(500).json({ error: 'Error al generar el backup' });
   }
 });
 
