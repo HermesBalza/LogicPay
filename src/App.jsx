@@ -13107,7 +13107,7 @@ const UserManager = ({ currentUser }) => {
         e.target.value = '';
     };
 
-    const rolColors = { Asistente: 'text-[#6bbdb7]', CEO: 'text-[#303a7f]', Desarrollador: 'text-amber-500' };
+    const rolColors = { Asistente: 'text-[#6bbdb7]', CEO: 'text-[#303a7f]', Desarrollador: 'text-amber-500', 'Operador de Pagos': 'text-purple-500' };
 
     return (
         <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm overflow-hidden animate-in fade-in duration-500">
@@ -13181,6 +13181,7 @@ const UserManager = ({ currentUser }) => {
                                         <option value="Asistente">Asistente</option>
                                         <option value="CEO">CEO</option>
                                         <option value="Desarrollador">Desarrollador</option>
+                                        <option value="Operador de Pagos">Operador de Pagos</option>
                                     </select>
                                 </td>
                                 <td className="px-4 py-3 border-r border-gray-50">
@@ -13243,6 +13244,7 @@ const UserManager = ({ currentUser }) => {
                                         <option value="Asistente">Asistente</option>
                                         <option value="CEO">CEO</option>
                                         <option value="Desarrollador">Desarrollador</option>
+                                        <option value="Operador de Pagos">Operador de Pagos</option>
                                     </select>
                                 </div>
                                 <div className="flex gap-3">
@@ -13820,6 +13822,14 @@ function App() {
     const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado' | 'desconectado' | 'sincronizando'
 
     const [user, setUser] = useState(null);
+
+    const userCanEdit = user?.rol !== 'Operador de Pagos';
+    const userCanAccessSettings = user?.rol === 'Desarrollador';
+    // Redirigir si se intenta acceder a Ajustes sin permiso
+    if (activeTab === 'settings' && !userCanAccessSettings) {
+        setActiveTab('dashboard');
+        sessionStorage.setItem('activeTab', 'dashboard');
+    }
 
     // Estados para archivos de Nómina
     const [supervisorFile, setSupervisorFile] = useState(null);
@@ -15804,7 +15814,7 @@ function App() {
 
     // Re-hidratación de Tiendas
     useEffect(() => {
-        if (stores.length > 0 && pendingStoreId.current) {
+        if (stores.length > 0 && pendingStoreId.current && userCanEdit) {
             const store = stores.find(s => s.codigo === pendingStoreId.current);
             if (store) {
                 setEditingStore(store);
@@ -15815,7 +15825,7 @@ function App() {
 
     // Re-hidratación de Personal
     useEffect(() => {
-        if (employees.length > 0 && pendingEmployeeId.current) {
+        if (employees.length > 0 && pendingEmployeeId.current && userCanEdit) {
             const emp = employees.find(e => e.codigo_empleado === pendingEmployeeId.current);
             if (emp) {
                 setEditingEmployee(emp);
@@ -17035,7 +17045,7 @@ function App() {
 
     const storeNames = stores.map(s => s.nombre);
 
-    const navItems = [
+    const allNavItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'stores', label: 'Tiendas', icon: StoreIcon },
         { id: 'employees', label: 'Personal', icon: Users },
@@ -17046,6 +17056,7 @@ function App() {
         { id: 'crm', label: 'CRM', icon: Briefcase },
         { id: 'settings', label: 'Ajustes', icon: Settings },
     ];
+    const navItems = allNavItems.filter(item => item.id !== 'settings' || userCanAccessSettings);
 
     if (!variablesLoaded || isSyncingEmployeeCSV) return <SplashLoader />;
     if (!user) return <LoginView onLogin={handleLogin} />;
@@ -17824,6 +17835,7 @@ function App() {
                                         <FileSpreadsheet size={20} className="group-hover:scale-110 transition-transform duration-500" />
                                         <span className="tracking-widest uppercase text-[10px]">Importar Excel</span>
                                     </button>
+                                    {userCanEdit && (
                                     <button
                                         onClick={() => setIsAddingStore(true)}
                                         style={{ backgroundColor: '#303a7f' }}
@@ -17833,6 +17845,7 @@ function App() {
                                         <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" />
                                         <span className="tracking-widest uppercase text-[10px]">Agregar Tienda</span>
                                     </button>
+                                    )}
                                 </div>
                                 <input
                                     type="file"
@@ -17851,7 +17864,7 @@ function App() {
                             {storesViewMode === 'grid' ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                                     {filteredStores.map((store, i) => (
-                                        <StoreCard key={i} store={store} employees={employees} onEdit={setEditingStore} />
+                                        <StoreCard key={i} store={store} employees={employees} onEdit={userCanEdit ? setEditingStore : () => {}} />
                                     ))}
 
                                     {filteredStores.length === 0 && (
@@ -17873,7 +17886,7 @@ function App() {
                                     </div>
                                     <div className="divide-y divide-gray-50">
                                         {filteredStores.map((store, i) => (
-                                            <StoreRow key={i} store={store} employees={employees} onEdit={setEditingStore} />
+                                            <StoreRow key={i} store={store} employees={employees} onEdit={userCanEdit ? setEditingStore : () => {}} />
                                         ))}
                                     </div>
 
@@ -17963,6 +17976,7 @@ function App() {
                                         />
                                     </div>
 
+                                    {userCanEdit && (
                                     <button
                                         onClick={() => setIsAddingEmployee(true)}
                                         style={{ backgroundColor: '#303a7f' }}
@@ -17972,13 +17986,14 @@ function App() {
                                         <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
                                         <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
                                     </button>
+                                    )}
                                 </div>
                             </div>
 
                             {personalViewMode === 'grid' ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                                     {employees.filter(e => e.nombre.toLowerCase().includes(employeeSearchTerm.toLowerCase())).map((employee, i) => (
-                                        <EmployeeCard key={i} employee={employee} onEdit={setEditingEmployee} />
+                                        <EmployeeCard key={i} employee={employee} onEdit={userCanEdit ? setEditingEmployee : () => {}} />
                                     ))}
 
                                     {employees.length === 0 && (
@@ -17998,7 +18013,7 @@ function App() {
                                     </div>
                                     <div className="divide-y divide-gray-50">
                                         {employees.filter(e => e.nombre.toLowerCase().includes(employeeSearchTerm.toLowerCase())).map((employee, i) => (
-                                            <EmployeeRow key={i} employee={employee} onEdit={setEditingEmployee} />
+                                            <EmployeeRow key={i} employee={employee} onEdit={userCanEdit ? setEditingEmployee : () => {}} />
                                         ))}
                                     </div>
 
