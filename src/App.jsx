@@ -88,6 +88,7 @@ import { CSGView } from './CSGModule.jsx';
 import Notes from './Notes.jsx';
 import ResumenView from './ResumenView.jsx';
 import CRMView from './CRMView.jsx';
+import NotificationBell from './NotificationBell.jsx';
 
 const MobileShell = React.lazy(() => import('./mobile/MobileShell'));
 
@@ -13972,6 +13973,7 @@ function App() {
     const initialLoadApplied = useRef(false);
     const [activeTab, setActiveTab] = useState(sessionStorage.getItem('activeTab') || 'dashboard');
     const [showResumen, setShowResumen] = useState(false);
+    const [pendingCandidatoId, setPendingCandidatoId] = useState(null);
     const [isSidebarOpen, setSidebarOpen] = useState(true);
     const [storeSearchTerm, setStoreSearchTerm] = useState(sessionStorage.getItem('storeSearchTerm') || '');
     const [employeeSearchTerm, setEmployeeSearchTerm] = useState(sessionStorage.getItem('employeeSearchTerm') || '');
@@ -17913,6 +17915,7 @@ function App() {
 
                 {/* Notes & Manual de Uso & User Card */}
                 <div className="flex items-center gap-4 ml-auto">
+                    <NotificationBell onSelectCandidato={(id) => { setPendingCandidatoId(id); setActiveTab('crm'); }} />
                     <button
                         onClick={() => {}}
                         className="flex items-center gap-2 px-3 py-2 bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm"
@@ -19103,7 +19106,7 @@ function App() {
                     )}
 
                     {/* VISTA CRM */}
-                    {activeTab === 'crm' && <CRMView currentUser={user} />}
+                    {activeTab === 'crm' && <CRMView currentUser={user} pendingCandidatoId={pendingCandidatoId} onClearPendingCandidato={() => setPendingCandidatoId(null)} />}
 
                     {/* VISTA DEL DASHBOARD */}
                     {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'csg' && activeTab !== 'settings' && activeTab !== 'lgm' && activeTab !== 'crm')) && !showResumen && (

@@ -59,16 +59,16 @@ function Badge({ estado }) {
 const inputCls = 'w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300';
 const selectCls = 'w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all appearance-none cursor-pointer';
 
-const ModalOverlay = ({ children, onClose }) => (
+const ModalOverlay = ({ children, onClose, className = '' }) => (
   <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
     <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-300" />
-    <div className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div className={`relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[85vh] overflow-hidden ${className}`} onClick={e => e.stopPropagation()}>
       {children}
     </div>
   </div>
 );
 
-export default function CRMView({ currentUser }) {
+export default function CRMView({ currentUser, pendingCandidatoId, onClearPendingCandidato }) {
   const [activeTab, setActiveTab] = useState('candidatos');
   const [proveedoresSubTab, setProveedoresSubTab] = useState('proyectos');
 
@@ -94,6 +94,11 @@ export default function CRMView({ currentUser }) {
   const [showNewProyecto, setShowNewProyecto] = useState(false);
   const [showNewCotizacion, setShowNewCotizacion] = useState(false);
   const [selectedCotizacion, setSelectedCotizacion] = useState(null);
+
+  // Registrar llamada states
+  const [showRegistrarLlamada, setShowRegistrarLlamada] = useState(false);
+  const [llamadaTipo, setLlamadaTipo] = useState('');
+  const [llamadaNota, setLlamadaNota] = useState('');
 
   // Form states
   const [formCandidato, setFormCandidato] = useState({ nombre: '', telefono: '', email: '', direccion: '', fecha_contacto: '', estado: 'Nuevo', ultima_llamada: '', proxima_llamada: '', notas: '', fuente: '' });
@@ -124,6 +129,18 @@ export default function CRMView({ currentUser }) {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    if (pendingCandidatoId) {
+      const c = candidatos.find(c => c.id === pendingCandidatoId);
+      if (c) {
+        setSelectedCandidato(c);
+        setFormCandidato({ ...c });
+        setShowNewCandidato(false);
+        onClearPendingCandidato();
+      }
+    }
+  }, [pendingCandidatoId, candidatos, onClearPendingCandidato]);
 
   const showNotif = (message, type = 'success') => {
     setNotification({ show: true, message, type });
@@ -208,15 +225,31 @@ export default function CRMView({ currentUser }) {
     }
   };
 
-  const registrarLlamada = async () => {
+  const registrarLlamada = () => {
     if (!selectedCandidato) return;
-    const now = toMMDDYYYY(new Date().toISOString().split('T')[0]);
-    const data = { id: selectedCandidato.id, ultima_llamada: now, updated_at: new Date().toISOString() };
+    setLlamadaTipo('');
+    setLlamadaNota('');
+    setShowRegistrarLlamada(true);
+  };
+
+  const saveRegistroLlamada = async () => {
+    if (!llamadaTipo) { showNotif('Seleccione el tipo de interacción', 'error'); return; }
+    const now = new Date();
+    const dateStr = toMMDDYYYY(now.toISOString().split('T')[0]);
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const entry = `\n[${dateStr} ${timeStr}] ${llamadaTipo}` + (llamadaNota.trim() ? ` - ${llamadaNota.trim()}` : '');
+    const data = {
+      id: selectedCandidato.id,
+      ultima_llamada: dateStr,
+      notas: (formCandidato.notas || '') + entry,
+      updated_at: now.toISOString(),
+    };
     const res = await syncToDatabase('upsert', data, 'CRM_Candidatos', ['id']);
     if (res?.success) {
       showNotif('Llamada registrada exitosamente');
+      setFormCandidato(f => ({ ...f, notas: (f.notas || '') + entry }));
       fetchData();
-      setSelectedCandidato(null);
+      setShowRegistrarLlamada(false);
     }
   };
 
@@ -380,7 +413,7 @@ export default function CRMView({ currentUser }) {
     const isEditing = !!selectedCandidato;
     const isContratado = formCandidato.estado === 'Contratado';
     return (
-      <ModalOverlay onClose={() => { setSelectedCandidato(null); setShowNewCandidato(false); }}>
+      <ModalOverlay onClose={() => { setSelectedCandidato(null); setShowNewCandidato(false); }} className="max-w-4xl">
         <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <UserPlus size={20} /> {isEditing ? 'Editar' : 'Nuevo'} Candidato
@@ -439,10 +472,7 @@ export default function CRMView({ currentUser }) {
               {isEditing && (
                 <button onClick={registrarLlamada} className="flex items-center gap-2 px-5 py-3 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-2xl border-2 border-[#6bbdb7]/20 hover:bg-[#6bbdb7]/20 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Phone size={14} /> Registrar Llamada</button>
               )}
-              <button onClick={saveCandidato} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> {isEditing ? 'Guardar' : 'Crear'} Candidato</button>
-              {isEditing && (
-                <button onClick={() => deleteCandidato(selectedCandidato)} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Trash2 size={14} /> Eliminar</button>
-              )}
+              <button onClick={saveCandidato} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Save size={14} /> {isEditing ? 'Guardar' : 'Crear Candidato'}</button>
             </div>
           </div>
         </div>
@@ -642,6 +672,39 @@ export default function CRMView({ currentUser }) {
                 <button onClick={() => { deleteCotizacion(selectedCotizacion); setShowNewCotizacion(false); setSelectedCotizacion(null); }} className="flex items-center justify-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Trash2 size={14} /> Eliminar</button>
               )}
             </div>
+          </div>
+        </div>
+      </ModalOverlay>
+    );
+  };
+
+  const renderRegistrarLlamadaModal = () => {
+    if (!showRegistrarLlamada) return null;
+    return (
+      <ModalOverlay onClose={() => setShowRegistrarLlamada(false)}>
+        <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
+          <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
+            <Phone size={20} /> Registrar Llamada
+          </h3>
+          <button onClick={() => setShowRegistrarLlamada(false)} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+          <div className="space-y-4">
+            <div>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Tipo de Interacción</label>
+              <select className={selectCls} value={llamadaTipo} onChange={e => setLlamadaTipo(e.target.value)}>
+                <option value="">Seleccionar...</option>
+                <option value="No contestó">No contestó</option>
+                <option value="Si conversó">Si conversó</option>
+                <option value="Pidió llamar luego">Pidió llamar luego</option>
+                <option value="No interesado">No interesado</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Nota</label>
+              <textarea className={`${inputCls} resize-none`} rows={4} placeholder="Escriba el resultado de la llamada..." value={llamadaNota} onChange={e => setLlamadaNota(e.target.value)} />
+            </div>
+            <button onClick={saveRegistroLlamada} className="w-full flex items-center justify-center gap-2 py-4 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> Guardar</button>
           </div>
         </div>
       </ModalOverlay>
@@ -945,6 +1008,7 @@ export default function CRMView({ currentUser }) {
       {renderProveedorModal()}
       {renderProyectoModal()}
       {renderCotizacionModal()}
+      {renderRegistrarLlamadaModal()}
     </div>
   );
 }
