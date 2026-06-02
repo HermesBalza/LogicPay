@@ -622,10 +622,10 @@ export default function CRMView({ currentUser }) {
       <div className="flex items-center gap-4 mb-8">
         <div className="flex-[1_1_0%] flex justify-start">
           <div className="flex gap-1 p-1 bg-white rounded-[1.5rem] shadow-sm border border-gray-100 w-fit">
-            <button onClick={() => setActiveTab('candidatos')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${activeTab === 'candidatos' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}>
+            <button onClick={() => setActiveTab('candidatos')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest whitespace-nowrap ${activeTab === 'candidatos' ? 'bg-[#303a7f] text-white' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}>
               <Users size={14} /> Candidatos
             </button>
-            <button onClick={() => setActiveTab('proveedores')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${activeTab === 'proveedores' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}>
+            <button onClick={() => setActiveTab('proveedores')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest whitespace-nowrap ${activeTab === 'proveedores' ? 'bg-[#303a7f] text-white' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}>
               <Building2 size={14} /> Proveedores y Proyectos
             </button>
           </div>
