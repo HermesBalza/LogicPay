@@ -88,10 +88,12 @@ db.exec(`CREATE TABLE IF NOT EXISTS CRM_Candidatos (
     proxima_llamada TEXT,
     notas TEXT,
     fuente TEXT,
+    _creado_en_personal TEXT DEFAULT '0',
     creado_por TEXT,
     created_at TEXT DEFAULT (datetime('now','localtime')),
     updated_at TEXT DEFAULT (datetime('now','localtime'))
 );`);
+try { db.exec(`ALTER TABLE CRM_Candidatos ADD COLUMN _creado_en_personal TEXT DEFAULT '0'`); } catch (e) { /* columna ya existe */ }
 
 db.exec(`CREATE TABLE IF NOT EXISTS CRM_Proveedores (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

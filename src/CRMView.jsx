@@ -60,6 +60,7 @@ export default function CRMView({ currentUser }) {
   const [showNewProveedor, setShowNewProveedor] = useState(false);
   const [showNewProyecto, setShowNewProyecto] = useState(false);
   const [showNewCotizacion, setShowNewCotizacion] = useState(false);
+  const [selectedCotizacion, setSelectedCotizacion] = useState(null);
 
   // Form states
   const [formCandidato, setFormCandidato] = useState({ nombre: '', telefono: '', email: '', direccion: '', fecha_contacto: '', estado: 'Nuevo', ultima_llamada: '', proxima_llamada: '', notas: '', fuente: '' });
@@ -289,6 +290,27 @@ export default function CRMView({ currentUser }) {
 
   const handleNewCotizacion = (proyectoId) => { resetFormCotizacion(proyectoId); setShowNewCotizacion(true); };
 
+  const deleteCotizacion = async (ctz, e) => {
+    if (e) e.stopPropagation();
+    if (!confirm(`¿Eliminar cotización de "${getProveedorById(ctz.proveedor_id)?.nombre || '?'}"?`)) return;
+    const res = await syncToDatabase('delete', { id: ctz.id }, 'CRM_Cotizaciones', ['id']);
+    if (res?.success) { showNotif('Cotización eliminada'); fetchData(); }
+  };
+
+  const handleEditCotizacion = (ctz, e) => {
+    if (e) e.stopPropagation();
+    setFormCotizacion({
+      proveedor_id: String(ctz.proveedor_id),
+      monto: ctz.monto ? String(ctz.monto) : '',
+      fecha_cotizacion: (ctz.fecha_cotizacion || '').split('T')[0] || new Date().toISOString().split('T')[0],
+      estado: ctz.estado || 'Recibida',
+      notas: ctz.notas || '',
+      _proyecto_id: ctz.proyecto_id,
+    });
+    setSelectedCotizacion(ctz);
+    setShowNewCotizacion(true);
+  };
+
   const saveCotizacion = async () => {
     if (!formCotizacion.proveedor_id) { showNotif('Seleccione un proveedor', 'error'); return; }
     const data = {
@@ -298,10 +320,17 @@ export default function CRMView({ currentUser }) {
       fecha_cotizacion: formCotizacion.fecha_cotizacion || new Date().toISOString().split('T')[0],
       estado: formCotizacion.estado,
       notas: formCotizacion.notas,
-      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
-    const res = await syncToDatabase('upsert', data, 'CRM_Cotizaciones');
-    if (res?.success) { showNotif('Cotización agregada'); fetchData(); setShowNewCotizacion(false); }
+    if (selectedCotizacion) {
+      data.id = selectedCotizacion.id;
+      const res = await syncToDatabase('upsert', data, 'CRM_Cotizaciones', ['id']);
+      if (res?.success) { showNotif('Cotización actualizada'); fetchData(); setShowNewCotizacion(false); setSelectedCotizacion(null); }
+    } else {
+      data.created_at = new Date().toISOString();
+      const res = await syncToDatabase('upsert', data, 'CRM_Cotizaciones');
+      if (res?.success) { showNotif('Cotización agregada'); fetchData(); setShowNewCotizacion(false); }
+    }
   };
 
   const getCotizacionesByProyecto = (proyectoId) => cotizaciones.filter(c => c.proyecto_id === proyectoId);
@@ -487,10 +516,18 @@ export default function CRMView({ currentUser }) {
                           <td className="py-3 pr-2"><span className="text-[10px] font-bold text-gray-500">{ctz.fecha_cotizacion ? (ctz.fecha_cotizacion.split('T')[0]) : '—'}</span></td>
                           <td className="py-3 pr-2"><Badge estado={ctz.estado} /></td>
                           <td className="py-3">
-                            {!selectedProyecto.proveedor_seleccionado_id && ctz.estado !== 'Rechazada' && (
-                              <button onClick={() => selectBestProvider(selectedProyecto, ctz.proveedor_id)} className="px-2.5 py-1 text-[8px] font-black bg-[#303a7f]/5 text-[#303a7f] rounded-lg hover:bg-[#303a7f]/10 transition-all uppercase tracking-widest">Seleccionar</button>
-                            )}
-                            {isSelected && <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest flex items-center gap-1"><CheckCircle size={12} /> Seleccionado</span>}
+                            <div className="flex items-center gap-1">
+                              {!selectedProyecto.proveedor_seleccionado_id && ctz.estado !== 'Rechazada' && (
+                                <button onClick={() => selectBestProvider(selectedProyecto, ctz.proveedor_id)} className="px-2.5 py-1 text-[8px] font-black bg-[#303a7f]/5 text-[#303a7f] rounded-lg hover:bg-[#303a7f]/10 transition-all uppercase tracking-widest">Seleccionar</button>
+                              )}
+                              {isSelected && <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest flex items-center gap-1"><CheckCircle size={12} /> Seleccionado</span>}
+                              {!selectedProyecto.proveedor_seleccionado_id && (
+                                <button onClick={(e) => handleEditCotizacion(ctz, e)} className="p-1.5 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-lg transition-all"><Edit3 size={11} /></button>
+                              )}
+                              {!selectedProyecto.proveedor_seleccionado_id && (
+                                <button onClick={(e) => deleteCotizacion(ctz, e)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={11} /></button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -522,13 +559,14 @@ export default function CRMView({ currentUser }) {
 
   const renderCotizacionModal = () => {
     if (!showNewCotizacion) return null;
+    const isEditing = !!selectedCotizacion;
     return (
-      <ModalOverlay onClose={() => setShowNewCotizacion(false)}>
+      <ModalOverlay onClose={() => { setShowNewCotizacion(false); setSelectedCotizacion(null); }}>
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
-            <DollarSign size={20} /> Nueva Cotización
+            <DollarSign size={20} /> {isEditing ? 'Editar Cotización' : 'Nueva Cotización'}
           </h3>
-          <button onClick={() => setShowNewCotizacion(false)} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
+          <button onClick={() => { setShowNewCotizacion(false); setSelectedCotizacion(null); }} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
         <div className="space-y-4">
           <div>
@@ -555,7 +593,12 @@ export default function CRMView({ currentUser }) {
             </select>
           </div>
           <textarea className={`${inputCls} resize-none`} rows={2} placeholder="Notas de la cotización..." value={formCotizacion.notas} onChange={e => setFormCotizacion(f => ({ ...f, notas: e.target.value }))} />
-          <button onClick={saveCotizacion} className="flex items-center justify-center gap-2 w-full py-4 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> Guardar Cotización</button>
+          <div className="flex gap-3 pt-2">
+            <button onClick={saveCotizacion} className="flex items-center justify-center gap-2 flex-1 py-4 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> {isEditing ? 'Actualizar' : 'Guardar'} Cotización</button>
+            {isEditing && (
+              <button onClick={() => { deleteCotizacion(selectedCotizacion); setShowNewCotizacion(false); setSelectedCotizacion(null); }} className="flex items-center justify-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Trash2 size={14} /> Eliminar</button>
+            )}
+          </div>
         </div>
       </ModalOverlay>
     );
@@ -573,43 +616,70 @@ export default function CRMView({ currentUser }) {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <div className="p-2.5 bg-[#303a7f]/5 rounded-lg text-[#303a7f]">
-          <Briefcase size={20} />
-        </div>
-        <div>
-          <h2 className="text-base font-black text-[#303a7f] tracking-tighter uppercase leading-none">CRM</h2>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Gestión de Candidatos y Proveedores</p>
-        </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-8 p-1 bg-white rounded-[1.5rem] shadow-sm border border-gray-100 w-fit">
-        <button onClick={() => setActiveTab('candidatos')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${activeTab === 'candidatos' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}>
-          <Users size={14} /> Candidatos
-        </button>
-        <button onClick={() => setActiveTab('proveedores')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${activeTab === 'proveedores' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}>
-          <Building2 size={14} /> Proveedores y Proyectos
-        </button>
+
+      {/* Tabs + Search */}
+      <div className="flex items-center gap-4 mb-8">
+        <div className="flex-[1_1_0%] flex justify-start">
+          <div className="flex gap-1 p-1 bg-white rounded-[1.5rem] shadow-sm border border-gray-100 w-fit">
+            <button onClick={() => setActiveTab('candidatos')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${activeTab === 'candidatos' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}>
+              <Users size={14} /> Candidatos
+            </button>
+            <button onClick={() => setActiveTab('proveedores')} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${activeTab === 'proveedores' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}>
+              <Building2 size={14} /> Proveedores y Proyectos
+            </button>
+          </div>
+        </div>
+        <div className="flex-[1_1_0%] flex justify-center">
+          {activeTab === 'proveedores' && (
+            <div className="flex gap-1 p-1 bg-white rounded-[1.5rem] shadow-sm border border-gray-100 w-fit">
+              <button onClick={() => setProveedoresSubTab('proyectos')} className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest ${proveedoresSubTab === 'proyectos' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}>
+                <Briefcase size={13} /> Proyectos
+              </button>
+              <button onClick={() => setProveedoresSubTab('proveedores')} className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest ${proveedoresSubTab === 'proveedores' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}>
+                <Building2 size={13} /> Proveedores
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="flex-[1_1_0%] flex justify-end">
+          {activeTab === 'candidatos' && (
+          <div className="flex items-center gap-3">
+            <div className="relative w-64">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
+              <input type="text" placeholder="Buscar candidato..." value={searchCandidato} onChange={e => setSearchCandidato(e.target.value)} className="w-full bg-white border-2 border-gray-100 rounded-xl pl-9 pr-3.5 py-2.5 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300" />
+            </div>
+            <select className={`${selectCls} !w-auto !min-w-[130px] !py-2.5 !text-xs`} value={filterEstadoCandidato} onChange={e => setFilterEstadoCandidato(e.target.value)}>
+              <option value="">Todos los estados</option>
+              {ESTADOS_CANDIDATO.map(e => <option key={e} value={e}>{e}</option>)}
+            </select>
+            <button onClick={handleNewCandidato} className="flex items-center gap-2 px-4 py-2.5 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-900/20"><Plus size={14} /> Nuevo Candidato</button>
+          </div>
+        )}
+        {activeTab === 'proveedores' && proveedoresSubTab === 'proyectos' && (
+          <div className="flex items-center gap-3">
+            <div className="relative w-64">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
+              <input type="text" placeholder="Buscar proyecto..." value={searchProyecto} onChange={e => setSearchProyecto(e.target.value)} className="w-full bg-white border-2 border-gray-100 rounded-xl pl-9 pr-3.5 py-2.5 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300" />
+            </div>
+            <button onClick={handleNewProyecto} className="flex items-center gap-2 px-4 py-2.5 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-900/20"><Plus size={14} /> Nuevo Proyecto</button>
+          </div>
+        )}
+        {activeTab === 'proveedores' && proveedoresSubTab === 'proveedores' && (
+          <div className="flex items-center gap-3">
+            <div className="relative w-64">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
+              <input type="text" placeholder="Buscar proveedor..." value={searchProveedor} onChange={e => setSearchProveedor(e.target.value)} className="w-full bg-white border-2 border-gray-100 rounded-xl pl-9 pr-3.5 py-2.5 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300" />
+            </div>
+            <button onClick={handleNewProveedor} className="flex items-center gap-2 px-4 py-2.5 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-900/20"><Plus size={14} /> Nuevo Proveedor</button>
+          </div>
+        )}
+        </div>
       </div>
 
       {/* ─── CANDIDATOS TAB ──────────────────────────────── */}
       {activeTab === 'candidatos' && (
         <div>
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-4 mb-6">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
-              <input type="text" placeholder="Buscar candidato..." value={searchCandidato} onChange={e => setSearchCandidato(e.target.value)} className="w-full bg-white border-2 border-gray-100 rounded-2xl pl-11 pr-4 py-3 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300" />
-            </div>
-            <select className={`${selectCls} w-auto min-w-[140px] py-3`} value={filterEstadoCandidato} onChange={e => setFilterEstadoCandidato(e.target.value)}>
-              <option value="">Todos los estados</option>
-              {ESTADOS_CANDIDATO.map(e => <option key={e} value={e}>{e}</option>)}
-            </select>
-            <button onClick={handleNewCandidato} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-900/20"><Plus size={16} /> Nuevo Candidato</button>
-          </div>
-
           {/* Table */}
           <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden">
             <table className="w-full text-left border-collapse">
@@ -672,27 +742,9 @@ export default function CRMView({ currentUser }) {
       {/* ─── PROVEEDORES TAB ─────────────────────────────── */}
       {activeTab === 'proveedores' && (
         <div>
-          {/* Sub-tabs */}
-          <div className="flex gap-1 mb-6 p-1 bg-white rounded-[1.5rem] shadow-sm border border-gray-100 w-fit">
-            <button onClick={() => setProveedoresSubTab('proyectos')} className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest ${proveedoresSubTab === 'proyectos' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}>
-              <Briefcase size={13} /> Proyectos
-            </button>
-            <button onClick={() => setProveedoresSubTab('proveedores')} className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest ${proveedoresSubTab === 'proveedores' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}>
-              <Building2 size={13} /> Proveedores
-            </button>
-          </div>
-
           {/* ── PROYECTOS ───────────────────────────── */}
           {proveedoresSubTab === 'proyectos' && (
             <div>
-              <div className="flex flex-wrap items-center gap-4 mb-6">
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
-                  <input type="text" placeholder="Buscar proyecto..." value={searchProyecto} onChange={e => setSearchProyecto(e.target.value)} className="w-full bg-white border-2 border-gray-100 rounded-2xl pl-11 pr-4 py-3 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300" />
-                </div>
-                <button onClick={handleNewProyecto} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-900/20"><Plus size={16} /> Nuevo Proyecto</button>
-              </div>
-
               <div className="space-y-4">
                 {filteredProyectos.length === 0 ? (
                   <div className="bg-white rounded-[2rem] p-16 text-center border-2 border-dashed border-gray-100/80 shadow-xl">
@@ -766,10 +818,18 @@ export default function CRMView({ currentUser }) {
                                       <td className="py-2.5 pr-2 hidden sm:table-cell"><span className="text-[9px] font-bold text-gray-400">{ctz.fecha_cotizacion ? (ctz.fecha_cotizacion.split('T')[0]) : '—'}</span></td>
                                       <td className="py-2.5 pr-2"><Badge estado={ctz.estado} /></td>
                                       <td className="py-2.5">
-                                        {!p.proveedor_seleccionado_id && ctz.estado !== 'Rechazada' && (
-                                          <button onClick={() => selectBestProvider(p, ctz.proveedor_id)} className="px-2 py-1 text-[7px] font-black bg-[#303a7f]/5 text-[#303a7f] rounded-lg hover:bg-[#303a7f]/10 transition-all uppercase tracking-widest border border-[#303a7f]/10">Seleccionar</button>
-                                        )}
-                                        {isSel && <CheckCircle size={14} className="text-[#6bbdb7]" />}
+                                        <div className="flex items-center gap-1">
+                                          {!p.proveedor_seleccionado_id && ctz.estado !== 'Rechazada' && (
+                                            <button onClick={() => selectBestProvider(p, ctz.proveedor_id)} className="px-2 py-1 text-[7px] font-black bg-[#303a7f]/5 text-[#303a7f] rounded-lg hover:bg-[#303a7f]/10 transition-all uppercase tracking-widest border border-[#303a7f]/10">Seleccionar</button>
+                                          )}
+                                          {isSel && <CheckCircle size={14} className="text-[#6bbdb7]" />}
+                                          {!p.proveedor_seleccionado_id && (
+                                            <button onClick={(e) => handleEditCotizacion(ctz, e)} className="p-1 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-lg transition-all"><Edit3 size={10} /></button>
+                                          )}
+                                          {!p.proveedor_seleccionado_id && (
+                                            <button onClick={(e) => deleteCotizacion(ctz, e)} className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={10} /></button>
+                                          )}
+                                        </div>
                                       </td>
                                     </tr>
                                   );
@@ -789,14 +849,6 @@ export default function CRMView({ currentUser }) {
           {/* ── PROVEEDORES ──────────────────────────── */}
           {proveedoresSubTab === 'proveedores' && (
             <div>
-              <div className="flex flex-wrap items-center gap-4 mb-6">
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
-                  <input type="text" placeholder="Buscar proveedor..." value={searchProveedor} onChange={e => setSearchProveedor(e.target.value)} className="w-full bg-white border-2 border-gray-100 rounded-2xl pl-11 pr-4 py-3 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300" />
-                </div>
-                <button onClick={handleNewProveedor} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-900/20"><Plus size={16} /> Nuevo Proveedor</button>
-              </div>
-
               <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden">
                 <table className="w-full text-left border-collapse">
                   <thead>
