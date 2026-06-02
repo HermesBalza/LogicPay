@@ -649,11 +649,11 @@ export default function CRMView({ currentUser }) {
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
               <input type="text" placeholder="Buscar candidato..." value={searchCandidato} onChange={e => setSearchCandidato(e.target.value)} className="w-full bg-white border-2 border-gray-100 rounded-xl pl-9 pr-3.5 py-2.5 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300" />
             </div>
-            <select className={`${selectCls} !w-auto !min-w-[130px] !py-2.5 !text-xs`} value={filterEstadoCandidato} onChange={e => setFilterEstadoCandidato(e.target.value)}>
+            <select className={`${selectCls} !w-auto !min-w-[130px] !py-2.5 !text-xs !border-0`} value={filterEstadoCandidato} onChange={e => setFilterEstadoCandidato(e.target.value)}>
               <option value="">Todos los estados</option>
               {ESTADOS_CANDIDATO.map(e => <option key={e} value={e}>{e}</option>)}
             </select>
-            <button onClick={handleNewCandidato} className="flex items-center gap-2 px-4 py-2.5 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-900/20"><Plus size={14} /> Nuevo Candidato</button>
+            <button onClick={handleNewCandidato} className="flex items-center gap-2 px-4 py-2.5 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-900/20 whitespace-nowrap"><Plus size={14} /> Nuevo Candidato</button>
           </div>
         )}
         {activeTab === 'proveedores' && proveedoresSubTab === 'proyectos' && (
