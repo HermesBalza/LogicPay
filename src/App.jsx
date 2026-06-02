@@ -89,6 +89,7 @@ import Notes from './Notes.jsx';
 import ResumenView from './ResumenView.jsx';
 import CRMView from './CRMView.jsx';
 
+const MobileShell = React.lazy(() => import('./mobile/MobileShell'));
 
 // ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
 // La API Key debe ser ingresada en la sección de Ajustes para evitar filtraciones.
@@ -13989,6 +13990,7 @@ function App() {
     const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado' | 'desconectado' | 'sincronizando'
 
     const [user, setUser] = useState(null);
+    const [isMobile] = useState(() => window.innerWidth < 768 || /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent));
 
     const userCanEdit = user?.rol !== 'Operador de Pagos';
     const userCanAccessSettings = user?.rol === 'Desarrollador';
@@ -17244,6 +17246,13 @@ function App() {
 
     if (!variablesLoaded || isSyncingEmployeeCSV) return <SplashLoader />;
     if (!user) return <LoginView onLogin={handleLogin} />;
+    if (user && isMobile) {
+        return (
+            <React.Suspense fallback={<div className="h-screen w-full flex items-center justify-center bg-[#f9f9f9]"><div className="animate-spin w-6 h-6 border-2 border-brand-primary border-t-transparent rounded-full" /></div>}>
+                <MobileShell user={user} onLogout={() => { setUser(null); sessionStorage.clear(); }} />
+            </React.Suspense>
+        );
+    }
 
     return (
         <div
