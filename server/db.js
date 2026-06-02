@@ -102,10 +102,14 @@ db.exec(`CREATE TABLE IF NOT EXISTS CRM_Proveedores (
     telefono TEXT,
     email TEXT,
     especialidad TEXT,
+    proxima_llamada TEXT,
+    creado_por TEXT,
     notas TEXT,
     created_at TEXT DEFAULT (datetime('now','localtime')),
     updated_at TEXT DEFAULT (datetime('now','localtime'))
 );`);
+try { db.exec(`ALTER TABLE CRM_Proveedores ADD COLUMN proxima_llamada TEXT`); } catch (e) { }
+try { db.exec(`ALTER TABLE CRM_Proveedores ADD COLUMN creado_por TEXT`); } catch (e) { }
 
 db.exec(`CREATE TABLE IF NOT EXISTS CRM_Proyectos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

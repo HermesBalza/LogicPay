@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, Plus, X, Phone, Briefcase, Users, Building2, DollarSign, Calendar, CheckCircle, AlertCircle, Edit3, Trash2, Save, UserPlus } from 'lucide-react';
 
-const API_BASE = 'http://localhost:3001/api/data';
-const API_WRITE = 'http://localhost:3001/api/write';
+const API_BASE = '/api/data';
+const API_WRITE = '/api/write';
 
 const ESTADOS_CANDIDATO = ['Nuevo', 'Contactado', 'Entrevistado', 'Contratado', 'Rechazado', 'No Interesado'];
 const ESTADOS_PROYECTO = ['Cotizando', 'Cotizado', 'En Ejecucion', 'Completado', 'Cancelado'];
@@ -101,8 +101,8 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
   const [llamadaNota, setLlamadaNota] = useState('');
 
   // Form states
-  const [formCandidato, setFormCandidato] = useState({ nombre: '', telefono: '', email: '', direccion: '', fecha_contacto: '', estado: 'Nuevo', ultima_llamada: '', proxima_llamada: '', notas: '', fuente: '' });
-  const [formProveedor, setFormProveedor] = useState({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', notas: '' });
+  const [formCandidato, setFormCandidato] = useState({ nombre: '', telefono: '', email: '', direccion: '', fecha_contacto: '', estado: 'Nuevo', ultima_llamada: '', proxima_llamada: '', notas: '', fuente: '', creado_por: '' });
+  const [formProveedor, setFormProveedor] = useState({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', proxima_llamada: '', notas: '', creado_por: '' });
   const [formProyecto, setFormProyecto] = useState({ nombre: '', tienda: '', cliente: 'KBS', descripcion: '', fecha_solicitud: '', estado: 'Cotizando', notas: '' });
   const [formCotizacion, setFormCotizacion] = useState({ proveedor_id: '', monto: '', fecha_cotizacion: '', estado: 'Recibida', notas: '' });
 
@@ -165,12 +165,12 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
 
   // ─── CANDIDATES ───────────────────────────────────────
 
-  const resetFormCandidato = () => setFormCandidato({ nombre: '', telefono: '', email: '', direccion: '', fecha_contacto: toMMDDYYYY(new Date().toISOString().split('T')[0]), estado: 'Nuevo', ultima_llamada: '', proxima_llamada: '', notas: '', fuente: '' });
+  const resetFormCandidato = () => setFormCandidato({ nombre: '', telefono: '', email: '', direccion: '', fecha_contacto: toMMDDYYYY(new Date().toISOString().split('T')[0]), estado: 'Nuevo', ultima_llamada: '', proxima_llamada: '', notas: '', fuente: '', creado_por: '' });
 
   const handleNewCandidato = () => { resetFormCandidato(); setShowNewCandidato(true); };
 
   const handleEditCandidato = (c) => {
-    setFormCandidato({ nombre: c.nombre || '', telefono: c.telefono || '', email: c.email || '', direccion: c.direccion || '', fecha_contacto: toMMDDYYYY(c.fecha_contacto || ''), estado: c.estado || 'Nuevo', ultima_llamada: toMMDDYYYY(c.ultima_llamada || ''), proxima_llamada: toMMDDYYYY(c.proxima_llamada || ''), notas: c.notas || '', fuente: c.fuente || '' });
+    setFormCandidato({ nombre: c.nombre || '', telefono: c.telefono || '', email: c.email || '', direccion: c.direccion || '', fecha_contacto: toMMDDYYYY(c.fecha_contacto || ''), estado: c.estado || 'Nuevo', ultima_llamada: toMMDDYYYY(c.ultima_llamada || ''), proxima_llamada: toMMDDYYYY(c.proxima_llamada || ''), notas: c.notas || '', fuente: c.fuente || '', creado_por: c.creado_por || '' });
     setSelectedCandidato(c);
   };
 
@@ -195,6 +195,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     } else {
       data.fecha_contacto = data.fecha_contacto || toMMDDYYYY(new Date().toISOString().split('T')[0]);
       data.created_at = now;
+      data.creado_por = currentUser?.nombre || '';
       const res = await syncToDatabase('upsert', data, 'CRM_Candidatos');
       if (res?.success) {
         showNotif('Candidato creado exitosamente');
@@ -273,12 +274,12 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
 
   // ─── PROVIDERS ────────────────────────────────────────
 
-  const resetFormProveedor = () => setFormProveedor({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', notas: '' });
+  const resetFormProveedor = () => setFormProveedor({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', proxima_llamada: '', notas: '', creado_por: '' });
 
   const handleNewProveedor = () => { resetFormProveedor(); setShowNewProveedor(true); };
 
   const handleEditProveedor = (p) => {
-    setFormProveedor({ nombre: p.nombre || '', contacto: p.contacto || '', telefono: p.telefono || '', email: p.email || '', especialidad: p.especialidad || '', notas: p.notas || '' });
+    setFormProveedor({ nombre: p.nombre || '', contacto: p.contacto || '', telefono: p.telefono || '', email: p.email || '', especialidad: p.especialidad || '', proxima_llamada: toMMDDYYYY(p.proxima_llamada || ''), notas: p.notas || '', creado_por: p.creado_por || '' });
     setSelectedProveedor(p);
   };
 
@@ -291,6 +292,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
       if (res?.success) { showNotif('Proveedor actualizado'); fetchData(); setSelectedProveedor(null); }
     } else {
       data.created_at = new Date().toISOString();
+      data.creado_por = currentUser?.nombre || '';
       const res = await syncToDatabase('upsert', data, 'CRM_Proveedores');
       if (res?.success) { showNotif('Proveedor creado'); fetchData(); setShowNewProveedor(false); }
     }
@@ -484,7 +486,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     if (!selectedProveedor && !showNewProveedor) return null;
     const isEditing = !!selectedProveedor;
     return (
-      <ModalOverlay onClose={() => { setSelectedProveedor(null); setShowNewProveedor(false); }}>
+      <ModalOverlay onClose={() => { setSelectedProveedor(null); setShowNewProveedor(false); }} className="max-w-4xl">
         <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <Building2 size={20} /> {isEditing ? 'Editar Proveedor' : 'Nuevo Proveedor'}
@@ -502,10 +504,18 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
               <input className={inputCls} placeholder="Email" type="email" value={formProveedor.email} onChange={e => setFormProveedor(f => ({ ...f, email: e.target.value }))} />
               <input className={inputCls} placeholder="Especialidad (ej: Limpieza, Construcción)" value={formProveedor.especialidad} onChange={e => setFormProveedor(f => ({ ...f, especialidad: e.target.value }))} />
             </div>
+            <div>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Próxima Llamada / Seguimiento</label>
+              <div className="relative">
+                <input className={`${inputCls} pr-12`} type="text" placeholder="MM/DD/AAAA" value={formProveedor.proxima_llamada} onChange={e => setFormProveedor(f => ({ ...f, proxima_llamada: formatDateInput(e.target.value) }))} />
+                <button type="button" onClick={() => document.getElementById('dp-proxima-llamada')?.showPicker()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-xl transition-all"><Calendar size={16} /></button>
+                <input id="dp-proxima-llamada" type="date" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none z-[200]" style={{ width: '1px', height: '1px' }} value={toISOFormat(formProveedor.proxima_llamada)} onChange={e => setFormProveedor(f => ({ ...f, proxima_llamada: toMMDDYYYY(e.target.value) }))} />
+              </div>
+            </div>
             <textarea className={`${inputCls} resize-none`} rows={3} placeholder="Notas..." value={formProveedor.notas} onChange={e => setFormProveedor(f => ({ ...f, notas: e.target.value }))} />
             <div className="flex gap-3 pt-2">
-              <button onClick={saveProveedor} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> Guardar</button>
-              {isEditing && <button onClick={() => deleteProveedor(selectedProveedor)} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Trash2 size={14} /> Eliminar</button>}
+              <button onClick={saveProveedor} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Save size={14} /> Guardar</button>
+              {isEditing && <button onClick={() => deleteProveedor(selectedProveedor)} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Trash2 size={14} /> Eliminar</button>}
             </div>
           </div>
         </div>
