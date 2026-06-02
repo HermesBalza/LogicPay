@@ -53,10 +53,3 @@ input[type=number] {
   -moz-appearance: textfield;
 }
 
-/* Ocultar elementos internos de inputs de fecha para evitar duplicidad visual */
-input[type="date"]::-webkit-calendar-picker-indicator,
-input[type="date"]::-webkit-inner-spin-button,
-input[type="date"]::-webkit-clear-button {
-    display: none;
-    -webkit-appearance: none;
-}

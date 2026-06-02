@@ -9,6 +9,30 @@ const ESTADOS_PROYECTO = ['Cotizando', 'Cotizado', 'En Ejecucion', 'Completado',
 const ESTADOS_COTIZACION = ['Pendiente', 'Recibida', 'Aprobada', 'Rechazada'];
 const FUENTES = ['Referencia', 'Anuncio', 'Redes Sociales', 'Web', 'Recomendación', 'Bolsa de Trabajo', 'Otro'];
 
+const toMMDDYYYY = (isoStr) => {
+  if (!isoStr) return '';
+  const match = isoStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return `${match[2]}/${match[3]}/${match[1]}`;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(isoStr)) return isoStr;
+  return isoStr;
+};
+
+const formatDateInput = (value) => {
+  const clean = value.replace(/\D/g, '');
+  let r = clean;
+  if (clean.length > 2) r = clean.slice(0, 2) + '/' + clean.slice(2);
+  if (clean.length > 4) r = clean.slice(0, 2) + '/' + clean.slice(2, 4) + '/' + clean.slice(4, 8);
+  return r;
+};
+
+const toISOFormat = (mmddStr) => {
+  if (!mmddStr) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(mmddStr)) return mmddStr;
+  const parts = mmddStr.split('/');
+  if (parts.length === 3) return `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+  return mmddStr;
+};
+
 const BADGE_CLASSES = {
   'Nuevo': 'bg-blue-50 text-blue-600 border-blue-100',
   'Contactado': 'bg-amber-50 text-amber-600 border-amber-100',
@@ -34,6 +58,15 @@ function Badge({ estado }) {
 
 const inputCls = 'w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300';
 const selectCls = 'w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all appearance-none cursor-pointer';
+
+const ModalOverlay = ({ children, onClose }) => (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-300" />
+    <div className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+      {children}
+    </div>
+  </div>
+);
 
 export default function CRMView({ currentUser }) {
   const [activeTab, setActiveTab] = useState('candidatos');
@@ -115,12 +148,12 @@ export default function CRMView({ currentUser }) {
 
   // ─── CANDIDATES ───────────────────────────────────────
 
-  const resetFormCandidato = () => setFormCandidato({ nombre: '', telefono: '', email: '', direccion: '', fecha_contacto: new Date().toISOString().split('T')[0], estado: 'Nuevo', ultima_llamada: '', proxima_llamada: '', notas: '', fuente: '' });
+  const resetFormCandidato = () => setFormCandidato({ nombre: '', telefono: '', email: '', direccion: '', fecha_contacto: toMMDDYYYY(new Date().toISOString().split('T')[0]), estado: 'Nuevo', ultima_llamada: '', proxima_llamada: '', notas: '', fuente: '' });
 
   const handleNewCandidato = () => { resetFormCandidato(); setShowNewCandidato(true); };
 
   const handleEditCandidato = (c) => {
-    setFormCandidato({ nombre: c.nombre || '', telefono: c.telefono || '', email: c.email || '', direccion: c.direccion || '', fecha_contacto: (c.fecha_contacto || '').split('T')[0] || '', estado: c.estado || 'Nuevo', ultima_llamada: (c.ultima_llamada || '').split('T')[0] || '', proxima_llamada: (c.proxima_llamada || '').split('T')[0] || '', notas: c.notas || '', fuente: c.fuente || '' });
+    setFormCandidato({ nombre: c.nombre || '', telefono: c.telefono || '', email: c.email || '', direccion: c.direccion || '', fecha_contacto: toMMDDYYYY(c.fecha_contacto || ''), estado: c.estado || 'Nuevo', ultima_llamada: toMMDDYYYY(c.ultima_llamada || ''), proxima_llamada: toMMDDYYYY(c.proxima_llamada || ''), notas: c.notas || '', fuente: c.fuente || '' });
     setSelectedCandidato(c);
   };
 
@@ -143,13 +176,14 @@ export default function CRMView({ currentUser }) {
         setSelectedCandidato(null);
       }
     } else {
-      data.fecha_contacto = data.fecha_contacto || new Date().toISOString().split('T')[0];
+      data.fecha_contacto = data.fecha_contacto || toMMDDYYYY(new Date().toISOString().split('T')[0]);
       data.created_at = now;
       const res = await syncToDatabase('upsert', data, 'CRM_Candidatos');
       if (res?.success) {
         showNotif('Candidato creado exitosamente');
         fetchData();
         setShowNewCandidato(false);
+        setSelectedCandidato(null);
       }
     }
   };
@@ -176,7 +210,7 @@ export default function CRMView({ currentUser }) {
 
   const registrarLlamada = async () => {
     if (!selectedCandidato) return;
-    const now = new Date().toISOString().split('T')[0];
+    const now = toMMDDYYYY(new Date().toISOString().split('T')[0]);
     const data = { id: selectedCandidato.id, ultima_llamada: now, updated_at: new Date().toISOString() };
     const res = await syncToDatabase('upsert', data, 'CRM_Candidatos', ['id']);
     if (res?.success) {
@@ -241,12 +275,12 @@ export default function CRMView({ currentUser }) {
 
   // ─── PROJECTS ─────────────────────────────────────────
 
-  const resetFormProyecto = () => setFormProyecto({ nombre: '', tienda: '', cliente: 'KBS', descripcion: '', fecha_solicitud: new Date().toISOString().split('T')[0], estado: 'Cotizando', notas: '' });
+  const resetFormProyecto = () => setFormProyecto({ nombre: '', tienda: '', cliente: 'KBS', descripcion: '', fecha_solicitud: toMMDDYYYY(new Date().toISOString().split('T')[0]), estado: 'Cotizando', notas: '' });
 
   const handleNewProyecto = () => { resetFormProyecto(); setShowNewProyecto(true); };
 
   const handleEditProyecto = (p) => {
-    setFormProyecto({ nombre: p.nombre || '', tienda: p.tienda || '', cliente: p.cliente || 'KBS', descripcion: p.descripcion || '', fecha_solicitud: (p.fecha_solicitud || '').split('T')[0] || '', estado: p.estado || 'Cotizando', notas: p.notas || '' });
+    setFormProyecto({ nombre: p.nombre || '', tienda: p.tienda || '', cliente: p.cliente || 'KBS', descripcion: p.descripcion || '', fecha_solicitud: toMMDDYYYY(p.fecha_solicitud || ''), estado: p.estado || 'Cotizando', notas: p.notas || '' });
     setSelectedProyecto(p);
   };
 
@@ -286,7 +320,7 @@ export default function CRMView({ currentUser }) {
 
   // ─── QUOTES ─────────────────────────────────────────
 
-  const resetFormCotizacion = (proyectoId) => setFormCotizacion({ proveedor_id: '', monto: '', fecha_cotizacion: new Date().toISOString().split('T')[0], estado: 'Recibida', notas: '', _proyecto_id: proyectoId });
+  const resetFormCotizacion = (proyectoId) => setFormCotizacion({ proveedor_id: '', monto: '', fecha_cotizacion: toMMDDYYYY(new Date().toISOString().split('T')[0]), estado: 'Recibida', notas: '', _proyecto_id: proyectoId });
 
   const handleNewCotizacion = (proyectoId) => { resetFormCotizacion(proyectoId); setShowNewCotizacion(true); };
 
@@ -302,7 +336,7 @@ export default function CRMView({ currentUser }) {
     setFormCotizacion({
       proveedor_id: String(ctz.proveedor_id),
       monto: ctz.monto ? String(ctz.monto) : '',
-      fecha_cotizacion: (ctz.fecha_cotizacion || '').split('T')[0] || new Date().toISOString().split('T')[0],
+      fecha_cotizacion: toMMDDYYYY(ctz.fecha_cotizacion || ''),
       estado: ctz.estado || 'Recibida',
       notas: ctz.notas || '',
       _proyecto_id: ctz.proyecto_id,
@@ -317,7 +351,7 @@ export default function CRMView({ currentUser }) {
       proyecto_id: formCotizacion._proyecto_id,
       proveedor_id: parseInt(formCotizacion.proveedor_id),
       monto: formCotizacion.monto ? parseFloat(formCotizacion.monto) : null,
-      fecha_cotizacion: formCotizacion.fecha_cotizacion || new Date().toISOString().split('T')[0],
+      fecha_cotizacion: formCotizacion.fecha_cotizacion || toMMDDYYYY(new Date().toISOString().split('T')[0]),
       estado: formCotizacion.estado,
       notas: formCotizacion.notas,
       updated_at: new Date().toISOString(),
@@ -341,71 +375,75 @@ export default function CRMView({ currentUser }) {
     return proyectos.filter(p => !searchProyecto || p.nombre?.toLowerCase().includes(searchProyecto.toLowerCase()) || p.tienda?.toLowerCase().includes(searchProyecto.toLowerCase()));
   }, [proyectos, searchProyecto]);
 
-  // ─── MODAL COMPONENTS ────────────────────────────────
-
-  const ModalOverlay = ({ children, onClose }) => (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-300" />
-      <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-white rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
-        {children}
-      </div>
-    </div>
-  );
-
   const renderCandidatoModal = () => {
-    if (!selectedCandidato) return null;
+    if (!selectedCandidato && !showNewCandidato) return null;
+    const isEditing = !!selectedCandidato;
     const isContratado = formCandidato.estado === 'Contratado';
     return (
-      <ModalOverlay onClose={() => setSelectedCandidato(null)}>
-        <div className="flex items-center justify-between mb-6">
+      <ModalOverlay onClose={() => { setSelectedCandidato(null); setShowNewCandidato(false); }}>
+        <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
-            <UserPlus size={20} /> Editar Candidato
+            <UserPlus size={20} /> {isEditing ? 'Editar' : 'Nuevo'} Candidato
           </h3>
-          <button onClick={() => setSelectedCandidato(null)} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
+          <button onClick={() => { setSelectedCandidato(null); setShowNewCandidato(false); }} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
-        <div className="space-y-4">
-          <input className={inputCls} placeholder="Nombre completo *" value={formCandidato.nombre} onChange={e => setFormCandidato(f => ({ ...f, nombre: e.target.value }))} />
-          <div className="grid grid-cols-2 gap-4">
-            <input className={inputCls} placeholder="Teléfono" value={formCandidato.telefono} onChange={e => setFormCandidato(f => ({ ...f, telefono: e.target.value }))} />
-            <input className={inputCls} placeholder="Email" type="email" value={formCandidato.email} onChange={e => setFormCandidato(f => ({ ...f, email: e.target.value }))} />
-          </div>
-          <input className={inputCls} placeholder="Dirección" value={formCandidato.direccion} onChange={e => setFormCandidato(f => ({ ...f, direccion: e.target.value }))} />
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Fecha de Contacto</label>
-              <input className={inputCls} type="date" value={formCandidato.fecha_contacto} onChange={e => setFormCandidato(f => ({ ...f, fecha_contacto: e.target.value }))} />
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+          <div className="space-y-4">
+            <input className={inputCls} placeholder="Nombre completo *" value={formCandidato.nombre} onChange={e => setFormCandidato(f => ({ ...f, nombre: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-4">
+              <input className={inputCls} placeholder="Teléfono" value={formCandidato.telefono} onChange={e => setFormCandidato(f => ({ ...f, telefono: e.target.value }))} />
+              <input className={inputCls} placeholder="Email" type="email" value={formCandidato.email} onChange={e => setFormCandidato(f => ({ ...f, email: e.target.value }))} />
             </div>
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Fuente</label>
-              <select className={selectCls} value={formCandidato.fuente} onChange={e => setFormCandidato(f => ({ ...f, fuente: e.target.value }))}>
-                <option value="">Seleccionar...</option>
-                {FUENTES.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
+            <input className={inputCls} placeholder="Dirección" value={formCandidato.direccion} onChange={e => setFormCandidato(f => ({ ...f, direccion: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Fecha de Contacto</label>
+                <div className="relative">
+                  <input className={`${inputCls} pr-12`} type="text" placeholder="MM/DD/AAAA" value={formCandidato.fecha_contacto} onChange={e => setFormCandidato(f => ({ ...f, fecha_contacto: formatDateInput(e.target.value) }))} />
+                  <button type="button" onClick={() => document.getElementById('dc-fecha-contacto')?.showPicker()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-xl transition-all"><Calendar size={16} /></button>
+                  <input id="dc-fecha-contacto" type="date" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none z-[200]" style={{ width: '1px', height: '1px' }} value={toISOFormat(formCandidato.fecha_contacto)} onChange={e => setFormCandidato(f => ({ ...f, fecha_contacto: toMMDDYYYY(e.target.value) }))} />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Fuente</label>
+                <select className={selectCls} value={formCandidato.fuente} onChange={e => setFormCandidato(f => ({ ...f, fuente: e.target.value }))}>
+                  <option value="">Seleccionar...</option>
+                  {FUENTES.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Próxima Llamada</label>
-              <input className={inputCls} type="date" value={formCandidato.proxima_llamada} onChange={e => setFormCandidato(f => ({ ...f, proxima_llamada: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Próxima Llamada</label>
+                <div className="relative">
+                  <input className={`${inputCls} pr-12`} type="text" placeholder="MM/DD/AAAA" value={formCandidato.proxima_llamada} onChange={e => setFormCandidato(f => ({ ...f, proxima_llamada: formatDateInput(e.target.value) }))} />
+                  <button type="button" onClick={() => document.getElementById('dc-proxima-llamada')?.showPicker()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-xl transition-all"><Calendar size={16} /></button>
+                  <input id="dc-proxima-llamada" type="date" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none z-[200]" style={{ width: '1px', height: '1px' }} value={toISOFormat(formCandidato.proxima_llamada)} onChange={e => setFormCandidato(f => ({ ...f, proxima_llamada: toMMDDYYYY(e.target.value) }))} />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Estado</label>
+                <select className={selectCls} value={formCandidato.estado} onChange={e => setFormCandidato(f => ({ ...f, estado: e.target.value }))}>
+                  {ESTADOS_CANDIDATO.map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Estado</label>
-              <select className={selectCls} value={formCandidato.estado} onChange={e => setFormCandidato(f => ({ ...f, estado: e.target.value }))}>
-                {ESTADOS_CANDIDATO.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
+            <textarea className={`${inputCls} resize-none`} rows={3} placeholder="Notas / Historial de llamadas..." value={formCandidato.notas} onChange={e => setFormCandidato(f => ({ ...f, notas: e.target.value }))} />
+            {isContratado && (!selectedCandidato || !selectedCandidato._creado_en_personal) && (
+              <div className="p-4 bg-[#6bbdb7]/5 rounded-2xl border border-[#6bbdb7]/20 flex items-center gap-3">
+                <UserPlus size={20} className="text-[#6bbdb7] flex-shrink-0" />
+                <p className="text-xs font-bold text-[#6bbdb7]">Al guardar con estado "Contratado" se creará automáticamente un registro en Personal (Empleados).</p>
+              </div>
+            )}
+            <div className="flex gap-3 pt-2">
+              {isEditing && (
+                <button onClick={registrarLlamada} className="flex items-center gap-2 px-5 py-3 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-2xl border-2 border-[#6bbdb7]/20 hover:bg-[#6bbdb7]/20 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Phone size={14} /> Registrar Llamada</button>
+              )}
+              <button onClick={saveCandidato} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> {isEditing ? 'Guardar' : 'Crear'} Candidato</button>
+              {isEditing && (
+                <button onClick={() => deleteCandidato(selectedCandidato)} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Trash2 size={14} /> Eliminar</button>
+              )}
             </div>
-          </div>
-          <textarea className={`${inputCls} resize-none`} rows={3} placeholder="Notas / Historial de llamadas..." value={formCandidato.notas} onChange={e => setFormCandidato(f => ({ ...f, notas: e.target.value }))} />
-          {isContratado && !selectedCandidato._creado_en_personal && (
-            <div className="p-4 bg-[#6bbdb7]/5 rounded-2xl border border-[#6bbdb7]/20 flex items-center gap-3">
-              <UserPlus size={20} className="text-[#6bbdb7] flex-shrink-0" />
-              <p className="text-xs font-bold text-[#6bbdb7]">Al guardar con estado "Contratado" se creará automáticamente un registro en Personal (Empleados).</p>
-            </div>
-          )}
-          <div className="flex gap-3 pt-2">
-            <button onClick={registrarLlamada} className="flex items-center gap-2 px-5 py-3 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-2xl border-2 border-[#6bbdb7]/20 hover:bg-[#6bbdb7]/20 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Phone size={14} /> Registrar Llamada</button>
-            <button onClick={saveCandidato} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> Guardar</button>
-            <button onClick={() => deleteCandidato(selectedCandidato)} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Trash2 size={14} /> Eliminar</button>
           </div>
         </div>
       </ModalOverlay>
@@ -417,26 +455,28 @@ export default function CRMView({ currentUser }) {
     const isEditing = !!selectedProveedor;
     return (
       <ModalOverlay onClose={() => { setSelectedProveedor(null); setShowNewProveedor(false); }}>
-        <div className="flex items-center justify-between mb-6">
+        <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <Building2 size={20} /> {isEditing ? 'Editar Proveedor' : 'Nuevo Proveedor'}
           </h3>
           <button onClick={() => { setSelectedProveedor(null); setShowNewProveedor(false); }} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
-        <div className="space-y-4">
-          <input className={inputCls} placeholder="Nombre / Empresa *" value={formProveedor.nombre} onChange={e => setFormProveedor(f => ({ ...f, nombre: e.target.value }))} />
-          <div className="grid grid-cols-2 gap-4">
-            <input className={inputCls} placeholder="Persona de Contacto" value={formProveedor.contacto} onChange={e => setFormProveedor(f => ({ ...f, contacto: e.target.value }))} />
-            <input className={inputCls} placeholder="Teléfono" value={formProveedor.telefono} onChange={e => setFormProveedor(f => ({ ...f, telefono: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <input className={inputCls} placeholder="Email" type="email" value={formProveedor.email} onChange={e => setFormProveedor(f => ({ ...f, email: e.target.value }))} />
-            <input className={inputCls} placeholder="Especialidad (ej: Limpieza, Construcción)" value={formProveedor.especialidad} onChange={e => setFormProveedor(f => ({ ...f, especialidad: e.target.value }))} />
-          </div>
-          <textarea className={`${inputCls} resize-none`} rows={3} placeholder="Notas..." value={formProveedor.notas} onChange={e => setFormProveedor(f => ({ ...f, notas: e.target.value }))} />
-          <div className="flex gap-3 pt-2">
-            <button onClick={saveProveedor} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> Guardar</button>
-            {isEditing && <button onClick={() => deleteProveedor(selectedProveedor)} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Trash2 size={14} /> Eliminar</button>}
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+          <div className="space-y-4">
+            <input className={inputCls} placeholder="Nombre / Empresa *" value={formProveedor.nombre} onChange={e => setFormProveedor(f => ({ ...f, nombre: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-4">
+              <input className={inputCls} placeholder="Persona de Contacto" value={formProveedor.contacto} onChange={e => setFormProveedor(f => ({ ...f, contacto: e.target.value }))} />
+              <input className={inputCls} placeholder="Teléfono" value={formProveedor.telefono} onChange={e => setFormProveedor(f => ({ ...f, telefono: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <input className={inputCls} placeholder="Email" type="email" value={formProveedor.email} onChange={e => setFormProveedor(f => ({ ...f, email: e.target.value }))} />
+              <input className={inputCls} placeholder="Especialidad (ej: Limpieza, Construcción)" value={formProveedor.especialidad} onChange={e => setFormProveedor(f => ({ ...f, especialidad: e.target.value }))} />
+            </div>
+            <textarea className={`${inputCls} resize-none`} rows={3} placeholder="Notas..." value={formProveedor.notas} onChange={e => setFormProveedor(f => ({ ...f, notas: e.target.value }))} />
+            <div className="flex gap-3 pt-2">
+              <button onClick={saveProveedor} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> Guardar</button>
+              {isEditing && <button onClick={() => deleteProveedor(selectedProveedor)} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Trash2 size={14} /> Eliminar</button>}
+            </div>
           </div>
         </div>
       </ModalOverlay>
@@ -450,107 +490,109 @@ export default function CRMView({ currentUser }) {
     const selectedProviderName = selectedProyecto?.proveedor_seleccionado_id ? getProveedorById(selectedProyecto.proveedor_seleccionado_id)?.nombre : null;
     return (
       <ModalOverlay onClose={() => { setSelectedProyecto(null); setShowNewProyecto(false); }}>
-        <div className="flex items-center justify-between mb-6">
+        <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <Briefcase size={20} /> {isEditing ? 'Editar Proyecto' : 'Nuevo Proyecto'}
           </h3>
           <button onClick={() => { setSelectedProyecto(null); setShowNewProyecto(false); }} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
-        <div className="space-y-4">
-          <input className={inputCls} placeholder="Nombre del proyecto *" value={formProyecto.nombre} onChange={e => setFormProyecto(f => ({ ...f, nombre: e.target.value }))} />
-          <div className="grid grid-cols-2 gap-4">
-            <select className={selectCls} value={formProyecto.tienda} onChange={e => setFormProyecto(f => ({ ...f, tienda: e.target.value }))}>
-              <option value="">Seleccionar tienda...</option>
-              {stores.map(s => <option key={s.id || s.nombre} value={s.nombre}>{s.nombre}</option>)}
-            </select>
-            <select className={selectCls} value={formProyecto.cliente} onChange={e => setFormProyecto(f => ({ ...f, cliente: e.target.value }))}>
-              <option value="KBS">KBS</option>
-              <option value="CSG">CSG</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Fecha de Solicitud</label>
-              <input className={inputCls} type="date" value={formProyecto.fecha_solicitud} onChange={e => setFormProyecto(f => ({ ...f, fecha_solicitud: e.target.value }))} />
-            </div>
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Estado</label>
-              <select className={selectCls} value={formProyecto.estado} onChange={e => setFormProyecto(f => ({ ...f, estado: e.target.value }))}>
-                {ESTADOS_PROYECTO.map(e => <option key={e} value={e}>{e}</option>)}
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+          <div className="space-y-4">
+            <input className={inputCls} placeholder="Nombre del proyecto *" value={formProyecto.nombre} onChange={e => setFormProyecto(f => ({ ...f, nombre: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-4">
+              <select className={selectCls} value={formProyecto.tienda} onChange={e => setFormProyecto(f => ({ ...f, tienda: e.target.value }))}>
+                <option value="">Seleccionar tienda...</option>
+                {stores.map(s => <option key={s.id || s.nombre} value={s.nombre}>{s.nombre}</option>)}
+              </select>
+              <select className={selectCls} value={formProyecto.cliente} onChange={e => setFormProyecto(f => ({ ...f, cliente: e.target.value }))}>
+                <option value="KBS">KBS</option>
+                <option value="CSG">CSG</option>
               </select>
             </div>
-          </div>
-          <textarea className={`${inputCls} resize-none`} rows={2} placeholder="Descripción del proyecto..." value={formProyecto.descripcion} onChange={e => setFormProyecto(f => ({ ...f, descripcion: e.target.value }))} />
-          <textarea className={`${inputCls} resize-none`} rows={2} placeholder="Notas internas..." value={formProyecto.notas} onChange={e => setFormProyecto(f => ({ ...f, notas: e.target.value }))} />
-
-          {isEditing && (
-            <div className="mt-4 p-5 bg-white rounded-[1.5rem] border-2 border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest">Cotizaciones Recibidas</h4>
-                <button onClick={() => handleNewCotizacion(selectedProyecto.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-xl border-2 border-[#6bbdb7]/20 hover:bg-[#6bbdb7]/20 transition-all font-black text-[9px] uppercase tracking-widest"><Plus size={12} /> Agregar Cotización</button>
-              </div>
-              {proyectoCotizaciones.length === 0 ? (
-                <p className="text-[10px] font-bold text-gray-300 italic text-center py-4">No hay cotizaciones aún</p>
-              ) : (
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b-2 border-gray-100">
-                      <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Proveedor</th>
-                      <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Monto</th>
-                      <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Fecha</th>
-                      <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Estado</th>
-                      <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {proyectoCotizaciones.map(ctz => {
-                      const prov = getProveedorById(ctz.proveedor_id);
-                      const isSelected = selectedProyecto.proveedor_seleccionado_id === ctz.proveedor_id;
-                      return (
-                        <tr key={ctz.id} className={`group hover:bg-gray-50/50 transition-colors ${isSelected ? 'bg-[#6bbdb7]/5' : ''}`}>
-                          <td className="py-3 pr-2">
-                            <span className="text-[11px] font-black text-[#303a7f]">{prov?.nombre || '—'}</span>
-                            {prov?.contacto && <span className="text-[9px] text-gray-400 block">{prov.contacto}</span>}
-                          </td>
-                          <td className="py-3 pr-2"><span className="text-[11px] font-black text-[#303a7f]">{ctz.monto ? `$${parseFloat(ctz.monto).toFixed(2)}` : '—'}</span></td>
-                          <td className="py-3 pr-2"><span className="text-[10px] font-bold text-gray-500">{ctz.fecha_cotizacion ? (ctz.fecha_cotizacion.split('T')[0]) : '—'}</span></td>
-                          <td className="py-3 pr-2"><Badge estado={ctz.estado} /></td>
-                          <td className="py-3">
-                            <div className="flex items-center gap-1">
-                              {!selectedProyecto.proveedor_seleccionado_id && ctz.estado !== 'Rechazada' && (
-                                <button onClick={() => selectBestProvider(selectedProyecto, ctz.proveedor_id)} className="px-2.5 py-1 text-[8px] font-black bg-[#303a7f]/5 text-[#303a7f] rounded-lg hover:bg-[#303a7f]/10 transition-all uppercase tracking-widest">Seleccionar</button>
-                              )}
-                              {isSelected && <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest flex items-center gap-1"><CheckCircle size={12} /> Seleccionado</span>}
-                              {!selectedProyecto.proveedor_seleccionado_id && (
-                                <button onClick={(e) => handleEditCotizacion(ctz, e)} className="p-1.5 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-lg transition-all"><Edit3 size={11} /></button>
-                              )}
-                              {!selectedProyecto.proveedor_seleccionado_id && (
-                                <button onClick={(e) => deleteCotizacion(ctz, e)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={11} /></button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )}
-
-          {selectedProviderName && (
-            <div className="p-4 bg-green-50 rounded-2xl border border-green-100 flex items-center gap-3">
-              <CheckCircle size={18} className="text-green-500 flex-shrink-0" />
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-[11px] font-black text-green-700 uppercase tracking-tight">Proveedor Seleccionado</p>
-                <p className="text-[10px] font-bold text-green-600">{selectedProviderName}</p>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Fecha de Solicitud</label>
+                <input className={inputCls} type="text" placeholder="MM/DD/AAAA" value={formProyecto.fecha_solicitud} onChange={e => setFormProyecto(f => ({ ...f, fecha_solicitud: formatDateInput(e.target.value) }))} />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Estado</label>
+                <select className={selectCls} value={formProyecto.estado} onChange={e => setFormProyecto(f => ({ ...f, estado: e.target.value }))}>
+                  {ESTADOS_PROYECTO.map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
               </div>
             </div>
-          )}
+            <textarea className={`${inputCls} resize-none`} rows={2} placeholder="Descripción del proyecto..." value={formProyecto.descripcion} onChange={e => setFormProyecto(f => ({ ...f, descripcion: e.target.value }))} />
+            <textarea className={`${inputCls} resize-none`} rows={2} placeholder="Notas internas..." value={formProyecto.notas} onChange={e => setFormProyecto(f => ({ ...f, notas: e.target.value }))} />
 
-          <div className="flex gap-3 pt-2">
-            <button onClick={saveProyecto} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> Guardar</button>
-            {isEditing && <button onClick={() => deleteProyecto(selectedProyecto)} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Trash2 size={14} /> Eliminar</button>}
+            {isEditing && (
+              <div className="mt-4 p-5 bg-white rounded-[1.5rem] border-2 border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest">Cotizaciones Recibidas</h4>
+                  <button onClick={() => handleNewCotizacion(selectedProyecto.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-xl border-2 border-[#6bbdb7]/20 hover:bg-[#6bbdb7]/20 transition-all font-black text-[9px] uppercase tracking-widest"><Plus size={12} /> Agregar Cotización</button>
+                </div>
+                {proyectoCotizaciones.length === 0 ? (
+                  <p className="text-[10px] font-bold text-gray-300 italic text-center py-4">No hay cotizaciones aún</p>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-gray-100">
+                        <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Proveedor</th>
+                        <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Monto</th>
+                        <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Fecha</th>
+                        <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Estado</th>
+                        <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {proyectoCotizaciones.map(ctz => {
+                        const prov = getProveedorById(ctz.proveedor_id);
+                        const isSelected = selectedProyecto.proveedor_seleccionado_id === ctz.proveedor_id;
+                        return (
+                          <tr key={ctz.id} className={`group hover:bg-gray-50/50 transition-colors ${isSelected ? 'bg-[#6bbdb7]/5' : ''}`}>
+                            <td className="py-3 pr-2">
+                              <span className="text-[11px] font-black text-[#303a7f]">{prov?.nombre || '—'}</span>
+                              {prov?.contacto && <span className="text-[9px] text-gray-400 block">{prov.contacto}</span>}
+                            </td>
+                            <td className="py-3 pr-2"><span className="text-[11px] font-black text-[#303a7f]">{ctz.monto ? `$${parseFloat(ctz.monto).toFixed(2)}` : '—'}</span></td>
+                            <td className="py-3 pr-2"><span className="text-[10px] font-bold text-gray-500">{ctz.fecha_cotizacion ? toMMDDYYYY(ctz.fecha_cotizacion) : '—'}</span></td>
+                            <td className="py-3 pr-2"><Badge estado={ctz.estado} /></td>
+                            <td className="py-3">
+                              <div className="flex items-center gap-1">
+                                {!selectedProyecto.proveedor_seleccionado_id && ctz.estado !== 'Rechazada' && (
+                                  <button onClick={() => selectBestProvider(selectedProyecto, ctz.proveedor_id)} className="px-2.5 py-1 text-[8px] font-black bg-[#303a7f]/5 text-[#303a7f] rounded-lg hover:bg-[#303a7f]/10 transition-all uppercase tracking-widest">Seleccionar</button>
+                                )}
+                                {isSelected && <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest flex items-center gap-1"><CheckCircle size={12} /> Seleccionado</span>}
+                                {!selectedProyecto.proveedor_seleccionado_id && (
+                                  <button onClick={(e) => handleEditCotizacion(ctz, e)} className="p-1.5 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-lg transition-all"><Edit3 size={11} /></button>
+                                )}
+                                {!selectedProyecto.proveedor_seleccionado_id && (
+                                  <button onClick={(e) => deleteCotizacion(ctz, e)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={11} /></button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+
+            {selectedProviderName && (
+              <div className="p-4 bg-green-50 rounded-2xl border border-green-100 flex items-center gap-3">
+                <CheckCircle size={18} className="text-green-500 flex-shrink-0" />
+                <div>
+                  <p className="text-[11px] font-black text-green-700 uppercase tracking-tight">Proveedor Seleccionado</p>
+                  <p className="text-[10px] font-bold text-green-600">{selectedProviderName}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button onClick={saveProyecto} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> Guardar</button>
+              {isEditing && <button onClick={() => deleteProyecto(selectedProyecto)} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Trash2 size={14} /> Eliminar</button>}
+            </div>
           </div>
         </div>
       </ModalOverlay>
@@ -562,42 +604,44 @@ export default function CRMView({ currentUser }) {
     const isEditing = !!selectedCotizacion;
     return (
       <ModalOverlay onClose={() => { setShowNewCotizacion(false); setSelectedCotizacion(null); }}>
-        <div className="flex items-center justify-between mb-6">
+        <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <DollarSign size={20} /> {isEditing ? 'Editar Cotización' : 'Nueva Cotización'}
           </h3>
           <button onClick={() => { setShowNewCotizacion(false); setSelectedCotizacion(null); }} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
-        <div className="space-y-4">
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Proveedor</label>
-            <select className={selectCls} value={formCotizacion.proveedor_id} onChange={e => setFormCotizacion(f => ({ ...f, proveedor_id: e.target.value }))}>
-              <option value="">Seleccionar proveedor...</option>
-              {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+          <div className="space-y-4">
             <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Monto ($)</label>
-              <input className={inputCls} type="number" step="0.01" placeholder="0.00" value={formCotizacion.monto} onChange={e => setFormCotizacion(f => ({ ...f, monto: e.target.value }))} />
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Proveedor</label>
+              <select className={selectCls} value={formCotizacion.proveedor_id} onChange={e => setFormCotizacion(f => ({ ...f, proveedor_id: e.target.value }))}>
+                <option value="">Seleccionar proveedor...</option>
+                {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Monto ($)</label>
+                <input className={inputCls} type="number" step="0.01" placeholder="0.00" value={formCotizacion.monto} onChange={e => setFormCotizacion(f => ({ ...f, monto: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Fecha de Cotización</label>
+                <input className={inputCls} type="text" placeholder="MM/DD/AAAA" value={formCotizacion.fecha_cotizacion} onChange={e => setFormCotizacion(f => ({ ...f, fecha_cotizacion: formatDateInput(e.target.value) }))} />
+              </div>
             </div>
             <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Fecha de Cotización</label>
-              <input className={inputCls} type="date" value={formCotizacion.fecha_cotizacion} onChange={e => setFormCotizacion(f => ({ ...f, fecha_cotizacion: e.target.value }))} />
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Estado</label>
+              <select className={selectCls} value={formCotizacion.estado} onChange={e => setFormCotizacion(f => ({ ...f, estado: e.target.value }))}>
+                {ESTADOS_COTIZACION.map(e => <option key={e} value={e}>{e}</option>)}
+              </select>
             </div>
-          </div>
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Estado</label>
-            <select className={selectCls} value={formCotizacion.estado} onChange={e => setFormCotizacion(f => ({ ...f, estado: e.target.value }))}>
-              {ESTADOS_COTIZACION.map(e => <option key={e} value={e}>{e}</option>)}
-            </select>
-          </div>
-          <textarea className={`${inputCls} resize-none`} rows={2} placeholder="Notas de la cotización..." value={formCotizacion.notas} onChange={e => setFormCotizacion(f => ({ ...f, notas: e.target.value }))} />
-          <div className="flex gap-3 pt-2">
-            <button onClick={saveCotizacion} className="flex items-center justify-center gap-2 flex-1 py-4 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> {isEditing ? 'Actualizar' : 'Guardar'} Cotización</button>
-            {isEditing && (
-              <button onClick={() => { deleteCotizacion(selectedCotizacion); setShowNewCotizacion(false); setSelectedCotizacion(null); }} className="flex items-center justify-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Trash2 size={14} /> Eliminar</button>
-            )}
+            <textarea className={`${inputCls} resize-none`} rows={2} placeholder="Notas de la cotización..." value={formCotizacion.notas} onChange={e => setFormCotizacion(f => ({ ...f, notas: e.target.value }))} />
+            <div className="flex gap-3 pt-2">
+              <button onClick={saveCotizacion} className="flex items-center justify-center gap-2 flex-1 py-4 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> {isEditing ? 'Actualizar' : 'Guardar'} Cotización</button>
+              {isEditing && (
+                <button onClick={() => { deleteCotizacion(selectedCotizacion); setShowNewCotizacion(false); setSelectedCotizacion(null); }} className="flex items-center justify-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Trash2 size={14} /> Eliminar</button>
+              )}
+            </div>
           </div>
         </div>
       </ModalOverlay>
@@ -714,13 +758,13 @@ export default function CRMView({ currentUser }) {
                       <td className="px-5 py-4 hidden md:table-cell">
                         <span className="text-[11px] font-bold text-gray-500 flex items-center gap-1.5">
                           <Phone size={11} className="text-gray-300" />
-                          {c.ultima_llamada ? (c.ultima_llamada.split('T')[0]) : '—'}
+                          {c.ultima_llamada ? toMMDDYYYY(c.ultima_llamada) : '—'}
                         </span>
                       </td>
                       <td className="px-5 py-4 hidden md:table-cell">
                         <span className="text-[11px] font-bold text-gray-500 flex items-center gap-1.5">
                           <Calendar size={11} className="text-gray-300" />
-                          {c.proxima_llamada ? (c.proxima_llamada.split('T')[0]) : '—'}
+                          {c.proxima_llamada ? toMMDDYYYY(c.proxima_llamada) : '—'}
                         </span>
                       </td>
                       <td className="px-5 py-4 hidden lg:table-cell"><span className="text-[10px] font-bold text-gray-400">{c.fuente || '—'}</span></td>
@@ -767,7 +811,7 @@ export default function CRMView({ currentUser }) {
                             <div className="flex items-center gap-4 text-[10px] font-bold text-gray-400 mt-1">
                               {p.tienda && <span>{p.tienda}</span>}
                               {p.cliente && <span className="px-2 py-0.5 bg-[#303a7f]/5 rounded-lg text-[#303a7f]">{p.cliente}</span>}
-                              {p.fecha_solicitud && <span className="flex items-center gap-1"><Calendar size={10} /> {p.fecha_solicitud.split('T')[0]}</span>}
+                              {p.fecha_solicitud && <span className="flex items-center gap-1"><Calendar size={10} /> {toMMDDYYYY(p.fecha_solicitud)}</span>}
                             </div>
                           </div>
                           <div className="flex gap-2">
@@ -815,7 +859,7 @@ export default function CRMView({ currentUser }) {
                                         <span className="text-[10px] font-black text-[#303a7f]">{prov?.nombre || '—'}</span>
                                       </td>
                                       <td className="py-2.5 pr-2"><span className="text-[10px] font-black text-[#303a7f]">{ctz.monto ? `$${parseFloat(ctz.monto).toFixed(2)}` : '—'}</span></td>
-                                      <td className="py-2.5 pr-2 hidden sm:table-cell"><span className="text-[9px] font-bold text-gray-400">{ctz.fecha_cotizacion ? (ctz.fecha_cotizacion.split('T')[0]) : '—'}</span></td>
+                                      <td className="py-2.5 pr-2 hidden sm:table-cell"><span className="text-[9px] font-bold text-gray-400">{ctz.fecha_cotizacion ? toMMDDYYYY(ctz.fecha_cotizacion) : '—'}</span></td>
                                       <td className="py-2.5 pr-2"><Badge estado={ctz.estado} /></td>
                                       <td className="py-2.5">
                                         <div className="flex items-center gap-1">
