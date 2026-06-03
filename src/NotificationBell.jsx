@@ -27,6 +27,15 @@ function formatDateLabel(dateStr) {
   return date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
+function isPastDate(dateStr) {
+  if (!dateStr) return false;
+  const [m, d, y] = dateStr.split('/');
+  const date = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date < today;
+}
+
 export default function NotificationBell({ onSelectCandidato }) {
   const [showModal, setShowModal] = useState(false);
   const [reminders, setReminders] = useState([]);
@@ -50,15 +59,7 @@ export default function NotificationBell({ onSelectCandidato }) {
         all = [...all, ...data.map(p => ({ ...p, tipo_origen: 'Proveedor' }))];
       }
 
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-
-      const filtered = all.filter(r => {
-        if (!r.proxima_llamada) return false;
-        const [m, d, y] = r.proxima_llamada.split('/');
-        const callDate = new Date(y, m - 1, d);
-        return callDate >= now;
-      }).sort((a, b) => {
+      const filtered = all.filter(r => r.proxima_llamada).sort((a, b) => {
         const [ma, da, ya] = a.proxima_llamada.split('/');
         const [mb, db, yb] = b.proxima_llamada.split('/');
         return new Date(ya, ma - 1, da) - new Date(yb, mb - 1, db);
@@ -138,7 +139,7 @@ export default function NotificationBell({ onSelectCandidato }) {
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
           <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-300" />
           <div
-            className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[85vh] overflow-hidden"
+            className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col min-h-[85vh] max-h-[85vh] overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
@@ -168,15 +169,15 @@ export default function NotificationBell({ onSelectCandidato }) {
                       </div>
                       <div className="space-y-2">
                         {items.map(r => (
-                          <div key={`${r.tipo_origen}-${r.id}`} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-[#303a7f]/10 transition-all">
-                            <div className="w-10 h-10 rounded-xl bg-[#303a7f]/5 flex items-center justify-center text-[#303a7f] font-black text-[12px] border border-[#303a7f]/10 shrink-0">
+                          <div key={`${r.tipo_origen}-${r.id}`} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${isPastDate(r.proxima_llamada) ? 'bg-red-50 border-red-300 hover:border-red-400' : 'bg-gray-50 border-gray-100 hover:border-[#303a7f]/10'}`}>
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[12px] border shrink-0 ${isPastDate(r.proxima_llamada) ? 'bg-red-100 text-red-600 border-red-200' : 'bg-[#303a7f]/5 text-[#303a7f] border-[#303a7f]/10'}`}>
                               <Phone size={18} />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <button
                                   onClick={() => { setShowModal(false); onSelectCandidato(r.id); }}
-                                  className="text-[12px] font-black text-[#303a7f] uppercase tracking-tight hover:text-[#6bbdb7] transition-colors text-left leading-tight truncate"
+                                  className={`text-[12px] font-black uppercase tracking-tight hover:text-[#6bbdb7] transition-colors text-left leading-tight truncate ${isPastDate(r.proxima_llamada) ? 'text-red-600' : 'text-[#303a7f]'}`}
                                 >
                                   {r.nombre}
                                 </button>
