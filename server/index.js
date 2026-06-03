@@ -161,7 +161,9 @@ app.post('/api/write', (req, res) => {
          db.prepare(`INSERT INTO ${sheetName} (${quotedKeys}) VALUES (${placeholders})`).run(values);
       }
       const accion = wasInsert ? 'Agregó' : 'Actualizó';
-      auditLog(userId, userName, accion, mapEntityName(sheetName), entidadNombre, { table: sheetName, matchKeys });
+      if (sheetName !== 'Variables') {
+        auditLog(userId, userName, accion, mapEntityName(sheetName), entidadNombre, { table: sheetName, matchKeys });
+      }
       return res.json({ success: true });
     }
 

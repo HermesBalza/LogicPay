@@ -12415,7 +12415,7 @@ const ALLOWED_TABLES = [
     'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
     'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
     'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
-    'VASchedule', 'Usuarios'
+    'VASchedule', 'Usuarios', 'AuditLog'
 ];
 
 const DB_DATA_API = 'http://localhost:3001/api/data';

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Search, Plus, X, Phone, Briefcase, Users, Building2, DollarSign, Calendar, CheckCircle, AlertCircle, Edit3, Trash2, Save, UserPlus } from 'lucide-react';
+import { Search, Plus, X, Phone, Briefcase, Users, Building2, DollarSign, Calendar, CheckCircle, AlertCircle, Edit3, Trash2, Save, UserPlus, Upload, Download } from 'lucide-react';
 
 const API_BASE = '/api/data';
 const API_WRITE = '/api/write';
@@ -109,8 +109,10 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
   const [formProveedor, setFormProveedor] = useState({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', proxima_llamada: '', notas: '', creado_por: '' });
   const [formProyecto, setFormProyecto] = useState({ nombre: '', tienda: '', cliente: 'KBS', descripcion: '', fecha_solicitud: '', estado: 'Cotizando', notas: '' });
   const [formCotizacion, setFormCotizacion] = useState({ proveedor_id: '', monto: '', fecha_cotizacion: '', estado: 'Recibida', notas: '' });
+  const [fileUploading, setFileUploading] = useState(false);
 
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, message: '', onConfirm: null });
 
   // Fetch all data
   const fetchData = useCallback(async () => {
@@ -241,7 +243,6 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
   };
 
   const deleteCandidato = async (c) => {
-    if (!confirm(`¿Eliminar candidato "${c.nombre}"?`)) return;
     const res = await syncToDatabase('delete', { id: c.id }, 'CRM_Candidatos', ['id']);
     if (res?.success) {
       showNotif('Candidato eliminado');
@@ -285,7 +286,6 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
   };
 
   const deleteProveedor = async (p) => {
-    if (!confirm(`¿Eliminar proveedor "${p.nombre}"?`)) return;
     const res = await syncToDatabase('delete', { id: p.id }, 'CRM_Proveedores', ['id']);
     if (res?.success) { showNotif('Proveedor eliminado'); fetchData(); setSelectedProveedor(null); }
   };
@@ -334,20 +334,18 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
   };
 
   const deleteProyecto = async (p) => {
-    if (!confirm(`¿Eliminar proyecto "${p.nombre}"?`)) return;
+    await syncToDatabase('delete', { proyecto_id: p.id }, 'CRM_Cotizaciones', ['proyecto_id']);
     const res = await syncToDatabase('delete', { id: p.id }, 'CRM_Proyectos', ['id']);
     if (res?.success) { showNotif('Proyecto eliminado'); fetchData(); setSelectedProyecto(null); }
   };
 
   // ─── QUOTES ─────────────────────────────────────────
 
-  const resetFormCotizacion = (proyectoId) => setFormCotizacion({ proveedor_id: '', monto: '', fecha_cotizacion: toMMDDYYYY(new Date().toISOString().split('T')[0]), estado: 'Recibida', notas: '', _proyecto_id: proyectoId });
+  const resetFormCotizacion = (proyectoId) => setFormCotizacion({ proveedor_id: '', monto: '', fecha_cotizacion: toMMDDYYYY(new Date().toISOString().split('T')[0]), estado: 'Recibida', notas: '', archivo: '', _archivo_nombre: '', _proyecto_id: proyectoId });
 
   const handleNewCotizacion = (proyectoId) => { resetFormCotizacion(proyectoId); setShowNewCotizacion(true); };
 
-  const deleteCotizacion = async (ctz, e) => {
-    if (e) e.stopPropagation();
-    if (!confirm(`¿Eliminar cotización de "${getProveedorById(ctz.proveedor_id)?.nombre || '?'}"?`)) return;
+  const deleteCotizacion = async (ctz) => {
     const res = await syncToDatabase('delete', { id: ctz.id }, 'CRM_Cotizaciones', ['id']);
     if (res?.success) { showNotif('Cotización eliminada'); fetchData(); }
   };
@@ -360,6 +358,8 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
       fecha_cotizacion: toMMDDYYYY(ctz.fecha_cotizacion || ''),
       estado: ctz.estado || 'Recibida',
       notas: ctz.notas || '',
+      archivo: ctz.archivo || '',
+      _archivo_nombre: '',
       _proyecto_id: ctz.proyecto_id,
     });
     setSelectedCotizacion(ctz);
@@ -375,6 +375,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
       fecha_cotizacion: formCotizacion.fecha_cotizacion || toMMDDYYYY(new Date().toISOString().split('T')[0]),
       estado: formCotizacion.estado,
       notas: formCotizacion.notas,
+      archivo: formCotizacion.archivo || '',
       updated_at: new Date().toISOString(),
     };
     if (selectedCotizacion) {
@@ -559,7 +560,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
             <textarea className={`${inputCls} resize-none`} rows={3} placeholder="Notas..." value={formProveedor.notas} onChange={e => setFormProveedor(f => ({ ...f, notas: e.target.value }))} />
             <div className="flex gap-3 pt-2">
               <button onClick={saveProveedor} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Save size={14} /> Guardar</button>
-              {isEditing && <button onClick={() => deleteProveedor(selectedProveedor)} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Trash2 size={14} /> Eliminar</button>}
+              {isEditing && <button onClick={() => setDeleteConfirm({ show: true, message: `¿Eliminar proveedor "${selectedProveedor?.nombre}"?`, onConfirm: () => deleteProveedor(selectedProveedor) })} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Trash2 size={14} /> Eliminar</button>}
             </div>
           </div>
         </div>
@@ -624,6 +625,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                         <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Monto</th>
                         <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Fecha</th>
                         <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Estado</th>
+                        <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Archivo</th>
                         <th className="pb-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Acción</th>
                       </tr>
                     </thead>
@@ -640,6 +642,13 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                             <td className="py-3 pr-2"><span className="text-[11px] font-black text-[#303a7f]">{ctz.monto ? `$${parseFloat(ctz.monto).toFixed(2)}` : '—'}</span></td>
                             <td className="py-3 pr-2"><span className="text-[10px] font-bold text-gray-500">{ctz.fecha_cotizacion ? toMMDDYYYY(ctz.fecha_cotizacion) : '—'}</span></td>
                             <td className="py-3 pr-2"><Badge estado={ctz.estado} /></td>
+                            <td className="py-3 pr-2">
+                              {ctz.archivo ? (
+                                <a href={ctz.archivo} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#303a7f] hover:text-[#6bbdb7] transition-colors" title="Ver archivo">
+                                  <Download size={12} />
+                                </a>
+                              ) : <span className="text-[9px] text-gray-300">—</span>}
+                            </td>
                             <td className="py-3">
                               <div className="flex items-center gap-1">
                                 {!selectedProyecto.proveedor_seleccionado_id && ctz.estado !== 'Rechazada' && (
@@ -650,7 +659,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                                   <button onClick={(e) => handleEditCotizacion(ctz, e)} className="p-1.5 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-lg transition-all"><Edit3 size={11} /></button>
                                 )}
                                 {!selectedProyecto.proveedor_seleccionado_id && (
-                                  <button onClick={(e) => deleteCotizacion(ctz, e)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={11} /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ show: true, message: `¿Eliminar cotización de "${getProveedorById(ctz.proveedor_id)?.nombre || '?'}"?`, onConfirm: () => deleteCotizacion(ctz) }); }} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={11} /></button>
                                 )}
                               </div>
                             </td>
@@ -675,7 +684,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
 
             <div className="flex gap-3 pt-2">
               <button onClick={saveProyecto} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> Guardar</button>
-              {isEditing && <button onClick={() => deleteProyecto(selectedProyecto)} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Trash2 size={14} /> Eliminar</button>}
+              {isEditing && <button onClick={() => setDeleteConfirm({ show: true, message: `¿Eliminar proyecto "${selectedProyecto?.nombre}"?`, onConfirm: () => deleteProyecto(selectedProyecto) })} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Trash2 size={14} /> Eliminar</button>}
             </div>
           </div>
         </div>
@@ -720,10 +729,41 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
               </select>
             </div>
             <textarea className={`${inputCls} resize-none`} rows={2} placeholder="Notas de la cotización..." value={formCotizacion.notas} onChange={e => setFormCotizacion(f => ({ ...f, notas: e.target.value }))} />
+            <div>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Archivo adjunto</label>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 px-4 py-2.5 bg-[#f9f9f9] border-2 border-gray-100 rounded-xl cursor-pointer hover:border-[#303a7f]/30 transition-all active:scale-95">
+                  <Upload size={14} className="text-[#303a7f]" />
+                  <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">Seleccionar archivo</span>
+                  <input type="file" className="hidden" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setFileUploading(true);
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      setFormCotizacion(f => ({ ...f, archivo: reader.result, _archivo_nombre: file.name }));
+                      setFileUploading(false);
+                    };
+                    reader.onerror = () => { setFileUploading(false); showNotif('Error al leer el archivo', 'error'); };
+                    reader.readAsDataURL(file);
+                  }} />
+                </label>
+                {formCotizacion._archivo_nombre && (
+                  <span className="text-[9px] font-bold text-[#6bbdb7] flex items-center gap-1">
+                    <CheckCircle size={11} /> {formCotizacion._archivo_nombre}
+                  </span>
+                )}
+                {!formCotizacion._archivo_nombre && formCotizacion.archivo && (
+                  <span className="text-[9px] font-bold text-[#6bbdb7] flex items-center gap-1">
+                    <CheckCircle size={11} /> Archivo adjunto
+                  </span>
+                )}
+              </div>
+            </div>
             <div className="flex gap-3 pt-2">
-              <button onClick={saveCotizacion} className="flex items-center justify-center gap-2 flex-1 py-4 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> {isEditing ? 'Actualizar' : 'Guardar'} Cotización</button>
+              <button onClick={saveCotizacion} disabled={fileUploading} className="flex items-center justify-center gap-2 flex-1 py-4 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest disabled:opacity-50"><Save size={14} /> {isEditing ? 'Actualizar' : 'Guardar'} Cotización</button>
               {isEditing && (
-                <button onClick={() => { deleteCotizacion(selectedCotizacion); setShowNewCotizacion(false); setSelectedCotizacion(null); }} className="flex items-center justify-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Trash2 size={14} /> Eliminar</button>
+                <button onClick={() => setDeleteConfirm({ show: true, message: `¿Eliminar cotización de "${getProveedorById(selectedCotizacion?.proveedor_id)?.nombre || '?'}"?`, onConfirm: () => { deleteCotizacion(selectedCotizacion); setShowNewCotizacion(false); setSelectedCotizacion(null); } })} className="flex items-center justify-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Trash2 size={14} /> Eliminar</button>
               )}
             </div>
           </div>
@@ -759,6 +799,30 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
               <textarea className={`${inputCls} resize-none`} rows={4} placeholder="Escriba el resultado de la llamada..." value={llamadaNota} onChange={e => setLlamadaNota(e.target.value)} />
             </div>
             <button onClick={saveRegistroLlamada} className="w-full flex items-center justify-center gap-2 py-4 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Save size={14} /> Guardar</button>
+          </div>
+        </div>
+      </ModalOverlay>
+    );
+  };
+
+  // ─── DELETE CONFIRM MODAL ─────────────────────────────
+
+  const renderDeleteConfirmModal = () => {
+    if (!deleteConfirm.show) return null;
+    return (
+      <ModalOverlay onClose={() => setDeleteConfirm({ show: false, message: '', onConfirm: null })} className="max-w-md">
+        <div className="p-10 text-center">
+          <div className="w-16 h-16 mx-auto mb-6 bg-red-50 rounded-full flex items-center justify-center">
+            <AlertCircle size={32} className="text-red-500" />
+          </div>
+          <p className="text-sm font-black text-[#303a7f] uppercase tracking-tight mb-6">{deleteConfirm.message}</p>
+          <div className="flex gap-3">
+            <button onClick={() => setDeleteConfirm({ show: false, message: '', onConfirm: null })} className="flex-1 py-3.5 bg-gray-50 text-gray-500 rounded-2xl hover:bg-gray-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest border-2 border-gray-100">
+              Cancelar
+            </button>
+            <button onClick={() => { deleteConfirm.onConfirm?.(); setDeleteConfirm({ show: false, message: '', onConfirm: null }); }} className="flex-1 py-3.5 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-900/20 flex items-center justify-center gap-2">
+              <Trash2 size={14} /> Eliminar
+            </button>
           </div>
         </div>
       </ModalOverlay>
@@ -933,7 +997,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                           </div>
                           <div className="flex gap-2">
                             <button onClick={() => handleEditProyecto(p)} className="p-2 text-gray-400 hover:text-[#303a7f] hover:bg-[#303a7f]/5 rounded-xl transition-all"><Edit3 size={14} /></button>
-                            <button onClick={() => deleteProyecto(p)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={14} /></button>
+                            <button onClick={() => setDeleteConfirm({ show: true, message: `¿Eliminar proyecto "${p.nombre}"?`, onConfirm: () => deleteProyecto(p) })} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={14} /></button>
                           </div>
                         </div>
 
@@ -963,6 +1027,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                                   <th className="pb-2 text-[8px] font-black text-gray-400 uppercase tracking-widest">Monto</th>
                                   <th className="pb-2 text-[8px] font-black text-gray-400 uppercase tracking-widest hidden sm:table-cell">Fecha</th>
                                   <th className="pb-2 text-[8px] font-black text-gray-400 uppercase tracking-widest">Estado</th>
+                                  <th className="pb-2 text-[8px] font-black text-gray-400 uppercase tracking-widest">Archivo</th>
                                   <th className="pb-2 text-[8px] font-black text-gray-400 uppercase tracking-widest">Acción</th>
                                 </tr>
                               </thead>
@@ -978,6 +1043,13 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                                       <td className="py-2.5 pr-2"><span className="text-[10px] font-black text-[#303a7f]">{ctz.monto ? `$${parseFloat(ctz.monto).toFixed(2)}` : '—'}</span></td>
                                       <td className="py-2.5 pr-2 hidden sm:table-cell"><span className="text-[9px] font-bold text-gray-400">{ctz.fecha_cotizacion ? toMMDDYYYY(ctz.fecha_cotizacion) : '—'}</span></td>
                                       <td className="py-2.5 pr-2"><Badge estado={ctz.estado} /></td>
+                                      <td className="py-2.5 pr-2">
+                                        {ctz.archivo ? (
+                                          <a href={ctz.archivo} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#303a7f] hover:text-[#6bbdb7] transition-colors" title="Ver archivo">
+                                            <Download size={11} />
+                                          </a>
+                                        ) : <span className="text-[8px] text-gray-300">—</span>}
+                                      </td>
                                       <td className="py-2.5">
                                         <div className="flex items-center gap-1">
                                           {!p.proveedor_seleccionado_id && ctz.estado !== 'Rechazada' && (
@@ -988,7 +1060,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                                             <button onClick={(e) => handleEditCotizacion(ctz, e)} className="p-1 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-lg transition-all"><Edit3 size={10} /></button>
                                           )}
                                           {!p.proveedor_seleccionado_id && (
-                                            <button onClick={(e) => deleteCotizacion(ctz, e)} className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={10} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ show: true, message: `¿Eliminar cotización de "${getProveedorById(ctz.proveedor_id)?.nombre || '?'}"?`, onConfirm: () => deleteCotizacion(ctz) }); }} className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={10} /></button>
                                           )}
                                         </div>
                                       </td>
@@ -1063,6 +1135,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
       {renderProyectoModal()}
       {renderCotizacionModal()}
       {renderRegistrarLlamadaModal()}
+      {renderDeleteConfirmModal()}
     </div>
   );
 }
