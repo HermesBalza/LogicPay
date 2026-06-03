@@ -68,7 +68,7 @@ const ModalOverlay = ({ children, onClose, className = '' }) => (
   </div>
 );
 
-export default function CRMView({ currentUser, pendingCandidatoId, onClearPendingCandidato, onCandidatoContratado }) {
+export default function CRMView({ currentUser, pendingCandidatoId, onClearPendingCandidato, pendingProveedorId, onClearPendingProveedor, onCandidatoContratado }) {
   const [activeTab, setActiveTab] = useState('candidatos');
   const [proveedoresSubTab, setProveedoresSubTab] = useState('proyectos');
 
@@ -147,6 +147,18 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
       }
     }
   }, [pendingCandidatoId, candidatos, onClearPendingCandidato]);
+
+  useEffect(() => {
+    if (pendingProveedorId) {
+      const p = proveedores.find(p => p.id === pendingProveedorId);
+      if (p) {
+        handleEditProveedor(p);
+        setActiveTab('proveedores');
+        setProveedoresSubTab('proveedores');
+        onClearPendingProveedor();
+      }
+    }
+  }, [pendingProveedorId, proveedores, onClearPendingProveedor]);
 
   const showNotif = (message, type = 'success') => {
     setNotification({ show: true, message, type });

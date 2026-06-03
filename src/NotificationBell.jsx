@@ -36,7 +36,7 @@ function isPastDate(dateStr) {
   return date < today;
 }
 
-export default function NotificationBell({ onSelectCandidato }) {
+export default function NotificationBell({ onSelectCandidato, onSelectProveedor }) {
   const [showModal, setShowModal] = useState(false);
   const [reminders, setReminders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -176,7 +176,14 @@ export default function NotificationBell({ onSelectCandidato }) {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <button
-                                  onClick={() => { setShowModal(false); onSelectCandidato(r.id); }}
+                                  onClick={() => {
+                                    setShowModal(false);
+                                    if (r.tipo_origen === 'Proveedor') {
+                                      onSelectProveedor?.(r.id);
+                                    } else {
+                                      onSelectCandidato(r.id);
+                                    }
+                                  }}
                                   className={`text-[12px] font-black uppercase tracking-tight hover:text-[#6bbdb7] transition-colors text-left leading-tight truncate ${isPastDate(r.proxima_llamada) ? 'text-red-600' : 'text-[#303a7f]'}`}
                                 >
                                   {r.nombre}
