@@ -4439,31 +4439,34 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
     );
 };
 
-const EmployeeAddView = ({ stores, onSave, onBack, onError }) => {
-    const [newEmployee, setNewEmployee] = useState({
-        nombre: '',
-        codigo_empleado: '',
-        fecha_ingreso: `${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getDate()).padStart(2, '0')}/${new Date().getFullYear()}`,
-        fecha_egreso: '',
-        cargo: 'Janitorial',
-        tienda: '',
-        cuenta_bancaria: '',
-        imagen: '',
-        // --- Campos 1099 ---
-        payer_type: 'Individual',
-        tin_type: 'SSN',
-        tin: '',
-        first_name: '',
-        last_name: '',
-        address_1: '',
-        city: '',
-        state: '',
-        zip: '',
-        country: 'EE. UU.',
-        email_tax: '',
-        site_code: '',
-        rateKBS: 0,
-        rateLGM: 0
+const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
+    const [newEmployee, setNewEmployee] = useState(() => {
+        const defaults = {
+            nombre: '',
+            codigo_empleado: '',
+            fecha_ingreso: `${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getDate()).padStart(2, '0')}/${new Date().getFullYear()}`,
+            fecha_egreso: '',
+            cargo: 'Janitorial',
+            tienda: '',
+            cuenta_bancaria: '',
+            imagen: '',
+            // --- Campos 1099 ---
+            payer_type: 'Individual',
+            tin_type: 'SSN',
+            tin: '',
+            first_name: '',
+            last_name: '',
+            address_1: '',
+            city: '',
+            state: '',
+            zip: '',
+            country: 'EE. UU.',
+            email_tax: '',
+            site_code: '',
+            rateKBS: 0,
+            rateLGM: 0
+        };
+        return initialData ? { ...defaults, ...initialData } : defaults;
     });
 
     const updateField = (field, value) => {
@@ -14012,6 +14015,8 @@ function App() {
     const [personalViewMode, setPersonalViewMode] = useState('grid'); // Cuadrícula por defecto
     const [pendingContratados, setPendingContratados] = useState([]);
     const [showPendingContratadosModal, setShowPendingContratadosModal] = useState(false);
+    const [selectedClienteMap, setSelectedClienteMap] = useState({});
+    const [pendingEmployeePrefill, setPendingEmployeePrefill] = useState(null);
     const [storesViewMode, setStoresViewMode] = useState('grid'); // Cuadrícula por defecto para tiendas
     const [rawBiometricData, setRawBiometricData] = useState([]); // FASE 2.5: Datos crudos para detalles
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // FASE 2.5: Modal detalles
@@ -16943,27 +16948,29 @@ function App() {
         }
     };
 
-    const agregarCandidatoAPersonal = async (candidato) => {
-        const empleadoData = {
-            nombre: candidato.nombre,
+    const agregarCandidatoAPersonal = (candidato) => {
+        const cliente = selectedClienteMap[candidato.id];
+        if (!cliente) return;
+        const nameParts = candidato.nombre.trim().split(' ');
+        const first_name = nameParts[0] || '';
+        const last_name = nameParts.slice(1).join(' ') || '';
+        setPendingEmployeePrefill({
+            _candidatoId: candidato.id,
+            first_name,
+            last_name,
+            nombre: `${first_name} ${last_name}`.trim(),
             email_tax: candidato.email || '',
-            Observaciones: `[CRM] Contratado desde CRM. Tel: ${candidato.telefono || ''}. Fuente: ${candidato.fuente || ''}`,
-            fecha_ingreso: new Date().toISOString().split('T')[0],
-            cargo: 'Cleanner',
-            Cliente: 'KBS',
-            'Rate KBS': '0',
-            'Rate LGM': '0',
-            'Rate CSG': '0',
-        };
-        try {
-            await syncToDatabase('upsert', empleadoData, 'Personal', false, ['nombre']);
-            await syncToDatabase('upsert', { id: candidato.id, _pendiente_en_personal: '', _creado_en_personal: '1', updated_at: new Date().toISOString() }, 'CRM_Candidatos', true, ['id']);
-            setNotificationModal({ isOpen: true, type: 'success', message: `¡${candidato.nombre} registrado como empleado en Personal!` });
-            fetchPendingContratados();
-        } catch (error) {
-            console.error('[LogicPay] Error al agregar candidato a Personal:', error);
-            setNotificationModal({ isOpen: true, type: 'error', message: 'Error al registrar empleado' });
-        }
+            address_1: candidato.direccion || '',
+            cliente,
+            observaciones: `[CRM] Contratado desde CRM. Tel: ${candidato.telefono || ''}. Fuente: ${candidato.fuente || ''}`,
+        });
+        setSelectedClienteMap(prev => {
+            const next = { ...prev };
+            delete next[candidato.id];
+            return next;
+        });
+        setShowPendingContratadosModal(false);
+        setIsAddingEmployee(true);
     };
 
     useEffect(() => {
@@ -17232,6 +17239,7 @@ function App() {
         delete payload.rate_csg;
         delete payload.cliente;
         delete payload.observaciones;
+        delete payload._candidatoId;
 
         // Asegurar que locationHistory sea string para SQLite
         if (payload.locationHistory && typeof payload.locationHistory === 'object') {
@@ -17239,6 +17247,16 @@ function App() {
         }
 
         syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
+
+        if (pendingEmployeePrefill?._candidatoId) {
+            syncToDatabase('upsert',
+                { id: pendingEmployeePrefill._candidatoId, _pendiente_en_personal: '', _creado_en_personal: '1', updated_at: new Date().toISOString() },
+                'CRM_Candidatos', true, ['id']
+            ).then(() => {
+                setPendingEmployeePrefill(null);
+                fetchPendingContratados();
+            }).catch(() => {});
+        }
 
     };
 
@@ -17342,8 +17360,9 @@ function App() {
                 <EmployeeAddView
                     stores={stores}
                     onSave={handleCreateEmployee}
-                    onBack={() => setIsAddingEmployee(false)}
+                    onBack={() => { setIsAddingEmployee(false); setPendingEmployeePrefill(null); }}
                     onError={showError}
+                    initialData={pendingEmployeePrefill}
                 />
             )}
 
@@ -18423,13 +18442,25 @@ function App() {
                                                     </div>
                                                 )}
                                             </div>
-                                            <button
-                                                onClick={() => agregarCandidatoAPersonal(c)}
-                                                className="shrink-0 px-4 py-2.5 bg-[#303a7f] text-white font-black text-[9px] uppercase tracking-widest rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2"
-                                            >
-                                                <UserPlus size={14} />
-                                                Agregar a Personal
-                                            </button>
+                                            <div className="flex flex-col gap-2">
+                                                <select
+                                                    value={selectedClienteMap[c.id] || ''}
+                                                    onChange={e => setSelectedClienteMap(p => ({...p, [c.id]: e.target.value}))}
+                                                    className="w-full bg-white border-2 border-gray-200 rounded-xl px-2.5 py-1.5 text-[9px] font-bold text-gray-700 outline-none focus:border-[#6bbdb7]/30 transition-all"
+                                                >
+                                                    <option value="">Cliente...</option>
+                                                    <option value="KBS">KBS</option>
+                                                    <option value="CSG">CSG</option>
+                                                </select>
+                                                <button
+                                                    onClick={() => agregarCandidatoAPersonal(c)}
+                                                    disabled={!selectedClienteMap[c.id]}
+                                                    className={`shrink-0 px-3 py-2 font-black text-[9px] uppercase tracking-widest rounded-xl transition-all flex items-center gap-1.5 ${selectedClienteMap[c.id] ? 'bg-[#303a7f] text-white hover:bg-[#252a5e] active:scale-95' : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}
+                                                >
+                                                    <UserPlus size={13} />
+                                                    Agregar
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
