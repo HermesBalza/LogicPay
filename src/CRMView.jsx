@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Search, Plus, X, Phone, Briefcase, Users, Building2, DollarSign, Calendar, CheckCircle, AlertCircle, Edit3, Trash2, Save, UserPlus } from 'lucide-react';
 
 const API_BASE = '/api/data';
@@ -94,6 +94,10 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
   const [showNewProyecto, setShowNewProyecto] = useState(false);
   const [showNewCotizacion, setShowNewCotizacion] = useState(false);
   const [selectedCotizacion, setSelectedCotizacion] = useState(null);
+
+  // Sidebar resizable state
+  const [sidebarWidth, setSidebarWidth] = useState('20%');
+  const isDraggingRef = useRef(false);
 
   // Registrar llamada states
   const [showRegistrarLlamada, setShowRegistrarLlamada] = useState(false);
@@ -248,7 +252,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     const res = await syncToDatabase('upsert', data, 'CRM_Candidatos', ['id']);
     if (res?.success) {
       showNotif('Llamada registrada exitosamente');
-      setFormCandidato(f => ({ ...f, notas: (f.notas || '') + entry }));
+      setFormCandidato(f => ({ ...f, notas: (f.notas || '') + entry, ultima_llamada: dateStr }));
       fetchData();
       setShowRegistrarLlamada(false);
     }
@@ -410,72 +414,130 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     return proyectos.filter(p => !searchProyecto || p.nombre?.toLowerCase().includes(searchProyecto.toLowerCase()) || p.tienda?.toLowerCase().includes(searchProyecto.toLowerCase()));
   }, [proyectos, searchProyecto]);
 
+  const handleSidebarMouseDown = useCallback((e) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDraggingRef.current) return;
+      const sidebar = document.getElementById('candidato-sidebar');
+      if (!sidebar) return;
+      const parent = sidebar.parentElement;
+      if (!parent) return;
+      const parentRect = parent.getBoundingClientRect();
+      const minWidth = parentRect.width * 0.2;
+      let newWidth = e.clientX - parentRect.left;
+      if (newWidth < minWidth) newWidth = minWidth;
+      setSidebarWidth(`${newWidth}px`);
+    };
+    const handleMouseUp = () => {
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
   const renderCandidatoModal = () => {
     if (!selectedCandidato && !showNewCandidato) return null;
     const isEditing = !!selectedCandidato;
     const isContratado = formCandidato.estado === 'Contratado';
     return (
-      <ModalOverlay onClose={() => { setSelectedCandidato(null); setShowNewCandidato(false); }} className="max-w-4xl">
+      <ModalOverlay onClose={() => { setSelectedCandidato(null); setShowNewCandidato(false); }} className="max-w-none w-screen h-screen max-h-none rounded-none shadow-none -m-4">
         <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
-            <UserPlus size={20} /> {isEditing ? 'Editar' : 'Nuevo'} Candidato
+            <UserPlus size={20} /> Candidato
           </h3>
           <button onClick={() => { setSelectedCandidato(null); setShowNewCandidato(false); }} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          <div className="space-y-4">
-            <input className={inputCls} placeholder="Nombre completo *" value={formCandidato.nombre} onChange={e => setFormCandidato(f => ({ ...f, nombre: e.target.value }))} />
-            <div className="grid grid-cols-2 gap-4">
-              <input className={inputCls} placeholder="Teléfono" value={formCandidato.telefono} onChange={e => setFormCandidato(f => ({ ...f, telefono: e.target.value }))} />
-              <input className={inputCls} placeholder="Email" type="email" value={formCandidato.email} onChange={e => setFormCandidato(f => ({ ...f, email: e.target.value }))} />
-            </div>
-            <input className={inputCls} placeholder="Dirección" value={formCandidato.direccion} onChange={e => setFormCandidato(f => ({ ...f, direccion: e.target.value }))} />
-            <div className="grid grid-cols-2 gap-4">
+        <div className="flex-1 flex overflow-hidden">
+          <div id="candidato-sidebar" className="flex shrink-0" style={{ width: sidebarWidth, minWidth: '20%' }}>
+            <div className="flex-1 p-3 flex flex-col gap-1.5 [&_input]:text-[10px] [&_input]:py-2 [&_select]:text-[10px] [&_select]:py-2">
               <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Fecha de Contacto</label>
-                <div className="relative">
-                  <input className={`${inputCls} pr-12`} type="text" placeholder="MM/DD/AAAA" value={formCandidato.fecha_contacto} onChange={e => setFormCandidato(f => ({ ...f, fecha_contacto: formatDateInput(e.target.value) }))} />
-                  <button type="button" onClick={() => document.getElementById('dc-fecha-contacto')?.showPicker()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-xl transition-all"><Calendar size={16} /></button>
-                  <input id="dc-fecha-contacto" type="date" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none z-[200]" style={{ width: '1px', height: '1px' }} value={toISOFormat(formCandidato.fecha_contacto)} onChange={e => setFormCandidato(f => ({ ...f, fecha_contacto: toMMDDYYYY(e.target.value) }))} />
+                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Nombre</label>
+                <input className={inputCls} placeholder="Nombre *" value={formCandidato.nombre} onChange={e => setFormCandidato(f => ({ ...f, nombre: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Teléfono</label>
+                  <input className={inputCls} placeholder="Teléfono" value={formCandidato.telefono} onChange={e => setFormCandidato(f => ({ ...f, telefono: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Email</label>
+                  <input className={inputCls} placeholder="Email" type="email" value={formCandidato.email} onChange={e => setFormCandidato(f => ({ ...f, email: e.target.value }))} />
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Fuente</label>
-                <select className={selectCls} value={formCandidato.fuente} onChange={e => setFormCandidato(f => ({ ...f, fuente: e.target.value }))}>
-                  <option value="">Seleccionar...</option>
-                  {FUENTES.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
+                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Dirección</label>
+                <input className={inputCls} placeholder="Dirección" value={formCandidato.direccion} onChange={e => setFormCandidato(f => ({ ...f, direccion: e.target.value }))} />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Próxima Llamada</label>
-                <div className="relative">
-                  <input className={`${inputCls} pr-12`} type="text" placeholder="MM/DD/AAAA" value={formCandidato.proxima_llamada} onChange={e => setFormCandidato(f => ({ ...f, proxima_llamada: formatDateInput(e.target.value) }))} />
-                  <button type="button" onClick={() => document.getElementById('dc-proxima-llamada')?.showPicker()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-xl transition-all"><Calendar size={16} /></button>
-                  <input id="dc-proxima-llamada" type="date" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none z-[200]" style={{ width: '1px', height: '1px' }} value={toISOFormat(formCandidato.proxima_llamada)} onChange={e => setFormCandidato(f => ({ ...f, proxima_llamada: toMMDDYYYY(e.target.value) }))} />
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Fecha de Contacto</label>
+                  <div className="relative">
+                    <input className={`${inputCls} pr-10`} type="text" placeholder="MM/DD/AAAA" value={formCandidato.fecha_contacto} onChange={e => setFormCandidato(f => ({ ...f, fecha_contacto: formatDateInput(e.target.value) }))} />
+                    <button type="button" onClick={() => document.getElementById('dc-fecha-contacto')?.showPicker()} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-lg transition-all"><Calendar size={14} /></button>
+                    <input id="dc-fecha-contacto" type="date" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none z-[200]" style={{ width: '1px', height: '1px' }} value={toISOFormat(formCandidato.fecha_contacto)} onChange={e => setFormCandidato(f => ({ ...f, fecha_contacto: toMMDDYYYY(e.target.value) }))} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Fuente</label>
+                  <select className={selectCls} value={formCandidato.fuente} onChange={e => setFormCandidato(f => ({ ...f, fuente: e.target.value }))}>
+                    <option value="">Seleccionar...</option>
+                    {FUENTES.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
                 </div>
               </div>
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Estado</label>
-                <select className={selectCls} value={formCandidato.estado} onChange={e => setFormCandidato(f => ({ ...f, estado: e.target.value }))}>
-                  {ESTADOS_CANDIDATO.map(e => <option key={e} value={e}>{e}</option>)}
-                </select>
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Próxima Llamada</label>
+                  <div className="relative">
+                    <input className={`${inputCls} pr-10`} type="text" placeholder="MM/DD/AAAA" value={formCandidato.proxima_llamada} onChange={e => setFormCandidato(f => ({ ...f, proxima_llamada: formatDateInput(e.target.value) }))} />
+                    <button type="button" onClick={() => document.getElementById('dc-proxima-llamada')?.showPicker()} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-lg transition-all"><Calendar size={14} /></button>
+                    <input id="dc-proxima-llamada" type="date" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none z-[200]" style={{ width: '1px', height: '1px' }} value={toISOFormat(formCandidato.proxima_llamada)} onChange={e => setFormCandidato(f => ({ ...f, proxima_llamada: toMMDDYYYY(e.target.value) }))} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Estado</label>
+                  <select className={`${selectCls} ${({ Nuevo: 'text-blue-600', Contactado: 'text-amber-600', Entrevistado: 'text-purple-600', Contratado: 'text-emerald-600', Rechazado: 'text-red-600', 'No Interesado': 'text-gray-400' })[formCandidato.estado] || ''}`} value={formCandidato.estado} onChange={e => setFormCandidato(f => ({ ...f, estado: e.target.value }))}>
+                    {ESTADOS_CANDIDATO.map(e => <option key={e} value={e} style={{ color: ({ Nuevo: '#2563eb', Contactado: '#d97706', Entrevistado: '#9333ea', Contratado: '#059669', Rechazado: '#dc2626', 'No Interesado': '#9ca3af' })[e] }}>{e}</option>)}
+                  </select>
+                </div>
               </div>
-            </div>
-            <textarea className={`${inputCls} resize-none`} rows={3} placeholder="Notas / Historial de llamadas..." value={formCandidato.notas} onChange={e => setFormCandidato(f => ({ ...f, notas: e.target.value }))} />
-            {isContratado && (!selectedCandidato || !selectedCandidato._creado_en_personal) && (
-              <div className="p-4 bg-[#6bbdb7]/5 rounded-2xl border border-[#6bbdb7]/20 flex items-center gap-3">
-                <UserPlus size={20} className="text-[#6bbdb7] flex-shrink-0" />
-                <p className="text-xs font-bold text-[#6bbdb7]">Al guardar con estado "Contratado" se creará automáticamente un registro en Personal (Empleados).</p>
-              </div>
-            )}
-            <div className="flex gap-3 pt-2">
-              {isEditing && (
-                <button onClick={registrarLlamada} className="flex items-center gap-2 px-5 py-3 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-2xl border-2 border-[#6bbdb7]/20 hover:bg-[#6bbdb7]/20 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Phone size={14} /> Registrar Llamada</button>
+              {isContratado && (!selectedCandidato || !selectedCandidato._creado_en_personal) && (
+                <div className="p-1.5 bg-[#6bbdb7]/5 rounded-lg border border-[#6bbdb7]/20 flex items-start gap-1.5">
+                  <UserPlus size={12} className="text-[#6bbdb7] shrink-0 mt-0.5" />
+                  <p className="text-[8px] font-bold text-[#6bbdb7] leading-tight">Se creará registro en Personal.</p>
+                </div>
               )}
-              <button onClick={saveCandidato} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Save size={14} /> {isEditing ? 'Guardar' : 'Crear Candidato'}</button>
+              <div className="flex gap-1.5 pt-2 border-t border-gray-100">
+                {isEditing && (
+                  <button onClick={registrarLlamada} className="flex items-center gap-1.5 px-3 py-2 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-xl border-2 border-[#6bbdb7]/20 hover:bg-[#6bbdb7]/20 transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest"><Phone size={12} /> Llamada</button>
+                )}
+                <button onClick={saveCandidato} className="flex items-center gap-1.5 px-3 py-2 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest ml-auto"><Save size={12} /> Guardar</button>
+              </div>
             </div>
+          </div>
+          <div
+            className="w-[7px] cursor-col-resize shrink-0 hover:bg-[#303a7f]/10 active:bg-[#303a7f]/20 transition-colors flex flex-col items-center justify-center border-l border-gray-200"
+            onMouseDown={handleSidebarMouseDown}
+          >
+            <div className="w-0.5 h-8 rounded-full bg-gray-300" />
+          </div>
+          <div className="flex-1 p-4 flex flex-col">
+            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-2 pl-1">Notas</label>
+            <textarea className="flex-1 resize-none border-2 border-gray-100 rounded-2xl bg-white p-4 text-sm font-medium text-gray-700 placeholder:text-gray-300 focus:border-[#303a7f]/30 focus:outline-none transition-all" placeholder="Notas / Historial de llamadas..." value={formCandidato.notas} onChange={e => setFormCandidato(f => ({ ...f, notas: e.target.value }))} />
           </div>
         </div>
       </ModalOverlay>
