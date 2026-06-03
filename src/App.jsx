@@ -145,6 +145,7 @@ const CSG_NOMINA_API_URL = `${LOCAL_API_BASE}/CSG_Nomina`;
 const ADMIN_EMPLOYEES_API_URL = `${LOCAL_API_BASE}/Personal_Admin`;
 const ADMIN_NOMINA_HISTORICO_API_URL = `${LOCAL_API_BASE}/Admin_Nomina_Historico`;
 const VASCHEDULE_API_URL = `${LOCAL_API_BASE}/VASchedule`;
+const CRM_CANDIDATOS_API_URL = `${LOCAL_API_BASE}/CRM_Candidatos`;
 const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
 
 // Parsea una fila CSV respetando campos entre comillas
@@ -14009,6 +14010,8 @@ function App() {
     const [semanaTableData, setSemanaTableData] = useState([]);
     const [biometricTableData, setBiometricTableData] = useState([]); // FASE 2: Resumen Biométrico IA
     const [personalViewMode, setPersonalViewMode] = useState('grid'); // Cuadrícula por defecto
+    const [pendingContratados, setPendingContratados] = useState([]);
+    const [showPendingContratadosModal, setShowPendingContratadosModal] = useState(false);
     const [storesViewMode, setStoresViewMode] = useState('grid'); // Cuadrícula por defecto para tiendas
     const [rawBiometricData, setRawBiometricData] = useState([]); // FASE 2.5: Datos crudos para detalles
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // FASE 2.5: Modal detalles
@@ -16930,6 +16933,39 @@ function App() {
         }
     };
 
+    const fetchPendingContratados = async () => {
+        try {
+            const data = await fetchTableData(CRM_CANDIDATOS_API_URL);
+            const pendientes = data.filter(c => c.estado === 'Contratado' && c._pendiente_en_personal === '1');
+            setPendingContratados(pendientes);
+        } catch (error) {
+            console.error('[LogicPay] Error cargando candidatos pendientes:', error);
+        }
+    };
+
+    const agregarCandidatoAPersonal = async (candidato) => {
+        const empleadoData = {
+            nombre: candidato.nombre,
+            email_tax: candidato.email || '',
+            Observaciones: `[CRM] Contratado desde CRM. Tel: ${candidato.telefono || ''}. Fuente: ${candidato.fuente || ''}`,
+            fecha_ingreso: new Date().toISOString().split('T')[0],
+            cargo: 'Cleanner',
+            Cliente: 'KBS',
+            'Rate KBS': '0',
+            'Rate LGM': '0',
+            'Rate CSG': '0',
+        };
+        try {
+            await syncToDatabase('upsert', empleadoData, 'Personal', false, ['nombre']);
+            await syncToDatabase('upsert', { id: candidato.id, _pendiente_en_personal: '', _creado_en_personal: '1', updated_at: new Date().toISOString() }, 'CRM_Candidatos', true, ['id']);
+            setNotificationModal({ isOpen: true, type: 'success', message: `¡${candidato.nombre} registrado como empleado en Personal!` });
+            fetchPendingContratados();
+        } catch (error) {
+            console.error('[LogicPay] Error al agregar candidato a Personal:', error);
+            setNotificationModal({ isOpen: true, type: 'error', message: 'Error al registrar empleado' });
+        }
+    };
+
     useEffect(() => {
         fetchStores();
         fetchEmployees();
@@ -16943,6 +16979,7 @@ function App() {
         fetchAdminEmployees();
         fetchAdminPayrollHistory();
         fetchVASchedule();
+        fetchPendingContratados();
     }, []);
 
     useEffect(() => {
@@ -16960,6 +16997,12 @@ function App() {
         localStorage.removeItem('last_payroll_desde');
         localStorage.removeItem('last_payroll_hasta');
     }, []);
+
+    useEffect(() => {
+        if (activeTab === 'employees') {
+            fetchPendingContratados();
+        }
+    }, [activeTab]);
 
 
     useEffect(() => {
@@ -18223,6 +18266,20 @@ function App() {
                                         <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Registrados</span>
                                     </div>
                                 </button>
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowPendingContratadosModal(true)}
+                                        style={{ backgroundColor: '#6bbdb7' }}
+                                        className="h-11 w-11 text-white font-black rounded-2xl flex items-center justify-center shadow-2xl shadow-teal-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#59aba5] transition-all duration-300"
+                                        title="Candidatos contratados pendientes"
+                                    >
+                                        <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                                        <UserPlus size={16} />
+                                    </button>
+                                    {pendingContratados.length > 0 && (
+                                        <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] font-black px-1 py-0.5 rounded-full min-w-[16px] text-center leading-tight shadow-lg z-10">{pendingContratados.length}</span>
+                                    )}
+                                </div>
 
                                 {/* Toggle de Vistas: Lista / Cuadrícula */}
                                 <div className="h-11 bg-white border-2 border-brand-primary/10 rounded-2xl p-1 flex items-center gap-1 shadow-sm">
@@ -18319,6 +18376,66 @@ function App() {
                         </>
                     )}
 
+                    {showPendingContratadosModal && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm" onClick={() => setShowPendingContratadosModal(false)} />
+                            <div className="relative w-full max-w-2xl bg-white rounded-[2.5rem] p-8 shadow-2xl border-2 border-white max-h-[80vh] flex flex-col">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-[#6bbdb7]/10 rounded-2xl flex items-center justify-center"><UserPlus size={20} className="text-[#6bbdb7]" /></div>
+                                        <div>
+                                            <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase">Nuevo Personal</h3>
+                                            <p className="text-[10px] font-bold text-gray-400 tracking-tight">{pendingContratados.length} candidato(s) contratado(s) pendiente(s)</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setShowPendingContratadosModal(false)} className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-all"><X size={16} /></button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto min-h-0 space-y-2">
+                                    {pendingContratados.length === 0 && (
+                                        <div className="py-16 text-center">
+                                            <UserCheck size={40} className="text-gray-100 mx-auto mb-4" />
+                                            <p className="text-gray-400 font-bold text-sm uppercase tracking-widest">No hay candidatos pendientes</p>
+                                        </div>
+                                    )}
+                                    {pendingContratados.map((c, i) => (
+                                        <div key={i} className="p-4 bg-[#f9f9f9] rounded-2xl border-2 border-gray-100 flex items-center gap-4">
+                                            <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-6 gap-y-1">
+                                                <div>
+                                                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nombre</span>
+                                                    <p className="text-sm font-bold text-[#303a7f] truncate">{c.nombre}</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Teléfono</span>
+                                                    <p className="text-sm font-bold text-gray-600 truncate">{c.telefono || '—'}</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Email</span>
+                                                    <p className="text-xs font-bold text-gray-600 truncate">{c.email || '—'}</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Fuente</span>
+                                                    <p className="text-xs font-bold text-gray-600 truncate">{c.fuente || '—'}</p>
+                                                </div>
+                                                {c.proxima_llamada && (
+                                                    <div className="col-span-2">
+                                                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Próxima Llamada</span>
+                                                        <p className="text-xs font-bold text-gray-600">{c.proxima_llamada}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <button
+                                                onClick={() => agregarCandidatoAPersonal(c)}
+                                                className="shrink-0 px-4 py-2.5 bg-[#303a7f] text-white font-black text-[9px] uppercase tracking-widest rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2"
+                                            >
+                                                <UserPlus size={14} />
+                                                Agregar a Personal
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {activeTab === 'payroll' && payrollView === 'history' && (
                         <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -19106,7 +19223,7 @@ function App() {
                     )}
 
                     {/* VISTA CRM */}
-                    {activeTab === 'crm' && <CRMView currentUser={user} pendingCandidatoId={pendingCandidatoId} onClearPendingCandidato={() => setPendingCandidatoId(null)} />}
+                    {activeTab === 'crm' && <CRMView currentUser={user} pendingCandidatoId={pendingCandidatoId} onClearPendingCandidato={() => setPendingCandidatoId(null)} onCandidatoContratado={fetchPendingContratados} />}
 
                     {/* VISTA DEL DASHBOARD */}
                     {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'csg' && activeTab !== 'settings' && activeTab !== 'lgm' && activeTab !== 'crm')) && !showResumen && (

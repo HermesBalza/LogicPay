@@ -68,7 +68,7 @@ const ModalOverlay = ({ children, onClose, className = '' }) => (
   </div>
 );
 
-export default function CRMView({ currentUser, pendingCandidatoId, onClearPendingCandidato }) {
+export default function CRMView({ currentUser, pendingCandidatoId, onClearPendingCandidato, onCandidatoContratado }) {
   const [activeTab, setActiveTab] = useState('candidatos');
   const [proveedoresSubTab, setProveedoresSubTab] = useState('proyectos');
 
@@ -186,13 +186,15 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
 
     if (selectedCandidato) {
       data.id = selectedCandidato.id;
+      if (formCandidato.estado === 'Contratado' && selectedCandidato._creado_en_personal !== '1' && selectedCandidato._pendiente_en_personal !== '1') {
+        data._pendiente_en_personal = '1';
+      }
       const res = await syncToDatabase('upsert', data, 'CRM_Candidatos', ['id']);
       if (res?.success) {
-        // Check if we need to create a Personal record
-        if (formCandidato.estado === 'Contratado' && !selectedCandidato._creado_en_personal) {
-          await crearEmpleadoDesdeCandidato(data, selectedCandidato);
+        if (formCandidato.estado === 'Contratado' && selectedCandidato._creado_en_personal !== '1') {
+          onCandidatoContratado?.();
         }
-        showNotif('Candidato actualizado exitosamente');
+        showNotif(formCandidato.estado === 'Contratado' && selectedCandidato._creado_en_personal !== '1' ? 'Candidato contratado. Ve a Gestión de Personal para registrarlo como empleado.' : 'Candidato actualizado exitosamente');
         fetchData();
         setSelectedCandidato(null);
       }
@@ -207,26 +209,6 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
         setShowNewCandidato(false);
         setSelectedCandidato(null);
       }
-    }
-  };
-
-  const crearEmpleadoDesdeCandidato = async (candidatoData, oldCandidato) => {
-    const empleadoData = {
-      nombre: candidatoData.nombre,
-      email_tax: candidatoData.email || '',
-      Observaciones: `[CRM] Contratado desde CRM. Tel: ${candidatoData.telefono || ''}. Fuente: ${candidatoData.fuente || ''}`,
-      fecha_ingreso: new Date().toISOString().split('T')[0],
-      cargo: 'Cleanner',
-        Cliente: 'KBS',
-        'Rate KBS': '0',
-        'Rate LGM': '0',
-        'Rate CSG': '0',
-    };
-    const res = await syncToDatabase('upsert', empleadoData, 'Personal', ['nombre']);
-    if (res?.success) {
-      // Mark that this candidate was already created in Personal to avoid duplicates
-      await syncToDatabase('upsert', { ...candidatoData, id: oldCandidato.id, _creado_en_personal: '1', estado: 'Contratado', updated_at: new Date().toISOString() }, 'CRM_Candidatos', ['id']);
-      showNotif(`¡${candidatoData.nombre} ha sido registrado como empleado en Personal!`, 'success');
     }
   };
 
@@ -515,10 +497,10 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                   </select>
                 </div>
               </div>
-              {isContratado && (!selectedCandidato || !selectedCandidato._creado_en_personal) && (
+              {isContratado && (!selectedCandidato || (selectedCandidato._creado_en_personal !== '1' && selectedCandidato._pendiente_en_personal !== '1')) && (
                 <div className="p-1.5 bg-[#6bbdb7]/5 rounded-lg border border-[#6bbdb7]/20 flex items-start gap-1.5">
                   <UserPlus size={12} className="text-[#6bbdb7] shrink-0 mt-0.5" />
-                  <p className="text-[8px] font-bold text-[#6bbdb7] leading-tight">Se creará registro en Personal.</p>
+                  <p className="text-[8px] font-bold text-[#6bbdb7] leading-tight">Al guardar como "Contratado" quedará pendiente para registrar desde Gestión de Personal.</p>
                 </div>
               )}
               <div className="flex gap-1.5 pt-2 border-t border-gray-100">
