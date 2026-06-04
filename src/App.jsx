@@ -843,7 +843,7 @@ const DashboardView = ({
         'costo-nomina': 'Total de costos operativos pagados a empleados, incluyendo nómina regular, proyectos especiales y servicios CSG.',
         'margen-ganancia': 'Diferencia entre el total facturado y los costos operativos. Representa la ganancia bruta del periodo.',
         'rentabilidad-roi': 'Porcentaje de margen sobre ingresos totales. Indica la eficiencia del negocio: qué tan rentable es cada dólar facturado.',
-        'cuentas-cobrar': 'Monto total pendiente de cobro a clientes (WOS no pagados). Representa el efectivo por recuperar.',
+        'cuentas-cobrar': 'Monto total pendiente de cobro a clientes. Representa el efectivo por recuperar.',
         'crecimiento': 'Variación porcentual de los ingresos totales entre el último periodo con datos y el periodo inmediatamente anterior.',
         'tendencia-financiera': 'Evolución mensual o semanal de ingresos vs costos. Permite visualizar la estacionalidad y tendencias del negocio a lo largo del tiempo.',
         'mix-ingresos': 'Distribución porcentual de los ingresos por tipo: Nómina Regular (KBS), Proyectos Especiales y CSG Services.',
@@ -1083,14 +1083,6 @@ const DashboardView = ({
     const vwhRecords = filteredWOS.filter(w => w.auditDate);
     const incidenciaVWH = vwhRecords.length;
 
-    const esAnual = (row) => {
-        const dateStr = row['Fecha Rad.'] || row.fecha_inicio || row.fecha_fin
-            || row.Periodo || row.periodo || row.fecha || row.Timestamp || row.timestamp || '';
-        if (!dateStr) return true;
-        const y = String(dateStr).match(/(\d{4})/);
-        return y && parseInt(y[1]) === 2026;
-    };
-
     const tieneRad = (row) => {
         const rad = row['Fecha Rad.'] || row.radicacion || '';
         return rad && rad !== '--/--/--' && rad.trim() !== '';
@@ -1101,10 +1093,15 @@ const DashboardView = ({
         return s === 'Paid' || s === 'Pagada';
     };
 
-    const facturasAnual = [...nominaHistoryData.filter(esAnual), ...specialProjectsHistoryData.filter(esAnual)];
-    const facturasEnviadasPagadas = facturasAnual.filter(r => tieneRad(r) && estaPagada(r)).length;
-    const facturasEnviadasPendientes = facturasAnual.filter(r => tieneRad(r) && !estaPagada(r)).length;
-    const facturasNoReportadas = facturasAnual.filter(r => !tieneRad(r) && !estaPagada(r)).length;
+    const facturasFiltradas = [...filteredNomina, ...filteredPE];
+    const facturasReportadasPagadas = facturasFiltradas.filter(r => tieneRad(r) && estaPagada(r)).length;
+    const facturasReportadasPendientes = facturasFiltradas.filter(r => tieneRad(r) && !estaPagada(r)).length;
+    const facturasNoReportadas = facturasFiltradas.filter(r => !tieneRad(r)).length;
+
+    const cuentasPorCobrar =
+        filteredNomina.filter(r => !estaPagada(r)).reduce((acc, r) => acc + (parseFloat(r.Pago_KBS) || 0), 0) +
+        filteredPE.filter(r => !estaPagada(r)).reduce((acc, r) => acc + (parseFloat(r.pago_kbs || r.Pago_KBS) || 0), 0) +
+        filteredCSG.filter(r => !estaPagada(r)).reduce((acc, r) => acc + (parseFloat(r.monto_csg) || 0), 0);
 
     // ─── LÓGICA DE DATOS PARA GRÁFICOS (Recharts Data) ───────────────────────
 
@@ -1548,7 +1545,7 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                         { title: "Costo de Nómina LGM", val: formatMoney(totalCostos), subtitle: "Pagos a Empleados", icon: Users, color: "text-red-500", bg: "bg-red-50", descKey: 'costo-nomina' },
                         { title: "Margen de Ganancia", val: formatMoney(margenBruto), subtitle: "Gross Profit", icon: DollarSign, color: "text-green-500", bg: "bg-green-50", descKey: 'margen-ganancia' },
                         { title: "Rentabilidad (ROI)", val: `${roiPercent}%`, subtitle: "Margen %", icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50", descKey: 'rentabilidad-roi' },
-                        { title: "Cuentas por Cobrar", val: formatMoney(pendientesWOS), subtitle: "WOS / Pending", icon: Receipt, color: "text-orange-500", bg: "bg-orange-50", descKey: 'cuentas-cobrar' },
+                        { title: "Cuentas por Cobrar", val: formatMoney(cuentasPorCobrar), subtitle: "Facturas Pendientes de Pago", icon: Receipt, color: "text-orange-500", bg: "bg-orange-50", descKey: 'cuentas-cobrar' },
                     ].map((kpi, idx) => (
                         <div key={idx} className="bg-white rounded-[1.5rem] p-4 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col gap-3 hover:-translate-y-1 transition-transform cursor-default relative group">
                             <div className="flex items-center gap-3">
@@ -1635,6 +1632,7 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                                         tickFormatter={(val) => `$${val > 1000 ? (val / 1000).toFixed(0) + 'k' : val}`}
                                     />
                                     <Tooltip
+                                        formatter={(value) => formatMoney(value)}
                                         contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 50px rgba(0,0,0,0.1)', padding: '20px' }}
                                         itemStyle={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}
                                     />
@@ -1882,11 +1880,11 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="bg-white/60 rounded-xl p-3 flex flex-col items-center">
                                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-1">Reportadas y Pagadas</p>
-                                        <span className="text-xl font-black text-[#22c55e] tracking-tighter">{facturasEnviadasPagadas}</span>
+                                        <span className="text-xl font-black text-[#22c55e] tracking-tighter">{facturasReportadasPagadas}</span>
                                     </div>
                                     <div className="bg-white/60 rounded-xl p-3 flex flex-col items-center">
                                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-1">Reportadas y Pendientes</p>
-                                        <span className="text-xl font-black text-[#f59e0b] tracking-tighter">{facturasEnviadasPendientes}</span>
+                                        <span className="text-xl font-black text-[#f59e0b] tracking-tighter">{facturasReportadasPendientes}</span>
                                     </div>
                                     <div className="bg-white/60 rounded-xl p-3 flex flex-col items-center">
                                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-1">No Reportadas a KBS</p>
@@ -1903,62 +1901,6 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                 </div>
 
                 {/* 6. Distribución de Pagos */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    <div className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border border-gray-100 lg:col-span-2">
-                        <div className="flex justify-between items-center mb-6">
-                            <div className="flex items-center gap-3">
-                                <Receipt className="text-[#303a7f]" size={24} />
-                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Distribución de Pagos</h3>
-                                <button
-                                    onClick={() => setInfoModal({ title: 'Distribución de Pagos', description: sectionDescriptions['distribucion-pagos'] })}
-                                    className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors ml-auto"
-                                >
-                                    <Info size={14} />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div className="flex items-center justify-center h-[280px]">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={paymentDistData.filter(d => d.value > 0)}
-                                            innerRadius={70}
-                                            outerRadius={100}
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                            stroke="none"
-                                        >
-                                            {paymentDistData.filter(d => d.value > 0).map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} className="hover:opacity-80 transition-opacity" />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip
-                                            formatter={(value) => formatMoney(value)}
-                                            contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
-                                        />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
-                            <div className="flex flex-col justify-center space-y-3">
-                                {paymentDistData.map((item, i) => (
-                                    <div key={i} className="flex items-center justify-between p-3.5 bg-gray-50 rounded-2xl border border-gray-100">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                                            <span className="text-xs font-black text-[#333333] uppercase">{item.name}</span>
-                                        </div>
-                                        <span className="text-sm font-black text-[#303a7f]">{formatMoney(item.value)}</span>
-                                    </div>
-                                ))}
-                                <div className="flex items-center justify-between p-3.5 bg-[#303a7f]/5 rounded-2xl border border-[#303a7f]/10">
-                                    <span className="text-xs font-black text-[#303a7f] uppercase">Total General</span>
-                                    <span className="text-sm font-black text-[#303a7f]">{formatMoney(totalPaid + pendingAR + pendientesNomina)}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <div className="flex justify-center mt-8">
                     <button
                         onClick={() => setShowReportModal(true)}
