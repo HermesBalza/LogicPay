@@ -827,8 +827,25 @@ const DashboardView = ({
     const [selectedEmployee, setSelectedEmployee] = useState('Todos');
     const [selectedSupervisor, setSelectedSupervisor] = useState('Todos');
     const [trendPeriod, setTrendPeriod] = useState('monthly'); // 'monthly' | 'weekly'
+    const [infoModal, setInfoModal] = useState(null);
     const fromDateRef = useRef(null);
     const toDateRef = useRef(null);
+
+    const sectionDescriptions = {
+        'total-facturado': 'Suma total de ingresos facturados a KBS, incluyendo nómina regular, proyectos especiales y servicios CSG en el periodo filtrado.',
+        'costo-nomina': 'Total de costos operativos pagados a empleados, incluyendo nómina regular, proyectos especiales y servicios CSG.',
+        'margen-ganancia': 'Diferencia entre el total facturado y los costos operativos. Representa la ganancia bruta del periodo.',
+        'rentabilidad-roi': 'Porcentaje de margen sobre ingresos totales. Indica la eficiencia del negocio: qué tan rentable es cada dólar facturado.',
+        'cuentas-cobrar': 'Monto total pendiente de cobro a clientes (WOS no pagados). Representa el efectivo por recuperar.',
+        'crecimiento': 'Variación porcentual de los ingresos totales entre el último periodo con datos y el periodo inmediatamente anterior.',
+        'tendencia-financiera': 'Evolución mensual o semanal de ingresos vs costos. Permite visualizar la estacionalidad y tendencias del negocio a lo largo del tiempo.',
+        'mix-ingresos': 'Distribución porcentual de los ingresos por tipo: Nómina Regular (KBS), Proyectos Especiales y CSG Services.',
+        'pl-resumido': 'Desglose detallado de ingresos y costos por categoría, mostrando la contribución de cada línea de negocio al resultado total del periodo.',
+        'rendimiento-tienda': 'Ranking de tiendas por margen operativo. Muestra las tiendas más y menos rentables para priorizar acciones correctivas.',
+        'workforce-analytics': 'Análisis de carga laboral: ranking de empleados por horas trabajadas en el periodo. Ayuda a identificar distribución de la fuerza laboral.',
+        'pe-vwh': 'Indica la cantidad de proyectos especiales ejecutados, su impacto financiero (margen) y las incidencias de VWH registradas en el periodo.',
+        'distribucion-pagos': 'Clasificación del flujo de efectivo: pagos completados, montos pendientes de cobro a clientes y pendientes de pago a empleados.',
+    };
 
     const formatDisplayDate = (dateValue) => {
         if (!dateValue) return '';
@@ -1125,11 +1142,35 @@ const DashboardView = ({
         return storeStats.sort((a, b) => b.margen - a.margen).slice(0, 8);
     }, [storeStats]);
 
+    // 6. Crecimiento vs Periodo Anterior
+    const crecimiento = useMemo(() => {
+        const data = chartTrendData;
+        if (data.length < 2) return { value: 0, isPositive: true };
+        const sorted = [...data].sort((a, b) => a.sortKey - b.sortKey);
+        const last = sorted[sorted.length - 1];
+        const prev = sorted[sorted.length - 2];
+        if (!prev || !prev.ingresos) return { value: 0, isPositive: true };
+        const growth = ((last.ingresos - prev.ingresos) / prev.ingresos) * 100;
+        return { value: growth, isPositive: growth >= 0 };
+    }, [chartTrendData]);
+
+    // 7. Distribución de Pagos
+    const paidWOS = filteredWOS.filter(w => w.Status === 'Paid').reduce((acc, curr) => acc + (parseFloat(curr.Monto_WOS || 0)), 0);
+    const paidCSG = filteredCSG.filter(s => s.status === 'Paid').reduce((acc, curr) => acc + (parseFloat(curr.monto_csg || 0)), 0);
+    const paidNomina = filteredNomina.filter(n => n.Status === 'Paid').reduce((acc, curr) => acc + (parseFloat(curr.Pago_LGM) || 0), 0);
+    const totalPaid = paidWOS + paidCSG + paidNomina;
+    const pendingAR = pendientesWOS + pendientesCSG;
+    const paymentDistData = [
+        { name: 'Pagado', value: totalPaid, color: '#22c55e' },
+        { name: 'Pendiente (Clientes)', value: pendingAR, color: '#f59e0b' },
+        { name: 'Pendiente (Nómina)', value: pendientesNomina, color: '#ef4444' },
+    ];
+
     // Helper formatter
     const formatMoney = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
 
     return (
-        <div className="h-full overflow-y-auto custom-scrollbar pb-32 animate-in fade-in zoom-in-95 duration-500">
+        <div className="h-full overflow-y-auto custom-scrollbar pb-8 animate-in fade-in zoom-in-95 duration-500">
             {/* Header & Controls */}
             <div className="px-8 pb-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
@@ -1253,25 +1294,31 @@ const DashboardView = ({
                 </div>
 
                 {/* 1. Resumen Financiero Global (KPIs Principales) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
                     {[
-                        { title: "Total Facturado KBS", val: formatMoney(totalIngresos), subtitle: "Ingresos Brutos", icon: Target, color: "text-blue-500", bg: "bg-blue-50" },
-                        { title: "Costo de Nómina LGM", val: formatMoney(totalCostos), subtitle: "Pagos a Empleados", icon: Users, color: "text-red-500", bg: "bg-red-50" },
-                        { title: "Margen de Ganancia", val: formatMoney(margenBruto), subtitle: "Gross Profit", icon: DollarSign, color: "text-green-500", bg: "bg-green-50" },
-                        { title: "Rentabilidad (ROI)", val: `${roiPercent}%`, subtitle: "Margen %", icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50" },
-                        { title: "Cuentas por Cobrar", val: formatMoney(pendientesWOS), subtitle: "WOS / Pending", icon: Receipt, color: "text-orange-500", bg: "bg-orange-50" },
+                        { title: "Total Facturado KBS", val: formatMoney(totalIngresos), subtitle: "Ingresos Brutos", icon: Target, color: "text-blue-500", bg: "bg-blue-50", descKey: 'total-facturado' },
+                        { title: "Costo de Nómina LGM", val: formatMoney(totalCostos), subtitle: "Pagos a Empleados", icon: Users, color: "text-red-500", bg: "bg-red-50", descKey: 'costo-nomina' },
+                        { title: "Margen de Ganancia", val: formatMoney(margenBruto), subtitle: "Gross Profit", icon: DollarSign, color: "text-green-500", bg: "bg-green-50", descKey: 'margen-ganancia' },
+                        { title: "Rentabilidad (ROI)", val: `${roiPercent}%`, subtitle: "Margen %", icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50", descKey: 'rentabilidad-roi' },
+                        { title: "Cuentas por Cobrar", val: formatMoney(pendientesWOS), subtitle: "WOS / Pending", icon: Receipt, color: "text-orange-500", bg: "bg-orange-50", descKey: 'cuentas-cobrar' },
                     ].map((kpi, idx) => (
-                        <div key={idx} className="bg-white rounded-[1.5rem] p-4 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col gap-3 hover:-translate-y-1 transition-transform cursor-default">
+                        <div key={idx} className="bg-white rounded-[1.5rem] p-4 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col gap-3 hover:-translate-y-1 transition-transform cursor-default relative group">
                             <div className="flex items-center gap-3">
                                 <div className={`p-2.5 rounded-xl ${kpi.bg} flex-shrink-0`}>
                                     <kpi.icon size={20} className={kpi.color} />
                                 </div>
                                 <h3 className="text-xl font-black text-[#333333] tracking-tighter truncate">{kpi.val}</h3>
                             </div>
-                            <div>
-                                <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest leading-none mb-1">{kpi.title}</p>
-                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter leading-none">{kpi.subtitle}</p>
+                            <div className="flex items-center gap-1.5">
+                                <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest leading-none">{kpi.title}</p>
+                                <button
+                                    onClick={() => setInfoModal({ title: kpi.title, description: sectionDescriptions[kpi.descKey] })}
+                                    className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors flex-shrink-0"
+                                >
+                                    <Info size={11} />
+                                </button>
                             </div>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter leading-none">{kpi.subtitle}</p>
                         </div>
                     ))}
                 </div>
@@ -1286,7 +1333,15 @@ const DashboardView = ({
                                     <Activity size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter">Tendencia de Salud Financiera</h3>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter">Tendencia de Salud Financiera</h3>
+                                        <button
+                                            onClick={() => setInfoModal({ title: 'Tendencia de Salud Financiera', description: sectionDescriptions['tendencia-financiera'] })}
+                                            className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors"
+                                        >
+                                            <Info size={14} />
+                                        </button>
+                                    </div>
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Evolución de Ingresos y Costos</p>
                                 </div>
                             </div>
@@ -1345,7 +1400,15 @@ const DashboardView = ({
                     {/* Mix de Ingresos (Composición) */}
                     <div className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/[0.03] border border-gray-100 flex flex-col justify-between items-center text-center">
                         <div className="w-full text-left mb-6">
-                            <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Mix de Ingresos</h3>
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Mix de Ingresos</h3>
+                                <button
+                                    onClick={() => setInfoModal({ title: 'Mix de Ingresos', description: sectionDescriptions['mix-ingresos'] })}
+                                    className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors"
+                                >
+                                    <Info size={13} />
+                                </button>
+                            </div>
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Distribución por Tipo</p>
                         </div>
 
@@ -1387,7 +1450,7 @@ const DashboardView = ({
                                         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                                         <span className="text-[10px] font-black text-[#333333] uppercase truncate max-w-[120px]">{item.name}</span>
                                     </div>
-                                    <span className="text-xs font-black text-[#303a7f]">{((item.value / totalIngresos) * 100).toFixed(0)}%</span>
+                                    <span className="text-xs font-black text-[#303a7f]">{((item.value / totalIngresos) * 100).toFixed(2)}%</span>
                                 </div>
                             ))}
                         </div>
@@ -1397,9 +1460,17 @@ const DashboardView = ({
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                     {/* 2. P&L Resumido */}
                     <div className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col">
-                        <div className="flex items-center gap-3 mb-6">
-                            <BarChart3 className="text-[#6bbdb7]" size={24} />
-                            <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">P&L Resumido</h3>
+                        <div className="flex justify-between items-center mb-6">
+                            <div className="flex items-center gap-3">
+                                <BarChart3 className="text-[#6bbdb7]" size={24} />
+                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">P&L Resumido</h3>
+                                <button
+                                    onClick={() => setInfoModal({ title: 'P&L Resumido', description: sectionDescriptions['pl-resumido'] })}
+                                    className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors ml-auto"
+                                >
+                                    <Info size={14} />
+                                </button>
+                            </div>
                         </div>
                         <div className="flex-1 space-y-6">
                             <div className="space-y-3">
@@ -1435,7 +1506,15 @@ const DashboardView = ({
                                     <TrendingUp size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter">Rendimiento por Tienda</h3>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter">Rendimiento por Tienda</h3>
+                                        <button
+                                            onClick={() => setInfoModal({ title: 'Rendimiento por Tienda', description: sectionDescriptions['rendimiento-tienda'] })}
+                                            className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors"
+                                        >
+                                            <Info size={14} />
+                                        </button>
+                                    </div>
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Análisis de Margen Operativo</p>
                                 </div>
                             </div>
@@ -1489,32 +1568,6 @@ const DashboardView = ({
                             </ResponsiveContainer>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 pt-8 border-t border-gray-50">
-                            <div>
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Alertas Utilización</p>
-                                <div className="space-y-2">
-                                    {overBudgetStores.slice(0, 3).map((ts, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 bg-red-50/50 rounded-2xl border border-red-100">
-                                            <span className="text-xs font-bold text-red-900 truncate">{ts.nombre}</span>
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-16 h-1.5 bg-red-100 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-red-500" style={{ width: '100%' }}></div>
-                                                </div>
-                                                <span className="text-[10px] font-black text-red-600">{ts.utilizacion.toFixed(0)}%</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {overBudgetStores.length === 0 && (
-                                        <div className="p-4 bg-green-50/50 rounded-2xl border border-green-100 flex items-center justify-center gap-3">
-                                            <div className="w-8 h-8 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
-                                                <Check size={16} />
-                                            </div>
-                                            <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">Ejecución en Presupuesto</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -1525,20 +1578,12 @@ const DashboardView = ({
                             <div className="flex items-center gap-3">
                                 <Users className="text-[#6bbdb7]" size={24} />
                                 <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Workforce Analytics</h3>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="bg-[#f9f9f9] p-4 rounded-2xl">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Rotación Personal</p>
-                                <div className="flex items-end gap-2">
-                                    <h4 className="text-2xl font-black text-[#333333] tracking-tighter">{rotacion}%</h4>
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase mb-1">({inactivos} Inactivos)</span>
-                                </div>
-                            </div>
-                            <div className="bg-[#f9f9f9] p-4 rounded-2xl">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Costo Promedio / Emp</p>
-                                <h4 className="text-2xl font-black text-[#303a7f] tracking-tighter">{formatMoney(costoPromedioEmp)}</h4>
+                                <button
+                                    onClick={() => setInfoModal({ title: 'Workforce Analytics', description: sectionDescriptions['workforce-analytics'] })}
+                                    className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors ml-auto"
+                                >
+                                    <Info size={14} />
+                                </button>
                             </div>
                         </div>
 
@@ -1558,9 +1603,17 @@ const DashboardView = ({
 
                     {/* 5. PE & VWH */}
                     <div className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col">
-                        <div className="flex items-center gap-3 mb-6">
-                            <Sparkles className="text-orange-400" size={24} />
-                            <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Proyectos Especiales & VWH</h3>
+                        <div className="flex justify-between items-center mb-6">
+                            <div className="flex items-center gap-3">
+                                <Sparkles className="text-orange-400" size={24} />
+                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Proyectos Especiales & VWH</h3>
+                                <button
+                                    onClick={() => setInfoModal({ title: 'Proyectos Especiales & VWH', description: sectionDescriptions['pe-vwh'] })}
+                                    className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors ml-auto"
+                                >
+                                    <Info size={14} />
+                                </button>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 flex-1">
@@ -1585,7 +1638,98 @@ const DashboardView = ({
                     </div>
                 </div>
 
+                {/* 6. Distribución de Pagos */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border border-gray-100 lg:col-span-2">
+                        <div className="flex justify-between items-center mb-6">
+                            <div className="flex items-center gap-3">
+                                <Receipt className="text-[#303a7f]" size={24} />
+                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Distribución de Pagos</h3>
+                                <button
+                                    onClick={() => setInfoModal({ title: 'Distribución de Pagos', description: sectionDescriptions['distribucion-pagos'] })}
+                                    className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors ml-auto"
+                                >
+                                    <Info size={14} />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="flex items-center justify-center h-[280px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={paymentDistData.filter(d => d.value > 0)}
+                                            innerRadius={70}
+                                            outerRadius={100}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                            stroke="none"
+                                        >
+                                            {paymentDistData.filter(d => d.value > 0).map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} className="hover:opacity-80 transition-opacity" />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            formatter={(value) => formatMoney(value)}
+                                            contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="flex flex-col justify-center space-y-3">
+                                {paymentDistData.map((item, i) => (
+                                    <div key={i} className="flex items-center justify-between p-3.5 bg-gray-50 rounded-2xl border border-gray-100">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                                            <span className="text-xs font-black text-[#333333] uppercase">{item.name}</span>
+                                        </div>
+                                        <span className="text-sm font-black text-[#303a7f]">{formatMoney(item.value)}</span>
+                                    </div>
+                                ))}
+                                <div className="flex items-center justify-between p-3.5 bg-[#303a7f]/5 rounded-2xl border border-[#303a7f]/10">
+                                    <span className="text-xs font-black text-[#303a7f] uppercase">Total General</span>
+                                    <span className="text-sm font-black text-[#303a7f]">{formatMoney(totalPaid + pendingAR + pendientesNomina)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-center mt-8">
+                    <button
+                        onClick={() => {}}
+                        className="flex items-center gap-3 px-8 py-4 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 shadow-xl shadow-blue-900/20 font-black text-sm uppercase tracking-widest"
+                    >
+                        <Cpu size={20} />
+                        Generar Informe
+                    </button>
+                </div>
+
             </div>
+
+            {/* Modal de Información de Métrica */}
+            {infoModal && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setInfoModal(null)}
+                >
+                    <div
+                        className="bg-white rounded-[2rem] p-8 max-w-lg w-full mx-4 shadow-2xl border border-gray-100 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">{infoModal.title}</h3>
+                            <button
+                                onClick={() => setInfoModal(null)}
+                                className="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 transition-all"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-600 leading-relaxed">{infoModal.description}</p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
