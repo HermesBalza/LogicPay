@@ -89,6 +89,7 @@ import Notes from './Notes.jsx';
 import ResumenView from './ResumenView.jsx';
 import CRMView from './CRMView.jsx';
 import NotificationBell from './NotificationBell.jsx';
+import PixelCat from './PixelCat.jsx';
 
 const MobileShell = React.lazy(() => import('./mobile/MobileShell'));
 
@@ -13997,6 +13998,7 @@ function App() {
     const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado' | 'desconectado' | 'sincronizando'
 
     const [user, setUser] = useState(null);
+    const [catEnabled, setCatEnabled] = useState(() => localStorage.getItem('pixelCatEnabled') === 'true');
     const [isMobile] = useState(() => window.innerWidth < 768 || /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent));
 
     const userCanEdit = user?.rol !== 'Operador de Pagos';
@@ -18113,6 +18115,26 @@ function App() {
                         </button>
                     ))}
 
+                    {/* Cat mascot toggle - solo para Hermes y Nirvana */}
+                    {(user?.nombre === 'Hermes Balza' || user?.nombre === 'Nirvana Marquez') && (
+                        <button
+                            onClick={() => {
+                                const next = !catEnabled;
+                                setCatEnabled(next);
+                                localStorage.setItem('pixelCatEnabled', next);
+                            }}
+                            className="absolute left-[190px] hidden xl:flex items-center gap-2 px-3 py-2 bg-white/5 rounded-2xl border border-white/10 transition-all duration-500 hover:bg-white/10 group"
+                            title={catEnabled ? 'Ocultar mascota' : 'Mostrar mascota'}
+                        >
+                            <span className={`text-sm transition-transform duration-300 ${catEnabled ? 'scale-110' : 'opacity-60 group-hover:opacity-100'}`}>
+                                🐱
+                            </span>
+                            <span className={`text-[7px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${catEnabled ? 'text-white/80' : 'text-white/30 group-hover:text-white/60'}`}>
+                                Mascota
+                            </span>
+                        </button>
+                    )}
+
                     {/* Branding al extremo derecho */}
                     <div className="absolute right-6 hidden xl:flex items-center gap-3 px-4 py-2 bg-white/5 rounded-2xl border border-white/10 transition-all duration-500 hover:bg-white/10 cursor-default group">
                         <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 group-hover:text-[#6bbdb7] transition-colors">
@@ -20230,6 +20252,11 @@ function App() {
                 style={{ backgroundColor: 'rgba(107,189,183,0.05)' }}
                 className="fixed bottom-[-10%] left-[-20%] w-[600px] h-[600px] blur-[180px] rounded-full -z-20 pointer-events-none"
             />
+
+            {/* Mascota - Gato Pixel Art */}
+            {(user?.nombre === 'Hermes Balza' || user?.nombre === 'Nirvana Marquez') && (
+                <PixelCat enabled={catEnabled} />
+            )}
 
             {/* Soporte Técnico - Ventana de Chat vinculada con Gemini AI */}
             <SupportChat userName={user?.nombre || user?.name} />
