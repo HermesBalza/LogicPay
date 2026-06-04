@@ -72,6 +72,7 @@ import {
     Eraser,
     Layers,
     Copy,
+    Image,
     Paperclip,
     Briefcase,
     Database,
@@ -829,6 +830,11 @@ const DashboardView = ({
     const [trendPeriod, setTrendPeriod] = useState('monthly'); // 'monthly' | 'weekly'
     const [infoModal, setInfoModal] = useState(null);
     const [showReportModal, setShowReportModal] = useState(false);
+    const [reportLoading, setReportLoading] = useState(false);
+    const [reportHtml, setReportHtml] = useState(null);
+    const [reportError, setReportError] = useState(null);
+    const [copySuccess, setCopySuccess] = useState(false);
+    const reportRef = useRef(null);
     const fromDateRef = useRef(null);
     const toDateRef = useRef(null);
 
@@ -1166,6 +1172,213 @@ const DashboardView = ({
         { name: 'Pendiente (Clientes)', value: pendingAR, color: '#f59e0b' },
         { name: 'Pendiente (Nómina)', value: pendientesNomina, color: '#ef4444' },
     ];
+
+    // ─── GENERACIÓN DE INFORME CON IA ──────────────────────────────────────────
+
+    const handleGenerateReport = async () => {
+        setShowReportModal(false);
+        setReportLoading(true);
+        setReportError(null);
+        setReportHtml(null);
+
+        try {
+            const fromStr = dateFrom ? formatDisplayDate(dateFrom) : 'N/D';
+            const toStr = dateTo ? formatDisplayDate(dateTo) : 'N/D';
+            const storeStr = selectedStore || 'Todas';
+
+            const dataContext = JSON.stringify({
+                periodo: `${fromStr} al ${toStr}`,
+                tienda: storeStr,
+                resumen: {
+                    totalIngresos: Math.round(totalIngresos),
+                    totalCostos: Math.round(totalCostos),
+                    margenBruto: Math.round(margenBruto),
+                    roiPercent: Number(roiPercent),
+                    crecimiento: Math.round(crecimiento.value),
+                },
+                desglose: {
+                    kbsNomina: Math.round(totalKBS_Nomina),
+                    lgmNomina: Math.round(totalLGM_Nomina),
+                    kbsPE: Math.round(totalKBS_PE),
+                    lgmPE: Math.round(totalLGM_PE),
+                    csgIngresos: Math.round(totalCSG_Ingresos),
+                    csgCostos: Math.round(totalCSG_Costos),
+                },
+                cuentasPorCobrar: {
+                    pendientesWOS: Math.round(pendientesWOS),
+                    pendientesCSG: Math.round(pendientesCSG),
+                    pendientesNomina: Math.round(pendientesNomina),
+                },
+                topTiendas: top5Tiendas.map(t => ({
+                    nombre: t.nombre,
+                    margen: Math.round(t.margen),
+                    ingresos: Math.round(t.kStore),
+                    costos: Math.round(t.lStore),
+                    utilizacion: Math.round(t.utilizacion),
+                })),
+                tiendasOverBudget: overBudgetStores.map(t => ({
+                    nombre: t.nombre,
+                    utilizacion: Math.round(t.utilizacion),
+                })),
+                costoPromedioTienda: Math.round(costoPromedioTienda),
+                workforce: {
+                    totalEmpleados: employees.length,
+                    activos,
+                    inactivos,
+                    rotacion: Number(rotacion),
+                    costoPromedioEmp: Math.round(costoPromedioEmp),
+                    topEmpleados: topEmpleados.map(e => ({
+                        nombre: e.nombre,
+                        horas: Math.round(e.horas),
+                        cargo: e.cargo,
+                    })),
+                },
+                peVwh: {
+                    volumenPE,
+                    margenPE: Math.round(margenPE),
+                    incidenciaVWH,
+                },
+                distribucionPagos: [
+                    { nombre: 'Pagado', valor: Math.round(totalPaid) },
+                    { nombre: 'Pendiente Clientes', valor: Math.round(pendingAR) },
+                    { nombre: 'Pendiente Nómina', valor: Math.round(pendientesNomina) },
+                ],
+                tendencia: chartTrendData.map(t => ({
+                    periodo: t.label,
+                    ingresos: Math.round(t.ingresos),
+                    costos: Math.round(t.costos),
+                })),
+            });
+
+            const systemPrompt = `Eres un analista financiero experto de Logic Group Management, una empresa de facility services. Generas informes financieros y operativos profesionales en formato HTML con estilos inline.
+
+REGLAS OBLIGATORIAS:
+1. Genera EXCLUSIVAMENTE codigo HTML con estilos inline. NO uses bloques de codigo markdown. NO incluyas etiquetas <html>, <head> ni <body>.
+2. NO uses clases CSS. Todo el estilo debe ser inline (atributo style="").
+3. NO uses librerias externas ni CDN. Solo HTML puro con estilos inline.
+4. Paleta de colores obligatoria:
+   - Fondo general: #f9f9f9
+   - Tarjetas/secciones: #ffffff
+   - Texto principal: #333333
+   - Texto secundario: #666666
+   - Color primario (titulos, destacados): #303a7f
+   - Color acento (valores positivos): #6bbdb7
+   - Color alerta (valores negativos): #ef4444
+   - Color exito: #22c55e
+   - Color warning: #f59e0b
+5. Tipografia: font-family: 'Inter', system-ui, -apple-system, sans-serif
+6. Titulos de seccion: font-weight: 900, color: #303a7f, text-transform: uppercase, letter-spacing: 0.05em, font-size: 13px
+7. Valores monetarios: fuente grande, font-weight: 900, text-align: center
+8. Tarjetas KPI: background: white, border-radius: 20px, padding: 24px, box-shadow: 0 4px 24px rgba(48,58,127,0.06), border: 1px solid #f0f0f0, margin-bottom: 16px
+9. Usa tablas HTML con borde colapsado, headers con background: #303a7f, color: white, font-weight: 700, font-size: 11px, text-transform: uppercase, letter-spacing: 0.05em
+10. Filas de tabla alternadas: background #f9f9f9 y #ffffff
+11. NO uses emojis.
+12. El informe debe ser profesional, analitico y directo.
+13. Incluye un breve analisis/interpretacion de cada seccion ademas de los datos numericos.
+14. Usa iconos Unicode (●, ◆, ▲, ▼, ✓, ✗) como bullets o indicadores visuales.
+15. Maximo 1500 palabras en total.`;
+
+            const userPrompt = `Genera un informe financiero y operativo completo de Logic Group Management para el periodo ${fromStr} al ${toStr}${storeStr !== 'Todas' ? ` (Tienda: ${storeStr})` : ''}.
+
+DATOS DEL PERIODO:
+${dataContext}
+
+ESTRUCTURA DEL INFORME (debes seguir este orden):
+1. RESUMEN EJECUTIVO - KPIs principales en tarjetas (Total Facturado, Costos Operativos, Margen Bruto, ROI)
+2. ESTADO DE RESULTADOS (P&L) - Desglose de ingresos y costos por linea de negocio (KBS Nomina, KBS Proyectos Especiales, CSG), con subtotales y margen
+3. TENDENCIA FINANCIERA - Evolucion mensual de ingresos vs costos con tabla de datos
+4. RENDIMIENTO POR TIENDA - Top 5 tiendas por margen con tabla (Nombre, Ingresos, Costos, Margen, % Utilizacion). Incluir tiendas que exceden su presupuesto de horas si las hay.
+5. WORKFORCE ANALYTICS - Top empleados por horas, distribucion de personal (activos/inactivos, rotacion), costo promedio por empleado
+6. PROYECTOS ESPECIALES Y VWH - Volumen, margen e incidencias
+7. CUENTAS POR COBRAR Y FLUJO DE PAGOS - Distribucion de pagos: completados, pendientes clientes, pendientes nomina
+8. CONCLUSIONES Y RECOMENDACIONES - Breve analisis generado por IA basado en los datos
+
+Para cada seccion incluye tanto los datos numericos como un breve analisis interpretativo.`;
+
+            const html = await callGemini(userPrompt, { systemPrompt });
+            setReportHtml(html);
+        } catch (err) {
+            setReportError(err.message || 'Error desconocido al generar el informe');
+        } finally {
+            setReportLoading(false);
+        }
+    };
+
+    const downloadPDF = async () => {
+        const element = reportRef.current;
+        if (!element) return;
+        try {
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+            });
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            const imgWidth = 210;
+            const pageHeight = 297;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            let heightLeft = imgHeight;
+            let position = 0;
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+            while (heightLeft > 0) {
+                position = -(imgHeight - heightLeft - pageHeight);
+                pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+            pdf.save(`Informe_LGM_${dateFrom || 'fecha'}_${dateTo || 'fecha'}.pdf`);
+        } catch (err) {
+            alert('Error al generar PDF: ' + (err.message || 'Error desconocido'));
+        }
+    };
+
+    const downloadJPG = async () => {
+        const element = reportRef.current;
+        if (!element) return;
+        try {
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+            });
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Informe_LGM_${dateFrom || 'fecha'}_${dateTo || 'fecha'}.jpg`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }, 'image/jpeg', 0.95);
+        } catch (err) {
+            alert('Error al generar JPG: ' + (err.message || 'Error desconocido'));
+        }
+    };
+
+    const handleCopyText = async () => {
+        const element = reportRef.current;
+        if (!element) return;
+        try {
+            const text = element.innerText;
+            await navigator.clipboard.writeText(text);
+        } catch {
+            const textarea = document.createElement('textarea');
+            textarea.value = element ? element.innerText : '';
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+        }
+    };
+
+    const handleCopyWithFeedback = async () => {
+        await handleCopyText();
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+    };
 
     // Helper formatter
     const formatMoney = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
@@ -1767,16 +1980,147 @@ const DashboardView = ({
                                 Cancelar
                             </button>
                             <button
-                                onClick={() => {
-                                    // TODO: Vincular IA para generar informe
-                                    setShowReportModal(false);
-                                }}
-                                className="flex items-center gap-2 px-6 py-3 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-900/20"
+                                onClick={handleGenerateReport}
+                                className="flex items-center gap-2 px-6 py-3 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-900/20 active:scale-95"
                             >
                                 <Cpu size={16} />
                                 Aceptar
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Carga - Generando Informe con IA */}
+            {reportLoading && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/20 backdrop-blur-sm">
+                    <div className="bg-white rounded-[2rem] p-10 max-w-sm w-full mx-4 shadow-2xl border border-gray-100 text-center">
+                        <div className="flex items-center justify-center mb-6">
+                            <div className="relative">
+                                <div className="w-16 h-16 rounded-full border-4 border-[#303a7f]/10 border-t-[#303a7f] animate-spin" />
+                                <Cpu size={24} className="text-[#303a7f] absolute inset-0 m-auto animate-pulse" />
+                            </div>
+                        </div>
+                        <h3 className="text-base font-black text-[#333333] uppercase tracking-wider mb-2">
+                            Generando Informe
+                        </h3>
+                        <p className="text-xs text-gray-500 leading-relaxed">
+                            AdWis AI está analizando los datos del periodo para generar un informe financiero y operativo completo.
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-3 font-medium">Esto puede tardar unos segundos...</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Error al Generar Informe */}
+            {reportError && (
+                <div
+                    className="fixed inset-0 z-[110] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setReportError(null)}
+                >
+                    <div
+                        className="bg-white rounded-[2rem] p-8 max-w-md w-full mx-4 shadow-2xl border border-gray-100 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <AlertTriangle className="text-[#ef4444]" size={24} />
+                                <h3 className="text-lg font-black text-[#ef4444] uppercase tracking-tighter">Error</h3>
+                            </div>
+                            <button
+                                onClick={() => setReportError(null)}
+                                className="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 transition-all"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-600 leading-relaxed mb-6">
+                            No se pudo generar el informe. Por favor, intentalo de nuevo.
+                        </p>
+                        <p className="text-xs text-gray-400 mb-8 bg-gray-50 rounded-xl p-3 font-mono break-all">
+                            {reportError}
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setReportError(null)}
+                                className="px-6 py-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all font-black text-xs uppercase tracking-widest"
+                            >
+                                Cerrar
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setReportError(null);
+                                    handleGenerateReport();
+                                }}
+                                className="flex items-center gap-2 px-6 py-3 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-900/20 active:scale-95"
+                            >
+                                <Loader2 size={14} />
+                                Reintentar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Visor de Informe a Pantalla Completa */}
+            {reportHtml && !reportLoading && (
+                <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-in fade-in duration-300">
+                    <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <img
+                                src="/Logo Logic Group Management.png"
+                                alt="LGM"
+                                className="h-7 w-auto object-contain"
+                            />
+                            <div>
+                                <h2 className="text-sm font-black text-[#333333] uppercase tracking-wider">
+                                    Informe Financiero y Operativo
+                                </h2>
+                                <p className="text-[10px] text-gray-400 font-medium tracking-wider">
+                                    {dateFrom ? formatDisplayDate(dateFrom) : ''} — {dateTo ? formatDisplayDate(dateTo) : ''}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleCopyWithFeedback}
+                                className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-all font-black text-[10px] uppercase tracking-widest border border-gray-200 active:scale-95"
+                                title="Copiar texto del informe"
+                            >
+                                {copySuccess ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                                {copySuccess ? 'Copiado' : 'Copiar'}
+                            </button>
+                            <button
+                                onClick={downloadJPG}
+                                className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-all font-black text-[10px] uppercase tracking-widest border border-gray-200 active:scale-95"
+                                title="Descargar como imagen JPG"
+                            >
+                                <Image size={14} />
+                                JPG
+                            </button>
+                            <button
+                                onClick={downloadPDF}
+                                className="flex items-center gap-2 px-4 py-2 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-900/20 active:scale-95"
+                                title="Descargar como PDF"
+                            >
+                                <Download size={14} />
+                                PDF
+                            </button>
+                            <button
+                                onClick={() => setReportHtml(null)}
+                                className="p-2.5 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 transition-all border border-gray-200 active:scale-95"
+                                title="Cerrar informe"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                        <div
+                            ref={reportRef}
+                            className="max-w-4xl mx-auto px-8 py-10"
+                            dangerouslySetInnerHTML={{ __html: reportHtml }}
+                        />
                     </div>
                 </div>
             )}
@@ -7510,8 +7854,152 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                                         <div className="py-12 text-center text-gray-300 italic uppercase text-[10px] font-black tracking-widest">
                                             No se encontraron coincidencias en la base de datos
                                         </div>
-                                    )}
+            )}
+
+            {/* Modal de Carga - Generando Informe con IA */}
+            {reportLoading && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/20 backdrop-blur-sm">
+                    <div className="bg-white rounded-[2rem] p-10 max-w-sm w-full mx-4 shadow-2xl border border-gray-100 text-center">
+                        <div className="flex items-center justify-center mb-6">
+                            <div className="relative">
+                                <div className="w-16 h-16 rounded-full border-4 border-[#303a7f]/10 border-t-[#303a7f] animate-spin" />
+                                <Cpu size={24} className="text-[#303a7f] absolute inset-0 m-auto animate-pulse" />
                             </div>
+                        </div>
+                        <h3 className="text-base font-black text-[#333333] uppercase tracking-wider mb-2">
+                            Generando Informe
+                        </h3>
+                        <p className="text-xs text-gray-500 leading-relaxed">
+                            La IA está analizando los datos del periodo para generar un informe financiero y operativo completo.
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-3 font-medium">Esto puede tardar unos segundos...</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Error al Generar Informe */}
+            {reportError && (
+                <div
+                    className="fixed inset-0 z-[110] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setReportError(null)}
+                >
+                    <div
+                        className="bg-white rounded-[2rem] p-8 max-w-md w-full mx-4 shadow-2xl border border-gray-100 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <AlertTriangle className="text-[#ef4444]" size={24} />
+                                <h3 className="text-lg font-black text-[#ef4444] uppercase tracking-tighter">Error</h3>
+                            </div>
+                            <button
+                                onClick={() => setReportError(null)}
+                                className="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 transition-all"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-600 leading-relaxed mb-6">
+                            No se pudo generar el informe. Por favor, inténtalo de nuevo.
+                        </p>
+                        <p className="text-xs text-gray-400 mb-8 bg-gray-50 rounded-xl p-3 font-mono break-all">
+                            {reportError}
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setReportError(null)}
+                                className="px-6 py-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all font-black text-xs uppercase tracking-widest"
+                            >
+                                Cerrar
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setReportError(null);
+                                    handleGenerateReport();
+                                }}
+                                className="flex items-center gap-2 px-6 py-3 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-900/20 active:scale-95"
+                            >
+                                <Loader2 size={14} />
+                                Reintentar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Visor de Informe a Pantalla Completa */}
+            {reportHtml && !reportLoading && (
+                <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-in fade-in duration-300">
+                    {/* Barra Superior Sticky */}
+                    <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <img
+                                src="/Logo Logic Group Management.png"
+                                alt="LGM"
+                                className="h-7 w-auto object-contain"
+                            />
+                            <div>
+                                <h2 className="text-sm font-black text-[#333333] uppercase tracking-wider">
+                                    Informe Financiero y Operativo
+                                </h2>
+                                <p className="text-[10px] text-gray-400 font-medium tracking-wider">
+                                    {dateFrom ? formatDisplayDate(dateFrom) : ''} — {dateTo ? formatDisplayDate(dateTo) : ''}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {/* Botón Copiar Texto */}
+                            <button
+                                onClick={handleCopyWithFeedback}
+                                className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-all font-black text-[10px] uppercase tracking-widest border border-gray-200 active:scale-95"
+                                title="Copiar texto del informe"
+                            >
+                                {copySuccess ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                                {copySuccess ? 'Copiado' : 'Copiar'}
+                            </button>
+
+                            {/* Botón Descargar JPG */}
+                            <button
+                                onClick={downloadJPG}
+                                className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-all font-black text-[10px] uppercase tracking-widest border border-gray-200 active:scale-95"
+                                title="Descargar como imagen JPG"
+                            >
+                                <Image size={14} />
+                                JPG
+                            </button>
+
+                            {/* Botón Descargar PDF */}
+                            <button
+                                onClick={downloadPDF}
+                                className="flex items-center gap-2 px-4 py-2 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-900/20 active:scale-95"
+                                title="Descargar como PDF"
+                            >
+                                <Download size={14} />
+                                PDF
+                            </button>
+
+                            {/* Botón Cerrar */}
+                            <button
+                                onClick={() => setReportHtml(null)}
+                                className="p-2.5 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 transition-all border border-gray-200 active:scale-95"
+                                title="Cerrar informe"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Contenido del Informe */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                        <div
+                            ref={reportRef}
+                            className="max-w-4xl mx-auto px-8 py-10"
+                            dangerouslySetInnerHTML={{ __html: reportHtml }}
+                        />
+                    </div>
+                </div>
+            )}
+        </div>
                         </div>
                     </div>
                 )}

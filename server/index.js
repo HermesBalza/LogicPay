@@ -534,7 +534,10 @@ app.post('/api/gemini/generate', async (req, res) => {
       // Support chat with system instruction + optional history
       const chat = model.startChat({
         history: history || [],
-        systemInstruction: systemPrompt,
+        systemInstruction: {
+          role: 'user',
+          parts: [{ text: systemPrompt }],
+        },
         generationConfig: generationConfig || undefined,
       });
       result = await chat.sendMessage(prompt);
