@@ -101,12 +101,13 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
 
   // Registrar llamada states
   const [showRegistrarLlamada, setShowRegistrarLlamada] = useState(false);
+  const [llamadaContext, setLlamadaContext] = useState('candidato');
   const [llamadaTipo, setLlamadaTipo] = useState('');
   const [llamadaNota, setLlamadaNota] = useState('');
 
   // Form states
   const [formCandidato, setFormCandidato] = useState({ nombre: '', telefono: '', email: '', direccion: '', fecha_contacto: '', estado: 'Nuevo', ultima_llamada: '', proxima_llamada: '', notas: '', fuente: '', creado_por: '' });
-  const [formProveedor, setFormProveedor] = useState({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', proxima_llamada: '', notas: '', creado_por: '' });
+  const [formProveedor, setFormProveedor] = useState({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', ultima_llamada: '', proxima_llamada: '', notas: '', creado_por: '' });
   const [formProyecto, setFormProyecto] = useState({ nombre: '', tienda: '', cliente: 'KBS', descripcion: '', fecha_solicitud: '', estado: 'Cotizando', notas: '' });
   const [formCotizacion, setFormCotizacion] = useState({ proveedor_id: '', monto: '', fecha_cotizacion: '', estado: 'Recibida', notas: '' });
   const [fileUploading, setFileUploading] = useState(false);
@@ -226,8 +227,10 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     }
   };
 
-  const registrarLlamada = () => {
-    if (!selectedCandidato) return;
+  const registrarLlamada = (tipo = 'candidato') => {
+    if (tipo === 'candidato' && !selectedCandidato) return;
+    if (tipo === 'proveedor' && !selectedProveedor) return;
+    setLlamadaContext(tipo);
     setLlamadaTipo('');
     setLlamadaNota('');
     setShowRegistrarLlamada(true);
@@ -239,16 +242,21 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     const dateStr = toMMDDYYYY(now.toISOString().split('T')[0]);
     const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     const entry = `\n[${dateStr} ${timeStr}] ${llamadaTipo}` + (llamadaNota.trim() ? ` - ${llamadaNota.trim()}` : '');
+    const isCandidato = llamadaContext === 'candidato';
+    const entity = isCandidato ? selectedCandidato : selectedProveedor;
+    const formNotas = isCandidato ? formCandidato.notas : formProveedor.notas;
+    const sheetName = isCandidato ? 'CRM_Candidatos' : 'CRM_Proveedores';
+    const formSetter = isCandidato ? setFormCandidato : setFormProveedor;
     const data = {
-      id: selectedCandidato.id,
+      id: entity.id,
       ultima_llamada: dateStr,
-      notas: (formCandidato.notas || '') + entry,
+      notas: (formNotas || '') + entry,
       updated_at: now.toISOString(),
     };
-    const res = await syncToDatabase('upsert', data, 'CRM_Candidatos', ['id']);
+    const res = await syncToDatabase('upsert', data, sheetName, ['id']);
     if (res?.success) {
       showNotif('Llamada registrada exitosamente');
-      setFormCandidato(f => ({ ...f, notas: (f.notas || '') + entry, ultima_llamada: dateStr }));
+      formSetter(f => ({ ...f, notas: (f.notas || '') + entry, ultima_llamada: dateStr }));
       fetchData();
       setShowRegistrarLlamada(false);
     }
@@ -273,12 +281,12 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
 
   // ─── PROVIDERS ────────────────────────────────────────
 
-  const resetFormProveedor = () => setFormProveedor({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', proxima_llamada: '', notas: '', creado_por: '' });
+  const resetFormProveedor = () => setFormProveedor({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', ultima_llamada: '', proxima_llamada: '', notas: '', creado_por: '' });
 
   const handleNewProveedor = () => { resetFormProveedor(); setShowNewProveedor(true); };
 
   const handleEditProveedor = (p) => {
-    setFormProveedor({ nombre: p.nombre || '', contacto: p.contacto || '', telefono: p.telefono || '', email: p.email || '', especialidad: p.especialidad || '', proxima_llamada: toMMDDYYYY(p.proxima_llamada || ''), notas: p.notas || '', creado_por: p.creado_por || '' });
+    setFormProveedor({ nombre: p.nombre || '', contacto: p.contacto || '', telefono: p.telefono || '', email: p.email || '', especialidad: p.especialidad || '', ultima_llamada: toMMDDYYYY(p.ultima_llamada || ''), proxima_llamada: toMMDDYYYY(p.proxima_llamada || ''), notas: p.notas || '', creado_por: p.creado_por || '' });
     setSelectedProveedor(p);
   };
 
@@ -543,37 +551,65 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     if (!selectedProveedor && !showNewProveedor) return null;
     const isEditing = !!selectedProveedor;
     return (
-      <ModalOverlay onClose={() => { setSelectedProveedor(null); setShowNewProveedor(false); }} className="max-w-4xl">
+      <ModalOverlay onClose={() => { setSelectedProveedor(null); setShowNewProveedor(false); }} className="max-w-none w-screen h-screen max-h-none rounded-none shadow-none -m-4">
         <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
-            <Building2 size={20} /> {isEditing ? 'Editar Proveedor' : 'Nuevo Proveedor'}
+            <Building2 size={20} /> {isEditing ? 'Proveedor' : 'Nuevo Proveedor'}
           </h3>
           <button onClick={() => { setSelectedProveedor(null); setShowNewProveedor(false); }} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          <div className="space-y-4">
-            <input className={inputCls} placeholder="Nombre / Empresa *" value={formProveedor.nombre} onChange={e => setFormProveedor(f => ({ ...f, nombre: e.target.value }))} />
-            <div className="grid grid-cols-2 gap-4">
-              <input className={inputCls} placeholder="Persona de Contacto" value={formProveedor.contacto} onChange={e => setFormProveedor(f => ({ ...f, contacto: e.target.value }))} />
-              <input className={inputCls} placeholder="Teléfono" value={formProveedor.telefono} onChange={e => setFormProveedor(f => ({ ...f, telefono: e.target.value }))} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <input className={inputCls} placeholder="Email" type="email" value={formProveedor.email} onChange={e => setFormProveedor(f => ({ ...f, email: e.target.value }))} />
-              <input className={inputCls} placeholder="Especialidad (ej: Limpieza, Construcción)" value={formProveedor.especialidad} onChange={e => setFormProveedor(f => ({ ...f, especialidad: e.target.value }))} />
-            </div>
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Próxima Llamada / Seguimiento</label>
-              <div className="relative">
-                <input className={`${inputCls} pr-12`} type="text" placeholder="MM/DD/AAAA" value={formProveedor.proxima_llamada} onChange={e => setFormProveedor(f => ({ ...f, proxima_llamada: formatDateInput(e.target.value) }))} />
-                <button type="button" onClick={() => document.getElementById('dp-proxima-llamada')?.showPicker()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-xl transition-all"><Calendar size={16} /></button>
-                <input id="dp-proxima-llamada" type="date" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none z-[200]" style={{ width: '1px', height: '1px' }} value={toISOFormat(formProveedor.proxima_llamada)} onChange={e => setFormProveedor(f => ({ ...f, proxima_llamada: toMMDDYYYY(e.target.value) }))} />
+        <div className="flex-1 flex overflow-hidden">
+          <div id="proveedor-sidebar" className="flex shrink-0" style={{ width: sidebarWidth, minWidth: '20%' }}>
+            <div className="flex-1 p-3 flex flex-col gap-1.5 [&_input]:text-[10px] [&_input]:py-2 [&_select]:text-[10px] [&_select]:py-2">
+              <div>
+                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Nombre / Empresa</label>
+                <input className={inputCls} placeholder="Nombre *" value={formProveedor.nombre} onChange={e => setFormProveedor(f => ({ ...f, nombre: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Teléfono</label>
+                  <input className={inputCls} placeholder="Teléfono" value={formProveedor.telefono} onChange={e => setFormProveedor(f => ({ ...f, telefono: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Email</label>
+                  <input className={inputCls} placeholder="Email" type="email" value={formProveedor.email} onChange={e => setFormProveedor(f => ({ ...f, email: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Contacto</label>
+                  <input className={inputCls} placeholder="Persona de Contacto" value={formProveedor.contacto} onChange={e => setFormProveedor(f => ({ ...f, contacto: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Especialidad</label>
+                  <input className={inputCls} placeholder="Ej: Limpieza, Construcción" value={formProveedor.especialidad} onChange={e => setFormProveedor(f => ({ ...f, especialidad: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Próxima Llamada / Seguimiento</label>
+                <div className="relative">
+                  <input className={`${inputCls} pr-10`} type="text" placeholder="MM/DD/AAAA" value={formProveedor.proxima_llamada} onChange={e => setFormProveedor(f => ({ ...f, proxima_llamada: formatDateInput(e.target.value) }))} />
+                  <button type="button" onClick={() => document.getElementById('dp-proxima-llamada')?.showPicker()} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-[#303a7f] hover:bg-gray-100 rounded-lg transition-all"><Calendar size={14} /></button>
+                  <input id="dp-proxima-llamada" type="date" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none z-[200]" style={{ width: '1px', height: '1px' }} value={toISOFormat(formProveedor.proxima_llamada)} onChange={e => setFormProveedor(f => ({ ...f, proxima_llamada: toMMDDYYYY(e.target.value) }))} />
+                </div>
+              </div>
+              <div className="flex gap-1.5 pt-2 border-t border-gray-100">
+                {isEditing && (
+                  <button onClick={() => registrarLlamada('proveedor')} className="flex items-center gap-1.5 px-3 py-2 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-xl border-2 border-[#6bbdb7]/20 hover:bg-[#6bbdb7]/20 transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest"><Phone size={12} /> Llamada</button>
+                )}
+                <button onClick={saveProveedor} className="flex items-center gap-1.5 px-3 py-2 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest ml-auto"><Save size={12} /> Guardar</button>
               </div>
             </div>
-            <textarea className={`${inputCls} resize-none`} rows={3} placeholder="Notas..." value={formProveedor.notas} onChange={e => setFormProveedor(f => ({ ...f, notas: e.target.value }))} />
-            <div className="flex gap-3 pt-2">
-              <button onClick={saveProveedor} className="flex items-center gap-2 px-5 py-3 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest ml-auto"><Save size={14} /> Guardar</button>
-              {isEditing && <button onClick={() => setDeleteConfirm({ show: true, message: `¿Eliminar proveedor "${selectedProveedor?.nombre}"?`, onConfirm: () => deleteProveedor(selectedProveedor) })} className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-500 rounded-2xl border-2 border-red-100 hover:bg-red-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest"><Trash2 size={14} /> Eliminar</button>}
-            </div>
+          </div>
+          <div
+            className="w-[7px] cursor-col-resize shrink-0 hover:bg-[#303a7f]/10 active:bg-[#303a7f]/20 transition-colors flex flex-col items-center justify-center border-l border-gray-200"
+            onMouseDown={handleSidebarMouseDown}
+          >
+            <div className="w-0.5 h-8 rounded-full bg-gray-300" />
+          </div>
+          <div className="flex-1 p-4 flex flex-col">
+            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-2 pl-1">Notas</label>
+            <textarea className="flex-1 resize-none border-2 border-gray-100 rounded-2xl bg-white p-4 text-sm font-medium text-gray-700 placeholder:text-gray-300 focus:border-[#303a7f]/30 focus:outline-none transition-all" placeholder="Notas del proveedor..." value={formProveedor.notas} onChange={e => setFormProveedor(f => ({ ...f, notas: e.target.value }))} />
           </div>
         </div>
       </ModalOverlay>
