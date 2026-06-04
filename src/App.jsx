@@ -850,7 +850,7 @@ const DashboardView = ({
         'pl-resumido': 'Desglose detallado de ingresos y costos por categoría, mostrando la contribución de cada línea de negocio al resultado total del periodo.',
         'rendimiento-tienda': 'Ranking de tiendas por margen operativo. Muestra las tiendas más y menos rentables para priorizar acciones correctivas.',
         'workforce-analytics': 'Análisis de carga laboral: ranking de empleados por horas trabajadas en el periodo. Ayuda a identificar distribución de la fuerza laboral.',
-        'pe-vwh': 'Indica la cantidad de proyectos especiales ejecutados, su impacto financiero (margen) y las incidencias de VWH registradas en el periodo.',
+        'pe-vwh': 'Cantidad total de facturas VWH y Proyectos Especiales en el periodo. Incluye el desglose de facturaciones del año: reportadas y pagadas, reportadas y pendientes, no reportadas a KBS y WOS auditados.',
         'distribucion-pagos': 'Clasificación del flujo de efectivo: pagos completados, montos pendientes de cobro a clientes y pendientes de pago a empleados.',
     };
 
@@ -1082,6 +1082,29 @@ const DashboardView = ({
     const margenPE = totalKBS_PE - totalLGM_PE;
     const vwhRecords = filteredWOS.filter(w => w.auditDate);
     const incidenciaVWH = vwhRecords.length;
+
+    const esAnual = (row) => {
+        const dateStr = row['Fecha Rad.'] || row.fecha_inicio || row.fecha_fin
+            || row.Periodo || row.periodo || row.fecha || row.Timestamp || row.timestamp || '';
+        if (!dateStr) return true;
+        const y = String(dateStr).match(/(\d{4})/);
+        return y && parseInt(y[1]) === 2026;
+    };
+
+    const tieneRad = (row) => {
+        const rad = row['Fecha Rad.'] || row.radicacion || '';
+        return rad && rad !== '--/--/--' && rad.trim() !== '';
+    };
+
+    const estaPagada = (row) => {
+        const s = row.Status || row.status || '';
+        return s === 'Paid' || s === 'Pagada';
+    };
+
+    const facturasAnual = [...nominaHistoryData.filter(esAnual), ...specialProjectsHistoryData.filter(esAnual)];
+    const facturasEnviadasPagadas = facturasAnual.filter(r => tieneRad(r) && estaPagada(r)).length;
+    const facturasEnviadasPendientes = facturasAnual.filter(r => tieneRad(r) && !estaPagada(r)).length;
+    const facturasNoReportadas = facturasAnual.filter(r => !tieneRad(r) && !estaPagada(r)).length;
 
     // ─── LÓGICA DE DATOS PARA GRÁFICOS (Recharts Data) ───────────────────────
 
@@ -1826,14 +1849,14 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                         </div>
                     </div>
 
-                    {/* 5. PE & VWH */}
+                    {/* 5. Facturaciones y WOS */}
                     <div className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col">
                         <div className="flex justify-between items-center mb-6">
                             <div className="flex items-center gap-3">
                                 <Sparkles className="text-orange-400" size={24} />
-                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Proyectos Especiales & VWH</h3>
+                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Facturaciones y WOS</h3>
                                 <button
-                                    onClick={() => setInfoModal({ title: 'Proyectos Especiales & VWH', description: sectionDescriptions['pe-vwh'] })}
+                                    onClick={() => setInfoModal({ title: 'Facturaciones y WOS', description: sectionDescriptions['pe-vwh'] })}
                                     className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors ml-auto"
                                 >
                                     <Info size={14} />
@@ -1843,21 +1866,37 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
 
                         <div className="grid grid-cols-2 gap-4 flex-1">
                             <div className="bg-orange-50/50 border border-orange-100 p-4 rounded-2xl flex flex-col justify-center">
-                                <p className="text-[10px] font-black text-orange-800/60 uppercase tracking-widest mb-1">Volumen PE</p>
-                                <h4 className="text-3xl font-black text-orange-600 tracking-tighter">{volumenPE}</h4>
-                                <p className="text-[9px] font-bold text-orange-800/40 uppercase mt-2">Ejecutados en periodo</p>
+                                <p className="text-[10px] font-black text-orange-800/60 uppercase tracking-widest mb-1">Facturas VWH</p>
+                                <h4 className="text-3xl font-black text-orange-600 tracking-tighter">{filteredNomina.length}</h4>
+                                <p className="text-[9px] font-bold text-orange-800/40 uppercase mt-2">Total en periodo</p>
                             </div>
 
                             <div className="bg-green-50/50 border border-green-100 p-4 rounded-2xl flex flex-col justify-center">
-                                <p className="text-[10px] font-black text-green-800/60 uppercase tracking-widest mb-1">Impacto (Margen PE)</p>
-                                <h4 className="text-2xl font-black text-green-600 tracking-tighter truncate">{formatMoney(margenPE)}</h4>
-                                <p className="text-[9px] font-bold text-green-800/40 uppercase mt-2">Beneficio Neto PE</p>
+                                <p className="text-[10px] font-black text-green-800/60 uppercase tracking-widest mb-1">Facturas PE</p>
+                                <h4 className="text-3xl font-black text-green-600 tracking-tighter">{volumenPE}</h4>
+                                <p className="text-[9px] font-bold text-green-800/40 uppercase mt-2">Total en periodo</p>
                             </div>
 
-                            <div className="bg-purple-50/50 border border-purple-100 p-4 rounded-2xl col-span-2 flex flex-col justify-center items-center text-center">
-                                <p className="text-[10px] font-black text-purple-800/60 uppercase tracking-widest mb-1">Incidencia VWH</p>
-                                <h4 className="text-4xl font-black text-purple-600 tracking-tighter mb-1">{incidenciaVWH}</h4>
-                                <p className="text-[10px] font-bold text-purple-800/60 uppercase">Registros / Auditorías VWH Encontradas</p>
+                            <div className="bg-[#303a7f]/5 border border-[#303a7f]/10 p-5 rounded-2xl col-span-2 flex flex-col">
+                                <p className="text-[10px] font-black text-[#303a7f]/60 uppercase tracking-widest mb-4 text-center">Desglose de Facturaciones</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white/60 rounded-xl p-3 flex flex-col items-center">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-1">Reportadas y Pagadas</p>
+                                        <span className="text-xl font-black text-[#22c55e] tracking-tighter">{facturasEnviadasPagadas}</span>
+                                    </div>
+                                    <div className="bg-white/60 rounded-xl p-3 flex flex-col items-center">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-1">Reportadas y Pendientes</p>
+                                        <span className="text-xl font-black text-[#f59e0b] tracking-tighter">{facturasEnviadasPendientes}</span>
+                                    </div>
+                                    <div className="bg-white/60 rounded-xl p-3 flex flex-col items-center">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-1">No Reportadas a KBS</p>
+                                        <span className="text-xl font-black text-[#ef4444] tracking-tighter">{facturasNoReportadas}</span>
+                                    </div>
+                                    <div className="bg-white/60 rounded-xl p-3 flex flex-col items-center">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-1">WOS Auditados</p>
+                                        <span className="text-xl font-black text-[#303a7f] tracking-tighter">{incidenciaVWH}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
