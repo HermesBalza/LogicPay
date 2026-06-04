@@ -75,7 +75,8 @@ import {
     Paperclip,
     Briefcase,
     Database,
-    Pencil
+    Pencil,
+    PawPrint
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -18123,15 +18124,10 @@ function App() {
                                 setCatEnabled(next);
                                 localStorage.setItem('pixelCatEnabled', next);
                             }}
-                            className="absolute left-[190px] hidden xl:flex items-center gap-2 px-3 py-2 bg-white/5 rounded-2xl border border-white/10 transition-all duration-500 hover:bg-white/10 group"
+                            className="absolute left-[125px] hidden xl:flex items-center gap-2 px-3 py-2 bg-white/5 rounded-2xl border border-white/10 transition-all duration-500 hover:bg-white/10 group"
                             title={catEnabled ? 'Ocultar mascota' : 'Mostrar mascota'}
                         >
-                            <span className={`text-sm transition-transform duration-300 ${catEnabled ? 'scale-110' : 'opacity-60 group-hover:opacity-100'}`}>
-                                🐱
-                            </span>
-                            <span className={`text-[7px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${catEnabled ? 'text-white/80' : 'text-white/30 group-hover:text-white/60'}`}>
-                                Mascota
-                            </span>
+                            <PawPrint size={18} className={`transition-transform duration-300 ${catEnabled ? 'scale-110' : 'opacity-60 group-hover:opacity-100'}`} />
                         </button>
                     )}
 

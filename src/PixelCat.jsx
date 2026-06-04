@@ -42,7 +42,7 @@ export default function PixelCat({ enabled }) {
   const animRef = useRef({ state: 'clean', frame: 0, timer: 0 });
   const mouseRef = useRef({ x: -9999, y: -9999 });
   const stateTimerRef = useRef(0);
-  const nervousTimerRef = useRef(0);
+  const nervousEndRef = useRef(0);
   const nervousTargetRef = useRef('nervousLeft');
   const facingRef = useRef('right');
   const prevStateRef = useRef('clean');
@@ -78,7 +78,8 @@ export default function PixelCat({ enabled }) {
 
     const loop = (time) => {
       if (!lastTimeRef.current) lastTimeRef.current = time;
-      const dt = Math.min(time - lastTimeRef.current, 50);
+      const rawDt = time - lastTimeRef.current;
+      const dt = Math.min(rawDt, 50);
       lastTimeRef.current = time;
 
       const anim = animRef.current;
@@ -141,13 +142,12 @@ export default function PixelCat({ enabled }) {
       };
 
       // --- state machine ---
-      if (nervousTimerRef.current > 0) {
+      if (performance.now() < nervousEndRef.current) {
         anim.state = nervousTargetRef.current;
         vel.x = 0;
         vel.y = 0;
-        nervousTimerRef.current -= dt;
       } else {
-        stateTimerRef.current -= dt;
+        stateTimerRef.current -= rawDt;
 
         if (stateTimerRef.current <= 0) {
           // Deep sleep persistence
@@ -268,13 +268,22 @@ export default function PixelCat({ enabled }) {
     if (current === 'deepSleepLeft' || current === 'deepSleepRight') return;
     if (velRef.current.x > 0) {
       nervousTargetRef.current = 'nervousRight';
-      nervousTimerRef.current = 5000;
+      nervousEndRef.current = performance.now() + 5000;
+      walkTargetRef.current = null;
+      stateTimerRef.current = 0;
     } else if (velRef.current.x < 0) {
       nervousTargetRef.current = 'nervousLeft';
-      nervousTimerRef.current = 5000;
+      nervousEndRef.current = performance.now() + 5000;
+      walkTargetRef.current = null;
+      stateTimerRef.current = 0;
     } else {
-      nervousTargetRef.current = 'playful';
-      nervousTimerRef.current = 5000 + Math.random() * 5000;
+      animRef.current.state = 'playful';
+      animRef.current.frame = 0;
+      animRef.current.timer = 0;
+      stateTimerRef.current = 5000;
+      walkTargetRef.current = null;
+      velRef.current.x = 0;
+      velRef.current.y = 0;
     }
   };
 
