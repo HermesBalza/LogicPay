@@ -1314,20 +1314,14 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                 backgroundColor: '#ffffff',
             });
             const imgData = canvas.toDataURL('image/jpeg', 0.95);
-            const imgWidth = 210;
-            const pageHeight = 297;
+            const margin = 10;
+            const pageWidth = 210;
+            const imgWidth = pageWidth - (margin * 2);
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            let heightLeft = imgHeight;
-            let position = 0;
-            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-            while (heightLeft > 0) {
-                position = -(imgHeight - heightLeft - pageHeight);
-                pdf.addPage();
-                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-                heightLeft -= pageHeight;
-            }
+            const pageHeight = imgHeight + (margin * 2);
+
+            const pdf = new jsPDF('p', 'mm', [pageWidth, pageHeight]);
+            pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
             pdf.save(`Informe_LGM_${dateFrom || 'fecha'}_${dateTo || 'fecha'}.pdf`);
         } catch (err) {
             alert('Error al generar PDF: ' + (err.message || 'Error desconocido'));
