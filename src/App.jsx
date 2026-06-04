@@ -892,11 +892,21 @@ const DashboardView = ({
         if (!dateFrom && !dateTo) return true;
         if (!dateStr) return false;
 
-        let cleanStr = String(dateStr).split(',')[0].split('-')[0].trim();
+        let rawStr = String(dateStr).split(',')[0].trim();
+        let cleanStr = rawStr;
+        if (rawStr.includes(' - ')) {
+            cleanStr = rawStr.split(' - ')[0].trim();
+        } else if (rawStr.includes('/') && rawStr.includes('-')) {
+            cleanStr = rawStr.split('-')[0].trim();
+        }
+
         const parts = cleanStr.split('/');
         let d;
         if (parts.length === 3) {
             d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+        } else if (cleanStr.includes('-') && cleanStr.split('-').length === 3) {
+            const [y, m, d_] = cleanStr.split('-');
+            d = new Date(parseInt(y), parseInt(m) - 1, parseInt(d_));
         } else {
             d = new Date(cleanStr);
         }
@@ -980,7 +990,7 @@ const DashboardView = ({
     }, [nominaDetailData, derivedNominaHistoryEmployees, dateFrom, dateTo, selectedStore, selectedEmployee]);
 
     const filteredPE = useMemo(() => specialProjectsHistoryData.filter(pe => {
-        const passDate = isDateInRange(pe.timestamp || pe.Timestamp || pe.fecha);
+        const passDate = isDateInRange(pe.Periodo || pe.periodo || pe.timestamp || pe.Timestamp || pe.fecha);
         const passStore = selectedStore === 'Todas' || pe.tienda === selectedStore || pe.Tienda === selectedStore;
         return passDate && passStore;
     }), [specialProjectsHistoryData, dateFrom, dateTo, selectedStore]);
@@ -1082,14 +1092,21 @@ const DashboardView = ({
             if (!dateStr) return;
 
             // 1. Limpieza y Parseo MM/DD/YYYY
-            let cleanStr = String(dateStr).split(',')[0].split('-')[0].trim();
+            let rawStr = String(dateStr).split(',')[0].trim();
+            let cleanStr = rawStr;
+            if (rawStr.includes(' - ')) {
+                cleanStr = rawStr.split(' - ')[0].trim();
+            } else if (rawStr.includes('/') && rawStr.includes('-')) {
+                cleanStr = rawStr.split('-')[0].trim();
+            }
+
             if (!isDateInRange(cleanStr)) return;
 
             const parts = cleanStr.split('/');
             let d;
             if (parts.length === 3) {
                 d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
-            } else if (cleanStr.includes('-')) {
+            } else if (cleanStr.includes('-') && cleanStr.split('-').length === 3) {
                 const [y, m, d_] = cleanStr.split('-');
                 d = new Date(parseInt(y), parseInt(m) - 1, parseInt(d_));
             } else {
