@@ -828,6 +828,7 @@ const DashboardView = ({
     const [selectedSupervisor, setSelectedSupervisor] = useState('Todos');
     const [trendPeriod, setTrendPeriod] = useState('monthly'); // 'monthly' | 'weekly'
     const [infoModal, setInfoModal] = useState(null);
+    const [showReportModal, setShowReportModal] = useState(false);
     const fromDateRef = useRef(null);
     const toDateRef = useRef(null);
 
@@ -1697,8 +1698,9 @@ const DashboardView = ({
 
                 <div className="flex justify-center mt-8">
                     <button
-                        onClick={() => {}}
-                        className="flex items-center gap-3 px-8 py-4 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 shadow-xl shadow-blue-900/20 font-black text-sm uppercase tracking-widest"
+                        onClick={() => setShowReportModal(true)}
+                        disabled={!dateFrom || !dateTo}
+                        className={`flex items-center gap-3 px-8 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${(!dateFrom || !dateTo) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#252a5e] active:scale-95 shadow-xl shadow-blue-900/20'}`}
                     >
                         <Cpu size={20} />
                         Generar Informe
@@ -1727,6 +1729,54 @@ const DashboardView = ({
                             </button>
                         </div>
                         <p className="text-sm text-gray-600 leading-relaxed">{infoModal.description}</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Generar Informe */}
+            {showReportModal && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setShowReportModal(false)}
+                >
+                    <div
+                        className="bg-white rounded-[2rem] p-8 max-w-lg w-full mx-4 shadow-2xl border border-gray-100 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <FileText className="text-[#303a7f]" size={24} />
+                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Generar Informe</h3>
+                            </div>
+                            <button
+                                onClick={() => setShowReportModal(false)}
+                                className="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 transition-all"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-600 leading-relaxed mb-2">
+                            Se generará un informe financiero y operativo de Logic Group Management con los datos de las fechas <strong>{dateFrom ? formatDisplayDate(dateFrom) : 'inicio'}</strong> al <strong>{dateTo ? formatDisplayDate(dateTo) : 'final'}</strong>.
+                        </p>
+                        <p className="text-sm text-gray-600 leading-relaxed mb-8">¿Desea continuar?</p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowReportModal(false)}
+                                className="px-6 py-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all font-black text-xs uppercase tracking-widest"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => {
+                                    // TODO: Vincular IA para generar informe
+                                    setShowReportModal(false);
+                                }}
+                                className="flex items-center gap-2 px-6 py-3 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-900/20"
+                            >
+                                <Cpu size={16} />
+                                Aceptar
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
