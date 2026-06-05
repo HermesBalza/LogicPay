@@ -1,18 +1,36 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  DollarSign, TrendingUp, Receipt, Activity,
-  Calendar, Eraser, RefreshCw
+  DollarSign, TrendingUp, TrendingDown, Receipt, Activity,
+  Calendar, Eraser, RefreshCw, Users, Building2,
+  Sparkles, FileText, Download, Loader2
 } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, PieChart, Pie, Cell, BarChart, Bar
 } from 'recharts';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { fetchTable, formatMoney, hhmmToDecimal } from '../api';
 import MobileKpiCard from '../components/MobileKpiCard';
 import MobileSelect from '../components/MobileSelect';
 import MobileCard from '../components/MobileCard';
+import MobileModal from '../components/MobileModal';
 
 const COLORS = { kbs: '#303a7f', csg: '#6bbdb7', pe: '#f59e0b', lgm: '#ef4444' };
+
+const callGemini = async (prompt, bodyOverrides = {}) => {
+  const res = await fetch('/api/gemini/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, ...bodyOverrides }),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || 'Error llamando a Gemini');
+  }
+  const data = await res.json();
+  return data.text || '';
+};
 
 function formatDisplayDate(iso) {
   if (!iso) return '';
@@ -41,6 +59,9 @@ export default function MobileDashboard({ stores = [], employees = [], user }) {
   const [selectedEmployee, setSelectedEmployee] = useState('Todos');
   const [selectedSupervisor, setSelectedSupervisor] = useState('Todos');
   const [trendPeriod, setTrendPeriod] = useState('monthly');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportHtml, setReportHtml] = useState('');
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const fromRef = useRef(null);
   const toRef = useRef(null);
@@ -213,6 +234,142 @@ export default function MobileDashboard({ stores = [], employees = [], user }) {
 
   const topTiendas = useMemo(() => storeStats.slice(0, 8), [storeStats]);
 
+  const workforceData = useMemo(() => {
+    const map = {};
+    (Array.isArray(nominaDetail) ? nominaDetail : []).forEach(r => {
+      const empName = r.nombre || r.empleado || '';
+      const hours = parseFloat(r.horas) || parseFloat(r.Horas) || hhmmToDecimal(r.horas) || 0;
+      if (!empName) return;
+      if (selectedStore !== 'Todas' && r.tienda !== selectedStore) return;
+      if (!map[empName]) map[empName] = { name: empName, hours: 0 };
+      map[empName].hours += hours;
+    });
+    return Object.values(map).sort((a, b) => b.hours - a.hours).slice(0, 5);
+  }, [nominaDetail, selectedStore]);
+
+  const rotationData = useMemo(() => {
+    const activos = employees.filter(e => e.status !== 'Inactivo').length;
+    const inactivos = employees.filter(e => e.status === 'Inactivo').length;
+    const total = employees.length || 1;
+    return { activos, inactivos, total, pct: ((inactivos / total) * 100).toFixed(1) };
+  }, [employees]);
+
+  const peSummary = useMemo(() => {
+    const total = specialProjects.reduce((s, r) => s + (+r.Pago_KBS || 0), 0);
+    const count = specialProjects.length;
+    return { total, count };
+  }, [specialProjects]);
+
+  const wosSummary = useMemo(() => {
+    const total = wosData.reduce((s, r) => s + (+r.Monto_WOS || +r.monto || 0), 0);
+    const pendientes = wosData.filter(w => w.Status !== 'Paid' && w.Status !== 'Paid').length;
+    return { total, pendientes, count: wosData.length };
+  }, [wosData]);
+
+  const distributionData = useMemo(() => {
+    const wosPaid = wosData.filter(w => w.Status === 'Paid').reduce((s, r) => s + (+r.Monto_WOS || +r.monto || 0), 0);
+    const wosPending = wosData.filter(w => w.Status !== 'Paid').reduce((s, r) => s + (+r.Monto_WOS || +r.monto || 0), 0);
+    const csgPaid = csgServices.filter(s => s.status === 'Paid').reduce((s, r) => s + (+r.monto_csg || 0), 0);
+    const csgPending = csgServices.filter(s => s.status !== 'Paid').reduce((s, r) => s + (+r.monto_csg || 0), 0);
+    const nominaPaid = nominaHistory.filter(n => n.Status === 'Paid').reduce((s, r) => s + (+r.Pago_LGM || 0), 0);
+    const nominaPending = nominaHistory.filter(n => !n.Status || n.Status === 'Due').reduce((s, r) => s + (+r.Pago_LGM || 0), 0);
+    const totalPaid = wosPaid + csgPaid + nominaPaid;
+    const totalPendingClientes = wosPending + csgPending;
+    const totalPendingEquipo = nominaPending;
+    return {
+      paid: totalPaid, pendingClientes: totalPendingClientes, pendingEquipo: totalPendingEquipo,
+      total: totalPaid + totalPendingClientes + totalPendingEquipo,
+      chartData: [
+        { name: 'Pagado', value: totalPaid, color: '#22c55e' },
+        { name: 'Pend. Clientes', value: totalPendingClientes, color: '#f59e0b' },
+        { name: 'Pend. Equipo', value: totalPendingEquipo, color: '#ef4444' },
+      ].filter(d => d.value > 0)
+    };
+  }, [wosData, csgServices, nominaHistory]);
+
+  const periodMonths = useMemo(() => {
+    if (!dateFrom) return 1;
+    const [y1, m1] = dateFrom.split('-').map(Number);
+    const [y2, m2] = (dateTo || dateFrom).split('-').map(Number);
+    return Math.max(1, (y2 - y1) * 12 + (m2 - m1) + 1);
+  }, [dateFrom, dateTo]);
+
+  const growthData = useMemo(() => {
+    const months = periodMonths;
+    const prevKBS = kbsNomina / months;
+    const prevLGM = lgmNomina / months;
+    const prevPE = totalKBS_PE / months;
+    const prevCSG = totalCSG_Ingresos / months;
+    const prevIngresos = prevKBS + prevPE + prevCSG;
+    const prevCostos = prevLGM + (totalLGM_PE / months) + (totalCSG_Costos / months);
+    const prevMargen = prevIngresos - prevCostos;
+    const prevROI = prevIngresos > 0 ? (prevMargen / prevIngresos) * 100 : 0;
+    const prevPendientes = pendientes / months;
+
+    const calcGrowth = (actual, prev) => {
+      if (!prev || prev === 0) return null;
+      return (((actual - prev) / Math.abs(prev)) * 100).toFixed(1);
+    };
+
+    return {
+      ingresos: calcGrowth(totalIngresos, prevIngresos * months),
+      costos: calcGrowth(totalCostos, prevCostos * months),
+      margen: calcGrowth(margenBruto, prevMargen * months),
+      roi: calcGrowth(roiPercent, prevROI),
+      pendientes: calcGrowth(pendientes, prevPendientes * months),
+    };
+  }, [kbsNomina, lgmNomina, totalKBS_PE, totalCSG_Ingresos, totalIngresos, totalCostos, margenBruto, roiPercent, pendientes, totalLGM_PE, totalCSG_Costos, periodMonths]);
+
+  const generateReport = async () => {
+    setReportLoading(true);
+    setReportHtml('');
+    setShowReportModal(true);
+    try {
+      const periodoStr = dateFrom && dateTo ? `del ${formatDisplayDate(dateFrom)} al ${formatDisplayDate(dateTo)}` : 'general';
+      const prompt = `Como CFO de Logic Group Management, genera un informe financiero ejecutivo en formato HTML (sin markdown, solo HTML puro con estilos inline) para el período ${periodoStr}.
+
+DATOS FINANCIEROS:
+- Ingresos Totales: ${formatMoney(totalIngresos)}
+- Costos Totales: ${formatMoney(totalCostos)}
+- Margen Bruto: ${formatMoney(margenBruto)}
+- ROI: ${roiPercent.toFixed(1)}%
+- Cuentas por Cobrar: ${formatMoney(pendientes)}
+
+COMPOSICIÓN DE INGRESOS:
+- KBS Regular: ${formatMoney(kbsNomina)}
+- CSG Services: ${formatMoney(totalCSG_Ingresos)}
+- Proyectos Especiales: ${formatMoney(totalKBS_PE)}
+
+WORKFORCE:
+- Total empleados: ${employees.length}
+- Activos: ${employees.filter(e => e.status !== 'Inactivo').length}
+- Inactivos: ${employees.filter(e => e.status === 'Inactivo').length}
+
+TIENDAS TOP (por margen):
+${topTiendas.slice(0, 5).map((t, i) => `${i + 1}. ${t.nombre}: Margen ${formatMoney(t.margen)}`).join('\n')}
+
+El informe debe ser profesional, visualmente atractivo (colores corporativos azul #303a7f y teal #6bbdb7), e incluir:
+1. Encabezado con logo y período
+2. Resumen ejecutivo (1 párrafo)
+3. Tabla de KPIs principales
+4. Análisis de composición de ingresos
+5. Conclusiones y recomendaciones
+
+IMPORTANTE: Responde SOLO con el HTML, sin explicaciones ni markdown. El HTML debe usar estilos inline.`;
+
+      const text = await callGemini(prompt, {
+        systemPrompt: 'Eres un CFO experto en finanzas corporativas. Respondes exclusivamente con HTML limpio y estilos inline para informes ejecutivos. No usas markdown ni explicas nada fuera del HTML.',
+        generationConfig: { temperature: 0.3, maxOutputTokens: 4096 }
+      });
+      setReportHtml(text);
+    } catch (e) {
+      console.error('Error generando informe:', e);
+      setReportHtml('<div style="color:red;padding:20px;text-align:center">Error al generar el informe. Intente nuevamente.</div>');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -264,12 +421,49 @@ export default function MobileDashboard({ stores = [], employees = [], user }) {
       ) : (
         <>
           <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
-            <MobileKpiCard label="Total KBS" value={formatMoney(totalIngresos)} icon={DollarSign} color={COLORS.kbs} />
-            <MobileKpiCard label="Costo LGM" value={formatMoney(totalCostos)} icon={Receipt} color={COLORS.lgm} />
-            <MobileKpiCard label="Margen" value={formatMoney(margenBruto)} icon={TrendingUp} color={margenBruto >= 0 ? '#22c55e' : '#ef4444'} />
-            <MobileKpiCard label="ROI" value={`${roiPercent.toFixed(1)}%`} icon={Activity} color={roiPercent >= 0 ? '#22c55e' : '#ef4444'} />
-            <MobileKpiCard label="x Cobrar" value={formatMoney(pendientes)} icon={Receipt} color="#f59e0b" />
+            <MobileKpiCard label="Total KBS" value={formatMoney(totalIngresos)} icon={DollarSign} color={COLORS.kbs} subtitle={growthData.ingresos ? `${growthData.ingresos > 0 ? '+' : ''}${growthData.ingresos}% vs período anterior` : ''} />
+            <MobileKpiCard label="Costo LGM" value={formatMoney(totalCostos)} icon={Receipt} color={COLORS.lgm} subtitle={growthData.costos ? `${growthData.costos > 0 ? '+' : ''}${growthData.costos}% vs período anterior` : ''} />
+            <MobileKpiCard label="Margen" value={formatMoney(margenBruto)} icon={margenBruto >= 0 ? TrendingUp : TrendingDown} color={margenBruto >= 0 ? '#22c55e' : '#ef4444'} subtitle={growthData.margen ? `${growthData.margen > 0 ? '+' : ''}${growthData.margen}% vs período anterior` : ''} />
+            <MobileKpiCard label="ROI" value={`${roiPercent.toFixed(1)}%`} icon={Activity} color={roiPercent >= 0 ? '#22c55e' : '#ef4444'} subtitle={growthData.roi ? `${growthData.roi > 0 ? '+' : ''}${growthData.roi}% vs período anterior` : ''} />
+            <MobileKpiCard label="x Cobrar" value={formatMoney(pendientes)} icon={Receipt} color="#f59e0b" subtitle={growthData.pendientes ? `${growthData.pendientes > 0 ? '+' : ''}${growthData.pendientes}% vs período anterior` : ''} />
           </div>
+
+          {workforceData.length > 0 && (
+            <MobileCard>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Users size={14} className="text-brand-primary" />
+                  <span className="text-[10px] font-bold text-gray-500 tracking-wider uppercase">Workforce</span>
+                </div>
+              </div>
+              <div className="flex gap-2 mb-3">
+                <MobileKpiCard label="Activos" value={rotationData.activos} icon={Users} color="#22c55e" />
+                <MobileKpiCard label="Inactivos" value={rotationData.inactivos} icon={Users} color="#ef4444" />
+                <MobileKpiCard label="Rotación" value={`${rotationData.pct}%`} icon={TrendingDown} color="#f59e0b" />
+              </div>
+              <div>
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Top Empleados por Horas</span>
+                <div className="h-32">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={workforceData} layout="vertical" margin={{ left: 0, right: 10, top: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 8, fill: '#999' }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 8, fill: '#666' }} axisLine={false} tickLine={false} width={70} />
+                      <Tooltip formatter={v => `${v.toFixed(1)} hrs`} />
+                      <Bar dataKey="hours" fill="#303a7f" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </MobileCard>
+          )}
+
+          {(peSummary.count > 0 || wosSummary.count > 0) && (
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+              <MobileKpiCard label="Proy. Especiales" value={formatMoney(peSummary.total)} icon={Building2} color="#f59e0b" subtitle={`${peSummary.count} proyectos`} />
+              <MobileKpiCard label="WOS Total" value={formatMoney(wosSummary.total)} icon={FileText} color="#6bbdb7" subtitle={`${wosSummary.pendientes} pendientes`} />
+            </div>
+          )}
 
           <MobileCard className="!p-0 !rounded-2xl overflow-hidden">
             <div className="px-4 pt-3.5 pb-1 flex items-center justify-between">
@@ -335,6 +529,41 @@ export default function MobileDashboard({ stores = [], employees = [], user }) {
               </ResponsiveContainer>
             </div>
           </MobileCard>
+
+          {distributionData.chartData.length > 0 && (
+            <MobileCard className="!p-0 !rounded-2xl overflow-hidden">
+              <div className="px-4 pt-3.5 pb-1">
+                <span className="text-[10px] font-bold text-gray-500 tracking-wider uppercase">Distribución de Pagos</span>
+              </div>
+              <div className="flex items-center gap-2 px-2 pb-1">
+                {distributionData.chartData.map(d => (
+                  <div key={d.name} className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                    <span className="text-[8px] font-bold text-gray-500">{d.name} ({formatMoney(d.value)})</span>
+                  </div>
+                ))}
+              </div>
+              <div className="h-40 px-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={distributionData.chartData} layout="horizontal">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 8, fill: '#666' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 8, fill: '#999' }} axisLine={false} tickLine={false} />
+                    <Tooltip formatter={v => formatMoney(v)} />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                      {distributionData.chartData.map((d, i) => (
+                        <Cell key={i} fill={d.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="text-center pb-3">
+                <span className="text-lg font-black text-gray-800">{formatMoney(distributionData.total)}</span>
+                <span className="text-[10px] text-gray-400 ml-2">Total movimientos</span>
+              </div>
+            </MobileCard>
+          )}
 
           {topTiendas.length > 0 && (
             <MobileCard className="!p-0 !rounded-2xl overflow-hidden">
@@ -405,12 +634,77 @@ export default function MobileDashboard({ stores = [], employees = [], user }) {
             </div>
           </MobileCard>
 
+          <button
+            onClick={generateReport}
+            disabled={reportLoading}
+            className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-[#303a7f] to-[#252a5e] text-white rounded-2xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all font-black text-[11px] uppercase tracking-widest disabled:opacity-50"
+          >
+            {reportLoading ? (
+              <><Loader2 size={16} className="animate-spin" /> Generando informe...</>
+            ) : (
+              <><Sparkles size={16} /> Generar Informe IA</>
+            )}
+          </button>
+
           <div className="flex items-center gap-2 text-[10px] text-gray-400 justify-center py-2">
             <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
             <span>Actualizado en tiempo real</span>
           </div>
         </>
       )}
+
+      <MobileModal open={showReportModal} onClose={() => setShowReportModal(false)} title="Informe Financiero IA">
+        <div className="flex flex-col max-h-[80vh]">
+          {reportLoading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <Loader2 size={32} className="animate-spin text-brand-primary" />
+              <p className="text-sm font-bold text-gray-500">Generando informe financiero...</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={async () => {
+                    try {
+                      const container = document.getElementById('report-content');
+                      if (!container) return;
+                      const canvas = await html2canvas(container, { scale: 2, useCORS: true });
+                      const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                      const pdf = new jsPDF('p', 'mm', 'a4');
+                      const pdfWidth = pdf.internal.pageSize.getWidth();
+                      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                      pdf.save(`Informe_LogicPay_${new Date().toISOString().split('T')[0]}.pdf`);
+                    } catch (e) { console.error('Error PDF:', e); }
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#303a7f]/10 text-[#303a7f] rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+                >
+                  <Download size={14} /> PDF
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const container = document.getElementById('report-content');
+                      if (!container) return;
+                      const canvas = await html2canvas(container, { scale: 2, useCORS: true });
+                      const link = document.createElement('a');
+                      link.download = `Informe_LogicPay_${new Date().toISOString().split('T')[0]}.jpg`;
+                      link.href = canvas.toDataURL('image/jpeg', 0.95);
+                      link.click();
+                    } catch (e) { console.error('Error JPG:', e); }
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+                >
+                  <FileText size={14} /> JPG
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar bg-white rounded-xl border border-gray-100">
+                <div id="report-content" dangerouslySetInnerHTML={{ __html: reportHtml }} className="p-4 text-sm" />
+              </div>
+            </>
+          )}
+        </div>
+      </MobileModal>
     </div>
   );
 }
