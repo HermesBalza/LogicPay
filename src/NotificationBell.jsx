@@ -36,6 +36,15 @@ function isPastDate(dateStr) {
   return date < today;
 }
 
+function isTodayOrPast(dateStr) {
+  if (!dateStr) return false;
+  const [m, d, y] = dateStr.split('/');
+  const date = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date <= today;
+}
+
 export default function NotificationBell({ onSelectCandidato, onSelectProveedor }) {
   const [showModal, setShowModal] = useState(false);
   const [reminders, setReminders] = useState([]);
@@ -106,6 +115,10 @@ export default function NotificationBell({ onSelectCandidato, onSelectProveedor 
     }
   };
 
+  const pendingCount = useMemo(() => {
+    return reminders.filter(r => isTodayOrPast(r.proxima_llamada)).length;
+  }, [reminders]);
+
   const groupedByDate = useMemo(() => {
     const groups = {};
     reminders.forEach(r => {
@@ -128,9 +141,9 @@ export default function NotificationBell({ onSelectCandidato, onSelectProveedor 
         title="Recordatorios CRM"
       >
         <Bell size={16} className="group-hover:scale-110 transition-transform" />
-        {reminders.length > 0 && (
+        {pendingCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center px-1 bg-red-500 text-white text-[8px] font-black rounded-full shadow-[0_2px_6px_rgba(239,68,68,0.4)] animate-in zoom-in duration-200">
-            {reminders.length > 99 ? '99+' : reminders.length}
+            {pendingCount > 99 ? '99+' : pendingCount}
           </span>
         )}
       </button>
