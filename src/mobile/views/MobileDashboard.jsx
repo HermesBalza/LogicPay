@@ -426,11 +426,11 @@ Estructura del informe:
       ) : (
         <>
           <div className="space-y-3">
-            <MobileKpiCard label="Total KBS" value={formatMoney(totalIngresos)} icon={DollarSign} color={COLORS.kbs} subtitle={growthData.ingresos ? `${growthData.ingresos > 0 ? '+' : ''}${growthData.ingresos}% vs período anterior` : ''} />
-            <MobileKpiCard label="Costo LGM" value={formatMoney(totalCostos)} icon={Receipt} color={COLORS.lgm} subtitle={growthData.costos ? `${growthData.costos > 0 ? '+' : ''}${growthData.costos}% vs período anterior` : ''} />
-            <MobileKpiCard label="Margen" value={formatMoney(margenBruto)} icon={margenBruto >= 0 ? TrendingUp : TrendingDown} color={margenBruto >= 0 ? '#22c55e' : '#ef4444'} subtitle={growthData.margen ? `${growthData.margen > 0 ? '+' : ''}${growthData.margen}% vs período anterior` : ''} />
-            <MobileKpiCard label="ROI" value={`${roiPercent.toFixed(1)}%`} icon={Activity} color={roiPercent >= 0 ? '#22c55e' : '#ef4444'} subtitle={growthData.roi ? `${growthData.roi > 0 ? '+' : ''}${growthData.roi}% vs período anterior` : ''} />
-            <MobileKpiCard label="x Cobrar" value={formatMoney(pendientes)} icon={Receipt} color="#f59e0b" subtitle={growthData.pendientes ? `${growthData.pendientes > 0 ? '+' : ''}${growthData.pendientes}% vs período anterior` : ''} />
+            <MobileKpiCard label="Total Facturado KBS" value={formatMoney(totalIngresos)} icon={DollarSign} color={COLORS.kbs} subtitle="Ingresos Brutos" />
+            <MobileKpiCard label="Costo de Nómina LGM" value={formatMoney(totalCostos)} icon={Receipt} color={COLORS.lgm} subtitle="Pagos a Empleados" />
+            <MobileKpiCard label="Margen de Ganancia" value={formatMoney(margenBruto)} icon={margenBruto >= 0 ? TrendingUp : TrendingDown} color={margenBruto >= 0 ? '#22c55e' : '#ef4444'} subtitle="Gross Profit" />
+            <MobileKpiCard label="Rentabilidad (ROI)" value={`${roiPercent.toFixed(1)}%`} icon={Activity} color={roiPercent >= 0 ? '#22c55e' : '#ef4444'} subtitle="Margen %" />
+            <MobileKpiCard label="Cuentas por Cobrar" value={formatMoney(pendientes)} icon={Receipt} color="#f59e0b" subtitle="Facturas Pendientes de Pago" />
           </div>
 
           {workforceData.length > 0 && (
