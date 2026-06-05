@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Search, Plus, X, Phone, Briefcase, Users, Building2, DollarSign, Calendar, CheckCircle, AlertCircle, Edit3, Trash2, Save, UserPlus, Upload, Download } from 'lucide-react';
+import { Search, Plus, X, Phone, Briefcase, Users, Building2, DollarSign, Calendar, CheckCircle, AlertCircle, Edit3, Trash2, Save, UserPlus, Upload, Download, Globe } from 'lucide-react';
 
 const API_BASE = '/api/data';
 const API_WRITE = '/api/write';
@@ -8,6 +8,70 @@ const ESTADOS_CANDIDATO = ['Nuevo', 'Contactado', 'Entrevistado', 'Contratado', 
 const ESTADOS_PROYECTO = ['Cotizando', 'Cotizado', 'En Ejecucion', 'Completado', 'Cancelado'];
 const ESTADOS_COTIZACION = ['Pendiente', 'Recibida', 'Aprobada', 'Rechazada'];
 const FUENTES = ['Referencia', 'Anuncio', 'Redes Sociales', 'Web', 'Recomendación', 'Bolsa de Trabajo', 'Otro'];
+
+const US_STATES = [
+  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware',
+  'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
+  'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota',
+  'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey',
+  'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon',
+  'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah',
+  'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
+];
+
+const US_CITIES = {
+  'Alabama': ['Birmingham', 'Montgomery', 'Mobile', 'Huntsville', 'Tuscaloosa'],
+  'Alaska': ['Anchorage', 'Fairbanks', 'Juneau', 'Sitka', 'Ketchikan'],
+  'Arizona': ['Phoenix', 'Tucson', 'Mesa', 'Chandler', 'Scottsdale', 'Glendale', 'Tempe'],
+  'Arkansas': ['Little Rock', 'Fort Smith', 'Fayetteville', 'Springdale', 'Jonesboro'],
+  'California': ['Los Angeles', 'San Diego', 'San Jose', 'San Francisco', 'Fresno', 'Sacramento', 'Long Beach', 'Oakland', 'Bakersfield', 'Anaheim', 'Santa Ana', 'Riverside', 'Stockton', 'Irvine', 'Chula Vista', 'Fremont', 'Santa Clarita', 'San Bernardino', 'Modesto', 'Fontana', 'Moreno Valley', 'Oxnard', 'Huntington Beach', 'Glendale', 'Ontario', 'Rancho Cucamonga', 'Oceanside', 'Garden Grove'],
+  'Colorado': ['Denver', 'Colorado Springs', 'Aurora', 'Fort Collins', 'Lakewood', 'Thornton', 'Arvada', 'Westminster', 'Pueblo', 'Boulder'],
+  'Connecticut': ['Bridgeport', 'New Haven', 'Stamford', 'Hartford', 'Waterbury', 'Norwalk', 'Danbury'],
+  'Delaware': ['Wilmington', 'Dover', 'Newark', 'Middletown', 'Smyrna'],
+  'District of Columbia': ['Washington'],
+  'Florida': ['Miami', 'Orlando', 'Tampa', 'Jacksonville', 'Fort Lauderdale', 'Tallahassee', 'St. Petersburg', 'Hialeah', 'Port St. Lucie', 'Cape Coral', 'Pembroke Pines', 'Hollywood', 'Miramar', 'Gainesville', 'Coral Springs', 'Clearwater', 'Miami Gardens', 'Palm Bay', 'West Palm Beach', 'Lakeland', 'Davie', 'Boca Raton'],
+  'Georgia': ['Atlanta', 'Augusta', 'Columbus', 'Savannah', 'Athens', 'Sandy Springs', 'Macon', 'Roswell', 'Johns Creek', 'Albany'],
+  'Hawaii': ['Honolulu', 'Hilo', 'Kailua', 'Kapolei', 'Kaneohe', 'Pearl City', 'Waipahu', 'Mililani', 'Kahului'],
+  'Idaho': ['Boise', 'Meridian', 'Nampa', 'Idaho Falls', 'Pocatello', 'Caldwell', "Coeur d'Alene"],
+  'Illinois': ['Chicago', 'Aurora', 'Rockford', 'Joliet', 'Naperville', 'Springfield', 'Peoria', 'Elgin', 'Waukegan', 'Champaign', 'Bloomington', 'Decatur', 'Evanston', 'Schaumburg', 'Arlington Heights'],
+  'Indiana': ['Indianapolis', 'Fort Wayne', 'Evansville', 'South Bend', 'Carmel', 'Fishers', 'Bloomington', 'Hammond', 'Gary', 'Lafayette'],
+  'Iowa': ['Des Moines', 'Cedar Rapids', 'Davenport', 'Sioux City', 'Iowa City', 'Waterloo', 'Ames', 'West Des Moines', 'Council Bluffs', 'Ankeny'],
+  'Kansas': ['Wichita', 'Overland Park', 'Kansas City', 'Olathe', 'Topeka', 'Lawrence', 'Shawnee', 'Manhattan', 'Lenexa', 'Salina'],
+  'Kentucky': ['Louisville', 'Lexington', 'Bowling Green', 'Owensboro', 'Covington', 'Richmond', 'Georgetown', 'Florence', 'Hopkinsville', 'Nicholasville'],
+  'Louisiana': ['New Orleans', 'Baton Rouge', 'Shreveport', 'Lafayette', 'Lake Charles', 'Kenner', 'Bossier City', 'Monroe', 'Alexandria', 'Houma'],
+  'Maine': ['Portland', 'Lewiston', 'Bangor', 'South Portland', 'Auburn', 'Biddeford', 'Sanford', 'Saco', 'Augusta', 'Westbrook'],
+  'Maryland': ['Baltimore', 'Columbia', 'Germantown', 'Silver Spring', 'Waldorf', 'Glen Burnie', 'Ellicott City', 'Frederick', 'Dundalk', 'Rockville', 'Bethesda', 'Gaithersburg', 'Bowie'],
+  'Massachusetts': ['Boston', 'Worcester', 'Springfield', 'Cambridge', 'Lowell', 'Brockton', 'Quincy', 'Lynn', 'New Bedford', 'Fall River', 'Lawrence', 'Newton', 'Somerville', 'Framingham'],
+  'Michigan': ['Detroit', 'Grand Rapids', 'Warren', 'Sterling Heights', 'Ann Arbor', 'Lansing', 'Flint', 'Dearborn', 'Livonia', 'Troy', 'Westland', 'Farmington Hills', 'Kalamazoo', 'Wyoming', 'Rochester Hills', 'Southfield'],
+  'Minnesota': ['Minneapolis', 'Saint Paul', 'Rochester', 'Duluth', 'Bloomington', 'Brooklyn Park', 'Plymouth', 'St. Cloud', 'Lakeville', 'Woodbury', 'Maple Grove', 'Eagan', 'Eden Prairie', 'Coon Rapids', 'Burnsville', 'Blaine'],
+  'Mississippi': ['Jackson', 'Gulfport', 'Southaven', 'Hattiesburg', 'Biloxi', 'Meridian', 'Tupelo', 'Olive Branch', 'Greenville', 'Horn Lake'],
+  'Missouri': ['Kansas City', 'St. Louis', 'Springfield', 'Columbia', 'Independence', 'Lee\'s Summit', "O'Fallon", 'St. Charles', 'St. Joseph', 'Blue Springs', 'St. Peters', 'Joplin', 'Florissant', 'Chesterfield'],
+  'Montana': ['Billings', 'Missoula', 'Great Falls', 'Bozeman', 'Butte', 'Helena', 'Kalispell', 'Belgrade', 'Havre', 'Anaconda'],
+  'Nebraska': ['Omaha', 'Lincoln', 'Bellevue', 'Grand Island', 'Kearney', 'Fremont', 'Hastings', 'Norfolk', 'North Platte', 'Columbus'],
+  'Nevada': ['Las Vegas', 'Henderson', 'Reno', 'North Las Vegas', 'Sparks', 'Carson City', 'Elko', 'Boulder City', 'Mesquite', 'Fernley'],
+  'New Hampshire': ['Manchester', 'Nashua', 'Concord', 'Derry', 'Dover', 'Rochester', 'Salem', 'Merrimack', 'Hudson', 'Londonderry'],
+  'New Jersey': ['Newark', 'Jersey City', 'Paterson', 'Elizabeth', 'Trenton', 'Clifton', 'Camden', 'Passaic', 'Union City', 'Bayonne', 'East Orange', 'Vineland', 'New Brunswick', 'Hoboken', 'Perth Amboy', 'West New York'],
+  'New Mexico': ['Albuquerque', 'Las Cruces', 'Rio Rancho', 'Santa Fe', 'Roswell', 'Farmington', 'Clovis', 'Hobbs', 'Alamogordo', 'Carlsbad'],
+  'New York': ['New York City', 'Buffalo', 'Rochester', 'Yonkers', 'Syracuse', 'Albany', 'New Rochelle', 'Mount Vernon', 'Schenectady', 'Utica', 'White Plains', 'Hempstead', 'Troy', 'Niagara Falls', 'Binghamton', 'Freeport', 'Valley Stream', 'Long Beach', 'Spring Valley', 'Poughkeepsie'],
+  'North Carolina': ['Charlotte', 'Raleigh', 'Greensboro', 'Durham', 'Winston-Salem', 'Fayetteville', 'Cary', 'Wilmington', 'High Point', 'Concord', 'Greenville', 'Asheville', 'Gastonia', 'Jacksonville', 'Chapel Hill', 'Burlington', 'Huntersville', 'Apex'],
+  'North Dakota': ['Fargo', 'Bismarck', 'Grand Forks', 'Minot', 'West Fargo', 'Williston', 'Dickinson', 'Mandan', 'Jamestown', 'Wahpeton'],
+  'Ohio': ['Columbus', 'Cleveland', 'Cincinnati', 'Toledo', 'Akron', 'Dayton', 'Parma', 'Canton', 'Youngstown', 'Lorain', 'Hamilton', 'Springfield', 'Kettering', 'Elyria', 'Lakewood', 'Newark', 'Mentor', 'Cuyahoga Falls', 'Middletown', 'Dublin'],
+  'Oklahoma': ['Oklahoma City', 'Tulsa', 'Norman', 'Broken Arrow', 'Edmond', 'Lawton', 'Moore', 'Midwest City', 'Enid', 'Stillwater', 'Muskogee', 'Bartlesville', 'Owasso', 'Shawnee'],
+  'Oregon': ['Portland', 'Salem', 'Eugene', 'Gresham', 'Hillsboro', 'Beaverton', 'Bend', 'Medford', 'Springfield', 'Corvallis', 'Albany', 'Tigard', 'Lake Oswego', 'Keizer'],
+  'Pennsylvania': ['Philadelphia', 'Pittsburgh', 'Allentown', 'Erie', 'Reading', 'Scranton', 'Bethlehem', 'Lancaster', 'Harrisburg', 'York', 'Wilkes-Barre', 'Chester', 'Williamsport', 'Easton', 'Lebanon', 'Hazleton', 'New Castle', 'Johnstown', 'Altoona'],
+  'Rhode Island': ['Providence', 'Warwick', 'Cranston', 'Pawtucket', 'East Providence', 'Woonsocket', 'Newport', 'Central Falls', 'Westerly', 'Cumberland'],
+  'South Carolina': ['Columbia', 'Charleston', 'North Charleston', 'Mount Pleasant', 'Rock Hill', 'Greenville', 'Summerville', 'Goose Creek', 'Sumter', 'Florence', 'Spartanburg', 'Hilton Head Island', 'Myrtle Beach', 'Aiken', 'Anderson'],
+  'South Dakota': ['Sioux Falls', 'Rapid City', 'Aberdeen', 'Brookings', 'Watertown', 'Mitchell', 'Yankton', 'Pierre', 'Huron', 'Spearfish'],
+  'Tennessee': ['Nashville', 'Memphis', 'Knoxville', 'Chattanooga', 'Clarksville', 'Murfreesboro', 'Franklin', 'Jackson', 'Johnson City', 'Bartlett', 'Hendersonville', 'Kingsport', 'Collierville', 'Cleveland', 'Brentwood', 'Germantown'],
+  'Texas': ['Houston', 'San Antonio', 'Dallas', 'Austin', 'Fort Worth', 'El Paso', 'Arlington', 'Corpus Christi', 'Plano', 'Laredo', 'Lubbock', 'Garland', 'Irving', 'Amarillo', 'Grand Prairie', 'Brownsville', 'Pasadena', 'McKinney', 'Mesquite', 'McAllen', 'Killeen', 'Frisco', 'Waco', 'Carrollton', 'Midland', 'Abilene', 'Pearland', 'Round Rock', 'College Station', 'The Woodlands', 'Richardson', 'Beaumont', 'Odessa', 'Sugar Land', 'Tyler', 'Lewisville', 'Wichita Falls', 'Allen', 'San Angelo', 'League City'],
+  'Utah': ['Salt Lake City', 'West Valley City', 'Provo', 'West Jordan', 'Orem', 'Sandy', 'Ogden', 'St. George', 'Layton', 'South Jordan', 'Lehi', 'Millcreek', 'Taylorsville', 'Logan', 'Murray'],
+  'Vermont': ['Burlington', 'South Burlington', 'Rutland', 'Essex', 'Barre', 'Montpelier', 'Winooski', 'St. Albans', 'Newport', 'Brattleboro'],
+  'Virginia': ['Virginia Beach', 'Norfolk', 'Chesapeake', 'Richmond', 'Newport News', 'Alexandria', 'Hampton', 'Roanoke', 'Portsmouth', 'Suffolk', 'Lynchburg', 'Harrisonburg', 'Charlottesville', 'Danville', 'Manassas', 'Leesburg', 'Blacksburg', 'Fairfax'],
+  'Washington': ['Seattle', 'Spokane', 'Tacoma', 'Vancouver', 'Bellevue', 'Kent', 'Everett', 'Renton', 'Spokane Valley', 'Federal Way', 'Yakima', 'Kirkland', 'Bellingham', 'Kennewick', 'Auburn', 'Pasco', 'Redmond', 'Marysville', 'Sammamish', 'Lakewood'],
+  'West Virginia': ['Charleston', 'Huntington', 'Morgantown', 'Parkersburg', 'Wheeling', 'Weirton', 'Fairmont', 'Martinsburg', 'Beckley', 'Clarksburg'],
+  'Wisconsin': ['Milwaukee', 'Madison', 'Green Bay', 'Kenosha', 'Racine', 'Appleton', 'Waukesha', 'Oshkosh', 'Eau Claire', 'Janesville', 'West Allis', 'La Crosse', 'Sheboygan', 'Wauwatosa', 'Fond du Lac', 'New Berlin', 'Brookfield'],
+  'Wyoming': ['Cheyenne', 'Casper', 'Laramie', 'Gillette', 'Rock Springs', 'Sheridan', 'Green River', 'Evanston', 'Riverton', 'Jackson']
+};
 
 const toMMDDYYYY = (isoStr) => {
   if (!isoStr) return '';
@@ -94,6 +158,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
   const [showNewProyecto, setShowNewProyecto] = useState(false);
   const [showNewCotizacion, setShowNewCotizacion] = useState(false);
   const [selectedCotizacion, setSelectedCotizacion] = useState(null);
+  const [showBuscarProveedores, setShowBuscarProveedores] = useState(false);
 
   // Sidebar resizable state
   const [sidebarWidth, setSidebarWidth] = useState('20%');
@@ -110,6 +175,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
   const [formProveedor, setFormProveedor] = useState({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', ultima_llamada: '', proxima_llamada: '', notas: '', creado_por: '' });
   const [formProyecto, setFormProyecto] = useState({ nombre: '', tienda: '', cliente: 'KBS', descripcion: '', fecha_solicitud: '', estado: 'Cotizando', notas: '' });
   const [formCotizacion, setFormCotizacion] = useState({ proveedor_id: '', monto: '', fecha_cotizacion: '', estado: 'Recibida', notas: '' });
+  const [formBuscarProveedores, setFormBuscarProveedores] = useState({ estado: '', ciudad: '', descripcion: '' });
   const [fileUploading, setFileUploading] = useState(false);
 
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
@@ -566,6 +632,11 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     );
   };
 
+  const handleBuscarProveedores = () => {
+    setFormBuscarProveedores({ estado: '', ciudad: '', descripcion: '' });
+    setShowBuscarProveedores(true);
+  };
+
   const renderProveedorModal = () => {
     if (!selectedProveedor && !showNewProveedor) return null;
     const isEditing = !!selectedProveedor;
@@ -629,6 +700,57 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
           <div className="flex-1 p-4 flex flex-col">
             <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-2 pl-1">Notas</label>
             <textarea className="flex-1 resize-none border-2 border-gray-100 rounded-2xl bg-white p-4 text-sm font-medium text-gray-700 placeholder:text-gray-300 focus:border-[#303a7f]/30 focus:outline-none transition-all" placeholder="Notas del proveedor..." value={formProveedor.notas} onChange={e => setFormProveedor(f => ({ ...f, notas: e.target.value }))} />
+          </div>
+        </div>
+      </ModalOverlay>
+    );
+  };
+
+  const renderBuscarProveedoresModal = () => {
+    if (!showBuscarProveedores) return null;
+    return (
+      <ModalOverlay onClose={() => setShowBuscarProveedores(false)} className="max-w-none w-screen h-screen max-h-none rounded-none shadow-none -m-4">
+        <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
+          <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
+            <Globe size={20} /> Buscar Proveedores
+          </h3>
+          <button onClick={() => setShowBuscarProveedores(false)} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
+        </div>
+        <div className="flex-1 flex overflow-hidden">
+          <div id="buscar-proveedor-sidebar" className="flex shrink-0" style={{ width: sidebarWidth, minWidth: '20%' }}>
+            <div className="flex-1 p-3 flex flex-col gap-1.5 [&_input]:text-[10px] [&_input]:py-2 [&_select]:text-[10px] [&_select]:py-2">
+              <div>
+                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Estado</label>
+                <select className={selectCls} value={formBuscarProveedores.estado} onChange={e => setFormBuscarProveedores(f => ({ ...f, estado: e.target.value, ciudad: '' }))}>
+                  <option value="">Seleccionar estado...</option>
+                  {US_STATES.map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Ciudad</label>
+                <select className={selectCls} value={formBuscarProveedores.ciudad} onChange={e => setFormBuscarProveedores(f => ({ ...f, ciudad: e.target.value }))} disabled={!formBuscarProveedores.estado}>
+                  <option value="">{formBuscarProveedores.estado ? 'Seleccionar ciudad...' : 'Primero seleccione un estado'}</option>
+                  {(US_CITIES[formBuscarProveedores.estado] || []).map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Descripción del Proyecto</label>
+                <input className={inputCls} placeholder="Descripción del proyecto" value={formBuscarProveedores.descripcion} onChange={e => setFormBuscarProveedores(f => ({ ...f, descripcion: e.target.value }))} />
+              </div>
+              <div className="flex gap-1.5 pt-2 border-t border-gray-100">
+                <button onClick={() => setShowBuscarProveedores(false)} className="flex items-center gap-1.5 px-3 py-2 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest ml-auto"><Globe size={12} /> Buscar</button>
+              </div>
+            </div>
+          </div>
+          <div
+            className="w-[7px] cursor-col-resize shrink-0 hover:bg-[#303a7f]/10 active:bg-[#303a7f]/20 transition-colors flex flex-col items-center justify-center border-l border-gray-200"
+            onMouseDown={handleSidebarMouseDown}
+          >
+            <div className="w-0.5 h-8 rounded-full bg-gray-300" />
+          </div>
+          <div className="flex-1 p-4 flex flex-col">
+            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-2 pl-1">Resultados</label>
+            <textarea className="flex-1 resize-none border-2 border-gray-100 rounded-2xl bg-white p-4 text-sm font-medium text-gray-700 placeholder:text-gray-300 focus:border-[#303a7f]/30 focus:outline-none transition-all" placeholder="Resultados de la búsqueda..." readOnly value={formBuscarProveedores.resultados || ''} />
           </div>
         </div>
       </ModalOverlay>
@@ -959,10 +1081,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
         )}
         {activeTab === 'proveedores' && proveedoresSubTab === 'proveedores' && (
           <div className="flex items-center gap-3">
-            <div className="relative w-64">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
-              <input type="text" placeholder="Buscar proveedor..." value={searchProveedor} onChange={e => setSearchProveedor(e.target.value)} className="w-full bg-white border-2 border-gray-100 rounded-xl pl-9 pr-3.5 py-2.5 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300" />
-            </div>
+            <button onClick={handleBuscarProveedores} className="flex items-center gap-2 px-4 py-2.5 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-900/20"><Globe size={14} /> Explorar</button>
             <button onClick={handleNewProveedor} className="flex items-center gap-2 px-4 py-2.5 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-900/20"><Plus size={14} /> Nuevo Proveedor</button>
           </div>
         )}
@@ -1199,6 +1318,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
       {/* Modals */}
       {renderCandidatoModal()}
       {renderProveedorModal()}
+      {renderBuscarProveedoresModal()}
       {renderProyectoModal()}
       {renderCotizacionModal()}
       {renderRegistrarLlamadaModal()}
