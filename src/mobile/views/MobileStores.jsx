@@ -3,7 +3,7 @@ import { Plus, Store, MapPin, BadgeHelp as BadgeCheck } from 'lucide-react';
 import MobileCard from '../components/MobileCard';
 import MobileSearchBar from '../components/MobileSearchBar';
 
-export default function MobileStores({ stores, onEdit, onAdd, onRefresh }) {
+export default function MobileStores({ stores, onView, onAdd, onRefresh }) {
   const [search, setSearch] = useState('');
 
   const filtered = stores.filter(s =>
@@ -35,7 +35,7 @@ export default function MobileStores({ stores, onEdit, onAdd, onRefresh }) {
 
       <div className="space-y-2">
         {filtered.map(s => (
-          <MobileCard key={s.nombre + s.codigo} onClick={() => onEdit(s)}>
+          <MobileCard key={s.nombre + s.codigo} onClick={() => onView(s)}>
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                 {s.imagen ? (

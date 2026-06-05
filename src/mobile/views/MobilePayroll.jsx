@@ -29,7 +29,7 @@ const normalizeDate = (d) => {
 const DAYS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
 const DAYS_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
-export default function MobilePayroll({ stores = [], employees = [], user }) {
+export default function MobilePayroll({ stores = [], employees = [], user, initialStore = '' }) {
   const [view, setView] = useState('history');
   const [nominaHistory, setNominaHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +51,12 @@ export default function MobilePayroll({ stores = [], employees = [], user }) {
   useEffect(() => {
     loadHistory();
   }, []);
+
+  useEffect(() => {
+    if (initialStore) {
+      setSelectedStore(initialStore);
+    }
+  }, [initialStore]);
 
   async function loadHistory() {
     setLoading(true);

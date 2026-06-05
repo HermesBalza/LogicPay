@@ -5,6 +5,7 @@ import { fetchTable } from './api';
 import MobileDashboard from './views/MobileDashboard';
 import MobileStores from './views/MobileStores';
 import MobileStoresEditor from './views/MobileStoresEditor';
+import MobileStoreDetail from './views/MobileStoreDetail';
 import MobileEmployees from './views/MobileEmployees';
 import MobileEmployeesEditor from './views/MobileEmployeesEditor';
 import MobilePayroll from './views/MobilePayroll';
@@ -18,6 +19,8 @@ export default function MobileShell({ user, onLogout }) {
   const [stores, setStores] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [editingStore, setEditingStore] = useState(null);
+  const [viewingStore, setViewingStore] = useState(null);
+  const [pendingPayrollStore, setPendingPayrollStore] = useState('');
   const [isAddingStore, setIsAddingStore] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [isAddingEmployee, setIsAddingEmployee] = useState(false);
@@ -38,14 +41,27 @@ export default function MobileShell({ user, onLogout }) {
   useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
-    if (activeTab !== 'stores') { setEditingStore(null); setIsAddingStore(false); }
+    if (activeTab !== 'stores') { setEditingStore(null); setIsAddingStore(false); setViewingStore(null); }
     if (activeTab !== 'employees') { setEditingEmployee(null); setIsAddingEmployee(false); }
   }, [activeTab]);
 
   const userCanEdit = user?.rol !== 'Operador de Pagos';
 
   let content;
-  if (editingStore) {
+  if (viewingStore) {
+    content = (
+      <MobileStoreDetail
+        store={viewingStore}
+        employees={employees}
+        onBack={() => setViewingStore(null)}
+        onProcessPayroll={(storeName) => {
+          setPendingPayrollStore(storeName);
+          setViewingStore(null);
+          setActiveTab('payroll');
+        }}
+      />
+    );
+  } else if (editingStore) {
     content = (
       <MobileStoresEditor
         store={editingStore}
@@ -93,7 +109,7 @@ export default function MobileShell({ user, onLogout }) {
         content = (
           <MobileStores
             stores={stores}
-            onEdit={s => setEditingStore(s)}
+            onView={s => setViewingStore(s)}
             onAdd={() => setIsAddingStore(true)}
             onRefresh={loadData}
           />
@@ -111,7 +127,7 @@ export default function MobileShell({ user, onLogout }) {
         );
         break;
       case 'payroll':
-        content = <MobilePayroll stores={stores} employees={employees} user={user} />;
+        content = <MobilePayroll stores={stores} employees={employees} user={user} initialStore={pendingPayrollStore} />;
         break;
       case 'csg':
         content = <MobileCSG user={user} />;
@@ -132,12 +148,12 @@ export default function MobileShell({ user, onLogout }) {
     }
   }
 
-  const showMainNav = !editingStore && !isAddingStore && !editingEmployee && !isAddingEmployee;
+  const showMainNav = !editingStore && !isAddingStore && !editingEmployee && !isAddingEmployee && !viewingStore;
 
   return (
     <div className="flex flex-col h-screen bg-brand-background font-sans antialiased">
       <MobileHeader user={user} onLogout={onLogout} />
-      <main className={`flex-1 overflow-y-auto ${showMainNav ? 'pt-12 pb-20' : ''}`}>
+      <main className={`flex-1 overflow-y-auto pt-12 ${showMainNav ? 'pb-20' : ''}`}>
         <div className="px-4 py-4">{content}</div>
       </main>
       {showMainNav && (
