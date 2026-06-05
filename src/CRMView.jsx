@@ -783,7 +783,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
               </div>
               <div>
                 <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Descripción del Proyecto</label>
-                <input className={inputCls} placeholder="Descripción del proyecto" value={formBuscarProveedores.descripcion} onChange={e => setFormBuscarProveedores(f => ({ ...f, descripcion: e.target.value }))} />
+                <textarea className={`${inputCls} resize-none`} rows={5} placeholder="Descripción del proyecto" value={formBuscarProveedores.descripcion} onChange={e => setFormBuscarProveedores(f => ({ ...f, descripcion: e.target.value }))} />
               </div>
               <div className="flex gap-1.5 pt-2 border-t border-gray-100">
                 <button onClick={buscarProveedores} disabled={buscando} className="flex items-center gap-1.5 px-3 py-2 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest ml-auto disabled:opacity-50">
