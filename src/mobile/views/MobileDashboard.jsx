@@ -350,17 +350,27 @@ WORKFORCE:
 TIENDAS TOP (por margen):
 ${topTiendas.slice(0, 5).map((t, i) => `${i + 1}. ${t.nombre}: Margen ${formatMoney(t.margen)}`).join('\n')}
 
-El informe debe ser profesional, visualmente atractivo (colores corporativos azul #303a7f y teal #6bbdb7), e incluir:
-1. Encabezado con logo y período
-2. Resumen ejecutivo (1 párrafo)
-3. Tabla de KPIs principales
-4. Análisis de composición de ingresos
-5. Conclusiones y recomendaciones
+REGLAS OBLIGATORIAS PARA ESTE INFORME:
+1. SOLO TEXTO. NO uses tablas HTML (<table>, <tr>, <td>, <th>).
+2. NO uses gráficos, canvas, SVG ni barras de progreso.
+3. NO uses overflow ni scroll horizontal de ningún tipo.
+4. Estructura el informe con títulos y subtítulos en negrita usando los colores corporativos: azul #303a7f para títulos principales y teal #6bbdb7 para subtítulos.
+5. Cada sección debe tener un breve análisis interpretativo en texto.
+6. Usa párrafos (<p>) y listas con viñetas (<ul>/<li>) para presentar datos.
+7. Máximo 1200 palabras en total.
+8. El diseño debe ser limpio, legible y optimizado para pantallas móviles (ancho máximo 100%).
 
-IMPORTANTE: Responde SOLO con el HTML, sin explicaciones ni markdown. El HTML debe usar estilos inline.`;
+Estructura del informe:
+1. TÍTULO PRINCIPAL con el período
+2. RESUMEN EJECUTIVO (1 párrafo)
+3. KPIs PRINCIPALES (lista con viñetas, cada KPI en negrita con su valor)
+4. COMPOSICIÓN DE INGRESOS (texto descriptivo con porcentajes)
+5. WORKFORCE (datos de personal en texto)
+6. RENDIMIENTO POR TIENDA (top tiendas en lista con viñetas)
+7. CONCLUSIONES Y RECOMENDACIONES (2-3 párrafos)`;
 
       const text = await callGemini(prompt, {
-        systemPrompt: 'Eres un CFO experto en finanzas corporativas. Respondes exclusivamente con HTML limpio y estilos inline para informes ejecutivos. No usas markdown ni explicas nada fuera del HTML.',
+        systemPrompt: 'Eres un CFO experto en finanzas corporativas. Generas informes financieros para dispositivos móviles. SOLO respondes con HTML puro con estilos inline. NUNCA usas tablas HTML, gráficos, canvas ni SVG. Todo es texto formateado con párrafos, listas y títulos en negrita con los colores corporativos #303a7f (principal) y #6bbdb7 (secundario). No usas markdown ni explicas nada fuera del HTML.',
         generationConfig: { temperature: 0.3, maxOutputTokens: 4096 }
       });
       setReportHtml(text);
@@ -670,7 +680,7 @@ IMPORTANTE: Responde SOLO con el HTML, sin explicaciones ni markdown. El HTML de
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto custom-scrollbar bg-white rounded-xl border border-gray-100">
-                <div id="report-content" dangerouslySetInnerHTML={{ __html: reportHtml }} className="p-4 text-sm" />
+                <div id="report-content" dangerouslySetInnerHTML={{ __html: reportHtml }} className="p-4 text-sm break-words overflow-x-hidden" />
               </div>
             </>
           )}
