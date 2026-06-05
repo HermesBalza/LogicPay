@@ -161,6 +161,25 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     }
   }, [pendingProveedorId, proveedores, onClearPendingProveedor]);
 
+  const openFileFromBase64 = (dataUrl) => {
+    try {
+      const [header, base64] = dataUrl.split(',');
+      const mimeMatch = header.match(/:(.*?);/);
+      if (!mimeMatch) throw new Error('MIME type no encontrado');
+      const mimeType = mimeMatch[1];
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: mimeType });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      console.error('Error opening file:', e);
+    }
+  };
+
   const showNotif = (message, type = 'success') => {
     setNotification({ show: true, message, type });
     setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
@@ -692,9 +711,9 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                             <td className="py-3 pr-2"><Badge estado={ctz.estado} /></td>
                             <td className="py-3 pr-2">
                               {ctz.archivo ? (
-                                <a href={ctz.archivo} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#303a7f] hover:text-[#6bbdb7] transition-colors" title="Ver archivo">
+                                <button onClick={() => openFileFromBase64(ctz.archivo)} className="inline-flex items-center gap-1 text-[#303a7f] hover:text-[#6bbdb7] transition-colors" title="Ver archivo">
                                   <Download size={12} />
-                                </a>
+                                </button>
                               ) : <span className="text-[9px] text-gray-300">—</span>}
                             </td>
                             <td className="py-3">
@@ -1093,9 +1112,9 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                                       <td className="py-2.5 pr-2"><Badge estado={ctz.estado} /></td>
                                       <td className="py-2.5 pr-2">
                                         {ctz.archivo ? (
-                                          <a href={ctz.archivo} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#303a7f] hover:text-[#6bbdb7] transition-colors" title="Ver archivo">
+                                          <button onClick={() => openFileFromBase64(ctz.archivo)} className="inline-flex items-center gap-1 text-[#303a7f] hover:text-[#6bbdb7] transition-colors" title="Ver archivo">
                                             <Download size={11} />
-                                          </a>
+                                          </button>
                                         ) : <span className="text-[8px] text-gray-300">—</span>}
                                       </td>
                                       <td className="py-2.5">
