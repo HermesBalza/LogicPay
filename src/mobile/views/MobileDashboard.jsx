@@ -61,6 +61,7 @@ export default function MobileDashboard({ stores = [], employees = [], user }) {
   const [trendPeriod, setTrendPeriod] = useState('monthly');
   const [reportLoading, setReportLoading] = useState(false);
   const [reportHtml, setReportHtml] = useState('');
+  const [showReportConfirm, setShowReportConfirm] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
 
   const fromRef = useRef(null);
@@ -321,6 +322,7 @@ export default function MobileDashboard({ stores = [], employees = [], user }) {
   }, [kbsNomina, lgmNomina, totalKBS_PE, totalCSG_Ingresos, totalIngresos, totalCostos, margenBruto, roiPercent, pendientes, totalLGM_PE, totalCSG_Costos, periodMonths]);
 
   const generateReport = async () => {
+    setShowReportConfirm(false);
     setReportLoading(true);
     setReportHtml('');
     setShowReportModal(true);
@@ -586,15 +588,10 @@ IMPORTANTE: Responde SOLO con el HTML, sin explicaciones ni markdown. El HTML de
           </MobileCard>
 
           <button
-            onClick={generateReport}
-            disabled={reportLoading}
-            className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-[#303a7f] to-[#252a5e] text-white rounded-2xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all font-black text-[11px] uppercase tracking-widest disabled:opacity-50"
+            onClick={() => setShowReportConfirm(true)}
+            className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-[#303a7f] to-[#252a5e] text-white rounded-2xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all font-black text-[11px] uppercase tracking-widest"
           >
-            {reportLoading ? (
-              <><Loader2 size={16} className="animate-spin" /> Generando informe...</>
-            ) : (
-              <><Sparkles size={16} /> Generar Informe IA</>
-            )}
+            <Sparkles size={16} /> Generar Informe IA
           </button>
 
           <div className="flex items-center gap-2 text-[10px] text-gray-400 justify-center py-2">
@@ -603,6 +600,29 @@ IMPORTANTE: Responde SOLO con el HTML, sin explicaciones ni markdown. El HTML de
           </div>
         </>
       )}
+
+      <MobileModal open={showReportConfirm} onClose={() => setShowReportConfirm(false)} title="Generar Informe" fullScreen={false}>
+        <div>
+          <p className="text-sm text-gray-600 leading-relaxed mb-2">
+            Se generará un informe financiero y operativo de Logic Group Management con los datos de las fechas <strong>{dateFrom ? formatDisplayDate(dateFrom) : 'inicio'}</strong> al <strong>{dateTo ? formatDisplayDate(dateTo) : 'final'}</strong>.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed mb-6">¿Desea continuar?</p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setShowReportConfirm(false)}
+              className="px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={generateReport}
+              className="px-6 py-3 bg-[#303a7f] text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-900/20 active:scale-95 transition-all"
+            >
+              Aceptar
+            </button>
+          </div>
+        </div>
+      </MobileModal>
 
       <MobileModal open={showReportModal} onClose={() => setShowReportModal(false)} title="Informe Financiero IA">
         <div className="flex flex-col max-h-[80vh]">
