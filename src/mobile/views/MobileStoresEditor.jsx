@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Store, X, Trash2, Camera, Save, AlertTriangle } from 'lucide-react';
+import { Store, Trash2, Camera, Save, AlertTriangle, ArrowLeft } from 'lucide-react';
 import MobileModal from '../components/MobileModal';
 import { writeData } from '../api';
 
@@ -95,8 +95,9 @@ export default function MobileStoresEditor({
               <Trash2 size={16} />
             </button>
           )}
-          <button onClick={onBack} className="p-2 text-gray-400">
-            <X size={18} />
+          <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-600 rounded-xl font-black text-[9px] uppercase tracking-widest active:scale-95 transition-all">
+            <ArrowLeft size={14} />
+            Atrás
           </button>
         </div>
       </div>
