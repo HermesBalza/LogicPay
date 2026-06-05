@@ -15,9 +15,17 @@ export default function MobileHeader({ user, onLogout }) {
           <span className="text-[10px] font-bold text-gray-500 leading-tight truncate max-w-[100px]">
             {user?.nombre}
           </span>
-          <div className="w-6 h-6 rounded-full bg-brand-primary/10 flex items-center justify-center">
-            <User size={12} className="text-brand-primary" />
-          </div>
+          {user?.foto ? (
+            <img
+              src={user.foto}
+              alt={user?.nombre || 'Usuario'}
+              className="w-6 h-6 rounded-full object-cover border border-gray-200"
+            />
+          ) : (
+            <div className="w-6 h-6 rounded-full bg-brand-primary/10 flex items-center justify-center">
+              <User size={12} className="text-brand-primary" />
+            </div>
+          )}
         </div>
         <button
           onClick={onLogout}
