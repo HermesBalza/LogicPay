@@ -383,7 +383,7 @@ IMPORTANTE: Responde SOLO con el HTML, sin explicaciones ni markdown. El HTML de
         </button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex gap-2">
         <button
           onClick={() => fromRef.current?.showPicker()}
           className="flex items-center gap-1.5 bg-gray-100 rounded-xl px-3 h-9 text-xs font-bold text-gray-600 shrink-0"
@@ -405,13 +405,6 @@ IMPORTANTE: Responde SOLO con el HTML, sin explicaciones ni markdown. El HTML de
             <Eraser size={16} />
           </button>
         )}
-        <select
-          value={selectedStore}
-          onChange={e => setSelectedStore(e.target.value)}
-          className="bg-gray-100 rounded-xl px-3 h-9 text-xs font-bold text-gray-600 appearance-none outline-none shrink-0"
-        >
-          {storeOptions.map(o => <option key={o} value={o}>{o}</option>)}
-        </select>
       </div>
 
       {loading ? (
@@ -420,7 +413,7 @@ IMPORTANTE: Responde SOLO con el HTML, sin explicaciones ni markdown. El HTML de
         </div>
       ) : (
         <>
-          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+          <div className="space-y-3">
             <MobileKpiCard label="Total KBS" value={formatMoney(totalIngresos)} icon={DollarSign} color={COLORS.kbs} subtitle={growthData.ingresos ? `${growthData.ingresos > 0 ? '+' : ''}${growthData.ingresos}% vs período anterior` : ''} />
             <MobileKpiCard label="Costo LGM" value={formatMoney(totalCostos)} icon={Receipt} color={COLORS.lgm} subtitle={growthData.costos ? `${growthData.costos > 0 ? '+' : ''}${growthData.costos}% vs período anterior` : ''} />
             <MobileKpiCard label="Margen" value={formatMoney(margenBruto)} icon={margenBruto >= 0 ? TrendingUp : TrendingDown} color={margenBruto >= 0 ? '#22c55e' : '#ef4444'} subtitle={growthData.margen ? `${growthData.margen > 0 ? '+' : ''}${growthData.margen}% vs período anterior` : ''} />
@@ -436,7 +429,7 @@ IMPORTANTE: Responde SOLO con el HTML, sin explicaciones ni markdown. El HTML de
                   <span className="text-[10px] font-bold text-gray-500 tracking-wider uppercase">Workforce</span>
                 </div>
               </div>
-              <div className="flex gap-2 mb-3">
+              <div className="space-y-2 mb-3">
                 <MobileKpiCard label="Activos" value={rotationData.activos} icon={Users} color="#22c55e" />
                 <MobileKpiCard label="Inactivos" value={rotationData.inactivos} icon={Users} color="#ef4444" />
                 <MobileKpiCard label="Rotación" value={`${rotationData.pct}%`} icon={TrendingDown} color="#f59e0b" />
@@ -456,13 +449,6 @@ IMPORTANTE: Responde SOLO con el HTML, sin explicaciones ni markdown. El HTML de
                 </div>
               </div>
             </MobileCard>
-          )}
-
-          {(peSummary.count > 0 || wosSummary.count > 0) && (
-            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
-              <MobileKpiCard label="Proy. Especiales" value={formatMoney(peSummary.total)} icon={Building2} color="#f59e0b" subtitle={`${peSummary.count} proyectos`} />
-              <MobileKpiCard label="WOS Total" value={formatMoney(wosSummary.total)} icon={FileText} color="#6bbdb7" subtitle={`${wosSummary.pendientes} pendientes`} />
-            </div>
           )}
 
           <MobileCard className="!p-0 !rounded-2xl overflow-hidden">
@@ -530,41 +516,6 @@ IMPORTANTE: Responde SOLO con el HTML, sin explicaciones ni markdown. El HTML de
             </div>
           </MobileCard>
 
-          {distributionData.chartData.length > 0 && (
-            <MobileCard className="!p-0 !rounded-2xl overflow-hidden">
-              <div className="px-4 pt-3.5 pb-1">
-                <span className="text-[10px] font-bold text-gray-500 tracking-wider uppercase">Distribución de Pagos</span>
-              </div>
-              <div className="flex items-center gap-2 px-2 pb-1">
-                {distributionData.chartData.map(d => (
-                  <div key={d.name} className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                    <span className="text-[8px] font-bold text-gray-500">{d.name} ({formatMoney(d.value)})</span>
-                  </div>
-                ))}
-              </div>
-              <div className="h-40 px-2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={distributionData.chartData} layout="horizontal">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 8, fill: '#666' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 8, fill: '#999' }} axisLine={false} tickLine={false} />
-                    <Tooltip formatter={v => formatMoney(v)} />
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                      {distributionData.chartData.map((d, i) => (
-                        <Cell key={i} fill={d.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="text-center pb-3">
-                <span className="text-lg font-black text-gray-800">{formatMoney(distributionData.total)}</span>
-                <span className="text-[10px] text-gray-400 ml-2">Total movimientos</span>
-              </div>
-            </MobileCard>
-          )}
-
           {topTiendas.length > 0 && (
             <MobileCard className="!p-0 !rounded-2xl overflow-hidden">
               <div className="px-4 pt-3.5 pb-1">
@@ -575,7 +526,7 @@ IMPORTANTE: Responde SOLO con el HTML, sin explicaciones ni markdown. El HTML de
                   <BarChart data={topTiendas} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                     <XAxis type="number" tick={{ fontSize: 9, fill: '#999' }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="nombre" tick={{ fontSize: 8, fill: '#666' }} axisLine={false} tickLine={false} width={80} />
+                    <YAxis type="category" dataKey="nombre" tick={false} axisLine={false} tickLine={false} width={0} />
                     <Tooltip formatter={v => formatMoney(v)} />
                     <Bar dataKey="margen" radius={[0, 4, 4, 0]}>
                       {topTiendas.map((d, i) => (
