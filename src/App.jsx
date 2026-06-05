@@ -13950,6 +13950,7 @@ const InlineEdit = ({ value, onSave }) => {
 
 const CONFIG_KEYS = [
     { key: 'gemini_api_key', label: 'API Key de Gemini', icon: Zap, type: 'password', description: 'Clave para el motor de inteligencia artificial Gemini.' },
+    { key: 'places_api_key', label: 'API Key de Google Places', icon: MapPin, type: 'password', description: 'Clave para buscar proveedores y contratistas con Google Places API.' },
     { key: 'mail_api_url_general', label: 'Webhook General', icon: Mail, type: 'url', description: 'URL del Script de Google Apps para correos generales (reportes, facturas, WOS).' },
     { key: 'mail_api_url_payroll', label: 'Webhook Recibos de Pago', icon: Receipt, type: 'url', description: 'URL del Script de Google Apps para enviar recibos de nómina a empleados.' },
 ];

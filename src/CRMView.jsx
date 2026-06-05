@@ -159,6 +159,8 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
   const [showNewCotizacion, setShowNewCotizacion] = useState(false);
   const [selectedCotizacion, setSelectedCotizacion] = useState(null);
   const [showBuscarProveedores, setShowBuscarProveedores] = useState(false);
+  const [buscando, setBuscando] = useState(false);
+  const [resultadosBusqueda, setResultadosBusqueda] = useState([]);
 
   // Sidebar resizable state
   const [sidebarWidth, setSidebarWidth] = useState('20%');
@@ -634,7 +636,53 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
 
   const handleBuscarProveedores = () => {
     setFormBuscarProveedores({ estado: '', ciudad: '', descripcion: '' });
+    setResultadosBusqueda([]);
     setShowBuscarProveedores(true);
+  };
+
+  const buscarProveedores = async () => {
+    if (!formBuscarProveedores.estado || !formBuscarProveedores.descripcion.trim()) {
+      showNotif('Estado y Descripción del Proyecto son obligatorios', 'error');
+      return;
+    }
+    setBuscando(true);
+    setResultadosBusqueda([]);
+    try {
+      const res = await fetch('/api/buscar-proveedores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          estado: formBuscarProveedores.estado,
+          ciudad: formBuscarProveedores.ciudad,
+          descripcion: formBuscarProveedores.descripcion
+        })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Error al buscar proveedores');
+      setResultadosBusqueda(data.results || []);
+    } catch (e) {
+      console.error('Buscar proveedores error:', e);
+      showNotif(e.message || 'Error al buscar proveedores', 'error');
+    } finally {
+      setBuscando(false);
+    }
+  };
+
+  const importarProveedor = (proveedor) => {
+    setFormProveedor({
+      nombre: proveedor.nombre || '',
+      contacto: '',
+      telefono: proveedor.telefono || '',
+      email: '',
+      especialidad: proveedor.descripcion || '',
+      ultima_llamada: '',
+      proxima_llamada: '',
+      notas: `Importado desde búsqueda.\nDirección: ${proveedor.direccion || ''}\n${proveedor.estado || ''}, ${proveedor.ciudad || ''}`,
+      creado_por: currentUser?.nombre || ''
+    });
+    setShowBuscarProveedores(false);
+    setShowNewProveedor(true);
+    setResultadosBusqueda([]);
   };
 
   const renderProveedorModal = () => {
@@ -709,12 +757,12 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
   const renderBuscarProveedoresModal = () => {
     if (!showBuscarProveedores) return null;
     return (
-      <ModalOverlay onClose={() => setShowBuscarProveedores(false)} className="max-w-none w-screen h-screen max-h-none rounded-none shadow-none -m-4">
+      <ModalOverlay onClose={() => { setShowBuscarProveedores(false); setResultadosBusqueda([]); }} className="max-w-none w-screen h-screen max-h-none rounded-none shadow-none -m-4">
         <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <Globe size={20} /> Buscar Proveedores
           </h3>
-          <button onClick={() => setShowBuscarProveedores(false)} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
+          <button onClick={() => { setShowBuscarProveedores(false); setResultadosBusqueda([]); }} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
         <div className="flex-1 flex overflow-hidden">
           <div id="buscar-proveedor-sidebar" className="flex shrink-0" style={{ width: sidebarWidth, minWidth: '20%' }}>
@@ -738,7 +786,13 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                 <input className={inputCls} placeholder="Descripción del proyecto" value={formBuscarProveedores.descripcion} onChange={e => setFormBuscarProveedores(f => ({ ...f, descripcion: e.target.value }))} />
               </div>
               <div className="flex gap-1.5 pt-2 border-t border-gray-100">
-                <button onClick={() => setShowBuscarProveedores(false)} className="flex items-center gap-1.5 px-3 py-2 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest ml-auto"><Globe size={12} /> Buscar</button>
+                <button onClick={buscarProveedores} disabled={buscando} className="flex items-center gap-1.5 px-3 py-2 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest ml-auto disabled:opacity-50">
+                  {buscando ? (
+                    <><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Buscando...</>
+                  ) : (
+                    <><Globe size={12} /> Buscar</>
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -748,9 +802,63 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
           >
             <div className="w-0.5 h-8 rounded-full bg-gray-300" />
           </div>
-          <div className="flex-1 p-4 flex flex-col">
-            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-2 pl-1">Resultados</label>
-            <textarea className="flex-1 resize-none border-2 border-gray-100 rounded-2xl bg-white p-4 text-sm font-medium text-gray-700 placeholder:text-gray-300 focus:border-[#303a7f]/30 focus:outline-none transition-all" placeholder="Resultados de la búsqueda..." readOnly value={formBuscarProveedores.resultados || ''} />
+          <div className="flex-1 p-4 flex flex-col overflow-hidden">
+            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-2 pl-1 shrink-0">
+              Resultados {resultadosBusqueda.length > 0 && `(${resultadosBusqueda.length})`}
+            </label>
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3">
+              {buscando ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="w-8 h-8 border-4 border-[#303a7f]/20 border-t-[#303a7f] rounded-full animate-spin" />
+                  <p className="text-[10px] font-bold text-gray-400">Buscando proveedores...</p>
+                </div>
+              ) : resultadosBusqueda.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <Globe size={32} className="text-gray-200" />
+                  <p className="text-[10px] font-bold text-gray-300 text-center leading-relaxed">Ingrese los datos y presione Buscar<br />para encontrar proveedores.</p>
+                </div>
+              ) : (
+                resultadosBusqueda.map((p, i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 hover:border-[#6bbdb7]/30 hover:shadow-md transition-all">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-[12px] font-black text-[#303a7f] truncate">{p.nombre}</h4>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {p.telefono && (
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-gray-500">
+                              <Phone size={10} /> {p.telefono}
+                            </span>
+                          )}
+                          {p.ciudad && (
+                            <span className="text-[9px] font-bold text-gray-400">
+                              {p.ciudad}, {p.estado}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => importarProveedor(p)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-xl border border-[#6bbdb7]/20 hover:bg-[#6bbdb7]/20 transition-all active:scale-95 font-black text-[8px] uppercase tracking-widest shrink-0"
+                        title="Importar como nuevo proveedor"
+                      >
+                        <Plus size={10} /> Importar
+                      </button>
+                    </div>
+                    {p.direccion && (
+                      <p className="text-[9px] font-medium text-gray-500 mb-1">{p.direccion}</p>
+                    )}
+                    {p.descripcion && (
+                      <p className="text-[9px] text-gray-400 italic leading-relaxed">{p.descripcion}</p>
+                    )}
+                    {p.website && (
+                      <a href={p.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-1.5 text-[9px] font-bold text-[#303a7f] hover:text-[#6bbdb7] transition-colors">
+                        <Globe size={9} /> {p.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                      </a>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </ModalOverlay>

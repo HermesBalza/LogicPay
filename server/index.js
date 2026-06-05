@@ -466,6 +466,7 @@ function seedConfigVariables() {
     { key: 'gemini_api_key', value: process.env.VITE_GEMINI_API_KEY || '' },
     { key: 'mail_api_url_general', value: 'https://script.google.com/macros/s/AKfycbwJO2nSGQxA5TjaMUsuhlVUlZhksSFIm1oQihRsM3M9C6BJoMeBOu4mu7Nqxd56bVYunw/exec' },
     { key: 'mail_api_url_payroll', value: '' },
+    { key: 'places_api_key', value: process.env.VITE_PLACES_API_KEY || '' },
   ];
   for (const { key, value } of seedData) {
     const exists = db.prepare("SELECT 1 FROM Variables WHERE \"key\" = ?").get(key);
@@ -480,7 +481,7 @@ seedConfigVariables();
 // GET /api/config — returns all config with masked values for display
 app.get('/api/config', (req, res) => {
   try {
-    const rows = db.prepare("SELECT \"key\", \"value\" FROM Variables WHERE \"key\" IN ('gemini_api_key', 'mail_api_url_general', 'mail_api_url_payroll')").all();
+    const rows = db.prepare("SELECT \"key\", \"value\" FROM Variables WHERE \"key\" IN ('gemini_api_key', 'mail_api_url_general', 'mail_api_url_payroll', 'places_api_key')").all();
     const config = {};
     for (const row of rows) {
       const val = row.value || '';
@@ -501,7 +502,7 @@ app.get('/api/config', (req, res) => {
 app.post('/api/config/save', (req, res) => {
   try {
     const { key, value, userId, userName } = req.body;
-    const allowedKeys = ['gemini_api_key', 'mail_api_url_general', 'mail_api_url_payroll'];
+    const allowedKeys = ['gemini_api_key', 'mail_api_url_general', 'mail_api_url_payroll', 'places_api_key'];
     if (!allowedKeys.includes(key)) {
       return res.status(400).json({ success: false, error: 'Clave no permitida' });
     }
@@ -583,6 +584,115 @@ app.post('/api/send-email', async (req, res) => {
   } catch (error) {
     console.error('Email send error:', error.message);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ─── Helper: refinar descripción de búsqueda con Gemini ───
+async function refinarBusqueda(descripcion) {
+  try {
+    const keyRow = db.prepare("SELECT value FROM Variables WHERE key = 'gemini_api_key'").get();
+    if (!keyRow || !keyRow.value) return descripcion;
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(keyRow.value);
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+    const prompt = `Convierte la siguiente descripción de un proyecto en un texto de búsqueda en inglés (máximo 6 palabras, solo keywords relevantes para encontrar proveedores/contratistas). No incluyas comillas ni puntuación extra.\n\nDescripción: "${descripcion}"\n\nKeywords:`; 
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+    return text || descripcion;
+  } catch (e) {
+    console.error('Gemini refinarBusqueda error:', e.message);
+    return descripcion;
+  }
+}
+
+// ─── Helper: Places API Text Search ───
+async function placesTextSearch(apiKey, query, estado, ciudad) {
+  const locationStr = ciudad ? `${ciudad} ${estado}` : estado;
+  const textQuery = `${query} ${locationStr}`;
+  const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress'
+    },
+    body: JSON.stringify({ textQuery, pageSize: 20, languageCode: 'en' })
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Places API error: ${res.status} ${err}`);
+  }
+  const data = await res.json();
+  return (data.places || []).map(p => ({
+    id: p.id,
+    nombre: p.displayName?.text || '',
+    direccion: p.formattedAddress || ''
+  }));
+}
+
+// ─── Helper: Places API Place Details ───
+async function placesDetalle(apiKey, placeId) {
+  try {
+    const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
+      method: 'GET',
+      headers: {
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': 'displayName,formattedAddress,nationalPhoneNumber,websiteUri,editorialSummary,addressComponents,primaryTypeDisplayName'
+      }
+    });
+    if (!res.ok) {
+      console.error(`Place detail error for ${placeId}: ${res.status}`);
+      return null;
+    }
+    const p = await res.json();
+
+    const extractComponent = (type) => {
+      const comp = p.addressComponents?.find(c => c.types?.includes(type));
+      return comp?.shortText || comp?.longText || '';
+    };
+
+    return {
+      nombre: p.displayName?.text || '',
+      telefono: p.nationalPhoneNumber || '',
+      direccion: p.formattedAddress || '',
+      estado: extractComponent('administrative_area_level_1'),
+      ciudad: extractComponent('locality') || extractComponent('administrative_area_level_2') || extractComponent('neighborhood') || '',
+      descripcion: p.editorialSummary?.text || p.primaryTypeDisplayName?.text || '',
+      website: p.websiteUri || ''
+    };
+  } catch (e) {
+    console.error(`placesDetalle error for ${placeId}:`, e.message);
+    return null;
+  }
+}
+
+// POST /api/buscar-proveedores — busca proveedores usando Places API con refinamiento de Gemini
+app.post('/api/buscar-proveedores', async (req, res) => {
+  try {
+    const { estado, ciudad, descripcion } = req.body;
+    if (!estado || !descripcion?.trim()) {
+      return res.status(400).json({ success: false, error: 'Estado y Descripción del Proyecto son requeridos.' });
+    }
+
+    const keyRow = db.prepare("SELECT value FROM Variables WHERE key = 'places_api_key'").get();
+    if (!keyRow || !keyRow.value) {
+      return res.status(400).json({ success: false, error: 'API Key de Google Places no configurada. Ve a Ajustes > General.' });
+    }
+    const apiKey = keyRow.value;
+
+    const query = await refinarBusqueda(descripcion.trim());
+    const places = await placesTextSearch(apiKey, query, estado, ciudad);
+    if (!places.length) {
+      return res.json({ success: true, results: [], query });
+    }
+
+    const detailsArr = await Promise.all(places.map(p => placesDetalle(apiKey, p.id)));
+    const results = detailsArr.filter(r => r !== null);
+
+    res.json({ success: true, results, query });
+  } catch (error) {
+    console.error('Buscar proveedores error:', error.message);
+    res.status(500).json({ success: false, error: error.message || 'Error al buscar proveedores.' });
   }
 });
 
