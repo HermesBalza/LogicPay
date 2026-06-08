@@ -18552,106 +18552,36 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
 
                     {activeTab === 'employees' && (
                         <>
-                            <div className="flex flex-col md:flex-row gap-4 mb-10 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="relative flex-1 group h-11">
-                                    <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={20} />
+                            <div className="flex gap-2 mb-6 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="relative flex-1 group h-10">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={16} />
                                     <input
                                         type="text"
-                                        placeholder="Filtrar por nombre o apellido..."
+                                        placeholder="Filtrar personal..."
                                         value={employeeSearchTerm}
                                         onChange={(e) => setEmployeeSearchTerm(e.target.value)}
-                                        className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
+                                        className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-11 pr-4 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-xs placeholder:text-gray-300"
                                     />
                                 </div>
                                 <button
                                     onClick={() => setEmployeeSearchTerm('')}
-                                    className="h-11 w-11 bg-white border-2 border-brand-primary/10 rounded-2xl flex items-center justify-center hover:border-[#303a7f]/20 hover:bg-[#303a7f]/5 transition-all group shadow-sm flex-shrink-0"
+                                    className="h-10 w-10 bg-white border-2 border-brand-primary/10 rounded-2xl flex items-center justify-center hover:border-[#303a7f]/20 hover:bg-[#303a7f]/5 transition-all group shadow-sm flex-shrink-0"
                                     title="Limpiar búsqueda"
                                 >
-                                    <Eraser size={18} strokeWidth={2.5} className="text-gray-300 group-hover:text-red-500 transition-colors" />
+                                    <Eraser size={16} strokeWidth={2.5} className="text-gray-300 group-hover:text-red-500 transition-colors" />
                                 </button>
-                                {/* Contador de Personal */}
-                                <button
-                                    onClick={() => setIsEmployeeStatsModalOpen(true)}
-                                    className="h-11 px-6 bg-white border-2 border-brand-primary/10 rounded-2xl flex items-center gap-3 hover:border-[#303a7f]/20 hover:bg-[#303a7f]/5 transition-all group shadow-sm"
-                                >
-                                    <div className="w-2 h-2 rounded-full bg-[#6bbdb7] animate-pulse" />
-                                    <div className="flex flex-col items-start leading-tight">
-                                        <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">{employees.length}</span>
-                                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Registrados</span>
-                                    </div>
-                                </button>
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setShowPendingContratadosModal(true)}
-                                        style={{ backgroundColor: '#6bbdb7' }}
-                                        className="h-11 w-11 text-white font-black rounded-2xl flex items-center justify-center shadow-2xl shadow-teal-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#59aba5] transition-all duration-300"
-                                        title="Candidatos contratados pendientes"
-                                    >
-                                        <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-                                        <UserPlus size={16} />
-                                    </button>
-                                    {pendingContratados.length > 0 && (
-                                        <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] font-black px-1 py-0.5 rounded-full min-w-[16px] text-center leading-tight shadow-lg z-10">{pendingContratados.length}</span>
-                                    )}
-                                </div>
-
-                                {/* Toggle de Vistas: Lista / Cuadrícula */}
-                                <div className="h-11 bg-white border-2 border-brand-primary/10 rounded-2xl p-1 flex items-center gap-1 shadow-sm">
-                                    <button
-                                        onClick={() => setPersonalViewMode('list')}
-                                        className={`h-full px-3 rounded-xl transition-all flex items-center gap-2 group ${personalViewMode === 'list' ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:bg-gray-50'}`}
-                                        title="Vista de Lista"
-                                    >
-                                        <List size={18} />
-                                        <span className={`text-[9px] font-black uppercase tracking-widest overflow-hidden transition-all duration-300 ${personalViewMode === 'list' ? 'max-w-[60px] ml-1' : 'max-w-0'}`}>Lista</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setPersonalViewMode('grid')}
-                                        className={`h-full px-3 rounded-xl transition-all flex items-center gap-2 group ${personalViewMode === 'grid' ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:bg-gray-50'}`}
-                                        title="Vista de Cuadrícula"
-                                    >
-                                        <LayoutGrid size={18} />
-                                        <span className={`text-[9px] font-black uppercase tracking-widest overflow-hidden transition-all duration-300 ${personalViewMode === 'grid' ? 'max-w-[80px] ml-1' : 'max-w-0'}`}>Cuadrícula</span>
-                                    </button>
-                                </div>
-
-                                <div className="flex gap-2 h-11">
-                                    <div className="relative group/btn h-full">
-                                        <button
-                                            onClick={() => setIsMassImportInfoOpen(true)}
-                                            style={{ backgroundColor: '#6bbdb7' }}
-                                            className="h-full text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-teal-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#59aba5] whitespace-nowrap"
-                                        >
-                                            <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-                                            <FileSpreadsheet size={16} className="group-hover:scale-110 transition-transform duration-500" />
-                                            <span className="tracking-widest uppercase text-[10px]">Importar Excel</span>
-                                        </button>
-                                        <input
-                                            type="file"
-                                            ref={massImportFileInputRef}
-                                            className="hidden"
-                                            onChange={(e) => {
-                                                handleEmployeeMassImport(e.target.files[0]);
-                                                e.target.value = null;
-                                            }}
-                                            accept=".xlsx,.xls,.csv"
-                                        />
-                                    </div>
-
-                                    {userCanEdit && (
-                                    <button
-                                        onClick={() => setIsAddingEmployee(true)}
-                                        style={{ backgroundColor: '#303a7f' }}
-                                        className="h-full text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e] whitespace-nowrap"
-                                    >
-                                        <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-                                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
-                                        <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
-                                    </button>
-                                    )}
-                                </div>
                             </div>
+
+                            {/* Botón Flotante Agregar Personal */}
+                            {userCanEdit && (
+                                <button
+                                    onClick={() => setIsAddingEmployee(true)}
+                                    className="fixed bottom-24 right-4 z-40 w-14 h-14 bg-[#303a7f] text-white rounded-2xl flex items-center justify-center shadow-xl shadow-blue-900/30 active:scale-95 transition-all"
+                                    title="Agregar Personal"
+                                >
+                                    <Plus size={24} />
+                                </button>
+                            )}
 
                             {personalViewMode === 'grid' ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
