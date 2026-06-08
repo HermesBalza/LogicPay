@@ -9857,9 +9857,8 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                 <div className="flex gap-2">
                     <button
                         onClick={onOpenWOS}
-                        className="px-4 h-10 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 bg-[#303a7f] text-white shadow-lg shadow-blue-900/10 hover:bg-[#252a5e] flex-shrink-0"
+                        className="hidden"
                     >
-                        <LayoutGrid size={14} />
                         WOS
                     </button>
                     <button
@@ -9871,7 +9870,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                             }`}
                     >
                         <Receipt size={14} />
-                        Fact. Radicada
+                        Facturación Radicada
                     </button>
                 </div>
             </div>
