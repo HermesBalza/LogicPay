@@ -71,7 +71,7 @@ export default function MobileEmployeesEditor({
       delete payload.rateKBS;
       delete payload.rateLGM;
       await writeData(
-        'upsert', payload, 'Personal', false,
+        'upsert', payload, 'Personal',
         ['nombre', 'codigo_empleado'], user?.id, user?.nombre
       );
       onSave();

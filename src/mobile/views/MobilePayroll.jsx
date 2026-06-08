@@ -423,26 +423,7 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
         </span>
       </div>
 
-      <div className="flex gap-1 mb-2 bg-gray-100 rounded-xl p-1">
-        {[
-          { id: 'history', label: 'Historial' },
-          { id: 'engine', label: 'Motor' },
-        ].map(v => (
-          <button
-            key={v.id}
-            onClick={() => setView(v.id)}
-            className={`flex-1 py-2 rounded-lg text-[10px] font-bold transition-colors ${
-              view === v.id ? 'bg-white text-brand-primary shadow-sm' : 'text-gray-500'
-            }`}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
-
-      {view === 'history' ? (
-        <>
-          <MobileSelect value={selectedStore} onChange={setSelectedStore} options={storeOptions} placeholder="Seleccionar tienda" />
+      <MobileSelect value={selectedStore} onChange={setSelectedStore} options={storeOptions} placeholder="Seleccionar tienda" />
 
           <div className="flex items-center justify-center gap-3">
             <button
@@ -567,114 +548,6 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
               )}
             </div>
           )}
-        </>
-      ) : (
-        <div className="space-y-3">
-          <MobileSelect value={selectedStore} onChange={setSelectedStore} options={storeOptions} placeholder="Seleccionar tienda" />
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[9px] font-bold text-gray-500 tracking-wider uppercase block mb-1">Desde</label>
-              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full h-10 bg-gray-100 rounded-xl px-3.5 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-brand-primary/20" />
-            </div>
-            <div>
-              <label className="text-[9px] font-bold text-gray-500 tracking-wider uppercase block mb-1">Hasta</label>
-              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full h-10 bg-gray-100 rounded-xl px-3.5 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-brand-primary/20" />
-            </div>
-          </div>
-
-          <MobileCard>
-            <div className="text-[10px] font-bold text-gray-500 tracking-wider uppercase mb-2">Reporte de Supervisor</div>
-            <input ref={supervisorRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleSupervisorUpload} />
-            <button onClick={() => supervisorRef.current?.click()} className="w-full h-10 bg-gray-100 rounded-xl text-xs font-bold text-gray-600 flex items-center justify-center gap-2">
-              <Upload size={14} /> Subir archivo Excel
-            </button>
-          </MobileCard>
-
-          <MobileCard>
-            <div className="text-[10px] font-bold text-gray-500 tracking-wider uppercase mb-2">Reporte IVR / Biométrico</div>
-            <input ref={biometricRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleBiometricUpload} />
-            <button onClick={() => biometricRef.current?.click()} className="w-full h-10 bg-gray-100 rounded-xl text-xs font-bold text-gray-600 flex items-center justify-center gap-2">
-              <Upload size={14} /> Subir archivo
-            </button>
-          </MobileCard>
-
-          <MobileCard>
-            <div className={`flex items-center justify-between mb-3 ${sheetFiles.length > 0 ? 'text-brand-accent' : ''}`}>
-              <div className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${sheetFiles.length > 0 ? 'bg-brand-accent/10' : 'bg-brand-primary/5'}`}>
-                  <Camera size={13} className={sheetFiles.length > 0 ? 'text-brand-accent' : 'text-brand-primary'} />
-                </div>
-                <div>
-                  <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${sheetFiles.length > 0 ? 'text-brand-accent' : 'text-brand-primary'}`}>Planillas IA</p>
-                  <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Digitalizador</p>
-                </div>
-              </div>
-              {sheetFiles.length > 0 && <CheckCircle size={13} className="text-brand-accent" />}
-            </div>
-            <div className="relative">
-              <button
-                className={`w-full h-10 bg-gray-100 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                  sheetFiles.length > 0 ? 'text-brand-accent' : 'text-gray-600'
-                }`}
-              >
-                <Camera size={13} />
-                {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos Subidas') : 'Subir Fotos'}
-              </button>
-              <input
-                type="file" multiple accept="image/*"
-                className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                onChange={handleSheetUpload}
-              />
-            </div>
-          </MobileCard>
-
-          {semanaData.length > 0 && (
-            <>
-              <MobileCard className="!p-0 !rounded-2xl overflow-hidden">
-                <div className="px-4 pt-3.5 pb-1 flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-gray-500 tracking-wider uppercase">Asistencia ({semanaData.length})</span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[10px]">
-                    <thead>
-                      <tr className="border-b border-gray-50">
-                        <th className="text-left px-3 py-2 text-[9px] font-bold text-gray-400">Empleado</th>
-                        {DAYS_SHORT.map(d => (
-                          <th key={d} className="text-center px-1 py-2 text-[9px] font-bold text-gray-400">{d}</th>
-                        ))}
-                        <th className="text-center px-1 py-2 text-[9px] font-bold text-gray-400">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {semanaData.map((row, i) => (
-                        <tr key={i} className="border-b border-gray-50">
-                          <td className="px-3 py-2 text-[10px] font-semibold text-gray-700">{row.nombre}</td>
-                          {DAYS.map(d => (
-                            <td key={d} className="px-1 py-1">
-                              <input value={row[d] || ''} onChange={e => handleCellChange(i, d, e.target.value)} className="w-full h-8 bg-gray-50 rounded-lg text-center text-[10px] text-gray-700 outline-none focus:ring-1 focus:ring-brand-primary/30" type="number" step="0.5" />
-                            </td>
-                          ))}
-                          <td className="text-center px-1 py-2 text-[10px] font-bold text-gray-700">{getWeekTotal(row).toFixed(1)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </MobileCard>
-
-              <div className="flex gap-2">
-                <button className="flex-1 h-10 bg-brand-primary rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2">
-                  <CheckCircle size={14} /> Procesar
-                </button>
-                <button className="flex-1 h-10 bg-green-600 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2">
-                  <Send size={14} /> Enviar
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
 
       {isSheetPreviewOpen && sheetFiles.length > 0 && (
         <div className="fixed inset-0 z-[300] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 animate-in fade-in duration-200">

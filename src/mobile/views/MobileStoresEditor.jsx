@@ -50,7 +50,6 @@ export default function MobileStoresEditor({
         'upsert',
         { ...edited },
         'Tiendas',
-        false,
         ['nombre', 'codigo'],
         user?.id,
         user?.nombre
@@ -67,7 +66,7 @@ export default function MobileStoresEditor({
       await writeData(
         'delete',
         { nombre: store.nombre, codigo: store.codigo },
-        'Tiendas', false, ['nombre', 'codigo'],
+        'Tiendas', ['nombre', 'codigo'],
         user?.id, user?.nombre
       );
       onDelete();
