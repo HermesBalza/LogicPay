@@ -4,6 +4,7 @@ import MobileCard from '../components/MobileCard';
 import MobileSelect from '../components/MobileSelect';
 import MobileModal from '../components/MobileModal';
 import { fetchTable, writeData, formatMoney, hhmmToDecimal } from '../api';
+import * as XLSX from 'xlsx';
 
 const callGemini = async (prompt, bodyOverrides = {}) => {
   const res = await fetch('/api/gemini/generate', {
@@ -183,21 +184,44 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
   function handleSupervisorUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result;
-      if (typeof text !== 'string') return;
+
+    function parseCSV(text) {
       const lines = text.split('\n').filter(Boolean);
       const header = lines[0].toLowerCase();
       if (header.includes('nombre') || header.includes('name')) {
-        const parsed = lines.slice(1).map(line => {
+        return lines.slice(1).map(line => {
           const cols = line.split(',');
           return { nombre: cols[0]?.trim(), domingo: cols[1] || '0', lunes: cols[2] || '0', martes: cols[3] || '0', miercoles: cols[4] || '0', jueves: cols[5] || '0', viernes: cols[6] || '0', sabado: cols[7] || '0' };
         }).filter(r => r.nombre);
-        setSemanaData(parsed);
       }
-    };
-    reader.readAsText(file);
+      return [];
+    }
+
+    if (ext === 'csv' || ext === 'txt') {
+      reader.onload = (ev) => {
+        const text = ev.target?.result;
+        if (typeof text !== 'string') return;
+        const parsed = parseCSV(text);
+        if (parsed.length > 0) setSemanaData(parsed);
+      };
+      reader.readAsText(file);
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      reader.onload = (ev) => {
+        try {
+          const data = new Uint8Array(ev.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const csvText = XLSX.utils.sheet_to_csv(firstSheet);
+          const parsed = parseCSV(csvText);
+          if (parsed.length > 0) setSemanaData(parsed);
+        } catch (err) {
+          console.error('Error leyendo XLSX:', err);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
   }
 
   function handleBiometricUpload(e) {
@@ -319,8 +343,51 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
     });
   }
 
+  function handleProcessData() {
+    setIsProcessing(true);
+    setTimeout(() => {
+      setSemanaData(prev => prev.map(row => {
+        const newRow = { ...row };
+        DAYS.forEach(d => {
+          if (!newRow[d] || typeof newRow[d] !== 'object') {
+            const val = newRow[d] || '0';
+            newRow[d] = { sup: String(val), bio: 'X', final: String(val) };
+          }
+        });
+        const totalMin = DAYS.reduce((sum, d) => {
+          const f = newRow[d]?.final || '0';
+          const parts = String(f).split(':');
+          if (parts.length === 2) return sum + (parseInt(parts[0] || 0) * 60) + parseInt(parts[1] || 0);
+          return sum + (parseFloat(f) || 0) * 60;
+        }, 0);
+        const h = Math.floor(totalMin / 60);
+        const m = Math.round(totalMin % 60);
+        newRow.total = { sup: `${h}:${String(m).padStart(2, '0')}`, bio: 'X', final: `${h}:${String(m).padStart(2, '0')}` };
+        return newRow;
+      }));
+      setIsProcessing(false);
+    }, 800);
+  }
+
   function handleOpenApprove() {
-    const employeesWithZeroRates = semanaData.map(emp => {
+    const needsProcess = semanaData.length > 0 && semanaData.some(row => {
+      return DAYS.some(d => !row[d] || typeof row[d] !== 'object');
+    });
+    
+    let dataToCheck = semanaData;
+    if (needsProcess) {
+      dataToCheck = semanaData.map(row => {
+        const newRow = { ...row };
+        DAYS.forEach(d => {
+          if (!newRow[d] || typeof newRow[d] !== 'object') {
+            newRow[d] = { sup: String(newRow[d] || '0'), bio: 'X', final: String(newRow[d] || '0') };
+          }
+        });
+        return newRow;
+      });
+    }
+
+    const employeesWithZeroRates = dataToCheck.map(emp => {
       const employee = employees.find(e =>
         String(e.codigo_empleado).trim() === String(emp.codigo).replace(/^'+/, '').trim() &&
         String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()
@@ -345,11 +412,32 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
     setApproving(true);
     setConfirmApproveModalOpen(false);
     try {
+      const dataToSave = semanaData.map(row => {
+        const newRow = { ...row };
+        DAYS.forEach(d => {
+          if (!newRow[d] || typeof newRow[d] !== 'object') {
+            newRow[d] = { sup: String(newRow[d] || '0'), bio: 'X', final: String(newRow[d] || '0') };
+          }
+        });
+        if (!newRow.total || typeof newRow.total !== 'object') {
+          const totalMin = DAYS.reduce((sum, d) => {
+            const f = newRow[d]?.final || '0';
+            const parts = String(f).split(':');
+            if (parts.length === 2) return sum + (parseInt(parts[0] || 0) * 60) + parseInt(parts[1] || 0);
+            return sum + (parseFloat(f) || 0) * 60;
+          }, 0);
+          const h = Math.floor(totalMin / 60);
+          const m = Math.round(totalMin % 60);
+          newRow.total = { sup: `${h}:${String(m).padStart(2, '0')}`, bio: 'X', final: `${h}:${String(m).padStart(2, '0')}` };
+        }
+        return newRow;
+      });
+
       const payload = {
         nombre: selectedStore,
         fecha_inicio: weekData.start || weekData.fecha_inicio,
         fecha_fin: weekData.end || weekData.fecha_fin,
-        data_json: JSON.stringify({ semanaTableData: semanaData }),
+        data_json: JSON.stringify({ semanaTableData: dataToSave }),
       };
       await writeData(
         'upsert', payload, 'Nomina_Historico',
@@ -373,7 +461,7 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
     return (
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <button onClick={() => { setView('history'); setWeekData(null); }} className="text-[10px] font-bold text-brand-primary">← Historial</button>
+          <button onClick={() => { setView('history'); setWeekData(null); setSemanaData([]); }} className="text-[10px] font-bold text-brand-primary">← Historial</button>
           <span className="text-xs text-gray-400">|</span>
           <span className="text-xs font-bold text-gray-600">{selectedStore}</span>
         </div>
@@ -449,6 +537,13 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
             </button>
           </MobileCard>
             </>
+          )}
+
+          {!isHistorical && semanaData.length > 0 && (
+            <button onClick={handleProcessData} className="w-full h-10 bg-gray-100 rounded-xl text-xs font-bold text-brand-primary flex items-center justify-center gap-2 border-2 border-brand-primary/10 active:scale-95 transition-all">
+              {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <Cpu size={14} />}
+              {isProcessing ? 'Procesando...' : 'Procesar Data'}
+            </button>
           )}
 
           {semanaData.length > 0 && (
@@ -801,6 +896,7 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
                                 setWeekData(found);
                                 setView('engine');
                               } else {
+                                setSemanaData([]);
                                 setWeekData({ start: w.start, end: w.end });
                                 setView('engine');
                               }
