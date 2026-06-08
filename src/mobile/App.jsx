@@ -11708,6 +11708,7 @@ const BillingView = ({
                     </div>
                 </div>
 
+                <div className="overflow-x-auto">
                 <table className="w-full border-collapse table-auto mb-6">
                     <thead className="sticky top-0 z-20">
                         <tr className="bg-white border-b border-gray-100 shadow-sm">
@@ -11811,6 +11812,7 @@ const BillingView = ({
                         ))}
                     </tbody>
                 </table>
+                </div>
 
                 {/* Resumen VWH */}
                 <div className="px-6 py-10 border-y border-gray-50 flex items-center justify-between bg-[#fcfdfe]/50">
@@ -11834,6 +11836,7 @@ const BillingView = ({
                     </div>
                 </div>
 
+                <div className="overflow-x-auto">
                 <table className="w-full border-collapse table-auto mb-6">
                     <thead className="sticky top-0 z-20">
                         <tr className="bg-white border-b border-gray-100 shadow-sm">
@@ -11918,6 +11921,7 @@ const BillingView = ({
                         ))}
                     </tbody>
                 </table>
+                </div>
 
                 {/* Resumen P.E */}
                 <div className="px-6 py-10 border-y border-gray-50 flex items-center justify-between bg-gray-50/30 mb-20">
@@ -19530,41 +19534,38 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 }}
             />
 
-            {/* FASE 11: MODAL DE FACTURACIÓN RADICADA (Full Screen - Nivel Dios) */}
+            {/* FASE 11: MODAL DE FACTURACIÓN RADICADA (Móvil) */}
             {isBillingModalOpen && (
                 <div className="fixed inset-0 z-[200] bg-white animate-in fade-in duration-500 overflow-hidden flex flex-col">
-                    {/* Header Premium de Facturación */}
-                    <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform rotate-0 hover:-rotate-3 transition-transform duration-500">
-                                <Receipt size={20} />
+                    {/* Header Facturación — Móvil */}
+                    <div className="px-4 py-3 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-[#303a7f]/10 rounded-lg">
+                                <Receipt size={18} className="text-[#303a7f]" />
                             </div>
-                            <div className="flex flex-col">
-                                <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1 animate-in slide-in-from-left-4 duration-700">Facturación Radicada</h2>
-                                <div className="flex items-center gap-2 animate-in slide-in-from-left-8 duration-1000">
-                                    <div className="h-0.5 w-6 bg-[#6bbdb7] rounded-full" />
-                                    <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-[0.3em] opacity-90">{selectedHistoryStore || 'Global Logic Analysis'}</p>
-                                </div>
+                            <div>
+                                <h2 className="text-sm font-black text-[#303a7f] tracking-tighter uppercase">Facturación Radicada</h2>
+                                <p className="text-[#6bbdb7] text-[9px] font-black uppercase tracking-wider">{selectedHistoryStore || 'Global'}</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
                             <button
                                 onClick={handleExportBillingExcel}
-                                className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 animate-in fade-in zoom-in duration-700"
+                                className="hidden"
                             >
                                 Exportar Facturación Radicada
                             </button>
                             <button
                                 onClick={() => setIsBillingModalOpen(false)}
-                                className="group p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center"
+                                className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-95 border border-red-200"
                             >
-                                <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
+                                <X size={16} />
                             </button>
                         </div>
                     </div>
 
-                    {/* Contenido del Modal (BillingView) - Nivel Dios */}
-                    <div className="flex-1 overflow-y-auto p-12 bg-[#fcfdfe] custom-scrollbar">
+                    {/* Contenido del Modal */}
+                    <div className="flex-1 overflow-y-auto p-4 bg-[#fcfdfe]">
                         <BillingView
                             filterYear={billingFilterYear}
                             storeName={selectedHistoryStore}
