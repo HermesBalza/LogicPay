@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Calendar, Upload, CheckCircle, Send, RefreshCw, AlertTriangle, Eye, ChevronLeft, ChevronRight, Lock, Unlock, Cpu, Camera, Trash2, X } from 'lucide-react';
+import { Calendar, Upload, CheckCircle, Send, RefreshCw, AlertTriangle, Eye, ChevronLeft, ChevronRight, Lock, Unlock, Cpu, Camera, Trash2, X, FileText, Clock8 } from 'lucide-react';
 import MobileCard from '../components/MobileCard';
 import MobileSelect from '../components/MobileSelect';
 import MobileModal from '../components/MobileModal';
@@ -27,7 +27,7 @@ const normalizeDate = (d) => {
 };
 
 const DAYS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-const DAYS_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const DAYS_SHORT = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 
 export default function MobilePayroll({ stores = [], employees = [], user, initialStore = '' }) {
   const [view, setView] = useState('history');
@@ -293,7 +293,13 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
   };
 
   function getWeekTotal(row) {
-    return DAYS.reduce((sum, d) => sum + (+row[d] || 0), 0);
+    return DAYS.reduce((sum, d) => {
+      const val = row[d];
+      if (val && typeof val === 'object') {
+        return sum + (parseFloat(val.final) || 0);
+      }
+      return sum + (parseFloat(val) || 0);
+    }, 0);
   }
 
   function handleCellChange(index, day, value) {
@@ -314,22 +320,6 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
         </div>
 
         <div className="space-y-3">
-          <MobileCard>
-            <div className="text-[10px] font-bold text-gray-500 tracking-wider uppercase mb-2">Reporte de Supervisor</div>
-            <input ref={supervisorRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleSupervisorUpload} />
-            <button onClick={() => supervisorRef.current?.click()} className="w-full h-10 bg-gray-100 rounded-xl text-xs font-bold text-gray-600 flex items-center justify-center gap-2">
-              <Upload size={14} /> Subir archivo
-            </button>
-          </MobileCard>
-
-          <MobileCard>
-            <div className="text-[10px] font-bold text-gray-500 tracking-wider uppercase mb-2">Reporte IVR / Biométrico</div>
-            <input ref={biometricRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleBiometricUpload} />
-            <button onClick={() => biometricRef.current?.click()} className="w-full h-10 bg-gray-100 rounded-xl text-xs font-bold text-gray-600 flex items-center justify-center gap-2">
-              <Upload size={14} /> Subir archivo CSV
-            </button>
-          </MobileCard>
-
           <MobileCard>
             <div className={`flex items-center justify-between mb-3 ${sheetFiles.length > 0 ? 'text-brand-accent' : ''}`}>
               <div className="flex items-center gap-2">
@@ -360,40 +350,83 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
             </div>
           </MobileCard>
 
+          <MobileCard>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-lg bg-brand-primary/5 flex items-center justify-center shrink-0">
+                <FileText size={13} className="text-brand-primary" />
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest leading-none text-brand-primary">Reporte Sup.</p>
+                <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Horas Diarias</p>
+              </div>
+            </div>
+            <input ref={supervisorRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleSupervisorUpload} />
+            <button onClick={() => supervisorRef.current?.click()} className="w-full h-10 bg-gray-100 rounded-xl text-xs font-bold text-gray-600 flex items-center justify-center gap-2">
+              <Upload size={14} /> Subir archivo
+            </button>
+          </MobileCard>
+
+          <MobileCard>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-lg bg-brand-primary/5 flex items-center justify-center shrink-0">
+                <Clock8 size={13} className="text-brand-primary" />
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest leading-none text-brand-primary">Reporte IVR</p>
+                <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Biométrico</p>
+              </div>
+            </div>
+            <input ref={biometricRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleBiometricUpload} />
+            <button onClick={() => biometricRef.current?.click()} className="w-full h-10 bg-gray-100 rounded-xl text-xs font-bold text-gray-600 flex items-center justify-center gap-2">
+              <Upload size={14} /> Subir archivo CSV
+            </button>
+          </MobileCard>
+
           {semanaData.length > 0 && (
             <MobileCard className="!p-0 !rounded-2xl overflow-hidden">
               <div className="px-4 pt-3.5 pb-1 flex items-center justify-between">
                 <span className="text-[10px] font-bold text-gray-500 tracking-wider uppercase">Asistencia ({semanaData.length})</span>
               </div>
-              <div className="overflow-x-auto">
+              <div>
                 <table className="w-full text-[10px]">
                   <thead>
                     <tr className="border-b border-gray-50">
-                      <th className="text-left px-3 py-2 text-[9px] font-bold text-gray-400">Empleado</th>
+                      <th className="text-left px-1.5 py-2 text-[8px] font-bold text-gray-400 max-w-[60px] truncate">Empleado</th>
                       {DAYS_SHORT.map(d => (
-                        <th key={d} className="text-center px-1 py-2 text-[9px] font-bold text-gray-400">{d}</th>
+                        <th key={d} className="text-center px-0.5 py-2 text-[8px] font-bold text-gray-400 w-[24px]">{d}</th>
                       ))}
-                      <th className="text-center px-1 py-2 text-[9px] font-bold text-gray-400">Total</th>
+                      <th className="text-center px-0.5 py-2 text-[8px] font-bold text-gray-400 w-[28px]">Tot</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {semanaData.map((row, i) => (
+                    {semanaData.map((row, i) => {
+                      const isHistorical = weekData && !!weekData.data_json;
+                      return (
                       <tr key={i} className="border-b border-gray-50">
-                        <td className="px-3 py-2 text-[10px] font-semibold text-gray-700">{row.nombre}</td>
-                        {DAYS.map(d => (
-                          <td key={d} className="px-1 py-1">
+                        <td className="px-1.5 py-2 text-[9px] font-semibold text-gray-700 max-w-[60px] truncate">{row.nombre}</td>
+                        {DAYS.map(d => {
+                          const dayVal = row[d];
+                          const isObject = dayVal && typeof dayVal === 'object';
+                          const displayVal = isObject ? (dayVal.final != null ? String(dayVal.final) : '0') : (dayVal || '0');
+                          return (
+                          <td key={d} className="px-0.5 py-1">
                             <input
-                              value={row[d] || ''}
+                              value={displayVal}
+                              readOnly={isHistorical}
                               onChange={e => handleCellChange(i, d, e.target.value)}
-                              className="w-full h-8 bg-gray-50 rounded-lg text-center text-[10px] text-gray-700 outline-none focus:ring-1 focus:ring-brand-primary/30"
+                              className={`w-full h-7 bg-gray-50 rounded-md text-center text-[9px] text-gray-700 outline-none focus:ring-1 focus:ring-brand-primary/30 ${isHistorical ? 'cursor-not-allowed' : ''}`}
                               type="number"
                               step="0.5"
                             />
                           </td>
-                        ))}
-                        <td className="text-center px-1 py-2 text-[10px] font-bold text-gray-700">{getWeekTotal(row).toFixed(1)}</td>
+                          );
+                        })}
+                        <td className="text-center px-0.5 py-2 text-[9px] font-bold text-gray-700">
+                          {isHistorical && row.total?.final != null ? String(row.total.final) : getWeekTotal(row).toFixed(1)}
+                        </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
