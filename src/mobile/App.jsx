@@ -713,7 +713,7 @@ ${systemContext || "Contexto cargando..."}
     };
 
     return (
-        <div className="fixed right-0 bottom-[66px] z-[9999] font-sans flex flex-col items-end">
+        <div className="fixed right-0 bottom-[66px] z-[9999] font-sans flex flex-col items-end hidden">
             {!isOpen ? (
                 /* PESTAÑA DEL CHAT (VERTICAL A LA DERECHA) */
                 <button
@@ -1290,44 +1290,44 @@ REGLAS OBLIGATORIAS:
 1. Genera EXCLUSIVAMENTE codigo HTML con estilos inline. NO uses bloques de codigo markdown. NO incluyas etiquetas <html>, <head> ni <body>.
 2. NO uses clases CSS. Todo el estilo debe ser inline (atributo style="").
 3. NO uses librerias externas ni CDN. Solo HTML puro con estilos inline.
-4. Paleta de colores obligatoria:
+4. SOLO TEXTO. NO uses tablas HTML (<table>, <tr>, <td>, <th>). NO uses gráficos, canvas ni SVG.
+5. Usa párrafos (<p>), listas con viñetas (<ul>/<li>) y títulos en negrita para presentar datos.
+6. Paleta de colores obligatoria:
    - Fondo general: #f9f9f9
-   - Tarjetas/secciones: #ffffff
    - Texto principal: #333333
    - Texto secundario: #666666
-   - Color primario (titulos, destacados): #303a7f
+   - Color primario (titulos): #303a7f
    - Color acento (valores positivos): #6bbdb7
    - Color alerta (valores negativos): #ef4444
    - Color exito: #22c55e
    - Color warning: #f59e0b
-5. Tipografia: font-family: 'Inter', system-ui, -apple-system, sans-serif
-6. Titulos de seccion: font-weight: 900, color: #303a7f, text-transform: uppercase, letter-spacing: 0.05em, font-size: 13px
-7. Valores monetarios: fuente grande, font-weight: 900, text-align: center
-8. Tarjetas KPI: background: white, border-radius: 20px, padding: 24px, box-shadow: 0 4px 24px rgba(48,58,127,0.06), border: 1px solid #f0f0f0, margin-bottom: 16px
-9. Usa tablas HTML con borde colapsado, headers con background: #303a7f, color: white, font-weight: 700, font-size: 11px, text-transform: uppercase, letter-spacing: 0.05em
-10. Filas de tabla alternadas: background #f9f9f9 y #ffffff
+7. Tipografia: font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.6
+8. Titulos de seccion: font-weight: 900, color: #303a7f, text-transform: uppercase, letter-spacing: 0.05em
+9. Subtitulos: font-weight: 700, color: #6bbdb7
+10. Valores monetarios: font-weight: 900
 11. NO uses emojis.
 12. El informe debe ser profesional, analitico y directo.
 13. Incluye un breve analisis/interpretacion de cada seccion ademas de los datos numericos.
-14. Usa iconos Unicode (●, ◆, ▲, ▼, ✓, ✗) como bullets o indicadores visuales.
-15. Maximo 1500 palabras en total.`;
+14. Maximo 1500 palabras en total.
+15. Diseno optimizado para pantallas moviles (ancho maximo 100%). Usa padding generoso y margenes claros.`;
 
-            const userPrompt = `Genera un informe financiero y operativo completo de Logic Group Management para el periodo ${fromStr} al ${toStr}${storeStr !== 'Todas' ? ` (Tienda: ${storeStr})` : ''}.
+            const userPrompt = `Genera un informe financiero y operativo completo (SOLO TEXTO, sin tablas) de Logic Group Management para el periodo ${fromStr} al ${toStr}${storeStr !== 'Todas' ? ` (Tienda: ${storeStr})` : ''}.
 
 DATOS DEL PERIODO:
 ${dataContext}
 
-ESTRUCTURA DEL INFORME (debes seguir este orden):
-1. RESUMEN EJECUTIVO - KPIs principales en tarjetas (Total Facturado, Costos Operativos, Margen Bruto, ROI)
-2. ESTADO DE RESULTADOS (P&L) - Desglose de ingresos y costos por linea de negocio (KBS Nomina, KBS Proyectos Especiales, CSG), con subtotales y margen
-3. TENDENCIA FINANCIERA - Evolucion mensual de ingresos vs costos con tabla de datos
-4. RENDIMIENTO POR TIENDA - Top 5 tiendas por margen con tabla (Nombre, Ingresos, Costos, Margen, % Utilizacion). Incluir tiendas que exceden su presupuesto de horas si las hay.
-5. WORKFORCE ANALYTICS - Top empleados por horas, distribucion de personal (activos/inactivos, rotacion), costo promedio por empleado
-6. PROYECTOS ESPECIALES Y VWH - Volumen, margen e incidencias
-7. CUENTAS POR COBRAR Y FLUJO DE PAGOS - Distribucion de pagos: completados, pendientes clientes, pendientes nomina
-8. CONCLUSIONES Y RECOMENDACIONES - Breve analisis generado por IA basado en los datos
+ESTRUCTURA DEL INFORME (debes seguir este orden, usa SOLO texto con parrafos y listas):
+0. TITULO PRINCIPAL: "Informe Financiero y Operativo" centrado, color #303a7f, font-weight 900, con el periodo debajo en color #6bbdb7
+1. RESUMEN EJECUTIVO - KPIs principales (Total Facturado, Costos Operativos, Margen Bruto, ROI) presentados en texto con valores en negrita
+2. ESTADO DE RESULTADOS (P&L) - Desglose de ingresos y costos por linea de negocio en lista con viñetas
+3. TENDENCIA FINANCIERA - Evolucion mensual descrita en texto con valores clave
+4. RENDIMIENTO POR TIENDA - Top 5 tiendas por margen en lista enumerada
+5. WORKFORCE ANALYTICS - Personal activo/inactivo y top empleados en lista
+6. PROYECTOS ESPECIALES Y VWH - Volumen y margen en texto
+7. CUENTAS POR COBRAR Y FLUJO DE PAGOS - Distribucion en lista
+8. CONCLUSIONES Y RECOMENDACIONES - Analisis breve
 
-Para cada seccion incluye tanto los datos numericos como un breve analisis interpretativo.`;
+Para cada seccion incluye tanto los datos numericos como un breve analisis interpretativo en texto. NO uses tablas HTML, solo parrafos y listas.`;
 
             const html = await callGemini(userPrompt, { systemPrompt });
             setReportHtml(html);
@@ -1911,63 +1911,31 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                 </div>
             )}
 
-            {/* Visor de Informe a Pantalla Completa */}
+            {/* Visor de Informe a Pantalla Completa — Móvil */}
             {reportHtml && !reportLoading && (
                 <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-in fade-in duration-300">
-                    <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <img
-                                src="/Logo Logic Group Management.png"
-                                alt="LGM"
-                                className="h-7 w-auto object-contain"
-                            />
-                            <div>
-                                <h2 className="text-sm font-black text-[#333333] uppercase tracking-wider">
-                                    Informe Financiero y Operativo
-                                </h2>
-                                <p className="text-[10px] text-gray-400 font-medium tracking-wider">
-                                    {dateFrom ? formatDisplayDate(dateFrom) : ''} — {dateTo ? formatDisplayDate(dateTo) : ''}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={handleCopyWithFeedback}
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-all font-black text-[10px] uppercase tracking-widest border border-gray-200 active:scale-95"
-                                title="Copiar texto del informe"
-                            >
-                                {copySuccess ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                                {copySuccess ? 'Copiado' : 'Copiar'}
-                            </button>
-                            <button
-                                onClick={downloadJPG}
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-all font-black text-[10px] uppercase tracking-widest border border-gray-200 active:scale-95"
-                                title="Descargar como imagen JPG"
-                            >
-                                <Image size={14} />
-                                JPG
-                            </button>
-                            <button
-                                onClick={downloadPDF}
-                                className="flex items-center gap-2 px-4 py-2 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-900/20 active:scale-95"
-                                title="Descargar como PDF"
-                            >
-                                <Download size={14} />
-                                PDF
-                            </button>
-                            <button
-                                onClick={() => setReportHtml(null)}
-                                className="p-2.5 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 transition-all border border-gray-200 active:scale-95"
-                                title="Cerrar informe"
-                            >
-                                <X size={16} />
-                            </button>
-                        </div>
+                    <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-gray-100 px-4 py-3 flex items-center justify-between shadow-sm">
+                        <button
+                            onClick={handleCopyWithFeedback}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-[#22c55e]/10 text-[#22c55e] rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+                            title="Copiar texto del informe"
+                        >
+                            {copySuccess ? <Check size={14} /> : <Copy size={14} />}
+                            {copySuccess ? 'Copiado' : 'Copiar Texto'}
+                        </button>
+                        <button
+                            onClick={() => setReportHtml(null)}
+                            className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all border border-red-200 active:scale-95"
+                            title="Cerrar informe"
+                        >
+                            <X size={16} />
+                        </button>
                     </div>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto">
                         <div
                             ref={reportRef}
-                            className="max-w-4xl mx-auto px-8 py-10"
+                            className="w-full px-4 py-6"
+                            style={{ wordBreak: 'break-word', overflowWrap: 'break-word', maxWidth: '100vw' }}
                             dangerouslySetInnerHTML={{ __html: reportHtml }}
                         />
                     </div>
