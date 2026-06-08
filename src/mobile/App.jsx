@@ -2257,21 +2257,21 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
         <div className="fixed inset-0 z-[60] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
             <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-16">
                 {/* Top Navigation */}
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-between mb-8 gap-2">
                     <button
                         onClick={onBack}
-                        className={`flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl shadow-sm group font-bold text-[10px] uppercase tracking-widest border-2 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}
+                        className="flex items-center gap-1 px-2.5 py-2 bg-gray-100 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all hover:bg-gray-200 flex-shrink-0"
                     >
-                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                        Volver al Inicio
+                        <ArrowLeft size={14} />
+                        Atrás
                     </button>
 
-                    <div className="flex gap-3">
+                    <div className="flex gap-2">
                         {!isEditing ? (
                             <>
                                 <button
                                     onClick={() => setShowDeleteModal(true)}
-                                    className={`bg-white text-red-500 font-bold px-6 py-3 border-2 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 hover:bg-red-50 transition-all flex items-center gap-2 ${isEditing ? 'border-red-100/80' : 'border-transparent'}`}
+                                    className="hidden"
                                 >
                                     <Trash2 size={16} />
                                     Eliminar Tienda
@@ -2279,27 +2279,21 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                                 <button
                                     onClick={() => setIsEditing(true)}
                                     style={{ backgroundColor: '#303a7f' }}
-                                    className="text-white font-black px-8 py-3 shadow-2xl shadow-blue-900/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-2 hover:bg-[#252a5e] transition-colors"
+                                    className="text-white font-black px-4 py-2 shadow-2xl shadow-blue-900/20 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-1.5 hover:bg-[#252a5e] transition-colors flex-shrink-0"
                                 >
-                                    <Edit2 size={16} />
-                                    Editar Tienda
+                                    <Edit2 size={14} />
+                                    Editar
                                 </button>
                             </>
                         ) : (
                             <>
                                 <button
-                                    onClick={handleCancel}
-                                    className="bg-white text-gray-500 font-black px-6 py-3 border-2 border-brand-primary/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 hover:bg-gray-50 transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
                                     onClick={handleSave}
                                     style={{ backgroundColor: '#6bbdb7' }}
-                                    className="text-white font-black px-8 py-3 shadow-2xl shadow-teal-900/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-2 hover:bg-[#59aba5] transition-colors"
+                                    className="text-white font-black px-4 py-2 shadow-2xl shadow-teal-900/20 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-1.5 hover:bg-[#59aba5] transition-colors flex-shrink-0"
                                 >
-                                    <CheckCircle size={18} />
-                                    Guardar Cambios
+                                    <CheckCircle size={14} />
+                                    Guardar
                                 </button>
                             </>
                         )}
@@ -2307,6 +2301,17 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    {(!isEditing && store.cliente !== 'CSG') && (
+                        <div className="lg:col-span-12 flex justify-center">
+                            <button
+                                onClick={() => onProcessPayroll(store.nombre)}
+                                className="px-5 py-2.5 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-lg shadow-blue-900/10 active:scale-95 flex items-center gap-2"
+                            >
+                                <CreditCard size={14} />
+                                Procesar Nómina
+                            </button>
+                        </div>
+                    )}
                     {/* Left Panel: Store Identity */}
                     <div className="lg:col-span-4 space-y-6">
                         <section className={`bg-white rounded-[2rem] p-8 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
@@ -2362,13 +2367,13 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                                 <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
                                     <Settings size={18} className="text-[#303a7f]" />
                                 </div>
-                                Configuración Profesional
+                                Configuración
                             </h3>
 
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="group">
-                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1 transition-colors group-focus-within:text-[#303a7f]">Código de Tienda</label>
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1 transition-colors group-focus-within:text-[#303a7f]">Código</label>
                                         <input
                                             type="text"
                                             value={editedStore.codigo}
@@ -2461,27 +2466,15 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                         <section className={`bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 mb-8">
                                 <div className="flex items-center gap-4">
-                                    <div className="bg-[#303a7f] p-3 rounded-xl shadow-xl shadow-blue-900/10">
-                                        <DollarSign className="text-white" size={20} />
+                                    <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
+                                        <DollarSign className="text-[#303a7f]" size={18} />
                                     </div>
                                     <div>
-                                        <h3 className="text-2xl font-black text-[#333333] tracking-tighter">
-                                            {store.cliente === 'CSG' ? 'Matriz Salarial CSG' : 'Matriz Salarial Dual'}
+                                        <h3 className="text-base font-black text-[#333333] tracking-tighter">
+                                            {store.cliente === 'CSG' ? 'Matriz Salarial CSG' : 'Matriz Salarial'}
                                         </h3>
-                                        <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-1">
-                                            {store.cliente === 'CSG' ? 'Tarifas de facturación y pago por servicio' : 'Margen Operativo KBS vs Logic Solutions Group'}
-                                        </p>
                                     </div>
-                                </div>
-                                {(!isEditing && store.cliente !== 'CSG') && (
-                                    <button
-                                        onClick={() => onProcessPayroll(store.nombre)}
-                                        className="px-6 py-3 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-lg shadow-blue-900/10 active:scale-95 flex items-center gap-2"
-                                    >
-                                        <CreditCard size={16} />
-                                        Procesar Nómina
-                                    </button>
-                                )}
+                            </div>
                             </div>
 
                             {store.cliente === 'CSG' ? (
@@ -2573,73 +2566,38 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                         <section className={`bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 mb-8">
                                 <div className="flex items-center gap-4">
-                                    <div
-                                        style={{ backgroundColor: '#6bbdb7' }}
-                                        className="p-3.5 rounded-xl shadow-xl shadow-teal-900/10"
-                                    >
-                                        <Users className="text-white" size={20} />
+                                    <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
+                                        <Users className="text-[#303a7f]" size={18} />
                                     </div>
                                     <div>
-                                        <h3 className="text-2xl font-black text-[#333333] tracking-tighter">Directorio de Personal</h3>
-                                        <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-1">Consulta de Nómina Asignada (Solo Lectura)</p>
+                                        <h3 className="text-base font-black text-[#333333] tracking-tighter">Personal</h3>
                                     </div>
                                 </div>
                                 <div className={`flex items-center gap-2 px-5 py-2.5 bg-[#f9f9f9] rounded-xl border-2 transition-all ${isEditing ? 'border-brand-primary/10' : 'border-transparent'}`}>
-                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Colaboradores:</span>
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total:</span>
                                     <span className="text-[#303a7f] font-black text-base">{assignedEmployees.length}</span>
                                 </div>
                             </div>
 
-                            {/* Employees Table - Read Only Mode */}
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="border-b-2 border-gray-100/80">
-                                            <th className="py-5 px-6 text-[10px] text-gray-400 uppercase font-black tracking-[0.2em]">Nombre y Apellido</th>
-                                            <th className="py-5 px-6 text-[10px] text-gray-400 uppercase font-black tracking-[0.2em]">Identificador</th>
-                                            <th className="py-5 px-6 text-[10px] text-gray-400 uppercase font-black tracking-[0.2em]">Cargo Asignado</th>
-                                            <th className="py-5 px-6 text-right">Estatus</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y-2 divide-gray-100/80">
-                                        {assignedEmployees.map((emp) => (
-                                            <tr key={emp.codigo_empleado} className="hover:bg-gray-50/50 transition-colors group">
-                                                <td className="py-4 px-6 font-bold text-[#333333] text-sm flex items-center gap-3">
-                                                    <div className={`w-8 h-8 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0 border-2 transition-all ${isEditing ? 'border-brand-primary/10' : 'border-transparent'}`}>
-                                                        {emp.imagen ? (
-                                                            <img src={emp.imagen} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <Users size={14} className="text-gray-300 m-auto mt-2" />
-                                                        )}
-                                                    </div>
-                                                    {emp.nombre}
-                                                </td>
-                                                <td className="py-4 px-6 text-[#6bbdb7] font-black text-[10px] tracking-widest">{emp.codigo_empleado}</td>
-                                                <td className="py-4 px-6">
-                                                    <span className="bg-[#303a7f]/5 px-3 py-1.5 rounded-lg text-[9px] text-[#303a7f] font-black uppercase tracking-widest">
-                                                        {emp.cargo}
-                                                    </span>
-                                                </td>
-                                                <td className="py-4 px-6 text-right">
-                                                    <div className="flex items-center justify-end gap-1.5">
-                                                        <div className={`w-1.5 h-1.5 ${emp.fecha_egreso ? 'bg-red-400' : 'bg-green-500 rounded-full animate-pulse'}`} />
-                                                        <span className={`text-[8px] font-black uppercase ${emp.fecha_egreso ? 'text-red-400' : 'text-green-600'}`}>
-                                                            {emp.fecha_egreso ? 'Inactivo' : 'Activo'}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {assignedEmployees.length === 0 && (
-                                            <tr>
-                                                <td colSpan="4" className="py-24 text-center">
-                                                    <Users size={40} className="text-gray-100 mx-auto mb-4" />
-                                                    <p className="text-gray-300 font-bold uppercase tracking-widest text-xs">Sin registros de nómina activa para esta Tienda.</p>
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
+                            <div className="space-y-1.5">
+                                {assignedEmployees.map((emp) => (
+                                    <div key={emp.codigo_empleado} className="flex items-center gap-2.5 py-1.5">
+                                        <div className="w-7 h-7 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0 flex items-center justify-center">
+                                            {emp.imagen ? (
+                                                <img src={emp.imagen} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <Users size={12} className="text-gray-300" />
+                                            )}
+                                        </div>
+                                        <span className="text-xs font-bold text-[#333333] truncate">{emp.nombre}</span>
+                                    </div>
+                                ))}
+                                {assignedEmployees.length === 0 && (
+                                    <div className="py-10 text-center">
+                                        <Users size={32} className="text-gray-200 mx-auto mb-3" />
+                                        <p className="text-gray-300 font-bold uppercase tracking-widest text-[10px]">Sin personal asignado</p>
+                                    </div>
+                                )}
                             </div>
                         </section>
                     </div>
