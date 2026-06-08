@@ -18521,90 +18521,36 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
 
                     {activeTab === 'stores' && (
                         <>
-                            <div className="flex flex-col md:flex-row gap-4 mb-10 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="relative flex-1 group h-11">
-                                    <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={20} />
+                            <div className="flex gap-2 mb-6 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="relative flex-1 group h-10">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={16} />
                                     <input
                                         type="text"
-                                        placeholder="Filtrar por nombre de Tienda o Ubicación..."
+                                        placeholder="Filtrar tiendas..."
                                         value={storeSearchTerm}
                                         onChange={(e) => setStoreSearchTerm(e.target.value)}
-                                        className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-14 pr-6 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-sm placeholder:text-gray-300"
+                                        className="w-full h-full bg-white border-2 border-brand-primary/20 text-[#333333] rounded-2xl pl-11 pr-4 outline-none focus:border-[#303a7f]/20 focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold shadow-sm text-xs placeholder:text-gray-300"
                                     />
                                 </div>
                                 <button
                                     onClick={() => setStoreSearchTerm('')}
-                                    className="h-11 w-11 bg-white border-2 border-brand-primary/10 rounded-2xl flex items-center justify-center hover:border-[#303a7f]/20 hover:bg-[#303a7f]/5 transition-all group shadow-sm flex-shrink-0"
+                                    className="h-10 w-10 bg-white border-2 border-brand-primary/10 rounded-2xl flex items-center justify-center hover:border-[#303a7f]/20 hover:bg-[#303a7f]/5 transition-all group shadow-sm flex-shrink-0"
                                     title="Limpiar búsqueda"
                                 >
-                                    <Eraser size={18} strokeWidth={2.5} className="text-gray-300 group-hover:text-red-500 transition-colors" />
+                                    <Eraser size={16} strokeWidth={2.5} className="text-gray-300 group-hover:text-red-500 transition-colors" />
                                 </button>
-
-                                <button
-                                    onClick={() => setIsStoreStatsModalOpen(true)}
-                                    className="h-11 px-6 bg-white border-2 border-brand-primary/10 rounded-2xl flex items-center gap-3 hover:border-[#303a7f]/20 hover:bg-[#303a7f]/5 transition-all group shadow-sm"
-                                >
-                                    <div className="w-2 h-2 rounded-full bg-[#6bbdb7] animate-pulse" />
-                                    <div className="flex flex-col items-start leading-tight">
-                                        <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest">{stores.length}</span>
-                                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Registradas</span>
-                                    </div>
-                                </button>
-
-                                {/* Toggle de Vistas para Tiendas */}
-                                <div className="h-11 bg-white border-2 border-brand-primary/10 rounded-2xl p-1 flex items-center gap-1 shadow-sm">
-                                    <button
-                                        onClick={() => setStoresViewMode('list')}
-                                        className={`h-full px-3 rounded-xl transition-all flex items-center gap-2 group ${storesViewMode === 'list' ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:bg-gray-50'}`}
-                                        title="Vista de Lista"
-                                    >
-                                        <List size={18} />
-                                        <span className={`text-[9px] font-black uppercase tracking-widest overflow-hidden transition-all duration-300 ${storesViewMode === 'list' ? 'max-w-[60px] ml-1' : 'max-w-0'}`}>Lista</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setStoresViewMode('grid')}
-                                        className={`h-full px-3 rounded-xl transition-all flex items-center gap-2 group ${storesViewMode === 'grid' ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:bg-gray-50'}`}
-                                        title="Vista de Cuadrícula"
-                                    >
-                                        <LayoutGrid size={18} />
-                                        <span className={`text-[9px] font-black uppercase tracking-widest overflow-hidden transition-all duration-300 ${storesViewMode === 'grid' ? 'max-w-[80px] ml-1' : 'max-w-0'}`}>Cuadrícula</span>
-                                    </button>
-                                </div>
-
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setIsStoreMassImportInfoOpen(true)}
-                                        style={{ backgroundColor: '#6bbdb7' }}
-                                        className="h-11 text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-lg shadow-teal-900/10 hover:opacity-90 active:scale-95 group overflow-hidden relative whitespace-nowrap"
-                                    >
-                                        <FileSpreadsheet size={20} className="group-hover:scale-110 transition-transform duration-500" />
-                                        <span className="tracking-widest uppercase text-[10px]">Importar Excel</span>
-                                    </button>
-                                    {userCanEdit && (
-                                    <button
-                                        onClick={() => setIsAddingStore(true)}
-                                        style={{ backgroundColor: '#303a7f' }}
-                                        className="h-11 text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e] whitespace-nowrap"
-                                    >
-                                        <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-                                        <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" />
-                                        <span className="tracking-widest uppercase text-[10px]">Agregar Tienda</span>
-                                    </button>
-                                    )}
-                                </div>
-                                <input
-                                    type="file"
-                                    ref={storeMassImportFileInputRef}
-                                    className="hidden"
-                                    accept=".xlsx,.xls,.csv"
-                                    onChange={(e) => {
-                                        if (e.target.files?.[0]) {
-                                            handleStoreMassImport(e.target.files[0]);
-                                            e.target.value = ''; // Reset input
-                                        }
-                                    }}
-                                />
                             </div>
+
+                            {/* Botón Flotante Agregar Tienda */}
+                            {userCanEdit && (
+                                <button
+                                    onClick={() => setIsAddingStore(true)}
+                                    className="fixed bottom-24 right-4 z-40 w-14 h-14 bg-[#303a7f] text-white rounded-2xl flex items-center justify-center shadow-xl shadow-blue-900/30 active:scale-95 transition-all"
+                                    title="Agregar Tienda"
+                                >
+                                    <Plus size={24} />
+                                </button>
+                            )}
 
                             {storesViewMode === 'grid' ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
