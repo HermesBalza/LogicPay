@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   DollarSign, TrendingUp, TrendingDown, Receipt, Activity,
   Calendar, Eraser, RefreshCw, Users, Building2,
-  Sparkles, FileText, Download, Loader2
+  Sparkles, Copy, Loader2
 } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
@@ -63,6 +63,7 @@ export default function MobileDashboard({ stores = [], employees = [], user }) {
   const [reportHtml, setReportHtml] = useState('');
   const [showReportConfirm, setShowReportConfirm] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const fromRef = useRef(null);
   const toRef = useRef(null);
@@ -645,40 +646,26 @@ Estructura del informe:
             <>
               <div className="flex gap-2 mb-3">
                 <button
-                  onClick={async () => {
-                    try {
-                      const container = document.getElementById('report-content');
-                      if (!container) return;
-                      const canvas = await html2canvas(container, { scale: 2, useCORS: true });
-                      const imgData = canvas.toDataURL('image/jpeg', 0.9);
-                      const pdf = new jsPDF('p', 'mm', 'a4');
-                      const pdfWidth = pdf.internal.pageSize.getWidth();
-                      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-                      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-                      pdf.save(`Informe_LogicPay_${new Date().toISOString().split('T')[0]}.pdf`);
-                    } catch (e) { console.error('Error PDF:', e); }
+                  onClick={() => {
+                    const container = document.getElementById('report-content');
+                    if (container) {
+                      const text = container.innerText || container.textContent;
+                      navigator.clipboard.writeText(text).then(() => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2500);
+                      });
+                    }
                   }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#303a7f]/10 text-[#303a7f] rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#22c55e]/10 text-[#22c55e] rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
                 >
-                  <Download size={14} /> PDF
-                </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      const container = document.getElementById('report-content');
-                      if (!container) return;
-                      const canvas = await html2canvas(container, { scale: 2, useCORS: true });
-                      const link = document.createElement('a');
-                      link.download = `Informe_LogicPay_${new Date().toISOString().split('T')[0]}.jpg`;
-                      link.href = canvas.toDataURL('image/jpeg', 0.95);
-                      link.click();
-                    } catch (e) { console.error('Error JPG:', e); }
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
-                >
-                  <FileText size={14} /> JPG
+                  <Copy size={14} /> Copiar todo el texto
                 </button>
               </div>
+              {copied && (
+                <div className="text-center py-2 px-3 mb-3 bg-green-50 border border-green-200 rounded-xl">
+                  <span className="text-[11px] font-bold text-green-700">Texto del informe copiado al portapapeles</span>
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto custom-scrollbar bg-white rounded-xl border border-gray-100">
                 <div id="report-content" dangerouslySetInnerHTML={{ __html: reportHtml }} className="p-4 text-sm break-words overflow-x-hidden" />
               </div>
