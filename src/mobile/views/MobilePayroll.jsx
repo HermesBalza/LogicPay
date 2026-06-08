@@ -418,9 +418,6 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-base font-black text-gray-800 tracking-tight">Nómina</h1>
-        <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
-          {nominaHistory.length} semanas
-        </span>
       </div>
 
       <MobileSelect value={selectedStore} onChange={setSelectedStore} options={storeOptions} placeholder="Seleccionar tienda" />
@@ -483,6 +480,7 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
                         return (
                           <button
                             key={idx}
+                            disabled={!selectedStore}
                             onClick={() => {
                               const found = nominaHistory.find(h =>
                                 String(h.nombre).trim().toLowerCase() === String(selectedStore).trim().toLowerCase() &&
@@ -501,6 +499,7 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
                               }
                             }}
                             className={`relative p-3 rounded-xl border-2 text-left transition-all active:scale-95 ${
+                              !selectedStore ? 'opacity-40 pointer-events-none' :
                               processed
                                 ? 'bg-brand-accent border-brand-accent text-white'
                                 : 'bg-gray-50 border-gray-100 text-brand-primary'
