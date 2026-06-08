@@ -9812,72 +9812,66 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
             )}
 
             {/* Store & Year Selector */}
-            <div className={`bg-white border-b-2 border-gray-50 px-12 py-4 flex flex-col md:flex-row gap-8 items-end custom-scrollbar sticky ${inline ? 'top-0' : 'top-[108px]'} z-10`}>
-                <div className="flex-shrink-0 w-full md:w-80 border-r-0 md:border-r-2 md:border-gray-50 pr-0 md:pr-6">
-                    <label className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-2">Consultar / Procesar Tienda</label>
-                    <div className="relative group">
-                        <select
-                            value={selectedStore}
-                            onChange={(e) => onSelectStore(e.target.value)}
-                            className="w-full bg-gray-50 border-2 border-brand-primary/10 rounded-xl px-4 pr-10 py-2.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all cursor-pointer shadow-inner appearance-none h-[44px]"
-                        >
-                            <option value="">Selecciona una Tienda</option>
-                            <option value={CONSOLIDATED_STORE} style={{ fontWeight: 'black', color: '#6bbdb7' }}>
-                                ❇️ {CONSOLIDATED_STORE}
-                            </option>
-                            {stores.filter(s => (s.cliente || 'KBS').toUpperCase() === 'KBS').sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map((s, idx) => (
-                                <option key={s.codigo || `store-${idx}`} value={s.nombre}>{s.nombre}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#303a7f]/50 group-hover:text-[#303a7f] transition-colors">
-                            <ChevronDown size={18} strokeWidth={3} />
+            <div className={`bg-white border-b-2 border-gray-50 px-4 py-3 space-y-3 sticky ${inline ? 'top-0' : 'top-[108px]'} z-10`}>
+                <div className="text-left">
+                    <label className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-1.5">Seleccionar Tienda</label>
+                    <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <select
+                                value={selectedStore}
+                                onChange={(e) => onSelectStore(e.target.value)}
+                                className="w-full bg-gray-50 border-2 border-brand-primary/10 rounded-xl px-3 pr-8 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all cursor-pointer shadow-inner appearance-none h-10"
+                            >
+                                <option value="">Selecciona una Tienda</option>
+                                <option value={CONSOLIDATED_STORE} style={{ fontWeight: 'black', color: '#6bbdb7' }}>
+                                    ❇️ {CONSOLIDATED_STORE}
+                                </option>
+                                {stores.filter(s => (s.cliente || 'KBS').toUpperCase() === 'KBS').sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map((s, idx) => (
+                                    <option key={s.codigo || `store-${idx}`} value={s.nombre}>{s.nombre}</option>
+                                ))}
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#303a7f]/50">
+                                <ChevronDown size={14} strokeWidth={3} />
+                            </div>
+                        </div>
+                        <div className="bg-[#f9f9f9] border-2 border-brand-primary/5 rounded-xl flex items-center h-10 px-1 flex-shrink-0">
+                            <button
+                                onClick={() => setSelectedYear(y => Math.max(2026, y - 1))}
+                                disabled={selectedYear <= 2026}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-white hover:text-[#303a7f] disabled:opacity-30 transition-all active:scale-95"
+                            >
+                                <ChevronLeft size={14} strokeWidth={3} />
+                            </button>
+                            <span className="text-[#303a7f] font-black text-xs tracking-widest px-2 min-w-[44px] text-center">{selectedYear}</span>
+                            <button
+                                onClick={() => setSelectedYear(y => Math.min(2040, y + 1))}
+                                disabled={selectedYear >= 2040}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-white hover:text-[#303a7f] disabled:opacity-30 transition-all active:scale-95"
+                            >
+                                <ChevronRight size={14} strokeWidth={3} />
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex-shrink-0">
-                    <label className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-2 opacity-0 hidden md:block">Año Fiscal</label>
-                    <div className="bg-[#f9f9f9] border-[3px] border-brand-primary/5 rounded-2xl flex items-center shadow-inner h-[44px] p-0.5">
-                        <button
-                            onClick={() => setSelectedYear(y => Math.max(2026, y - 1))}
-                            disabled={selectedYear <= 2026}
-                            className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:bg-white hover:text-[#303a7f] hover:shadow-sm disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-95"
-                        >
-                            <ChevronLeft size={16} strokeWidth={3} />
-                        </button>
-
-                        <div className="px-6 flex items-center justify-center min-w-[100px]">
-                            <span className="text-[#303a7f] font-black text-sm tracking-widest">{selectedYear}</span>
-                        </div>
-
-                        <button
-                            onClick={() => setSelectedYear(y => Math.min(2040, y + 1))}
-                            disabled={selectedYear >= 2040}
-                            className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:bg-white hover:text-[#303a7f] hover:shadow-sm disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-95"
-                        >
-                            <ChevronRight size={16} strokeWidth={3} />
-                        </button>
-                    </div>
-                </div>
-
-                <div className="flex-1 flex items-end justify-end gap-3">
+                <div className="flex gap-2">
                     <button
                         onClick={onOpenWOS}
-                        className="h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]"
+                        className="px-4 h-10 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 bg-[#303a7f] text-white shadow-lg shadow-blue-900/10 hover:bg-[#252a5e] flex-shrink-0"
                     >
-                        <LayoutGrid size={16} />
+                        <LayoutGrid size={14} />
                         WOS
                     </button>
                     <button
                         onClick={() => onOpenBilling(selectedYear)}
                         disabled={!selectedStore || selectedStore === CONSOLIDATED_STORE}
-                        className={`h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg ${selectedStore && selectedStore !== CONSOLIDATED_STORE
-                            ? 'bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]'
-                            : 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-50'
+                        className={`flex-1 h-10 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 ${selectedStore && selectedStore !== CONSOLIDATED_STORE
+                            ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10 hover:bg-[#252a5e]'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                             }`}
                     >
-                        <Receipt size={16} />
-                        Facturación Radicada
+                        <Receipt size={14} />
+                        Fact. Radicada
                     </button>
                 </div>
             </div>
