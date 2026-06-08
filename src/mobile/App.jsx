@@ -4182,21 +4182,21 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
     return (
         <div className="fixed inset-0 z-[60] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
             <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-16">
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-between mb-8 gap-2">
                     <button
                         onClick={onBack}
-                        className={`flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl shadow-sm group font-bold text-[10px] uppercase tracking-widest border-2 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}
+                        className="flex items-center gap-1 px-2.5 py-2 bg-gray-100 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all hover:bg-gray-200 flex-shrink-0"
                     >
-                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                        Volver al Listado
+                        <ArrowLeft size={14} />
+                        Atrás
                     </button>
 
-                    <div className="flex gap-3">
+                    <div className="flex gap-2">
                         {!isEditing ? (
                             <>
                                 <button
                                     onClick={() => setShowDeleteModal(true)}
-                                    className={`bg-white text-red-500 font-bold px-6 py-3 border-2 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 hover:bg-red-50 transition-all flex items-center gap-2 ${isEditing ? 'border-red-100/80' : 'border-transparent'}`}
+                                    className="hidden"
                                 >
                                     <Trash2 size={16} />
                                     Eliminar Empleado
@@ -4204,27 +4204,21 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                 <button
                                     onClick={() => setIsEditing(true)}
                                     style={{ backgroundColor: '#303a7f' }}
-                                    className="text-white font-black px-8 py-3 shadow-2xl shadow-blue-900/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-2 hover:bg-[#252a5e] transition-colors"
+                                    className="text-white font-black px-4 py-2 shadow-2xl shadow-blue-900/20 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-1.5 hover:bg-[#252a5e] transition-colors flex-shrink-0"
                                 >
-                                    <Edit2 size={16} />
-                                    Editar Perfil
+                                    <Edit2 size={14} />
+                                    Editar
                                 </button>
                             </>
                         ) : (
                             <>
                                 <button
-                                    onClick={handleCancel}
-                                    className="bg-white text-gray-500 font-black px-6 py-3 border-2 border-brand-primary/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 hover:bg-gray-50 transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
                                     onClick={handleSave}
                                     style={{ backgroundColor: '#6bbdb7' }}
-                                    className="text-white font-black px-8 py-3 shadow-2xl shadow-teal-900/20 text-xs tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-2 hover:bg-[#59aba5] transition-colors"
+                                    className="text-white font-black px-4 py-2 shadow-2xl shadow-teal-900/20 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-1.5 hover:bg-[#59aba5] transition-colors flex-shrink-0"
                                 >
-                                    <CheckCircle size={18} />
-                                    Guardar Cambios
+                                    <CheckCircle size={14} />
+                                    Guardar
                                 </button>
                             </>
                         )}
@@ -4275,7 +4269,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                         <section className={`bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 h-full ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
                             <h3 className="text-[#333333] font-black flex items-center gap-3 mb-5 text-sm uppercase tracking-widest">
                                 <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
-                                    <Settings size={16} className="text-[#303a7f]" />
+                                    <Settings size={18} className="text-[#303a7f]" />
                                 </div>
                                 Datos del Empleado
                             </h3>
@@ -4442,10 +4436,10 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                         <section className={`bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
                             <div className="flex items-center justify-between mb-8">
                                 <h3 className="text-[#333333] font-black flex items-center gap-3 text-base uppercase tracking-widest">
-                                    <div className="bg-[#6bbdb7] p-2 rounded-lg shadow-lg shadow-teal-900/10">
-                                        <Receipt size={18} className="text-white" />
+                                    <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
+                                        <Receipt size={18} className="text-[#303a7f]" />
                                     </div>
-                                    Información Fiscal y 1099
+                                    Información Fiscal
                                 </h3>
                                 {isEditing && (
                                     <span className="text-[10px] font-black text-teal-600 bg-teal-50 px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Modo Edición Fiscal Activo</span>
@@ -4613,61 +4607,29 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
 
                     {/* Historial de Ubicaciones */}
                     <div className="lg:col-span-12">
-                        <section className={`bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
-                            <h3 className="text-[#333333] font-black flex items-center gap-3 mb-8 text-base uppercase tracking-widest">
-                                <div className="bg-[#303a7f] p-2 rounded-lg shadow-lg shadow-blue-900/10">
-                                    <MapPin size={18} className="text-white" />
+                        <section className={`bg-white rounded-[2rem] p-4 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
+                            <h3 className="text-[#333333] font-black flex items-center gap-3 mb-4 text-base uppercase tracking-widest">
+                                <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
+                                    <MapPin size={18} className="text-[#303a7f]" />
                                 </div>
-                                Trayectoria y Estancia en Tiendas
+                                Tracking
                             </h3>
 
-                            <div className="relative pl-8 border-l-2 border-gray-100 space-y-8 ml-4">
+                            <div className="space-y-2">
                                 {(editedEmployee.locationHistory && Array.isArray(editedEmployee.locationHistory) && editedEmployee.locationHistory.length > 0) ? (
                                     [...editedEmployee.locationHistory].reverse().map((hist, idx) => (
-                                        <div key={idx} className="relative animate-in fade-in slide-in-from-left-4 duration-500" style={{ animationDelay: `${idx * 100}ms` }}>
-                                            {/* Dot */}
-                                            <div className="absolute -left-[41px] top-1 w-4 h-4 rounded-full bg-white border-4 border-[#303a7f] shadow-sm z-10" />
-
-                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50 p-6 rounded-[1.5rem] border border-gray-100 hover:border-[#303a7f]/20 hover:bg-white hover:shadow-xl hover:shadow-blue-900/5 transition-all group">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:bg-[#303a7f]/5 transition-colors">
-                                                        <StoreIcon size={20} className="text-[#303a7f]" />
-                                                    </div>
-                                                    <div>
-                                                        <h4 className={`text-sm font-black uppercase tracking-tight ${hist.tipo === 'P.E' ? 'text-orange-600' : 'text-[#303a7f]'}`}>
-                                                            {hist.tienda}
-                                                        </h4>
-                                                        <p className={`text-[10px] font-bold uppercase tracking-widest ${hist.tipo === 'P.E' ? 'text-orange-400' : 'text-gray-400'}`}>
-                                                            {hist.tipo === 'P.E' ? 'Proyecto Especial' : 'Estancia en sucursal'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center gap-6">
-                                                    {hist.tipo === 'P.E' && (
-                                                        <div className="hidden md:flex items-center gap-2 bg-orange-50 px-3 py-1 rounded-full border border-orange-100">
-                                                        </div>
-                                                    )}
-                                                    <div className="text-right">
-                                                        <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mb-1">Desde</p>
-                                                        <p className="text-xs font-black text-[#333333] tabular-nums">{hist.inicio}</p>
-                                                    </div>
-                                                    <div className="h-8 w-[1px] bg-gray-200 hidden md:block" />
-                                                    <div className="text-right">
-                                                        <p className="text-[9px] text-[#6bbdb7] font-black uppercase tracking-widest mb-1">Hasta</p>
-                                                        <p className="text-xs font-black text-[#333333] tabular-nums">{hist.fin}</p>
-                                                    </div>
-                                                </div>
+                                        <div key={idx} className="bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+                                            <h4 className="text-xs font-black text-[#303a7f] uppercase truncate mb-1.5">{hist.tienda}</h4>
+                                            <div className="flex items-center gap-3 text-[10px] font-bold">
+                                                <span className="text-gray-400">Desde: <span className="text-[#333333]">{hist.inicio}</span></span>
+                                                <span className="text-gray-400">Hasta: <span className="text-[#333333]">{hist.fin}</span></span>
                                             </div>
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="text-center py-16 bg-gray-50/50 rounded-[2rem] border-2 border-dashed border-gray-100 flex flex-col items-center">
-                                        <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
-                                            <History size={40} className="text-gray-100" />
-                                        </div>
-                                        <p className="text-gray-400 font-black uppercase tracking-[0.2em] text-[10px]">Sin registros históricos de ubicación.</p>
-                                        <p className="text-[9px] text-gray-300 mt-2 uppercase font-bold">El historial se actualizará automáticamente con cada aprobación de nómina.</p>
+                                    <div className="text-center py-12">
+                                        <History size={28} className="text-gray-200 mx-auto mb-3" />
+                                        <p className="text-gray-400 font-bold text-[10px]">Sin registros de ubicación</p>
                                     </div>
                                 )}
                             </div>
