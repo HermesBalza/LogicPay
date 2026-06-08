@@ -1414,7 +1414,7 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
     return (
         <div className="h-full overflow-y-auto pb-8 animate-in fade-in zoom-in-95 duration-500">
             {/* Header & Controls — Móvil Optimizado: solo Desde, Hasta, Borrar, Resumen */}
-            <div className="px-2 pb-2">
+            <div className="pb-2">
                 <div className="flex items-center justify-between gap-2 mb-4">
                     <div className="flex items-center gap-1 bg-white p-1 rounded-xl shadow-sm border border-gray-100">
                         <div
@@ -1422,7 +1422,7 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                             onClick={() => openDatePicker(fromDateRef)}
                         >
                             <Calendar size={13} className="text-[#303a7f] pointer-events-none" />
-                            <span className="text-[10px] font-black text-[#333333] uppercase tracking-wider truncate max-w-[70px]">
+                            <span className="text-[8px] font-black text-[#333333] uppercase tracking-wider truncate max-w-[70px]">
                                 {dateFrom ? formatDisplayDate(dateFrom) : 'Desde'}
                             </span>
                             <input ref={fromDateRef} type="date" lang="en-US" value={dateFrom || ''} onChange={(e) => setDateFrom(e.target.value || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onClick={(e) => { e.stopPropagation(); if (typeof e.target.showPicker === 'function') e.target.showPicker(); }} />
@@ -1432,7 +1432,7 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                             onClick={() => openDatePicker(toDateRef)}
                         >
                             <Calendar size={13} className="text-[#303a7f] pointer-events-none" />
-                            <span className="text-[10px] font-black text-[#333333] uppercase tracking-wider truncate max-w-[70px]">
+                            <span className="text-[8px] font-black text-[#333333] uppercase tracking-wider truncate max-w-[70px]">
                                 {dateTo ? formatDisplayDate(dateTo) : 'Hasta'}
                             </span>
                             <input ref={toDateRef} type="date" lang="en-US" value={dateTo || ''} onChange={(e) => setDateTo(e.target.value || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onClick={(e) => { e.stopPropagation(); if (typeof e.target.showPicker === 'function') e.target.showPicker(); }} />
@@ -1543,17 +1543,14 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                         </div>
                     </div>
 
-                    {/* Mix de Ingresos (Composición) */}
-                    <div className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/[0.03] border border-gray-100 flex flex-col justify-between items-center text-center">
-                        <div className="w-full text-left mb-6">
-                            <div className="flex items-center gap-2">
-                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Mix de Ingresos</h3>
-                                <button
-                                    onClick={() => setInfoModal({ title: 'Mix de Ingresos', description: sectionDescriptions['mix-ingresos'] })}
-                                    className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors"
-                                >
-                                    <Info size={13} />
-                                </button>
+                    {/* Mix de Ingresos (Composición) — Móvil */}
+                    <div className="bg-white rounded-[2rem] p-4 shadow-xl shadow-blue-900/[0.03] border border-gray-100 flex flex-col justify-between items-center text-center">
+                        <div className="w-full text-left mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-[#303a7f]/5 rounded-xl text-[#303a7f]">
+                                    <PieChartIcon size={18} />
+                                </div>
+                                <h3 className="text-xs font-black text-[#303a7f] uppercase tracking-tighter">Mix de Ingresos</h3>
                             </div>
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Distribución por Tipo</p>
                         </div>
@@ -1604,19 +1601,13 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                    {/* 2. P&L Resumido */}
-                    <div className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col">
-                        <div className="flex justify-between items-center mb-6">
-                            <div className="flex items-center gap-3">
-                                <BarChart3 className="text-[#6bbdb7]" size={24} />
-                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">P&L Resumido</h3>
-                                <button
-                                    onClick={() => setInfoModal({ title: 'P&L Resumido', description: sectionDescriptions['pl-resumido'] })}
-                                    className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors ml-auto"
-                                >
-                                    <Info size={14} />
-                                </button>
+                    {/* 2. P&L Resumido — Móvil */}
+                    <div className="bg-white rounded-[2rem] p-4 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-[#303a7f]/5 rounded-xl text-[#303a7f]">
+                                <BarChart3 size={18} />
                             </div>
+                            <h3 className="text-xs font-black text-[#303a7f] uppercase tracking-tighter">P&L Resumido</h3>
                         </div>
                         <div className="flex-1 space-y-6">
                             <div className="space-y-3">
@@ -1719,19 +1710,13 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                         </div>
                     </div>
 
-                    {/* 5. Facturaciones y WOS */}
-                    <div className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col">
-                        <div className="flex justify-between items-center mb-6">
-                            <div className="flex items-center gap-3">
-                                <Sparkles className="text-orange-400" size={24} />
-                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Facturaciones y WOS</h3>
-                                <button
-                                    onClick={() => setInfoModal({ title: 'Facturaciones y WOS', description: sectionDescriptions['pe-vwh'] })}
-                                    className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors ml-auto"
-                                >
-                                    <Info size={14} />
-                                </button>
+                    {/* 5. Facturaciones y WOS — Móvil */}
+                    <div className="bg-white rounded-[2rem] p-4 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-[#303a7f]/5 rounded-xl text-[#303a7f]">
+                                <Sparkles size={18} />
                             </div>
+                            <h3 className="text-xs font-black text-[#303a7f] uppercase tracking-tighter">Facturaciones y WOS</h3>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 flex-1">
@@ -18501,7 +18486,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 <img
                     src="/Logo Logic Group Management.png"
                     alt="LogicPay"
-                    className="h-4 w-auto object-contain"
+                    className="h-5 w-auto object-contain"
                 />
 
                 <div className="flex items-center gap-2">
