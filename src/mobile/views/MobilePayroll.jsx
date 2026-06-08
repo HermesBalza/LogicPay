@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Calendar, Upload, CheckCircle, Send, RefreshCw, AlertTriangle, Eye, ChevronLeft, ChevronRight, Lock, Unlock, Cpu, Camera, Trash2, X, FileText, Clock8 } from 'lucide-react';
+import { Calendar, Upload, CheckCircle, Send, RefreshCw, AlertTriangle, Eye, ChevronLeft, ChevronRight, Lock, Unlock, Cpu, Camera, Trash2, X, FileText, Clock8, Mail, CreditCard, Clock, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 import MobileCard from '../components/MobileCard';
 import MobileSelect from '../components/MobileSelect';
 import MobileModal from '../components/MobileModal';
@@ -40,6 +40,15 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
   const [weekData, setWeekData] = useState(null);
   const [semanaData, setSemanaData] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const [approving, setApproving] = useState(false);
+  const [isAttendanceEyeModalOpen, setIsAttendanceEyeModalOpen] = useState(false);
+  const [zeroRateModalOpen, setZeroRateModalOpen] = useState(false);
+  const [zeroRateEmployees, setZeroRateEmployees] = useState([]);
+  const [confirmApproveModalOpen, setConfirmApproveModalOpen] = useState(false);
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [statusModalType, setStatusModalType] = useState('');
+  const [statusModalMessage, setStatusModalMessage] = useState('');
 
   const [sheetFiles, setSheetFiles] = useState([]);
   const [isProcessingSheets, setIsProcessingSheets] = useState(false);
@@ -310,16 +319,74 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
     });
   }
 
+  function handleOpenApprove() {
+    const employeesWithZeroRates = semanaData.map(emp => {
+      const employee = employees.find(e =>
+        String(e.codigo_empleado).trim() === String(emp.codigo).replace(/^'+/, '').trim() &&
+        String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()
+      );
+      return {
+        nombre: emp.nombre,
+        codigo: emp.codigo,
+        kbsRate: employee ? (employee['Rate KBS'] || employee.rateKBS || 0) : 0,
+        lgmRate: employee ? (employee['Rate LGM'] || employee.rateLGM || 0) : 0,
+      };
+    }).filter(emp => emp.kbsRate === 0 || emp.lgmRate === 0);
+    
+    if (employeesWithZeroRates.length > 0) {
+      setZeroRateEmployees(employeesWithZeroRates);
+      setZeroRateModalOpen(true);
+    } else {
+      setConfirmApproveModalOpen(true);
+    }
+  }
+
+  async function handleApproveWeek() {
+    setApproving(true);
+    setConfirmApproveModalOpen(false);
+    try {
+      const payload = {
+        nombre: selectedStore,
+        fecha_inicio: weekData.start || weekData.fecha_inicio,
+        fecha_fin: weekData.end || weekData.fecha_fin,
+        data_json: JSON.stringify({ semanaTableData: semanaData }),
+      };
+      await writeData(
+        'upsert', payload, 'Nomina_Historico',
+        ['nombre', 'fecha_inicio'], user?.id, user?.nombre
+      );
+      setStatusModalType('success');
+      setStatusModalMessage('Cálculo Semanal procesado, Guardado en Historial exitosamente.');
+      setStatusModalOpen(true);
+    } catch {
+      setStatusModalType('error');
+      setStatusModalMessage('No se pudo procesar la aprobación de la nómina. Verifique la conexión.');
+      setStatusModalOpen(true);
+    }
+    setApproving(false);
+  }
+
   if (view === 'engine' && weekData) {
+    const isHistorical = weekData && !!weekData.data_json;
+    const fechaDesde = weekData.fecha_inicio || weekData.start || '';
+    const fechaHasta = weekData.fecha_fin || weekData.end || '';
     return (
       <div>
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-2">
           <button onClick={() => { setView('history'); setWeekData(null); }} className="text-[10px] font-bold text-brand-primary">← Historial</button>
           <span className="text-xs text-gray-400">|</span>
           <span className="text-xs font-bold text-gray-600">{selectedStore}</span>
         </div>
 
+        <div className="mb-3">
+          <p className="text-[#6bbdb7] font-black uppercase text-[9px] tracking-[0.2em]">
+            desde {fechaDesde || '--/--/----'} hasta {fechaHasta || '--/--/----'}
+          </p>
+        </div>
+
         <div className="space-y-3">
+          {!isHistorical && (
+            <>
           <MobileCard>
             <div className={`flex items-center justify-between mb-3 ${sheetFiles.length > 0 ? 'text-brand-accent' : ''}`}>
               <div className="flex items-center gap-2">
@@ -381,11 +448,29 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
               <Upload size={14} /> Subir archivo CSV
             </button>
           </MobileCard>
+            </>
+          )}
 
           {semanaData.length > 0 && (
             <MobileCard className="!p-0 !rounded-2xl overflow-hidden">
               <div className="px-4 pt-3.5 pb-1 flex items-center justify-between">
-                <span className="text-[10px] font-bold text-gray-500 tracking-wider uppercase">Asistencia ({semanaData.length})</span>
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-brand-primary/10 rounded-lg">
+                    <Calendar size={14} className="text-brand-primary" />
+                  </div>
+                  <span className="text-[10px] font-black text-brand-primary tracking-wider uppercase">Registro de Asistencia Semanal</span>
+                </div>
+                <button
+                  onClick={() => setIsAttendanceEyeModalOpen(true)}
+                  disabled={semanaData.length === 0}
+                  className={`p-2 rounded-lg transition-all active:scale-95 border shadow-sm flex items-center justify-center ${
+                    semanaData.length > 0
+                      ? 'bg-purple-50 text-purple-600 border-purple-100'
+                      : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                  }`}
+                >
+                  <Eye size={14} />
+                </button>
               </div>
               <div>
                 <table className="w-full text-[10px]">
@@ -399,9 +484,7 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
                     </tr>
                   </thead>
                   <tbody>
-                    {semanaData.map((row, i) => {
-                      const isHistorical = weekData && !!weekData.data_json;
-                      return (
+                    {semanaData.map((row, i) => (
                       <tr key={i} className="border-b border-gray-50">
                         <td className="px-1.5 py-2 text-[9px] font-semibold text-gray-700 max-w-[60px] truncate">{row.nombre}</td>
                         {DAYS.map(d => {
@@ -425,24 +508,215 @@ export default function MobilePayroll({ stores = [], employees = [], user, initi
                           {isHistorical && row.total?.final != null ? String(row.total.final) : getWeekTotal(row).toFixed(1)}
                         </td>
                       </tr>
-                      );
-                    })}
+                    ))}
                   </tbody>
                 </table>
               </div>
             </MobileCard>
           )}
 
-          <div className="flex gap-2">
-            <button onClick={() => setIsProcessing(true)} className="flex-1 h-10 bg-brand-primary rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2">
-              {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-              Procesar
-            </button>
-            <button className="flex-1 h-10 bg-green-600 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2">
-              <Send size={14} /> Enviar
+          {semanaData.length > 0 && (
+            <div className="flex gap-2">
+              {!isHistorical && (
+                <button onClick={handleOpenApprove} disabled={approving} className="flex-1 h-10 bg-brand-primary rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2 disabled:opacity-40">
+                  {approving ? <RefreshCw size={14} className="animate-spin" /> : <CreditCard size={14} />}
+                  {approving ? 'Aprobando...' : 'Aprobar Semana'}
+                </button>
+              )}
+              {isHistorical && (
+                <button disabled className="flex-1 h-10 bg-green-600 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2 cursor-not-allowed opacity-80">
+                  <CheckCircle size={14} /> Semana Aprobada
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <MobileModal open={zeroRateModalOpen} onClose={() => setZeroRateModalOpen(false)} title="Rates en Cero" fullScreen={false}>
+          <div className="space-y-3">
+            <AlertTriangle size={28} className="mx-auto text-amber-500" />
+            <p className="text-xs text-gray-600 text-center">Los siguientes empleados tienen Rate KBS o Rate LGM en cero:</p>
+            <div className="max-h-32 overflow-y-auto space-y-1 bg-gray-50 rounded-xl p-2">
+              {zeroRateEmployees.map((emp, i) => (
+                <div key={i} className="text-[10px] font-bold text-gray-700 flex justify-between px-2 py-1">
+                  <span>{emp.nombre}</span>
+                  <span className="text-gray-400">{emp.codigo}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setZeroRateModalOpen(false)} className="flex-1 h-10 bg-gray-100 rounded-xl text-xs font-bold text-gray-600">Cancelar</button>
+              <button onClick={() => { setZeroRateModalOpen(false); setConfirmApproveModalOpen(true); }} className="flex-1 h-10 bg-amber-500 rounded-xl text-xs font-bold text-white">
+                Proceder de todas formas
+              </button>
+            </div>
+          </div>
+        </MobileModal>
+
+        <MobileModal open={confirmApproveModalOpen} onClose={() => setConfirmApproveModalOpen(false)} title="¿APROBAR SEMANA?" fullScreen={false}>
+          <div className="text-center space-y-3">
+            <AlertTriangle size={32} className="mx-auto text-red-400" />
+            <p className="text-xs text-gray-600">
+              Esta acción <strong className="text-red-500 font-black">no tiene vuelta atrás</strong>. Asegúrate de haber cargado la Asistencia Semanal de esta semana.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmApproveModalOpen(false)} className="flex-1 h-10 bg-gray-100 rounded-xl text-xs font-bold text-gray-600">Cancelar</button>
+              <button onClick={handleApproveWeek} disabled={approving} className="flex-1 h-10 bg-red-500 rounded-xl text-xs font-bold text-white disabled:opacity-40">
+                {approving ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} className="inline mr-1" />}
+                {approving ? 'Aprobando...' : 'Aprobar'}
+              </button>
+            </div>
+          </div>
+        </MobileModal>
+
+        <MobileModal open={statusModalOpen} onClose={() => {
+          setStatusModalOpen(false);
+          if (statusModalType === 'success') { setView('history'); setWeekData(null); loadHistory(); }
+        }} title={statusModalType === 'success' ? 'Éxito' : 'Error'} fullScreen={false}>
+          <div className="text-center space-y-3">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto ${statusModalType === 'success' ? 'bg-green-50' : 'bg-red-50'}`}>
+              {statusModalType === 'success' ? <CheckCircle size={28} className="text-green-500" /> : <AlertTriangle size={28} className="text-red-500" />}
+            </div>
+            <p className="text-sm font-bold text-gray-700">{statusModalMessage}</p>
+            <button onClick={() => {
+              setStatusModalOpen(false);
+              if (statusModalType === 'success') { setView('history'); setWeekData(null); loadHistory(); }
+            }} className="w-full h-10 bg-brand-primary rounded-xl text-xs font-bold text-white">
+              Ok
             </button>
           </div>
-        </div>
+        </MobileModal>
+
+        {isAttendanceEyeModalOpen && (() => {
+          const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
+          let totalHours = 0, totalKBS = 0, totalLGM = 0;
+          const rowsData = semanaData.map(row => {
+            const hDec = hhmmToDecimal(row.total?.final || '0');
+            totalHours += hDec;
+            const employeeInfo = employees.find(e =>
+              String(e.codigo_empleado).trim() === String(row.codigo || '').replace(/^'+/, '').trim() &&
+              String(e.nombre).trim().toLowerCase() === String(row.nombre || '').trim().toLowerCase()
+            );
+            const kbsRate = employeeInfo ? (parseFloat(employeeInfo['Rate KBS']) || employeeInfo.rateKBS || 0) : 0;
+            const lgmRate = employeeInfo ? (parseFloat(employeeInfo['Rate LGM']) || employeeInfo.rateLGM || 0) : 0;
+            const kbsTotal = hDec * kbsRate;
+            const lgmTotal = hDec * lgmRate;
+            totalKBS += kbsTotal;
+            totalLGM += lgmTotal;
+            return { ...row, hDec, kbsRate, lgmRate, kbsTotal, lgmTotal, employeeInfo };
+          });
+          const margin = totalKBS - totalLGM;
+
+          return (
+          <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 animate-in fade-in duration-200">
+            <div className="bg-white w-full max-h-[92vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300">
+              <div className="px-5 pt-5 pb-3 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center">
+                    <Eye size={16} className="text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-gray-800 tracking-tight leading-none">Rates y Costos de Asistencia Semanal</h3>
+                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Análisis Financiero de Horas de la Semana</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsAttendanceEyeModalOpen(false)} className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 active:scale-90">
+                  <X size={14} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3">
+                    <div className="p-2.5 bg-blue-50 rounded-xl">
+                      <Clock size={16} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block">Total Horas</span>
+                      <span className="text-lg font-black text-gray-700">{totalHours.toFixed(1)}h</span>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3">
+                    <div className="p-2.5 bg-emerald-50 rounded-xl">
+                      <TrendingUp size={16} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block">Facturación KBS</span>
+                      <span className="text-lg font-black text-emerald-600">{formatCurrency(totalKBS)}</span>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3">
+                    <div className="p-2.5 bg-rose-50 rounded-xl">
+                      <TrendingDown size={16} className="text-rose-600" />
+                    </div>
+                    <div>
+                      <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block">Costo LGM</span>
+                      <span className="text-lg font-black text-rose-600">{formatCurrency(totalLGM)}</span>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3">
+                    <div className="p-2.5 bg-purple-50 rounded-xl">
+                      <DollarSign size={16} className="text-purple-600" />
+                    </div>
+                    <div>
+                      <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block">Utilidad Neta</span>
+                      <span className="text-lg font-black text-purple-600">{formatCurrency(margin)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[10px]">
+                      <thead>
+                        <tr className="bg-gray-50/50 border-b border-gray-100">
+                          <th className="text-left px-2 py-2 text-[8px] font-black text-gray-400 uppercase tracking-wider">Empleado</th>
+                          {DAYS_SHORT.map(d => (
+                            <th key={d} className="text-center px-1 py-2 text-[8px] font-black text-gray-400 uppercase tracking-wider w-[20px]">{d}</th>
+                          ))}
+                          <th className="text-center px-1 py-2 text-[8px] font-black text-gray-400 uppercase tracking-wider bg-blue-50/30">Hrs</th>
+                          <th className="text-right px-1.5 py-2 text-[8px] font-black text-gray-400 uppercase tracking-wider bg-purple-50/30">KBS</th>
+                          <th className="text-right px-1.5 py-2 text-[8px] font-black text-gray-400 uppercase tracking-wider bg-rose-50/30">LGM</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {rowsData.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50/50">
+                            <td className="px-2 py-2 overflow-hidden">
+                              <div className="flex flex-col">
+                                <span className="text-[9px] font-bold text-gray-700 truncate">{row.nombre}</span>
+                                <span className="text-[7px] font-bold text-gray-400">ID: {row.codigo || '----'}</span>
+                              </div>
+                            </td>
+                            {DAYS.map(d => {
+                              const dayVal = row[d];
+                              const val = (dayVal && typeof dayVal === 'object') ? (dayVal.final || '0') : (dayVal || '0');
+                              return (
+                                <td key={d} className="text-center px-1 py-2">
+                                  <span className="text-[9px] font-bold text-gray-600">{String(val)}</span>
+                                </td>
+                              );
+                            })}
+                            <td className="text-center px-1 py-2 bg-blue-50/10">
+                              <span className="text-[9px] font-black text-gray-700">{row.hDec.toFixed(1)}h</span>
+                            </td>
+                            <td className="text-right px-1.5 py-2 bg-purple-50/10">
+                              <span className="text-[9px] font-black text-purple-700">{formatCurrency(row.kbsTotal)}</span>
+                            </td>
+                            <td className="text-right px-1.5 py-2 bg-rose-50/10">
+                              <span className="text-[9px] font-black text-rose-600">{formatCurrency(row.lgmTotal)}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          );
+        })()}
       </div>
     );
   }
