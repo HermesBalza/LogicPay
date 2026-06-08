@@ -1139,8 +1139,9 @@ const DashboardView = ({
             let sortKey;
 
             if (trendPeriod === 'monthly') {
-                const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-                key = `${months[d.getMonth()]} ${d.getFullYear()}`;
+                const months = ['E', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+                const yearShort = String(d.getFullYear()).slice(-2);
+                key = `${months[d.getMonth()]}${yearShort}`;
                 sortKey = d.getFullYear() * 100 + d.getMonth();
             } else {
                 const startOfYear = new Date(d.getFullYear(), 0, 1);
@@ -1411,131 +1412,52 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
     const formatMoney = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
 
     return (
-        <div className="h-full overflow-y-auto custom-scrollbar pb-8 animate-in fade-in zoom-in-95 duration-500">
-            {/* Header & Controls */}
-            <div className="px-8 pb-4">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-xl shadow-blue-900/5 border border-gray-100">
-                            <div
-                                className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200 cursor-pointer relative hover:bg-gray-100 transition-colors group"
-                                onClick={() => openDatePicker(fromDateRef)}
-                            >
-                                <Calendar size={14} className="text-[#303a7f] pointer-events-none" />
-                                <div className="min-w-[120px] pointer-events-none">
-                                    <span className="block text-xs font-black text-[#333333] uppercase tracking-wider">
-                                        {dateFrom ? formatDisplayDate(dateFrom) : 'Desde'}
-                                    </span>
-                                </div>
-                                <input
-                                    ref={fromDateRef}
-                                    type="date"
-                                    lang="en-US"
-                                    value={dateFrom || ''}
-                                    onChange={(e) => setDateFrom(e.target.value || null)}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (typeof e.target.showPicker === 'function') {
-                                            e.target.showPicker();
-                                        }
-                                    }}
-                                />
-                            </div>
-
-                            <div
-                                className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200 cursor-pointer relative hover:bg-gray-100 transition-colors group"
-                                onClick={() => openDatePicker(toDateRef)}
-                            >
-                                <Calendar size={14} className="text-[#303a7f] pointer-events-none" />
-                                <div className="min-w-[120px] pointer-events-none">
-                                    <span className="block text-xs font-black text-[#333333] uppercase tracking-wider">
-                                        {dateTo ? formatDisplayDate(dateTo) : 'Hasta'}
-                                    </span>
-                                </div>
-                                <input
-                                    ref={toDateRef}
-                                    type="date"
-                                    lang="en-US"
-                                    value={dateTo || ''}
-                                    onChange={(e) => setDateTo(e.target.value || null)}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (typeof e.target.showPicker === 'function') {
-                                            e.target.showPicker();
-                                        }
-                                    }}
-                                />
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setDateFrom(null);
-                                    setDateTo(null);
-                                }}
-                                title="Limpiar Filtros de Fecha"
-                                className="flex items-center justify-center p-2.5 bg-[#f9f9f9] rounded-xl border border-gray-200 text-[#303a7f] hover:bg-blue-50 hover:text-blue-600 hover:border-blue-100 transition-all active:scale-95"
-                            >
-                                <Eraser size={16} strokeWidth={2.5} />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Control Panel (Filtros Restantes) */}
-                    <div className="flex flex-wrap gap-3 bg-white p-3 rounded-2xl shadow-xl shadow-blue-900/5 border border-gray-100">
-                        <div className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200">
-                            <StoreIcon size={14} className="text-[#303a7f]" />
-                            <select
-                                value={selectedStore}
-                                onChange={(e) => setSelectedStore(e.target.value)}
-                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[120px] truncate"
-                            >
-                                <option value="Todas">Todas las Tiendas</option>
-                                {stores.map((s, idx) => <option key={s.codigo || `dash-store-${idx}`} value={s.nombre}>{s.nombre}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200">
-                            <Users size={14} className="text-[#303a7f]" />
-                            <select
-                                value={selectedEmployee}
-                                onChange={(e) => setSelectedEmployee(e.target.value)}
-                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[120px] truncate"
-                            >
-                                <option value="Todos">Todos los Empleados</option>
-                                {employees.map((emp, idx) => <option key={emp.codigo_empleado || `dash-emp-${idx}`} value={emp.nombre}>{emp.nombre}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200">
-                            <ShieldCheck size={14} className="text-[#303a7f]" />
-                            <select
-                                value={selectedSupervisor}
-                                onChange={(e) => setSelectedSupervisor(e.target.value)}
-                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[120px] truncate"
-                            >
-                                <option value="Todos">Supervisores</option>
-                                {[...new Set(stores.map(s => s.supervisor_lsg).filter(Boolean))].map(sup =>
-                                    <option key={sup} value={sup}>{sup}</option>
-                                )}
-                            </select>
-                        </div>
-
-                        <button
-                            onClick={onShowResumen}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 shadow-lg shadow-blue-900/20 group"
-                            title="Ver Resumen de Ingresos y Gastos"
+        <div className="h-full overflow-y-auto pb-8 animate-in fade-in zoom-in-95 duration-500">
+            {/* Header & Controls — Móvil Optimizado: solo Desde, Hasta, Borrar, Resumen */}
+            <div className="px-2 pb-2">
+                <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl shadow-sm border border-gray-100">
+                        <div
+                            className="flex items-center gap-1.5 px-2 py-1.5 bg-[#f9f9f9] rounded-lg border border-gray-200 cursor-pointer relative hover:bg-gray-100 transition-colors"
+                            onClick={() => openDatePicker(fromDateRef)}
                         >
-                            <BarChart3 size={14} className="group-hover:scale-110 transition-transform" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Resumen</span>
+                            <Calendar size={13} className="text-[#303a7f] pointer-events-none" />
+                            <span className="text-[10px] font-black text-[#333333] uppercase tracking-wider truncate max-w-[70px]">
+                                {dateFrom ? formatDisplayDate(dateFrom) : 'Desde'}
+                            </span>
+                            <input ref={fromDateRef} type="date" lang="en-US" value={dateFrom || ''} onChange={(e) => setDateFrom(e.target.value || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onClick={(e) => { e.stopPropagation(); if (typeof e.target.showPicker === 'function') e.target.showPicker(); }} />
+                        </div>
+                        <div
+                            className="flex items-center gap-1.5 px-2 py-1.5 bg-[#f9f9f9] rounded-lg border border-gray-200 cursor-pointer relative hover:bg-gray-100 transition-colors"
+                            onClick={() => openDatePicker(toDateRef)}
+                        >
+                            <Calendar size={13} className="text-[#303a7f] pointer-events-none" />
+                            <span className="text-[10px] font-black text-[#333333] uppercase tracking-wider truncate max-w-[70px]">
+                                {dateTo ? formatDisplayDate(dateTo) : 'Hasta'}
+                            </span>
+                            <input ref={toDateRef} type="date" lang="en-US" value={dateTo || ''} onChange={(e) => setDateTo(e.target.value || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onClick={(e) => { e.stopPropagation(); if (typeof e.target.showPicker === 'function') e.target.showPicker(); }} />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => { setDateFrom(null); setDateTo(null); }}
+                            title="Limpiar Filtros de Fecha"
+                            className="flex items-center justify-center p-1.5 text-[#303a7f] hover:bg-blue-50 rounded-lg transition-all active:scale-95"
+                        >
+                            <Eraser size={14} strokeWidth={2.5} />
                         </button>
                     </div>
+
+                    <button
+                        onClick={onShowResumen}
+                        className="flex items-center justify-center p-2.5 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 shadow-lg shadow-blue-900/20"
+                        title="Resumen de Ingresos y Gastos"
+                    >
+                        <BarChart3 size={16} />
+                    </button>
                 </div>
 
-                {/* 1. Resumen Financiero Global (KPIs Principales) */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
+                {/* KPIs — Vertical Stack para Móvil */}
+                <div className="flex flex-col gap-2 mb-4">
                     {[
                         { title: "Total Facturado KBS", val: formatMoney(totalIngresos), subtitle: "Ingresos Brutos", icon: Target, color: "text-blue-500", bg: "bg-blue-50", descKey: 'total-facturado' },
                         { title: "Costo de Nómina LGM", val: formatMoney(totalCostos), subtitle: "Pagos a Empleados", icon: Users, color: "text-red-500", bg: "bg-red-50", descKey: 'costo-nomina' },
@@ -1569,35 +1491,15 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                     {/* Tendencia Temporal */}
                     <div className="lg:col-span-2 bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/[0.03] border border-gray-100 flex flex-col min-h-[450px]">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-[#303a7f]/5 rounded-2xl text-[#303a7f]">
-                                    <Activity size={24} />
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-[#303a7f]/5 rounded-xl text-[#303a7f]">
+                                    <Activity size={18} />
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter">Tendencia de Salud Financiera</h3>
-                                        <button
-                                            onClick={() => setInfoModal({ title: 'Tendencia de Salud Financiera', description: sectionDescriptions['tendencia-financiera'] })}
-                                            className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors"
-                                        >
-                                            <Info size={14} />
-                                        </button>
-                                    </div>
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Evolución de Ingresos y Costos</p>
+                                    <h3 className="text-xs font-black text-[#303a7f] uppercase tracking-tighter">Ingresos y Costos</h3>
                                 </div>
                             </div>
 
-                            {/* Selector de Periodicidad */}
-                            <div className="flex bg-gray-50 p-1.5 rounded-2xl border border-gray-100 self-end md:self-auto">
-                                <button
-                                    onClick={() => setTrendPeriod('monthly')}
-                                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${trendPeriod === 'monthly' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f]'}`}
-                                >Mes</button>
-                                <button
-                                    onClick={() => setTrendPeriod('weekly')}
-                                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${trendPeriod === 'weekly' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f]'}`}
-                                >Semana</button>
-                            </div>
                         </div>
 
                         <div className="flex-1 w-full h-full min-h-[300px]">
@@ -1618,8 +1520,10 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                                         dataKey="label"
                                         axisLine={false}
                                         tickLine={false}
-                                        tick={{ fontSize: 10, fontWeight: 'bold', fill: '#999' }}
-                                        dy={10}
+                                        tick={{ fontSize: 8, fontWeight: 'bold', fill: '#999' }}
+                                        angle={-90}
+                                        textAnchor="end"
+                                        dy={-2}
                                     />
                                     <YAxis
                                         axisLine={false}
@@ -1740,58 +1644,35 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                         </div>
                     </div>
 
-                    {/* 3. Rendimiento por Tienda (Interactive Bar Chart) */}
-                    <div className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/[0.03] border border-gray-100 lg:col-span-2 flex flex-col">
-                        <div className="flex justify-between items-center mb-8">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-indigo-50 rounded-2xl text-[#303a7f]">
-                                    <TrendingUp size={24} />
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter">Rendimiento por Tienda</h3>
-                                        <button
-                                            onClick={() => setInfoModal({ title: 'Rendimiento por Tienda', description: sectionDescriptions['rendimiento-tienda'] })}
-                                            className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors"
-                                        >
-                                            <Info size={14} />
-                                        </button>
-                                    </div>
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Análisis de Margen Operativo</p>
-                                </div>
+                    {/* 3. Rendimiento por Tienda (Interactive Bar Chart) — Móvil Optimizado */}
+                    <div className="bg-white rounded-[2rem] p-4 shadow-xl shadow-blue-900/[0.03] border border-gray-100 lg:col-span-2 flex flex-col">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-indigo-50 rounded-xl text-[#303a7f]">
+                                <TrendingUp size={18} />
                             </div>
-                            <div className="flex flex-col items-end">
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Promedio LGM</span>
-                                <span className="text-sm font-black text-[#303a7f] tracking-tighter">{formatMoney(costoPromedioTienda)}</span>
+                            <div>
+                                <h3 className="text-xs font-black text-[#303a7f] uppercase tracking-tighter">Rendimiento por Tienda</h3>
                             </div>
                         </div>
 
-                        <div className="flex-1 w-full h-full min-h-[300px]">
+                        <div className="flex-1 w-full" style={{ minHeight: 200 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={chartStoreData} margin={{ top: 0, right: 30, left: 20, bottom: 20 }}>
+                                <BarChart data={chartStoreData} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f5" />
-                                    <XAxis
-                                        dataKey="nombre"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fontSize: 9, fontWeight: 'bold', fill: '#666' }}
-                                        interval={0}
-                                        angle={-15}
-                                        textAnchor="end"
-                                    />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#999' }} />
+                                    <XAxis axisLine={false} tickLine={false} tick={false} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 8, fontWeight: 'bold', fill: '#999' }} />
                                     <Tooltip
                                         cursor={{ fill: 'rgba(48,58,127,0.02)' }}
-                                        contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
-                                        formatter={(value) => formatMoney(value)}
+                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', padding: '8px 12px' }}
+                                        formatter={(value, name, props) => [formatMoney(value), props.payload.nombre]}
+                                        labelFormatter={() => ''}
                                     />
                                     <Bar
                                         dataKey="margen"
                                         name="Margen Neto"
-                                        radius={[8, 8, 0, 0]}
-                                        barSize={32}
+                                        radius={[4, 4, 0, 0]}
+                                        barSize={20}
                                         onClick={(data) => {
-                                            // INTERACTIVIDAD NIVEL DIOS: Filtrar dashboard por esta tienda
                                             if (data && data.nombre) {
                                                 setSelectedStore(data.nombre);
                                                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1814,23 +1695,18 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    {/* 4. Workforce Analytics */}
-                    <div className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border border-gray-100">
-                        <div className="flex justify-between items-center mb-6">
-                            <div className="flex items-center gap-3">
-                                <Users className="text-[#6bbdb7]" size={24} />
-                                <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">Workforce Analytics</h3>
-                                <button
-                                    onClick={() => setInfoModal({ title: 'Workforce Analytics', description: sectionDescriptions['workforce-analytics'] })}
-                                    className="inline-flex items-center justify-center text-gray-300 hover:text-[#303a7f] transition-colors ml-auto"
-                                >
-                                    <Info size={14} />
-                                </button>
+                    {/* 4. Workforce Analytics — Móvil */}
+                    <div className="bg-white rounded-[2rem] p-4 shadow-xl shadow-blue-900/5 border border-gray-100">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="p-2 bg-[#303a7f]/5 rounded-xl text-[#303a7f]">
+                                <Users size={18} />
+                            </div>
+                            <div>
+                                <h3 className="text-xs font-black text-[#303a7f] uppercase tracking-tighter">Workforce</h3>
                             </div>
                         </div>
 
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Top Empleados (Horas Laboradas)</p>
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             {topEmpleados.map((emp, idx) => (
                                 <div key={idx} className="flex items-center justify-between p-2.5 border-b border-gray-50 last:border-0">
                                     <div className="flex flex-col">
@@ -18625,7 +18501,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 <img
                     src="/Logo Logic Group Management.png"
                     alt="LogicPay"
-                    className="h-8 w-auto object-contain"
+                    className="h-4 w-auto object-contain"
                 />
 
                 <div className="flex items-center gap-2">
@@ -18653,7 +18529,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             {/* Main Content Area con padding ajustado para top y bottom navs */}
             <main
                 ref={mainContentRef}
-                className="flex-1 h-screen overflow-y-auto px-2 pt-24 pb-44 lg:px-6 relative"
+                className="flex-1 h-screen overflow-y-auto px-2 pt-16 pb-44 lg:px-6 relative"
             >
 
                 {/* Navegación Inferior Móvil — Scroll Horizontal con Icono + Texto */}
