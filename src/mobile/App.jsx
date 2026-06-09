@@ -18820,37 +18820,37 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                         })()}
                                     </div>
 
-                                    <div ref={attendanceTableRef} className="overflow-x-auto rounded-3xl border-[3px] border-gray-200 bg-white">
+                                    <div ref={attendanceTableRef} className="overflow-x-auto rounded-2xl border-2 border-gray-200 bg-white">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
                                                 <tr className="bg-[#f9f9f9]/80">
-                                                    <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
-                                                    <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Cargo</th>
+                                                    <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
+                                                    <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Cargo</th>
                                                     {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map((day, dIdx) => (
-                                                        <th key={day} className="p-3 text-[10px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[100px] bg-gray-50/20">
+                                                        <th key={day} className="p-1.5 text-[8px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[70px] bg-gray-50/20">
                                                             <div className="flex flex-col items-center">
                                                                 <span>{day}</span>
-                                                                <span className="text-[8px] text-gray-400 font-bold opacity-70">
+                                                                <span className="text-[7px] text-gray-400 font-bold opacity-70">
                                                                     {fechaDesde ? getFormattedDateForDay(fechaDesde, dIdx) : '--/--'}
                                                                 </span>
                                                             </div>
-                                                            <div className="flex justify-around mt-2 pt-1 border-t-2 border-gray-100">
+                                                            <div className="flex justify-around mt-1.5 pt-1 border-t-2 border-gray-100">
                                                                 <button
                                                                     onClick={() => handleColumnBulkAudit(day, 'sup')}
-                                                                    className="w-5 h-5 rounded-full bg-blue-50 text-[#303a7f] text-[7px] font-black flex items-center justify-center hover:bg-[#303a7f] hover:text-white transition-all shadow-sm active:scale-90"
+                                                                    className="w-4 h-4 rounded-full bg-blue-50 text-[#303a7f] text-[7px] font-black flex items-center justify-center hover:bg-[#303a7f] hover:text-white transition-all shadow-sm active:scale-90"
                                                                 >S</button>
                                                                 <button
                                                                     onClick={() => handleColumnBulkAudit(day, 'bio')}
-                                                                    className="w-5 h-5 rounded-full bg-teal-50 text-[#6bbdb7] text-[7px] font-black flex items-center justify-center hover:bg-[#6bbdb7] hover:text-white transition-all shadow-sm active:scale-90"
+                                                                    className="w-4 h-4 rounded-full bg-teal-50 text-[#6bbdb7] text-[7px] font-black flex items-center justify-center hover:bg-[#6bbdb7] hover:text-white transition-all shadow-sm active:scale-90"
                                                                 >B</button>
                                                             </div>
                                                         </th>
                                                     ))}
-                                                    <th className="p-3 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-200 min-w-[110px] bg-[#303a7f]/5">
-                                                        Total Hrs
-                                                        <div className="flex justify-end gap-10 mt-1 pt-1 border-t-2 border-gray-200/50">
-                                                            <span className="text-[8px] text-[#303a7f]">S</span>
-                                                            <span className="text-[8px] text-[#6bbdb7]">B</span>
+                                                    <th className="p-1.5 text-[8px] font-black text-[#303a7f] uppercase tracking-widest text-right border-b-[3px] border-l-[3px] border-gray-200 min-w-[80px] bg-[#303a7f]/5">
+                                                        Total
+                                                        <div className="flex justify-end gap-8 mt-1 pt-1 border-t-2 border-gray-200/50">
+                                                            <span className="text-[7px] text-[#303a7f]">S</span>
+                                                            <span className="text-[7px] text-[#6bbdb7]">B</span>
                                                         </div>
                                                     </th>
                                                 </tr>
@@ -18858,15 +18858,15 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                             <tbody className="divide-y-[3px] divide-gray-200">
                                             {semanaTableData.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan="10" className="py-24 text-center text-gray-300 font-extrabold uppercase text-xs tracking-[0.3em] italic">
+                                                        <td colSpan="10" className="py-16 text-center text-gray-300 font-extrabold uppercase text-xs tracking-[0.3em] italic">
                                                             Esperando el despliegue de datos del supervisor...
                                                         </td>
                                                     </tr>
                                                 ) : (
                                                     semanaTableData.map((row, idx) => (
                                                         <tr key={idx} className="group hover:bg-[#303a7f]/[0.02] transition-colors">
-                                                            <td className="p-4 border-r-[2px] border-gray-100">
-                                                                <div className="flex items-center gap-4">
+                                                            <td className="p-2 border-r-[2px] border-gray-100">
+                                                                <div className="flex items-center gap-2">
                                                                     {/* Botones S/B por fila — ocultos cuando la semana está aprobada */}
                                                                     {!(nominaHistoryData || []).some(h =>
                                                                         String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
@@ -18875,19 +18875,19 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                                             <div className="flex flex-col gap-1">
                                                                                 <button
                                                                                     onClick={() => handleBulkAudit(idx, 'sup')}
-                                                                                    className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'sup' ? 'bg-[#303a7f] text-white border-[#303a7f]' : 'bg-blue-50 text-[#303a7f] border-blue-100 hover:bg-[#303a7f] hover:text-white'}`}
+                                                                                    className={`w-5 h-5 rounded-full text-[7px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'sup' ? 'bg-[#303a7f] text-white border-[#303a7f]' : 'bg-blue-50 text-[#303a7f] border-blue-100 hover:bg-[#303a7f] hover:text-white'}`}
                                                                                     title="Toda la semana: Supervisor"
                                                                                 >S</button>
                                                                                 <button
                                                                                     onClick={() => handleBulkAudit(idx, 'bio')}
-                                                                                    className={`w-6 h-6 rounded-full text-[8px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'bio' ? 'bg-[#6bbdb7] text-white border-[#6bbdb7]' : 'bg-teal-50 text-[#6bbdb7] border-teal-100 hover:bg-[#6bbdb7] hover:text-white'}`}
+                                                                                    className={`w-5 h-5 rounded-full text-[7px] font-black transition-all active:scale-90 border shadow-sm ${row.auditSource === 'bio' ? 'bg-[#6bbdb7] text-white border-[#6bbdb7]' : 'bg-teal-50 text-[#6bbdb7] border-teal-100 hover:bg-[#6bbdb7] hover:text-white'}`}
                                                                                     title="Toda la semana: Biométrico"
                                                                                 >B</button>
                                                                             </div>
                                                                         )}
                                                                         <div className="flex flex-col">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <span className="text-[11px] font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
                                                                             {!(nominaHistoryData || []).some(h =>
                                                                                 String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
                                                                                 h.fecha_inicio === fechaDesde
@@ -18895,35 +18895,35 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                                                 <>
                                                                                 <button
                                                                                     onClick={() => { setEmployeeSelectorMode('replace'); setEmployeeSelectorRowIdx(idx); setEmployeeSearchQuery(''); setIsEmployeeSelectorOpen(true); }}
-                                                                                    className="w-5 h-5 rounded-full bg-gray-100 text-gray-400 hover:bg-amber-100 hover:text-amber-600 transition-all flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100"
+                                                                                    className="w-4 h-4 rounded-full bg-gray-100 text-gray-400 hover:bg-amber-100 hover:text-amber-600 transition-all flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100"
                                                                                     title="Reemplazar empleado"
                                                                                 >
-                                                                                    <Pencil size={10} />
+                                                                                    <Pencil size={9} />
                                                                                 </button>
                                                                                 <button
                                                                                     onClick={() => setSemanaTableData(prev => prev.filter((r, j) => j !== idx))}
-                                                                                    className="w-5 h-5 rounded-full bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-500 transition-all flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100"
+                                                                                    className="w-4 h-4 rounded-full bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-500 transition-all flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100"
                                                                                     title="Eliminar empleado"
                                                                                 >
-                                                                                    <Trash2 size={10} />
+                                                                                    <Trash2 size={9} />
                                                                                 </button>
                                                                                 </>
                                                                             )}
                                                                         </div>
-                                                                        <span className="text-[9px] font-black text-[#6bbdb7] tabular-nums tracking-[0.1em] mt-1">ID: {row.codigo || '----'}</span>
+                                                                        <span className="text-[8px] font-black text-[#6bbdb7] tabular-nums tracking-[0.1em] mt-0.5">ID: {row.codigo || '----'}</span>
                                                                     </div>
                                                                 </div>
                                                             </td>
-                                                            <td className="p-4 border-r-[2px] border-gray-100 italic">
-                                                                <span className="text-[10px] font-extrabold text-gray-500 uppercase leading-tight bg-gray-50 px-2 py-1 rounded-md">{row.cargo}</span>
+                                                            <td className="p-2 border-r-[2px] border-gray-100 italic">
+                                                                <span className="text-[8px] font-extrabold text-gray-500 uppercase leading-tight bg-gray-50 px-1.5 py-0.5 rounded-md">{row.cargo}</span>
                                                             </td>
                                                             {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => {
                                                                 const dayVal = row[day];
                                                                 const isManual = dayVal.final !== dayVal.sup && dayVal.final !== dayVal.bio;
 
                                                                 return (
-                                                                    <td key={day} className="p-3 text-center border-l-[3px] border-gray-200">
-                                                                        <div className="flex flex-col gap-2">
+                                                                    <td key={day} className="p-1.5 text-center border-l-[3px] border-gray-200">
+                                                                        <div className="flex flex-col gap-1.5">
                                                                             {/* Pills Interactivos — bloqueados si la semana fue aprobada */}
                                                                             {!(nominaHistoryData || []).some(h =>
                                                                                 String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
@@ -18932,13 +18932,13 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                                                     <div className="flex justify-between gap-1">
                                                                                         <button
                                                                                             onClick={() => handleAuditChange(idx, day, dayVal.sup)}
-                                                                                            className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.sup ? 'bg-blue-100/50 border-[#303a7f]/20 text-[#303a7f] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'}`}
+                                                                                            className={`px-2 py-0.5 rounded-full text-[7px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.sup ? 'bg-blue-100/50 border-[#303a7f]/20 text-[#303a7f] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'}`}
                                                                                         >
                                                                                             {formatDecimal(dayVal.sup)}
                                                                                         </button>
                                                                                         <button
                                                                                             onClick={() => handleAuditChange(idx, day, dayVal.bio)}
-                                                                                            className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.bio ? 'bg-teal-50/50 border-[#6bbdb7]/20 text-[#6bbdb7] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'} ${dayVal.bio === 'X' ? '!text-red-500' : ''}`}
+                                                                                            className={`px-2 py-0.5 rounded-full text-[7px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.bio ? 'bg-teal-50/50 border-[#6bbdb7]/20 text-[#6bbdb7] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'} ${dayVal.bio === 'X' ? '!text-red-500' : ''}`}
                                                                                         >
                                                                                             {formatDecimal(dayVal.bio)}
                                                                                         </button>
@@ -18951,13 +18951,13 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                                                     h.fecha_inicio === fechaDesde
                                                                                 );
                                                                                 return (
-                                                                                    <div className={`relative rounded-xl overflow-hidden shadow-sm transition-all duration-300 border-[2px] ${isManual ? 'border-[#6bbdb7] shadow-[0_0_15px_rgba(107,189,183,0.2)]' : 'border-[#303a7f]'}`}>
+                                                                                    <div className={`relative rounded-lg overflow-hidden shadow-sm transition-all duration-300 border-[2px] ${isManual ? 'border-[#6bbdb7] shadow-[0_0_15px_rgba(107,189,183,0.2)]' : 'border-[#303a7f]'}`}>
                                                                                         <input
                                                                                             type="text"
                                                                                             value={formatDecimal(dayVal.final)}
                                                                                             onChange={(e) => !weekLocked && handleAuditChange(idx, day, e.target.value)}
                                                                                             readOnly={weekLocked}
-                                                                                            className={`w-full bg-[#f9f9f9] px-2 py-2 text-center text-[12px] font-black text-[#303a7f] tabular-nums outline-none border-none placeholder-gray-300 ${weekLocked ? 'cursor-not-allowed' : ''}`}
+                                                                                            className={`w-full bg-[#f9f9f9] px-1.5 py-1.5 text-center text-[10px] font-black text-[#303a7f] tabular-nums outline-none border-none placeholder-gray-300 ${weekLocked ? 'cursor-not-allowed' : ''}`}
                                                                                             placeholder={weekLocked ? '' : '0:00'}
                                                                                         />
                                                                                     </div>
@@ -18967,14 +18967,14 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                                     </td>
                                                                 );
                                                             })}
-                                                            <td className="p-4 text-right bg-gray-100/30 border-l-[3px] border-gray-200">
-                                                                <div className="flex flex-col items-end gap-2">
-                                                                    <div className="flex gap-4 opacity-40 text-[8px] font-black uppercase">
+                                                            <td className="p-2 text-right bg-gray-100/30 border-l-[3px] border-gray-200">
+                                                                <div className="flex flex-col items-end gap-1.5">
+                                                                    <div className="flex gap-3 opacity-40 text-[7px] font-black uppercase">
                                                                         <span>S: {formatDecimal(row.total.sup)}h</span>
                                                                         <span>B: {formatDecimal(row.total.bio)}h</span>
                                                                     </div>
-                                                                    <div className="bg-[#303a7f] px-4 py-2 rounded-2xl shadow-lg shadow-blue-900/10">
-                                                                        <span className="text-lg font-black text-white tabular-nums tracking-tighter">
+                                                                    <div className="bg-[#303a7f] px-3 py-1.5 rounded-xl shadow-lg shadow-blue-900/10">
+                                                                        <span className="text-base font-black text-white tabular-nums tracking-tighter">
                                                                             {formatDecimal(row.total.final)}{String(row.total.final || '').includes(':') ? '' : 'h'}
                                                                         </span>
                                                                     </div>
@@ -18995,9 +18995,9 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                         <div className="mt-3 flex justify-center">
                                             <button
                                                 onClick={() => { setEmployeeSelectorMode('add'); setEmployeeSelectorRowIdx(null); setEmployeeSearchQuery(''); setIsEmployeeSelectorOpen(true); }}
-                                                className="px-5 py-2 rounded-xl border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#6bbdb7] hover:text-[#6bbdb7] hover:bg-teal-50/30 transition-all text-[9px] font-black uppercase tracking-widest flex items-center gap-2 active:scale-95"
+                                                className="px-4 py-1.5 rounded-xl border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#6bbdb7] hover:text-[#6bbdb7] hover:bg-teal-50/30 transition-all text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 active:scale-95"
                                             >
-                                                <Plus size={14} />
+                                                <Plus size={12} />
                                                 Agregar Empleado
                                             </button>
                                         </div>
@@ -19015,9 +19015,9 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                     <>
                                                         <button
                                                             onClick={handleOpenHoursReportEmail}
-                                                            className="px-8 py-3 bg-[#6bbdb7] text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/10 transition-all active:scale-95 flex items-center gap-2 hover:bg-[#59aba5]"
+                                                            className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-xl text-[8px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/10 transition-all active:scale-95 flex items-center gap-1.5 hover:bg-[#59aba5]"
                                                         >
-                                                            <Mail size={14} /> Enviar Reporte de Horas
+                                                            <Mail size={12} /> Enviar Reporte de Horas
                                                         </button>
                                                         <button
                                                             onClick={() => {
