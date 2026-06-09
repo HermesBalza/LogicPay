@@ -2726,19 +2726,19 @@ const StoreAddView = ({ onSave, onBack }) => {
                 <div className="flex items-center justify-between mb-8">
                     <button
                         onClick={onBack}
-                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border-2 border-brand-primary/20 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
+                        className="flex items-center gap-1 px-2.5 py-2 bg-gray-100 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all hover:bg-gray-200 flex-shrink-0"
                     >
-                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                        Cancelar
+                        <ArrowLeft size={14} />
+                        Atrás
                     </button>
 
                     <button
                         onClick={handleSave}
                         style={{ backgroundColor: '#6bbdb7' }}
-                        className="text-white font-black px-10 py-4 shadow-2xl shadow-teal-900/20 text-xs tracking-widest uppercase rounded-2xl active:scale-95 flex items-center gap-2 hover:bg-[#59aba5] transition-colors"
+                        className="text-white font-black px-6 py-2.5 shadow-lg shadow-teal-900/20 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-1.5 hover:bg-[#59aba5] transition-colors flex-shrink-0"
                     >
-                        <Plus size={18} />
-                        Registrar Tienda
+                        <Plus size={14} />
+                        Registrar
                     </button>
                 </div>
 
@@ -4796,8 +4796,8 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
         <div className="fixed inset-0 z-[60] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
             <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-16">
                 <div className="flex items-center justify-between mb-8">
-                    <button onClick={onBack} className="flex items-center gap-2 text-gray-500 font-bold text-[10px] uppercase tracking-widest bg-white py-2.5 px-5 rounded-xl border-2 border-brand-primary/20"><ArrowLeft size={16} /> Cancelar</button>
-                    <button onClick={handleSave} style={{ backgroundColor: '#6bbdb7' }} className="text-white font-black px-10 py-4 shadow-2xl rounded-2xl text-xs tracking-widest uppercase flex items-center gap-2"><Plus size={18} /> Registrar Empleado</button>
+                    <button onClick={onBack} className="flex items-center gap-1 px-2.5 py-2 bg-gray-100 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all hover:bg-gray-200 flex-shrink-0"><ArrowLeft size={14} /> Atrás</button>
+                    <button onClick={handleSave} style={{ backgroundColor: '#6bbdb7' }} className="text-white font-black px-6 py-2.5 shadow-lg shadow-teal-900/20 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-1.5 flex-shrink-0"><Plus size={14} /> Registrar</button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
