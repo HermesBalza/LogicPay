@@ -7592,10 +7592,10 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                 )}
 
                 {/* Footer */}
-                <div className="p-8 border-t-2 border-gray-50 bg-gray-50/30 flex justify-between items-center">
+                <div className="p-8 border-t-2 border-gray-50 bg-gray-50/30 flex flex-col items-center gap-6">
                     <div className="flex items-center gap-6">
                         <div className="flex flex-col">
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total de registros</p>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Empleados</p>
                             <p className="text-xl font-black text-[#303a7f] leading-none">{localResults.filter(r => !r.isExcluded).length}</p>
                         </div>
                         <div className="h-8 w-px bg-gray-200" />
@@ -7615,22 +7615,17 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                         </div>
                     </div>
 
-                    <div className="flex gap-4">
-                        <button onClick={onClose} className="px-8 py-4 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95 shadow-sm">
-                            Cerrar
-                        </button>
-                        <button
-                            disabled={localResults.filter(r => !r.resolvedEmployee && !r.isExcluded).length > 0}
-                            onClick={handleFinalize}
-                            className={`px-12 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-3 ${localResults.filter(r => !r.resolvedEmployee && !r.isExcluded).length > 0
-                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                : 'bg-[#303a7f] text-white shadow-blue-900/20 hover:bg-[#252a5e]'
-                                }`}
-                        >
-                            <Save size={14} />
-                            Sincronizar Todo y Descargar Corregido
-                        </button>
-                    </div>
+                    <button
+                        disabled={localResults.filter(r => !r.resolvedEmployee && !r.isExcluded).length > 0}
+                        onClick={handleFinalize}
+                        className={`px-12 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-3 whitespace-nowrap ${localResults.filter(r => !r.resolvedEmployee && !r.isExcluded).length > 0
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            : 'bg-[#303a7f] text-white shadow-blue-900/20 hover:bg-[#252a5e]'
+                            }`}
+                    >
+                        <Save size={14} />
+                        Sincronizar Personal
+                    </button>
                 </div>
             </div>
         </div>
@@ -9829,30 +9824,30 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-5xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-0 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-full h-full flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
                 {/* Header */}
-                <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
-                    <div className="flex items-center gap-5">
-                        <div className="p-4 bg-[#6bbdb7] text-white rounded-2xl shadow-lg shadow-teal-900/20">
-                            <Camera size={24} />
+                <div className="p-4 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="p-3 bg-[#6bbdb7] text-white rounded-2xl shadow-lg shadow-teal-900/20">
+                            <Camera size={20} />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Previsualización de Planillas</h3>
-                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Añade comentarios para ayudar a la IA con infomación</p>
+                            <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-0.5">Fotos de Planillas</h3>
+                            <p className="text-[#6bbdb7] text-[8px] font-black uppercase tracking-widest opacity-80 truncate max-w-[200px]">De Imágenes a Excel</p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                        className="p-2 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl transition-all active:scale-90"
                     >
-                        <X size={24} />
+                        <X size={22} />
                     </button>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-8 bg-[#fcfdfe] custom-scrollbar">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="flex-1 overflow-y-auto p-4 bg-[#fcfdfe] custom-scrollbar">
+                    <div className="grid grid-cols-1 gap-6">
                         {files.map((item, idx) => (
                             <div key={item.id} className="bg-white rounded-[2.5rem] border-2 border-gray-100 shadow-sm overflow-hidden group hover:border-[#6bbdb7]/30 transition-all">
                                 <div className="relative aspect-[4/3] bg-gray-100 flex items-center justify-center overflow-hidden">
@@ -9887,17 +9882,11 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
                 </div>
 
                 {/* Footer */}
-                <div className="p-8 border-t-2 border-gray-50 flex items-center justify-end gap-4 bg-white">
-                    <button
-                        onClick={onClose}
-                        className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-100 transition-all active:scale-95"
-                    >
-                        Cancelar
-                    </button>
+                <div className="p-4 border-t-2 border-gray-50 flex items-center justify-center gap-4 bg-white">
                     <button
                         onClick={onConfirm}
                         disabled={isProcessing || files.length === 0}
-                        className="px-12 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400"
+                        className="px-12 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400 whitespace-nowrap"
                     >
                         {isProcessing ? (
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
