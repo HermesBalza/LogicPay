@@ -9889,61 +9889,35 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
 const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, onRegisterEmployee, employees, stores, placeholder, readOnly = false }) => {
     const [searchTerm, setSearchTerm] = useState(value || '');
     const [isOpen, setIsOpen] = useState(false);
-    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
-    // Estado del mini-formulario de registro rápido (null = cerrado)
     const [registerForm, setRegisterForm] = useState(null);
-    const wrapperRef = useRef(null);
-    const inputRef = useRef(null);
 
-    // Filtrar empleados por nombre, código o tienda
+    useEffect(() => { setSearchTerm(value || ''); }, [value]);
+
     const results = employees.filter(emp => {
         const term = searchTerm.toLowerCase().trim();
-        if (!term) return false;
+        if (!term) return employees.length <= 20 ? true : false;
         return (
             String(emp.nombre).toLowerCase().includes(term) ||
             String(emp.codigo_empleado).toLowerCase().includes(term) ||
             String(emp.tienda).toLowerCase().includes(term)
         );
-    }).slice(0, 8);
+    }).slice(0, 50);
 
-    // Calcular la posición del dropdown relativa al viewport (position: fixed)
-    const computePos = () => {
-        if (inputRef.current) {
-            const rect = inputRef.current.getBoundingClientRect();
-            setDropdownPos({ top: rect.bottom + 6, left: rect.left, width: rect.width });
-        }
-    };
-
-    useEffect(() => { setSearchTerm(value || ''); }, [value]);
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-                setIsOpen(false);
-                setRegisterForm(null);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    // Abrir mini-formulario pre-rellenando el nombre buscado
     const openRegisterForm = () => {
         setIsOpen(false);
         setRegisterForm({
             nombre: searchTerm.trim(),
-            codigo_empleado: `EXT-${Date.now().toString().slice(-5)}`, // código auto-generado
+            codigo_empleado: `EXT-${Date.now().toString().slice(-5)}`,
             tienda: ''
         });
     };
 
-    // Guardar el nuevo empleado externo
     const handleRegisterSave = () => {
         if (!registerForm.nombre.trim() || !registerForm.codigo_empleado.trim()) return;
         const newEmp = {
             nombre: registerForm.nombre.trim(),
             codigo_empleado: registerForm.codigo_empleado.trim(),
-            cargo: 'Externo',            // cargo fijo para externos
+            cargo: 'Externo',
             tienda: registerForm.tienda.trim() || 'Externo',
             fecha_ingreso: '',
             fecha_egreso: '',
@@ -9952,7 +9926,6 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, onRegister
             locationHistory: []
         };
         if (onRegisterEmployee) onRegisterEmployee(newEmp);
-        // Auto-seleccionar en la fila del proyecto
         if (onSelectEmployee) {
             onSelectEmployee(newEmp);
         } else {
@@ -9962,98 +9935,113 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, onRegister
         setRegisterForm(null);
     };
 
-    const showDropdown = isOpen && searchTerm.trim().length > 0;
-    const showRegisterOption = showDropdown && results.length === 0;
     const storeNames = (stores || []).map(s => s.nombre);
-
-    const inputCls = "w-full bg-[#f8f8f8] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all";
+    const inputCls = "w-full bg-[#f8f8f8] border-2 border-gray-100 rounded-xl px-3 py-2 text-[11px] font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all";
     const labelCls = "block text-[9px] font-black text-gray-400 uppercase tracking-[0.18em] mb-1";
 
     return (
-        <div className="relative w-full" ref={wrapperRef}>
+        <div className="relative w-full">
             <input
-                ref={inputRef}
                 type="text"
                 value={searchTerm}
                 readOnly={readOnly}
-                onChange={(e) => {
-                    if (readOnly) return;
-                    setSearchTerm(e.target.value);
-                    computePos();
-                    setIsOpen(true);
-                    setRegisterForm(null);
-                    if (e.target.value === '') onChange('');
-                }}
-                onFocus={() => { if (!readOnly) { computePos(); setIsOpen(true); } }}
+                onClick={() => { if (!readOnly) setIsOpen(true); }}
                 placeholder={placeholder}
-                className={`w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={`w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-lg px-3 py-2 text-[11px] font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all cursor-pointer ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
             />
 
-            {/* Dropdown de resultados de búsqueda */}
-            {showDropdown && results.length > 0 && (
-                <div
-                    style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
-                    className="bg-white border-2 border-gray-100 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-                >
-                    {results.map((emp, idx) => (
-                        <div
-                            key={emp.id || idx}
-                            onClick={() => {
-                                if (onSelectEmployee) {
-                                    onSelectEmployee(emp);
-                                } else {
-                                    onChange(emp.nombre);
-                                }
-                                setSearchTerm(emp.nombre);
-                                setIsOpen(false);
-                            }}
-                            className="p-3 hover:bg-teal-50 cursor-pointer border-b last:border-none border-gray-50 transition-colors group"
-                        >
-                            <div className="font-black text-[#303a7f] text-xs group-hover:text-[#6bbdb7] transition-colors">{emp.nombre}</div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100">
-                                    {emp.codigo_empleado}
-                                </span>
-                                <span className={`text-[9px] font-bold uppercase italic ${String(emp.cargo).toLowerCase() === 'externo' ? 'text-orange-400' : 'text-teal-600/60'}`}>
-                                    {String(emp.cargo).toLowerCase() === 'externo' ? '⚡ Externo' : emp.tienda}
-                                </span>
+            {/* Modal de selección de empleado */}
+            {isOpen && (
+                <div className="fixed inset-0 z-[400] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { if (e.target === e.currentTarget) setIsOpen(false); }}>
+                    <div className="bg-white w-full max-h-[85vh] sm:max-w-md sm:rounded-2xl rounded-t-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300">
+                        {/* Header del modal */}
+                        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
+                            <h3 className="text-base font-black text-[#303a7f]">Seleccionar Empleado</h3>
+                            <button onClick={() => setIsOpen(false)} className="p-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-all">
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Búsqueda */}
+                        <div className="px-4 py-3 shrink-0">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                                <input
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="Buscar por nombre, código o tienda..."
+                                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl pl-10 pr-4 py-2.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all"
+                                    autoFocus
+                                />
                             </div>
                         </div>
-                    ))}
-                </div>
-            )}
 
-            {/* Opción de registro cuando no hay coincidencias */}
-            {showRegisterOption && (
-                <div
-                    style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
-                    className="bg-white border-2 border-gray-100 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-                >
-                    <div
-                        onClick={openRegisterForm}
-                        className="p-3 hover:bg-orange-50 cursor-pointer transition-colors flex items-center gap-2 group"
-                    >
-                        <div className="bg-orange-100 text-orange-500 rounded-lg p-1 flex-shrink-0">
-                            <Plus size={12} />
-                        </div>
-                        <div>
-                            <div className="font-black text-orange-500 text-xs">Registrar como nuevo empleado</div>
-                            <div className="text-[9px] text-gray-400 font-bold">"{searchTerm.trim()}" · Cargo: Externo</div>
+                        {/* Lista de empleados */}
+                        <div className="flex-1 overflow-y-auto">
+                            {results.length === 0 && searchTerm.trim() ? (
+                                <div className="p-6 text-center">
+                                    <p className="text-gray-400 font-bold text-sm mb-3">Sin coincidencias</p>
+                                    <button
+                                        onClick={openRegisterForm}
+                                        className="inline-flex items-center gap-2 bg-orange-50 text-orange-500 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-100 transition-all"
+                                    >
+                                        <Plus size={14} />
+                                        Registrar "{searchTerm.trim()}" como Externo
+                                    </button>
+                                </div>
+                            ) : (
+                                results.map((emp, idx) => (
+                                    <div
+                                        key={emp.id || idx}
+                                        onClick={() => {
+                                            if (onSelectEmployee) {
+                                                onSelectEmployee(emp);
+                                            } else {
+                                                onChange(emp.nombre);
+                                            }
+                                            setSearchTerm(emp.nombre);
+                                            setIsOpen(false);
+                                        }}
+                                        className="px-4 py-3 hover:bg-teal-50 cursor-pointer border-b border-gray-50 transition-colors flex items-center gap-3"
+                                    >
+                                        <div className="w-9 h-9 rounded-full bg-[#303a7f]/5 flex items-center justify-center text-[#303a7f] font-black text-[11px] shrink-0">
+                                            {emp.nombre.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="font-black text-[#303a7f] text-[13px] truncate">{emp.nombre}</div>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-[9px] font-black text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{emp.codigo_empleado}</span>
+                                                <span className="text-[9px] font-bold text-[#6bbdb7] uppercase truncate">{emp.tienda || 'Sin tienda'}</span>
+                                            </div>
+                                        </div>
+                                        <ChevronRight size={16} className="text-gray-300 shrink-0" />
+                                    </div>
+                                ))
+                            )}
+                            {searchTerm.trim() === '' && (
+                                <div className="p-4">
+                                    <button
+                                        onClick={openRegisterForm}
+                                        className="w-full flex items-center justify-center gap-2 bg-orange-50 text-orange-500 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-100 transition-all border-2 border-dashed border-orange-200"
+                                    >
+                                        <Plus size={14} />
+                                        Registrar Nuevo Empleado Externo
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Mini-formulario de registro rápido — centrado en pantalla */}
+            {/* Mini-formulario de registro rápido */}
             {registerForm && (
                 <div
-                    style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(48,58,127,0.18)', backdropFilter: 'blur(3px)' }}
-                    onMouseDown={(e) => { if (e.target === e.currentTarget) setRegisterForm(null); }}
+                    className="fixed inset-0 z-[500] flex items-center justify-center bg-[#303a7f]/20 backdrop-blur-sm"
+                    onClick={(e) => { if (e.target === e.currentTarget) setRegisterForm(null); }}
                 >
-                    <div
-                        style={{ width: 360 }}
-                        className="bg-white border-2 border-orange-200 shadow-2xl rounded-2xl p-5 animate-in fade-in zoom-in-95 duration-200"
-                    >
+                    <div className="bg-white w-[90vw] max-w-sm border-2 border-orange-200 shadow-2xl rounded-2xl p-5 animate-in zoom-in-95 duration-200">
                         <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
                             <div className="bg-orange-100 text-orange-500 rounded-lg p-1">
                                 <Plus size={12} />
@@ -10194,50 +10182,50 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
     const totalKBS = project.employees.reduce((acc, r) => acc + ((parseFloat(r.hours) || 0) * (parseFloat(r.rateKBS) || 0)), 0);
     const totalLGM = project.employees.reduce((acc, r) => acc + ((parseFloat(r.hours) || 0) * (parseFloat(r.rateLogic) || 0)), 0);
 
-    const inputCls = "w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all";
-    const labelCls = "block text-[9px] font-black text-gray-400 uppercase tracking-[0.18em] mb-1.5";
+    const inputCls = "w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-lg px-2.5 py-2 text-[11px] font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all";
+    const labelCls = "block text-[7px] font-black text-gray-400 uppercase tracking-[0.15em] mb-1";
 
     return (
-        <div className="bg-white rounded-[2rem] shadow-xl shadow-blue-900/[0.04] border-2 border-[#6bbdb7] overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-lg shadow-blue-900/[0.04] border-2 border-[#6bbdb7] overflow-hidden">
             {/* Cabecera del proyecto */}
-            <div className="bg-gradient-to-r from-[#303a7f]/5 to-transparent p-5 border-b-2 border-gray-100">
-                <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="bg-gradient-to-r from-[#303a7f]/5 to-transparent p-4 border-b-2 border-gray-100">
+                <div className="flex items-start justify-between gap-3 mb-3">
                     {/* Invoice Badge */}
-                    <div className="flex items-center gap-3">
-                        <div className={`${isRegistered ? 'bg-[#6bbdb7]' : 'bg-[#303a7f]'} text-white px-4 py-2 rounded-xl shadow-lg transition-colors`}>
-                            <span className="text-[9px] font-black uppercase tracking-widest opacity-70 block leading-none mb-0.5">Invoice</span>
-                            <span className="text-lg font-black leading-none">#{project.invoice}</span>
+                    <div className="flex items-center gap-2">
+                        <div className={`${isRegistered ? 'bg-[#6bbdb7]' : 'bg-[#303a7f]'} text-white px-3 py-1.5 rounded-lg shadow-lg transition-colors`}>
+                            <span className="text-[7px] font-black uppercase tracking-widest opacity-70 block leading-none mb-0.5">Invoice</span>
+                            <span className="text-base font-black leading-none">#{project.invoice}</span>
                         </div>
                         {isRegistered && (
-                            <div className="flex gap-2 animate-in fade-in zoom-in-95">
-                                <div className="bg-teal-50 text-[#6bbdb7] px-3 py-1.5 rounded-lg border border-teal-100 flex items-center gap-1.5">
-                                    <CheckCircle size={10} />
-                                    <span className="text-[9px] font-black uppercase tracking-widest">Registrado</span>
+                            <div className="flex gap-1.5 animate-in fade-in zoom-in-95">
+                                <div className="bg-teal-50 text-[#6bbdb7] px-2.5 py-1 rounded-lg border border-teal-100 flex items-center gap-1">
+                                    <CheckCircle size={9} />
+                                    <span className="text-[7px] font-black uppercase tracking-widest">Registrado</span>
                                 </div>
                                 {project.visible === 'anulado' && (
-                                    <div className="bg-red-50 text-red-500 px-3 py-1.5 rounded-lg border border-red-100 flex items-center gap-1.5">
-                                        <XCircle size={10} />
-                                        <span className="text-[9px] font-black uppercase tracking-widest">ANULADO</span>
+                                    <div className="bg-red-50 text-red-500 px-2.5 py-1 rounded-lg border border-red-100 flex items-center gap-1">
+                                        <XCircle size={9} />
+                                        <span className="text-[7px] font-black uppercase tracking-widest">ANULADO</span>
                                     </div>
                                 )}
                             </div>
                         )}
                     </div>
                     {/* Acciones del proyecto */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         {!isRegistered ? (
                             <button
                                 onClick={() => onRemoveProject(project.id)}
-                                className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all flex-shrink-0 border-2 border-transparent hover:border-red-100"
+                                className="p-1.5 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all flex-shrink-0 border-2 border-transparent hover:border-red-100"
                                 title="Eliminar este proyecto"
                             >
-                                <Trash2 size={16} />
+                                <Trash2 size={14} />
                             </button>
                         ) : (
                             project.visible !== 'anulado' && (
                                 <button
                                     onClick={() => onAnulateProject(project)}
-                                    className="px-4 py-2 bg-white text-red-500 border-2 border-red-100 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-50 hover:border-red-500 transition-all active:scale-95 shadow-sm"
+                                    className="px-3 py-1.5 bg-white text-red-500 border-2 border-red-100 rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-red-50 hover:border-red-500 transition-all active:scale-95 shadow-sm"
                                 >
                                     Anular
                                 </button>
@@ -10247,7 +10235,7 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                 </div>
 
                 {/* Metadatos del proyecto en grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-3">
                     {/* Fecha */}
                     <div>
                         <label className={labelCls}>Fecha del Proyecto</label>
@@ -10301,16 +10289,16 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                 </div>
 
                 {/* Observaciones (Comentarios) */}
-                <div className="mt-4">
-                    <div className="flex justify-between items-center mb-1.5">
-                        <label className={labelCls}>Observaciones / Comentarios Internos</label>
-                        <span className={`text-[8px] font-black uppercase tracking-widest ${localComentarios.length >= 200 ? 'text-red-500' : 'text-gray-400'}`}>
+                <div className="mt-3">
+                    <div className="flex justify-between items-center mb-1">
+                        <label className={labelCls}>Observaciones / Comentarios</label>
+                        <span className={`text-[7px] font-black uppercase tracking-widest ${localComentarios.length >= 200 ? 'text-red-500' : 'text-gray-400'}`}>
                             {localComentarios.length} / 200
                         </span>
                     </div>
                     <textarea
                         value={localComentarios}
-                        placeholder="Deje aquí cualquier observación relevante para la facturación o el pago... (Máximo 200 caracteres)"
+                        placeholder="Observaciones relevantes... (Máx 200 caracteres)"
                         onChange={(e) => {
                             if (e.target.value.length <= 200) {
                                 setLocalComentarios(e.target.value);
@@ -10319,7 +10307,7 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                         onBlur={() => updateMeta('comentarios', localComentarios)}
                         readOnly={isRegistered}
                         rows={2}
-                        className={`${inputCls} resize-none py-3 ${isRegistered ? 'opacity-60 cursor-not-allowed' : 'hover:border-[#6bbdb7]'}`}
+                        className={`${inputCls} resize-none py-2.5 ${isRegistered ? 'opacity-60 cursor-not-allowed' : 'hover:border-[#6bbdb7]'}`}
                     />
                 </div>
             </div>
@@ -10329,24 +10317,24 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-gray-50/60">
-                            <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100">Nombre de Empleado</th>
-                            <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100 text-center">Horas</th>
-                            <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100 text-center">Rate KBS</th>
-                            <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100 text-center">Rate LGM</th>
-                            <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100 text-center">Acciones</th>
+                            <th className="p-2 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100">Nombre de Empleado</th>
+                            <th className="p-2 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100 text-center">Horas</th>
+                            <th className="p-2 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100 text-center">Rate KBS</th>
+                            <th className="p-2 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100 text-center">Rate LGM</th>
+                            <th className="p-2 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b border-gray-100 text-center"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {project.employees.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="p-8 text-center text-gray-400 font-bold italic text-xs opacity-60">
+                                <td colSpan={5} className="p-6 text-center text-gray-400 font-bold italic text-[10px] opacity-60">
                                     Sin empleados. Presiona "+ Agregar Empleado" para comenzar.
                                 </td>
                             </tr>
                         ) : (
                             project.employees.map((row) => (
                                 <tr key={row.id} className="hover:bg-gray-50/40 transition-colors group">
-                                    <td className="p-3">
+                                    <td className="p-2">
                                         <SearchableEmployeeInput
                                             value={row.employeeName}
                                             employees={employees}
@@ -10358,46 +10346,46 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                                             onRegisterEmployee={onRegisterEmployee}
                                         />
                                     </td>
-                                    <td className="p-3">
+                                    <td className="p-2">
                                         <EditableCell
                                             value={row.hours}
                                             type="number"
                                             readOnly={isRegistered}
                                             onChange={(val) => updateRow(row.id, { hours: val })}
-                                            className="w-20 mx-auto block bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
+                                            className="w-16 mx-auto block bg-[#fcfcfc] border-2 border-gray-100 rounded-lg px-2.5 py-2 text-[11px] font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
                                         />
                                     </td>
-                                    <td className="p-3">
+                                    <td className="p-2">
                                         <div className="flex items-center justify-center gap-1">
-                                            <span className="text-gray-400 text-[10px] font-black">$</span>
+                                            <span className="text-gray-400 text-[9px] font-black">$</span>
                                             <EditableCell
                                                 value={row.rateKBS}
                                                 type="number"
                                                 readOnly={isRegistered}
                                                 onChange={(val) => updateRow(row.id, { rateKBS: val })}
-                                                className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
+                                                className="w-16 bg-[#fcfcfc] border-2 border-gray-100 rounded-lg px-2.5 py-2 text-[11px] font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
                                             />
                                         </div>
                                     </td>
-                                    <td className="p-3">
+                                    <td className="p-2">
                                         <div className="flex items-center justify-center gap-1">
-                                            <span className="text-gray-400 text-[10px] font-black">$</span>
+                                            <span className="text-gray-400 text-[9px] font-black">$</span>
                                             <EditableCell
                                                 value={row.rateLogic}
                                                 type="number"
                                                 readOnly={isRegistered}
                                                 onChange={(val) => updateRow(row.id, { rateLogic: val })}
-                                                className="w-20 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
+                                                className="w-16 bg-[#fcfcfc] border-2 border-gray-100 rounded-lg px-2.5 py-2 text-[11px] font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all text-center"
                                             />
                                         </div>
                                     </td>
-                                    <td className="p-3 text-center">
+                                    <td className="p-2 text-center">
                                         {!isRegistered && (
                                             <button
                                                 onClick={() => removeEmp(row.id)}
-                                                className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                className="p-1.5 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                                             >
-                                                <Trash2 size={14} />
+                                                <Trash2 size={12} />
                                             </button>
                                         )}
                                     </td>
@@ -10407,16 +10395,16 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                     </tbody>
                     {/* ─── Totales del proyecto ─── */}
                     <tfoot className="border-t-2 border-gray-100 bg-gray-50/60">
-                        <tr className="font-black text-[10px]">
-                            <td className="p-3 text-right text-gray-500 uppercase tracking-wider">Totales</td>
-                            <td className="p-3 text-center text-[#303a7f]">{totalHrs.toFixed(2)} Hrs</td>
-                            <td className="p-3 text-center">
-                                <span className="bg-blue-50 text-[#303a7f] px-3 py-1 rounded-xl border border-blue-100">
+                        <tr className="font-black text-[9px]">
+                            <td className="p-2 text-right text-gray-500 uppercase tracking-wider">Totales</td>
+                            <td className="p-2 text-center text-[#303a7f]">{totalHrs.toFixed(2)} Hrs</td>
+                            <td className="p-2 text-center">
+                                <span className="bg-blue-50 text-[#303a7f] px-2 py-0.5 rounded-lg border border-blue-100 text-[9px]">
                                     ${totalKBS.toFixed(2)}
                                 </span>
                             </td>
-                            <td className="p-3 text-center">
-                                <span className="bg-teal-50 text-[#6bbdb7] px-3 py-1 rounded-xl border border-teal-100">
+                            <td className="p-2 text-center">
+                                <span className="bg-teal-50 text-[#6bbdb7] px-2 py-0.5 rounded-lg border border-teal-100 text-[9px]">
                                     ${totalLGM.toFixed(2)}
                                 </span>
                             </td>
@@ -10427,25 +10415,25 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
             </div>
 
             {/* Botón agregar empleado / Registrar */}
-            <div className="p-4 border-t border-gray-50 flex gap-3">
+            <div className="p-3 border-t border-gray-50 flex gap-2">
                 {!isRegistered && (
                     <button
                         onClick={addEmp}
-                        className="flex items-center gap-2 bg-[#f8f8f8] hover:bg-gray-100 text-[#303a7f] font-black text-[9px] uppercase tracking-widest transition-all py-3 px-4 rounded-xl border-2 border-dashed border-gray-200 w-1/3 justify-center active:scale-95"
+                        className="flex items-center gap-1.5 bg-[#f8f8f8] hover:bg-gray-100 text-[#303a7f] font-black text-[8px] uppercase tracking-widest transition-all py-2.5 px-3 rounded-lg border-2 border-dashed border-gray-200 justify-center active:scale-95"
                     >
-                        <Plus size={14} />
+                        <Plus size={12} />
                         Agregar Empleado
                     </button>
                 )}
                 <button
                     onClick={() => onRegisterProject(project)}
                     disabled={isRegistered || project.employees.length === 0}
-                    className={`flex items-center gap-2 font-black text-[9px] uppercase tracking-widest transition-all py-3 px-4 rounded-xl flex-1 justify-center shadow-lg active:scale-95 ${isRegistered
+                    className={`flex items-center gap-1.5 font-black text-[8px] uppercase tracking-widest transition-all py-2.5 px-3 rounded-lg flex-1 justify-center shadow-lg active:scale-95 ${isRegistered
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : 'bg-[#6bbdb7] hover:bg-[#59aba5] text-white shadow-teal-900/10'
                         }`}
                 >
-                    <ClipboardCheck size={16} />
+                    <ClipboardCheck size={14} />
                     {isRegistered ? 'Proyecto Registrado' : 'Registrar Proyecto Especial'}
                 </button>
             </div>
@@ -10579,7 +10567,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 
     return (
         <div className="fixed inset-0 z-[200] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500 font-sans">
-            <div className="max-w-5xl mx-auto p-4 lg:p-6 pb-16">
+            <div className="max-w-5xl mx-auto p-3 pb-16">
                 {/* Modal de Anulación */}
                 {anulatingProject && (
                     <AnularProjectModal
@@ -10589,38 +10577,38 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                     />
                 )}
                 {/* Header global de la vista */}
-                <div className="flex flex-col md:flex-row items-center justify-between mb-6 bg-white p-5 rounded-[1.8rem] shadow-xl shadow-blue-900/5 border-2 border-brand-primary/5 gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-[#303a7f] p-3.5 rounded-2xl shadow-xl shadow-blue-900/10 text-white">
-                            <ClipboardCheck size={22} />
+                <div className="flex flex-col md:flex-row items-center justify-between mb-4 bg-white p-4 rounded-2xl shadow-lg shadow-blue-900/5 border-2 border-brand-primary/5 gap-3">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-[#303a7f] p-2.5 rounded-xl shadow-lg shadow-blue-900/10 text-white">
+                            <ClipboardCheck size={18} />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">Proyectos Especiales</h2>
-                            <p className="text-[#6bbdb7] font-black uppercase text-[9px] tracking-[0.2em] opacity-95">
-                                {storeName} <span className="mx-2 text-gray-300">|</span> PERÍODO: {fechaDesde || '-'} - {fechaHasta || '-'}
+                            <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Proyectos Especiales</h2>
+                            <p className="text-[#6bbdb7] font-black uppercase text-[7px] tracking-[0.2em] opacity-95">
+                                {storeName} | {fechaDesde || '-'} - {fechaHasta || '-'}
                             </p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="flex items-center gap-2 text-[#303a7f] hover:bg-[#6bbdb7] hover:text-white transition-all py-2.5 px-6 bg-white rounded-xl shadow-sm group font-black text-[9px] uppercase tracking-widest border-2 border-[#6bbdb7]/30 hover:border-[#6bbdb7] active:scale-95"
+                        className="flex items-center gap-1.5 text-[#303a7f] hover:bg-[#6bbdb7] hover:text-white transition-all py-2 px-4 bg-white rounded-xl shadow-sm group font-black text-[8px] uppercase tracking-widest border-2 border-[#6bbdb7]/30 hover:border-[#6bbdb7] active:scale-95"
                     >
-                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                        <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
                         Volver
                     </button>
                 </div>
 
                 {/* Lista de proyectos */}
                 {specialProjectsData.length === 0 ? (
-                    <div className="bg-white rounded-[2rem] border-2 border-dashed border-gray-200 p-16 text-center">
-                        <div className="inline-flex p-5 bg-gray-50 rounded-3xl mb-5">
-                            <ClipboardCheck size={36} className="text-gray-300" />
+                    <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-10 text-center">
+                        <div className="inline-flex p-4 bg-gray-50 rounded-2xl mb-4">
+                            <ClipboardCheck size={28} className="text-gray-300" />
                         </div>
                         <p className="text-gray-400 font-bold text-sm mb-2">No hay proyectos especiales registrados.</p>
-                        <p className="text-gray-300 font-bold text-xs uppercase tracking-widest">Usa el botón inferior para crear el primero.</p>
+                        <p className="text-gray-300 font-bold text-[10px] uppercase tracking-widest">Usa el botón inferior para crear el primero.</p>
                     </div>
                 ) : (
-                    <div className="space-y-5">
+                    <div className="space-y-4">
                         {specialProjectsData.map((project) => (
                             <SpecialProjectCard
                                 key={project.id}
@@ -10640,12 +10628,12 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                 )}
 
                 {/* Botón global para nuevo proyecto */}
-                <div className="mt-6 flex justify-center">
+                <div className="mt-4 flex justify-center">
                     <button
                         onClick={addProject}
-                        className="flex items-center gap-3 bg-[#303a7f] text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
+                        className="flex items-center gap-2 bg-[#303a7f] text-white px-6 py-3 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
                     >
-                        <Plus size={18} />
+                        <Plus size={16} />
                         Nuevo Proyecto Especial
                     </button>
                 </div>
