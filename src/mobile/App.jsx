@@ -8913,91 +8913,67 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 className="absolute top-0 right-0 w-[800px] h-[800px] blur-[150px] rounded-full -z-10 pointer-events-none"
             />
 
-            <div id="biweekly-report-pdf-root" ref={biweeklyReportRef} className="max-w-7xl mx-auto p-4 lg:p-6 pb-12 bg-white rounded-[3rem] shadow-sm">
+            <div id="biweekly-report-pdf-root" ref={biweeklyReportRef} className="max-w-7xl mx-auto p-3 lg:p-6 pb-12 bg-white shadow-sm">
                 {/* Header Navigation */}
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 ${period.store === CONSOLIDATED_STORE ? 'bg-gradient-to-br from-[#6bbdb7] to-[#303a7f]' : 'bg-[#303a7f]'} text-white rounded-2xl flex items-center justify-center shadow-xl shadow-blue-900/10`}>
-                            {period.store === CONSOLIDATED_STORE ? <Sparkles size={24} /> : <Cpu size={24} />}
+                <div className="flex items-center justify-between mb-4 gap-2">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 ${period.store === CONSOLIDATED_STORE ? 'bg-gradient-to-br from-[#6bbdb7] to-[#303a7f]' : 'bg-[#303a7f]'} text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/10 shrink-0`}>
+                            {period.store === CONSOLIDATED_STORE ? <Sparkles size={18} /> : <Cpu size={18} />}
                         </div>
-                        <div>
-                            <h1 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1.5">
-                                {period.store === CONSOLIDATED_STORE ? 'Nómina Consolidada Multi-Tiendas' : 'Nómina Bisemanal'}
+                        <div className="min-w-0">
+                            <h1 className="text-base font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1 truncate">
+                                {period.store === CONSOLIDATED_STORE ? 'Nómina Consolidada' : 'Nómina Bisemanal'}
                             </h1>
-                            <div className="flex items-center gap-2">
-                                <span className={`${period.store === CONSOLIDATED_STORE ? 'text-amber-500' : 'text-[#6bbdb7]'} text-[9px] font-black uppercase tracking-[0.2em] opacity-80`}>
+                            <div className="flex items-center gap-1.5">
+                                <span className={`${period.store === CONSOLIDATED_STORE ? 'text-amber-500' : 'text-[#6bbdb7]'} text-[7px] font-black uppercase tracking-[0.2em] opacity-80 truncate max-w-[100px]`}>
                                     {period.store}
                                 </span>
-                                <div className="w-1 h-1 rounded-full bg-gray-200" />
-                                <span className="text-gray-400 text-[9px] font-black uppercase tracking-[0.2em]">{period.range}</span>
+                                <div className="w-1 h-1 rounded-full bg-gray-200 shrink-0" />
+                                <span className="text-gray-400 text-[7px] font-black uppercase tracking-[0.2em] truncate max-w-[120px]">{period.range}</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3" data-html2canvas-ignore>
-                        <button
-                            onClick={() => setIsEmailModalOpen(true)}
-                            className="px-8 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/20"
-                        >
-                            <Mail size={16} />
-                            Enviar por Correo
-                        </button>
-                        <button
-                            onClick={() => setIsPayStubModalOpen(true)}
-                            className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/20"
-                        >
-                            <FileText size={16} />
-                            Recibos de Pago
-                        </button>
-                        <button
-                            onClick={handleExportPDF}
-                            className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/10"
-                        >
-                            <Download size={16} />
-                            Exportar PDF
-                        </button>
-                        <button
-                            onClick={onBack}
-                            className="group flex items-center gap-2.5 px-5 py-2.5 bg-white border-2 border-gray-100 text-[#303a7f] rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-blue-900/5 hover:border-[#303a7f] hover:shadow-blue-900/10 transition-all active:scale-95"
-                        >
-                            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                            Volver a Nómina
-                        </button>
-                    </div>
+                    <button
+                        onClick={onBack}
+                        className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-90 flex-shrink-0"
+                        data-html2canvas-ignore
+                    >
+                        <X size={18} />
+                    </button>
                 </div>
 
                 {/* Table Header (Mimic the Excel Image) */}
-                <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/[0.04] border-2 border-brand-primary/5 p-8 lg:p-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="bg-white rounded-2xl shadow-lg shadow-blue-900/[0.04] border-2 border-brand-primary/5 p-4 lg:p-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
                     {period.store === CONSOLIDATED_STORE && (
-                        <div className="mb-8 p-6 bg-amber-50 border-2 border-amber-100 rounded-3xl flex items-center gap-6 animate-in zoom-in-95 duration-500">
-                            <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
-                                <Info size={24} />
+                        <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl flex items-center gap-4 animate-in zoom-in-95 duration-500">
+                            <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0 shadow-inner">
+                                <Info size={20} />
                             </div>
-                            <div className="flex-1">
-                                <h4 className="text-sm font-black text-amber-800 uppercase tracking-tighter mb-1">Detección de Empleados Multi-Tiendas</h4>
-                                <p className="text-amber-700 text-[11px] font-medium leading-relaxed">
-                                    Esta vista muestra <strong>exclusivamente</strong> a los trabajadores que tuvieron actividad en más de una tienda durante este periodo.
-                                    Las horas mostradas son la <strong>suma total</strong> de todas las sedes donde laboraron.
+                            <div className="flex-1 min-w-0">
+                                <h4 className="text-xs font-black text-amber-800 uppercase tracking-tighter mb-0.5">Detección Multi-Tiendas</h4>
+                                <p className="text-amber-700 text-[10px] font-medium leading-relaxed">
+                                    Trabajadores con actividad en más de una tienda durante este periodo.
                                 </p>
                             </div>
-                            <div className="px-4 py-2 bg-amber-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-amber-900/20">
-                                {biweeklyEmployees.length} Empleados Detectados
+                            <div className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest shadow-lg shadow-amber-900/20 shrink-0">
+                                {biweeklyEmployees.length} Emp.
                             </div>
                         </div>
                     )}
                     {/* Table */}
-                    <div className="overflow-x-auto rounded-[2rem] border-[3px] border-gray-100">
+                    <div className="overflow-x-auto rounded-xl border-2 border-gray-100">
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-[#303a7f] text-white">
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10 w-[160px]">Name</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[80px]">SEMANA 1</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[80px]">SEMANA 2</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[60px]">P.E</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[70px]">TOTAL</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[75px]">RATE</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-right border-r border-white/10 w-[120px]">PAGO TOTAL</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center w-[275px]">COMMENTS</th>
+                                    <th className="p-2 text-[8px] font-black uppercase tracking-widest border-r border-white/10">Name</th>
+                                    <th className="p-2 text-[8px] font-black uppercase tracking-widest text-center border-r border-white/10">W1</th>
+                                    <th className="p-2 text-[8px] font-black uppercase tracking-widest text-center border-r border-white/10">W2</th>
+                                    <th className="p-2 text-[8px] font-black uppercase tracking-widest text-center border-r border-white/10">P.E</th>
+                                    <th className="p-2 text-[8px] font-black uppercase tracking-widest text-center border-r border-white/10">TOTAL</th>
+                                    <th className="p-2 text-[8px] font-black uppercase tracking-widest text-center border-r border-white/10">RATE</th>
+                                    <th className="p-2 text-[8px] font-black uppercase tracking-widest text-right border-r border-white/10">PAGO</th>
+                                    <th className="p-2 text-[8px] font-black uppercase tracking-widest text-center">COMMENTS</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y-2 divide-gray-50">
@@ -9007,23 +8983,21 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                                     return (
                                         <tr key={idx} className={`group transition-colors ${emp.rowColor} hover:brightness-95`}>
-                                            <td className="p-4 border-r-2 border-gray-100 font-black text-[#303a7f] text-xs uppercase tracking-tight">{emp.nombre}</td>
-                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-xs tabular-nums">{emp.semana1 !== null ? Number(emp.semana1).toFixed(2) : '-'}</td>
-                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-xs tabular-nums">{emp.semana2 !== null ? Number(emp.semana2).toFixed(2) : '-'}</td>
-                                            <td className={`p-4 border-r-2 border-gray-100 text-center font-bold text-xs tabular-nums ${emp.pe === 0 ? 'text-gray-400 italic' : 'bg-amber-100 text-amber-600'}`}>{emp.pe === 0 ? '-' : emp.pe.toFixed(2)}</td>
-                                            <td className="p-4 border-r-2 border-gray-100 text-center font-black text-[#303a7f] text-xs tabular-nums">{totalHours.toFixed(2)}</td>
-                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-[#6bbdb7] text-xs tabular-nums">${Number(emp.rate).toFixed(2)}</td>
-                                            <td className="p-4 border-r-2 border-gray-100 text-right font-black text-[#303a7f] text-xs tabular-nums bg-opacity-30">${pagoTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                            {/* Campo de comentario — bloqueado en modo solo lectura una vez que la nómina ha sido confirmada.
-                                                Doble protección: readOnly bloquea el DOM y el guardia en onChange evita cualquier modificación de estado. */}
-                                            <td className={`p-4 px-2 py-1 transition-colors ${emp.comments ? 'bg-amber-100' : 'bg-transparent'}`}>
+                                            <td className="p-1.5 border-r-2 border-gray-100 font-black text-[#303a7f] text-[10px] uppercase tracking-tight">{emp.nombre}</td>
+                                            <td className="p-1.5 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-[10px] tabular-nums">{emp.semana1 !== null ? Number(emp.semana1).toFixed(2) : '-'}</td>
+                                            <td className="p-1.5 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-[10px] tabular-nums">{emp.semana2 !== null ? Number(emp.semana2).toFixed(2) : '-'}</td>
+                                            <td className={`p-1.5 border-r-2 border-gray-100 text-center font-bold text-[10px] tabular-nums ${emp.pe === 0 ? 'text-gray-400 italic' : 'bg-amber-100 text-amber-600'}`}>{emp.pe === 0 ? '-' : emp.pe.toFixed(2)}</td>
+                                            <td className="p-1.5 border-r-2 border-gray-100 text-center font-black text-[#303a7f] text-[10px] tabular-nums">{totalHours.toFixed(2)}</td>
+                                            <td className="p-1.5 border-r-2 border-gray-100 text-center font-bold text-[#6bbdb7] text-[10px] tabular-nums">${Number(emp.rate).toFixed(2)}</td>
+                                            <td className="p-1.5 border-r-2 border-gray-100 text-right font-black text-[#303a7f] text-[10px] tabular-nums bg-opacity-30">${pagoTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className={`p-1.5 px-1.5 py-1 transition-colors ${emp.comments ? 'bg-amber-100' : 'bg-transparent'}`}>
                                                 <textarea
                                                     value={emp.comments || ''}
                                                     onChange={(e) => !isAlreadyProcessed && handleCommentChange(idx, e.target.value)}
                                                     readOnly={isAlreadyProcessed}
                                                     rows={(emp.comments || '').split('\n').length || 1}
-                                                    className={`w-full bg-transparent border-none text-[10px] font-bold outline-none ring-0 focus:ring-0 transition-colors resize-none overflow-hidden block leading-tight ${isAlreadyProcessed ? 'cursor-not-allowed' : ''} ${emp.comments ? 'text-amber-600' : 'text-gray-500 placeholder-gray-200'}`}
-                                                    placeholder={isAlreadyProcessed ? '' : 'Añadir comentario...'}
+                                                    className={`w-full bg-transparent border-none text-[9px] font-bold outline-none ring-0 focus:ring-0 transition-colors resize-none overflow-hidden block leading-tight ${isAlreadyProcessed ? 'cursor-not-allowed' : ''} ${emp.comments ? 'text-amber-600' : 'text-gray-500 placeholder-gray-200'}`}
+                                                    placeholder={isAlreadyProcessed ? '' : 'Comentario...'}
                                                 />
                                             </td>
                                         </tr>
@@ -9033,7 +9007,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                 {addedSupervisors.map((emp, idx) => {
                                     return (
                                         <tr key={`sup-${idx}`} className={`group transition-colors ${emp.rowColor} hover:brightness-95`}>
-                                            <td className="p-4 border-r-2 border-gray-100 font-black text-[#303a7f] text-xs uppercase tracking-tight flex items-center justify-between">
+                                            <td className="p-1.5 border-r-2 border-gray-100 font-black text-[#303a7f] text-[10px] uppercase tracking-tight flex items-center justify-between">
                                                 <span>{emp.nombre}</span>
                                                 {!isAlreadyProcessed && (
                                                     <button
@@ -9041,21 +9015,21 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                         onClick={() => {
                                                             setAddedSupervisors(prev => prev.filter((_, i) => i !== idx));
                                                         }}
-                                                        className="text-red-500 hover:text-red-700 text-[9px] font-black uppercase tracking-wider ml-2"
+                                                        className="text-red-500 hover:text-red-700 text-[8px] font-black uppercase tracking-wider ml-1"
                                                     >
-                                                        Eliminar
+                                                        X
                                                     </button>
                                                 )}
                                             </td>
-                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-xs">-</td>
-                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-xs">-</td>
-                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-400 italic text-xs">-</td>
-                                            <td className="p-4 border-r-2 border-gray-100 text-center font-black text-[#303a7f] text-xs">-</td>
-                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-400 text-xs">-</td>
-                                            <td className="p-4 border-r-2 border-gray-100 text-right font-black text-[#303a7f] text-xs tabular-nums bg-opacity-30">
+                                            <td className="p-1.5 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-[10px]">-</td>
+                                            <td className="p-1.5 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-[10px]">-</td>
+                                            <td className="p-1.5 border-r-2 border-gray-100 text-center font-bold text-gray-400 italic text-[10px]">-</td>
+                                            <td className="p-1.5 border-r-2 border-gray-100 text-center font-black text-[#303a7f] text-[10px]">-</td>
+                                            <td className="p-1.5 border-r-2 border-gray-100 text-center font-bold text-gray-400 text-[10px]">-</td>
+                                            <td className="p-1.5 border-r-2 border-gray-100 text-right font-black text-[#303a7f] text-[10px] tabular-nums bg-opacity-30">
                                                 {!isAlreadyProcessed ? (
-                                                    <div className="flex items-center justify-end bg-white border-2 border-brand-primary/20 rounded-xl px-2 py-1 shadow-sm w-24 ml-auto">
-                                                        <span className="text-[#6bbdb7] font-black mr-1 text-[10px]">$</span>
+                                                    <div className="flex items-center justify-end bg-white border-2 border-brand-primary/20 rounded-lg px-1.5 py-0.5 shadow-sm w-20 ml-auto">
+                                                        <span className="text-[#6bbdb7] font-black mr-0.5 text-[9px]">$</span>
                                                         <input
                                                             type="number"
                                                             value={emp.sueldoFijo || ''}
@@ -9063,14 +9037,14 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                                 const val = parseFloat(e.target.value) || 0;
                                                                 setAddedSupervisors(prev => prev.map((item, i) => i === idx ? { ...item, sueldoFijo: val } : item));
                                                             }}
-                                                            className="w-full bg-transparent border-none text-[10px] font-bold outline-none text-right p-0"
+                                                            className="w-full bg-transparent border-none text-[9px] font-bold outline-none text-right p-0"
                                                         />
                                                     </div>
                                                 ) : (
                                                     `$${Number(emp.sueldoFijo || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                                 )}
                                             </td>
-                                            <td className={`p-4 px-2 py-1 transition-colors ${emp.comments ? 'bg-amber-100' : 'bg-transparent'}`}>
+                                            <td className={`p-1.5 px-1.5 py-1 transition-colors ${emp.comments ? 'bg-amber-100' : 'bg-transparent'}`}>
                                                 <textarea
                                                     value={emp.comments || ''}
                                                     onChange={(e) => {
@@ -9079,8 +9053,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                     }}
                                                     readOnly={isAlreadyProcessed}
                                                     rows={(emp.comments || '').split('\n').length || 1}
-                                                    className={`w-full bg-transparent border-none text-[10px] font-bold outline-none ring-0 focus:ring-0 transition-colors resize-none overflow-hidden block leading-tight ${isAlreadyProcessed ? 'cursor-not-allowed' : ''} ${emp.comments ? 'text-amber-600' : 'text-gray-500 placeholder-gray-200'}`}
-                                                    placeholder={isAlreadyProcessed ? '' : 'Añadir comentario...'}
+                                                    className={`w-full bg-transparent border-none text-[9px] font-bold outline-none ring-0 focus:ring-0 transition-colors resize-none overflow-hidden block leading-tight ${isAlreadyProcessed ? 'cursor-not-allowed' : ''} ${emp.comments ? 'text-amber-600' : 'text-gray-500 placeholder-gray-200'}`}
+                                                    placeholder={isAlreadyProcessed ? '' : 'Comentario...'}
                                                 />
                                             </td>
                                         </tr>
@@ -9089,10 +9063,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                                 {!isAlreadyProcessed && (
                                     <tr className="bg-teal-50/10 border-t-2 border-dashed border-teal-500/20">
-                                        <td className="p-4" colSpan="6">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-64 relative">
-                                                    <label className="text-[8px] text-teal-600 font-black uppercase tracking-widest block mb-1">Nombre del Supervisor</label>
+                                        <td className="p-2" colSpan="6">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <div className="w-full sm:w-44 relative">
+                                                    <label className="text-[7px] text-teal-600 font-black uppercase tracking-widest block mb-0.5">Nombre Supervisor</label>
                                                     <input
                                                         type="text"
                                                         placeholder="Escriba o seleccione..."
@@ -9102,11 +9076,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                             setShowSuperSuggestions(true);
                                                         }}
                                                         onFocus={() => setShowSuperSuggestions(true)}
-                                                        className="w-full bg-white border-2 border-teal-500/20 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-teal-500 transition-all"
+                                                        className="w-full bg-white border-2 border-teal-500/20 rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-[#303a7f] outline-none focus:border-teal-500 transition-all"
                                                     />
-                                                    {/* Sugerencias de Autocompletado */}
                                                     {showSuperSuggestions && (
-                                                        <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-[200] max-h-40 overflow-y-auto">
+                                                        <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-[200] max-h-32 overflow-y-auto">
                                                             {employees
                                                                 .filter(e => {
                                                                     const isSuper = String(e.cargo).toLowerCase().includes('super');
@@ -9121,27 +9094,27 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                                             setSuperSelectedId(e.codigo_empleado);
                                                                             setShowSuperSuggestions(false);
                                                                         }}
-                                                                        className="px-4 py-2 hover:bg-teal-50 text-xs font-bold text-gray-700 cursor-pointer transition-colors"
+                                                                        className="px-3 py-1.5 hover:bg-teal-50 text-[10px] font-bold text-gray-700 cursor-pointer transition-colors"
                                                                     >
                                                                         {e.nombre} (ID: {e.codigo_empleado})
                                                                     </div>
                                                                 ))
                                                             }
                                                             {employees.filter(e => String(e.cargo).toLowerCase().includes('super')).length === 0 && (
-                                                                <div className="px-4 py-2 text-gray-400 text-[10px] font-bold">No hay supervisores en personal</div>
+                                                                <div className="px-3 py-1.5 text-gray-400 text-[9px] font-bold">No hay supervisores</div>
                                                             )}
                                                         </div>
                                                     )}
                                                 </div>
 
-                                                <div className="w-32">
-                                                    <label className="text-[8px] text-teal-600 font-black uppercase tracking-widest block mb-1">Sueldo Fijo ($)</label>
+                                                <div className="w-24">
+                                                    <label className="text-[7px] text-teal-600 font-black uppercase tracking-widest block mb-0.5">Sueldo ($)</label>
                                                     <input
                                                         type="number"
                                                         placeholder="0.00"
                                                         value={superInputSalary}
                                                         onChange={(e) => setSuperInputSalary(e.target.value)}
-                                                        className="w-full bg-white border-2 border-teal-500/20 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-teal-500 transition-all text-right"
+                                                        className="w-full bg-white border-2 border-teal-500/20 rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-[#303a7f] outline-none focus:border-teal-500 transition-all text-right"
                                                     />
                                                 </div>
 
@@ -9153,7 +9126,6 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                         const salary = parseFloat(superInputSalary) || 0;
                                                         const code = superSelectedId || `SUP_${Date.now()}`;
                                                         
-                                                        // Evitar duplicados
                                                         if ([...biweeklyEmployees, ...addedSupervisors].some(emp => emp.nombre.toUpperCase() === name)) {
                                                             alert("Este supervisor ya está en la lista.");
                                                             return;
@@ -9176,13 +9148,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                                                         setAddedSupervisors(prev => [...prev, newSuper]);
                                                         
-                                                        // Reset inputs
                                                         setSuperInputName('');
                                                         setSuperInputSalary('');
                                                         setSuperSelectedId('');
                                                         setShowSuperSuggestions(false);
                                                     }}
-                                                    className="px-6 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 mt-4"
+                                                    className="px-4 py-1.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg font-black uppercase text-[9px] tracking-widest transition-all active:scale-95 mt-4"
                                                 >
                                                     Agregar
                                                 </button>
@@ -9195,35 +9166,42 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             <tfoot>
 
                                 <tr className="bg-[#303a7f] text-white font-black">
-                                    <td className="p-5 text-left text-[10px] uppercase tracking-widest bg-[#252a5e]">
-                                        Total Personal: {[...biweeklyEmployees, ...addedSupervisors].length}
+                                    <td className="p-3 text-left text-[9px] uppercase tracking-widest bg-[#252a5e]">
+                                        Total: {[...biweeklyEmployees, ...addedSupervisors].length}
                                     </td>
-                                    <td colSpan="5" className="p-5 text-right text-[12px] uppercase tracking-[0.4em]">TOTAL DE NÓMINA:</td>
-                                    <td className="p-5 text-right text-lg tabular-nums border-r border-white/10">
+                                    <td colSpan="5" className="p-3 text-right text-[10px] uppercase tracking-[0.3em]">TOTAL NÓMINA:</td>
+                                    <td className="p-3 text-right text-base tabular-nums border-r border-white/10">
                                         ${totalFinal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </td>
-                                    <td className="p-5 bg-white/5"></td>
+                                    <td className="p-3 bg-white/5"></td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
 
                     {/* Action Bar */}
-                    <div data-html2canvas-ignore className="mt-12 flex justify-end items-center gap-4 border-t-2 border-gray-50 pt-10">
+                    <div data-html2canvas-ignore className="mt-6 flex flex-col items-center gap-2 border-t-2 border-gray-50 pt-4">
+                        <button
+                            onClick={() => setIsEmailModalOpen(true)}
+                            className="w-full px-6 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-teal-900/10"
+                        >
+                            <Mail size={14} />
+                            Enviar Mail
+                        </button>
                         <button
                             onClick={() => setIsConfirmModalOpen(true)}
                             disabled={isSaving || isAlreadyProcessed || [...biweeklyEmployees, ...addedSupervisors].length === 0}
-                            className={`px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isSaving
+                            className={`w-full px-6 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg ${isSaving
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                 : isAlreadyProcessed
-                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/20 cursor-not-allowed'
+                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 cursor-not-allowed'
                                     : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/20'
                                 }`}
                         >
                             {isSaving ? (
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-[#303a7f] rounded-full animate-spin" />
+                                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-[#303a7f] rounded-full animate-spin" />
                             ) : (
-                                <CheckCircle size={16} />
+                                <CheckCircle size={14} />
                             )}
                             {isSaving ? 'Confirmando...' : isAlreadyProcessed ? 'Nómina Confirmada' : 'Confirmar Nómina'}
                         </button>
