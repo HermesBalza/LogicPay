@@ -5574,49 +5574,49 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
         <div className="fixed inset-0 z-[500] bg-white animate-in slide-in-from-bottom duration-500 overflow-hidden">
             <div className="h-screen flex flex-col bg-gray-50/30">
                 {/* Header Full Screen */}
-                <div className="px-10 py-5 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
-                            <Mail size={20} />
+                <div className="px-4 py-3 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-[#303a7f] text-white rounded-xl shadow-lg shadow-blue-900/20">
+                            <Mail size={16} />
                         </div>
                         <div>
-                            <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Enviar Reporte de Horas</h3>
-                            <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
+                            <h3 className="text-base font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-0.5">Pedir Aprobación</h3>
+                            <p className="text-[8px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Enviar Correo</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
-                        <X size={20} />
+                    <button onClick={onClose} className="p-2 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl transition-all active:scale-90">
+                        <X size={18} />
                     </button>
                 </div>
 
-                <div className="flex-1 px-10 py-6 grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-7xl mx-auto w-full overflow-hidden">
-                    <div className="space-y-4">
+                <div className="flex-1 px-4 py-4 grid grid-cols-1 gap-4 mx-auto w-full overflow-y-auto">
+                    <div className="space-y-3">
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
                             <div className="relative">
-                                <input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="ejemplo@correo.com" className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
+                                <input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="ejemplo@correo.com" className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-xl p-3 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-[11px] shadow-sm" />
                                 <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]"><Send size={16} /></div>
                             </div>
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Con Copia (CC)</label>
                             <div className="relative">
-                                <input type="text" value={cc} onChange={(e) => setCc(e.target.value)} placeholder="ejemplo@correo.com, otro@correo.com" className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
+                                <input type="text" value={cc} onChange={(e) => setCc(e.target.value)} placeholder="ejemplo@correo.com, otro@correo.com" className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-xl p-3 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-[11px] shadow-sm" />
                                 <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]"><Users size={16} /></div>
                             </div>
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto del Correo</label>
-                            <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
+                            <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-xl p-3 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-[11px] shadow-sm" />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documento Adjunto</label>
-                            <div className="space-y-3 max-h-[180px] overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="space-y-3 max-h-[150px] overflow-y-auto pr-1 custom-scrollbar">
                                 {/* Simulación Reporte Principal */}
-                                <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
-                                    <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10"><FileText size={18} /></div>
-                                    <div className="flex-1">
-                                        <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">
+                                <div className="p-3 bg-teal-50/50 rounded-xl border-2 border-dashed border-teal-100/50 flex items-center gap-3 group transition-all">
+                                    <div className="p-2 bg-[#6bbdb7] text-white rounded-lg shadow-lg shadow-teal-900/10"><FileText size={16} /></div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[8px] font-black text-[#2e5d5a] uppercase tracking-tight truncate">
                                             {storeName.replace(/\s+/g, '_')}_Weekly_Attendance_Report.pdf
                                         </p>
                                         <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Reporte de Asistencia Semanal</p>
@@ -5641,10 +5641,10 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                                     const fileName = `Hours Report ${proj.Tienda || storeName} - Special Project ${mmddyy}.pdf`;
 
                                     return (
-                                        <div key={idx} className="p-4 bg-blue-50/30 rounded-2xl border-2 border-dashed border-blue-100/30 flex items-center gap-4 group transition-all animate-in slide-in-from-left duration-300" style={{ animationDelay: `${idx * 100}ms` }}>
-                                            <div className="p-2.5 bg-[#303a7f] text-white rounded-xl shadow-lg shadow-blue-900/10"><FileText size={18} /></div>
-                                            <div className="flex-1">
-                                                <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-tight">{fileName}</p>
+                                        <div key={idx} className="p-3 bg-blue-50/30 rounded-xl border-2 border-dashed border-blue-100/30 flex items-center gap-3 group transition-all animate-in slide-in-from-left duration-300" style={{ animationDelay: `${idx * 100}ms` }}>
+                                            <div className="p-2 bg-[#303a7f] text-white rounded-lg shadow-lg shadow-blue-900/10"><FileText size={16} /></div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[8px] font-black text-[#303a7f] uppercase tracking-tight truncate">{fileName}</p>
                                                 <p className="text-[8px] text-[#303a7f]/60 font-bold uppercase">Special Project Support Doc</p>
                                             </div>
                                             <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#303a7f] shadow-sm"><Check size={14} /></div>
@@ -5656,21 +5656,15 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                     </div>
                     <div className="flex flex-col space-y-1.5 h-full">
                         <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
-                        <textarea value={body} onChange={(e) => setBody(e.target.value)} className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]" />
+                        <textarea value={body} onChange={(e) => setBody(e.target.value)} className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-2xl p-4 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-[11px] resize-none shadow-sm leading-relaxed min-h-[150px]" />
                     </div>
                 </div>
 
-                <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
-                    <button
-                        onClick={onClose}
-                        className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
-                    >
-                        Cancelar
-                    </button>
+                <div className="px-4 pb-6 flex justify-center gap-4 shrink-0">
                     <button
                         onClick={() => !isSending && onSend({ to, cc, subject, body, relevantProjects })}
                         disabled={isSending}
-                        className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
+                        className={`w-full py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
                         {isSending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={18} />}
                         {isSending ? 'Enviando...' : 'Enviar Ahora'}
