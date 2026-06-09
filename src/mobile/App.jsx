@@ -14419,12 +14419,6 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
 
     const userCanEdit = user?.rol !== 'Operador de Pagos';
     const userCanAccessSettings = user?.rol === 'Desarrollador';
-    // Redirigir si se intenta acceder a Ajustes sin permiso
-    if (activeTab === 'settings' && !userCanAccessSettings) {
-        setActiveTab('dashboard');
-        sessionStorage.setItem('activeTab', 'dashboard');
-    }
-
     // Estados para archivos de Nómina
     const [supervisorFile, setSupervisorFile] = useState(null);
     const [biometricFile, setBiometricFile] = useState(null);
@@ -17719,13 +17713,10 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
         { id: 'stores', label: 'Tiendas', icon: StoreIcon },
         { id: 'employees', label: 'Personal', icon: Users },
         { id: 'payroll', label: 'Nómina', icon: CreditCard },
-        { id: 'tax_center', label: '1099-NEC', icon: ShieldCheck },
         { id: 'csg', label: 'CSG', icon: Sparkles },
         { id: 'lgm', label: 'LGM', icon: Target },
-        { id: 'crm', label: 'CRM', icon: Briefcase },
-        { id: 'settings', label: 'Ajustes', icon: Settings },
     ];
-    const navItems = allNavItems.filter(item => item.id !== 'settings' || userCanAccessSettings);
+    const navItems = allNavItems;
 
     if (!variablesLoaded || isSyncingEmployeeCSV) return <SplashLoader />;
     if (!user) return <LoginView onLogin={handleLogin} />;
@@ -18375,7 +18366,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 />
 
                 <div className="flex items-center gap-2">
-                    <NotificationBell onSelectCandidato={(id) => { setPendingCandidatoId(id); setActiveTab('crm'); }} onSelectProveedor={(id) => { setPendingProveedorId(id); setActiveTab('crm'); }} />
+                    <NotificationBell onSelectCandidato={(id) => { setPendingCandidatoId(id); setActiveTab('dashboard'); }} onSelectProveedor={(id) => { setPendingProveedorId(id); setActiveTab('dashboard'); }} />
                     {user && (user.rol === 'Asistente' || user.rol === 'Desarrollador') && <Notes currentUser={{ id: user.nombre || user.name, autor_nombre: user.nombre || user.name, userId: user.id, userName: user.nombre }} />}
                     <div className="flex items-center gap-1">
                         <div className="h-9 w-9 rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-100 flex-shrink-0 flex items-center justify-center">
@@ -19442,7 +19433,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     {activeTab === 'crm' && <CRMView currentUser={user} pendingCandidatoId={pendingCandidatoId} onClearPendingCandidato={() => setPendingCandidatoId(null)} pendingProveedorId={pendingProveedorId} onClearPendingProveedor={() => setPendingProveedorId(null)} onCandidatoContratado={fetchPendingContratados} />}
 
                     {/* VISTA DEL DASHBOARD */}
-                    {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'tax_center' && activeTab !== 'csg' && activeTab !== 'settings' && activeTab !== 'lgm' && activeTab !== 'crm')) && !showResumen && (
+                    {(activeTab === 'dashboard' || (activeTab !== 'stores' && activeTab !== 'payroll' && activeTab !== 'employees' && activeTab !== 'csg' && activeTab !== 'lgm')) && !showResumen && (
                         <DashboardView
                             nominaHistoryData={nominaHistoryData}
                             nominaDetailData={nominaDetailData}
