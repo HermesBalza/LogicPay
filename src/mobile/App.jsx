@@ -18713,7 +18713,24 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     )}
 
                     {activeTab === 'payroll' && payrollView === 'engine' && (
-                        <div className="grid grid-cols-1 gap-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                        <div className="grid grid-cols-1 gap-2 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                            <button
+                                onClick={() => setPayrollView('history')}
+                                className="self-start bg-white text-[#303a7f] rounded-xl hover:bg-gray-50 transition-all active:scale-95 border-[3px] border-[#303a7f]/20 shadow-sm flex items-center justify-center gap-2 px-4 py-2.5"
+                            >
+                                <History size={16} className="group-hover:-rotate-45 transition-transform text-[#303a7f] shrink-0" />
+                                <span className="text-[11px] font-black uppercase tracking-widest leading-none">Atrás</span>
+                            </button>
+                            <div className="bg-white rounded-2xl px-5 py-4 shadow-lg border border-[#6bbdb7]/20 flex flex-wrap items-center gap-x-6 gap-y-1">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-[#6bbdb7] rounded-full animate-pulse shadow-[0_0_6px_rgba(107,189,183,0.6)] shrink-0"></div>
+                                    <span className="text-[13px] font-black text-[#303a7f] uppercase tracking-wide">{payrollStore || "S/A"}</span>
+                                </div>
+                                <span className="text-gray-300 font-black text-sm hidden sm:inline">|</span>
+                                <span className="text-[11px] font-bold text-[#303a7f]"><span className="text-[#6bbdb7] font-black">Desde:</span> {fechaDesde || "S/A"}</span>
+                                <span className="text-gray-300 font-black text-sm hidden sm:inline">|</span>
+                                <span className="text-[11px] font-bold text-[#303a7f]"><span className="text-[#6bbdb7] font-black">Hasta:</span> {fechaHasta || "S/A"}</span>
+                            </div>
                             <section className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-blue-900/[0.04] overflow-hidden relative border-2 border-transparent lg:p-10">
                                 <div
                                     style={{ backgroundColor: 'rgba(48,58,127,0.03)' }}
@@ -18721,49 +18738,6 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                 />
 
 
-
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-5 mb-10 relative z-10">
-                                    <div className="md:col-span-4 lg:col-span-4 space-y-2">
-                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Unidad Receptora (Tienda)</label>
-                                        <div className="relative group">
-                                            <div className="w-full bg-[#f9f9f9] border-[3px] border-[#6bbdb7]/30 text-[#303a7f] font-black rounded-xl px-4 py-3.5 shadow-inner shadow-teal-900/5 text-[11px] uppercase tracking-widest flex items-center gap-3 mt-1 h-[48px] truncate">
-                                                <div className="w-2 h-2 bg-[#6bbdb7] rounded-full animate-pulse shadow-[0_0_8px_rgba(107,189,183,0.8)] shrink-0"></div>
-                                                <span className="truncate">{payrollStore || "S/A"}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-3 lg:col-span-3 space-y-2">
-                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Desde:</label>
-                                        <div className="relative group">
-                                            <div className="w-full bg-[#f9f9f9] border-[3px] border-[#6bbdb7]/30 text-[#303a7f] font-black rounded-xl px-4 py-3.5 shadow-inner shadow-teal-900/5 text-xs uppercase tracking-widest flex items-center gap-3 mt-1 h-[48px]">
-                                                <Calendar size={16} className="text-[#6bbdb7] shrink-0" />
-                                                <span className="truncate">{fechaDesde || "S/A"}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-3 lg:col-span-3 space-y-2">
-                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block ml-2">Hasta:</label>
-                                        <div className="relative group">
-                                            <div className="w-full bg-[#f9f9f9] border-[3px] border-[#6bbdb7]/30 text-[#303a7f] font-black rounded-xl px-4 py-3.5 shadow-inner shadow-teal-900/5 text-xs uppercase tracking-widest flex items-center gap-3 mt-1 h-[48px]">
-                                                <Calendar size={16} className="text-[#6bbdb7] shrink-0" />
-                                                <span className="truncate">{fechaHasta || "S/A"}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-2 lg:col-span-2 flex items-end">
-                                        <button
-                                            onClick={() => setPayrollView('history')}
-                                            className="w-full bg-white text-[#303a7f] rounded-xl hover:bg-gray-50 transition-all active:scale-95 border-[3px] border-[#303a7f]/20 shadow-sm flex items-center justify-center gap-2 group h-[48px]"
-                                        >
-                                            <History size={16} className="group-hover:-rotate-45 transition-transform text-[#303a7f] shrink-0" />
-                                            <span className="text-[9px] font-black uppercase tracking-widest leading-none truncate hidden lg:inline">Volver</span>
-                                            <span className="text-[9px] font-black uppercase tracking-widest leading-none truncate lg:hidden">Volver al Historial</span>
-                                        </button>
-                                    </div>
-                                </div>
 
                                 {(() => {
                                     const isCurrentWeekApproved = (nominaHistoryData || []).some(h =>
@@ -18824,7 +18798,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                     <FileText size={14} className={supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'} />
                                                 </div>
                                                 <div>
-                                                    <p className={`text-[9px] font-black uppercase tracking-widest leading-none truncate ${supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>{supervisorFile ? supervisorFile.name : 'Reporte Sup.'}</p>
+                                                    <p className={`text-[9px] font-black uppercase tracking-widest leading-none truncate ${supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Reporte Sup.</p>
                                                     <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Horas Diarias</p>
                                                 </div>
                                             </div>
@@ -18869,7 +18843,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                     <Clock8 size={14} className={biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'} />
                                                 </div>
                                                 <div>
-                                                    <p className={`text-[9px] font-black uppercase tracking-widest leading-none truncate ${biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>{biometricFile ? biometricFile.name : 'Reporte IVR'}</p>
+                                                    <p className={`text-[9px] font-black uppercase tracking-widest leading-none truncate ${biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Reporte IVR</p>
                                                     <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Biométrico</p>
                                                 </div>
                                             </div>
@@ -18909,7 +18883,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                         onClick={processPayroll}
                                         disabled={!payrollStore || !fechaDesde || !fechaHasta || !(supervisorFile || biometricFile) || isProcessingPayroll}
                                         style={{ backgroundColor: (payrollStore && fechaDesde && fechaHasta && (supervisorFile || biometricFile)) ? '#303a7f' : '#f3f4f6' }}
-                                        className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl flex items-center gap-3 ${((supervisorFile || biometricFile) && payrollStore && fechaDesde && fechaHasta)
+                                        className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl flex items-center gap-3 whitespace-nowrap ${((supervisorFile || biometricFile) && payrollStore && fechaDesde && fechaHasta)
                                             ? 'text-white shadow-blue-900/20 active:scale-95 hover:bg-[#252a5e]'
                                             : 'text-gray-300 cursor-not-allowed shadow-none'
                                             }`}
@@ -18936,15 +18910,15 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             {/* TABLA MAESTRA: SEMANA (Visible por defecto) */}
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-12 duration-1000">
                                 <section id="asistencia-semanal" className="bg-white rounded-[2.5rem] px-5 py-8 shadow-2xl shadow-blue-900/[0.04] border-2 border-brand-primary/5 min-h-[400px]" style={{ scrollMarginTop: 80 }}>
-                                    <div className="flex items-center justify-between mb-8">
+                                    <div className="flex items-center justify-between mb-4">
                                         <div className="flex items-center gap-4">
                                             <div className="p-3 bg-[#303a7f]/5 rounded-xl">
-                                                <Calendar size={20} className="text-[#303a7f]" />
+                                                <Calendar size={16} className="text-[#303a7f]" />
                                             </div>
                                             <div>
-                                                <h3 className="text-xl font-black text-[#303a7f] tracking-tighter leading-none mb-1">Registro de Asistencia Semanal</h3>
+                                                <h3 className="text-base font-black text-[#303a7f] tracking-tighter leading-none mb-1 whitespace-nowrap">Asistencia Semanal</h3>
                                                 <div className="flex flex-col md:flex-row md:items-center gap-2 mt-1">
-                                                    <p className="text-[#6bbdb7] font-black uppercase text-[14px] tracking-[0.2em]">desde {fechaDesde || '--/--/----'} hasta {fechaHasta || '--/--/----'}</p>
+                                                    <p className="text-[#6bbdb7] font-black uppercase text-[5px] tracking-[0.2em]">desde {fechaDesde || '--/--/----'} hasta {fechaHasta || '--/--/----'}</p>
                                                     {isHistoricalDataLoaded && (
                                                         <div title="Dato Histórico Recuperado" className="w-6 h-6 ml-2 bg-teal-50 border border-[#6bbdb7]/30 rounded-full flex items-center justify-center shadow-sm animate-in zoom-in-95 duration-500">
                                                             <History size={13} className="text-[#6bbdb7]" />
@@ -18953,87 +18927,61 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
 
-                                        <div className="flex items-center gap-4">
-                                            <button
-                                                onClick={() => {
-                                                    setIsLoading(true);
-                                                    // Limpieza profunda (Forzar Refrescamiento de Caché)
-                                                    setKbsBillingTableData([]);
-                                                    setEarningsTableData([]);
-                                                    
-                                                    setTimeout(() => {
-                                                        setIsLoading(false);
-                                                        setIsAttendanceEyeModalOpen(true);
-                                                    }, 1500);
-                                                }}
-                                                disabled={semanaTableData.length === 0}
-                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center justify-center group ${
-                                                    semanaTableData.length > 0
-                                                        ? 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100 animate-pulse'
-                                                        : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
-                                                }`}
-                                                title="Ver Rates y Costos"
-                                            >
-                                                <Eye size={16} />
-                                            </button>
-                                            {(() => {
-                                                const isCurrentWeekApproved = (nominaHistoryData || []).some(h =>
-                                                    String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
-                                                    h.fecha_inicio === fechaDesde
-                                                );
-                                                return (
-                                                    <>
-                                                        <button
-                                                            onClick={handleOpenSpecialProjects}
-                                                            disabled={!payrollStore || !fechaDesde || !fechaHasta || isCurrentWeekApproved}
-                                                            title={isCurrentWeekApproved ? 'Semana aprobada: no se pueden agregar Proyectos Especiales' : 'Abrir Proyectos Especiales'}
-                                                            className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${isCurrentWeekApproved
-                                                                ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60'
-                                                                : (payrollStore && fechaDesde && fechaHasta)
-                                                                    ? 'bg-amber-50 text-[#b76b00] border-amber-100 hover:bg-amber-100'
-                                                                    : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
-                                                                }`}
-                                                        >
-                                                            <Star size={16} fill="currentColor" />
-                                                            <span className="text-[9px] font-black uppercase tracking-widest leading-none">Proyectos Especiales</span>
-                                                        </button>
-                                                    </>
-                                                );
-                                            })()}
-                                            <button
-                                                onClick={() => setIsVWHModalOpen(true)}
-                                                disabled={semanaTableData.length === 0}
-                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${semanaTableData.length > 0 ? 'bg-indigo-50 text-[#303a7f] border-indigo-100 hover:bg-indigo-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
-                                                title="Ver Tabla VWH"
-                                            >
-                                                <ClipboardCheck size={16} className="group-hover:rotate-12 transition-transform" />
-                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">VWH</span>
-                                            </button>
-                                            <button
-                                                onClick={() => setIsSupervisorModalOpen(true)}
-                                                disabled={semanaTableData.length === 0}
-                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${semanaTableData.length > 0 ? 'bg-blue-50 text-[#303a7f] border-blue-100 hover:bg-blue-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
-                                                title="Ver Tabla del Supervisor"
-                                            >
-                                                <FileText size={16} className="group-hover:rotate-12 transition-transform" />
-                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">Tabla Supervisor</span>
-                                            </button>
-                                            <button
-                                                onClick={() => setIsBiometricIVRModalOpen(true)}
-                                                disabled={biometricTableData.length === 0}
-                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center gap-2 group ${biometricTableData.length > 0 ? 'bg-teal-50 text-[#6bbdb7] border-[#6bbdb7]/20 hover:bg-teal-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
-                                                title="Ver Tabla IVR"
-                                            >
-                                                <Clock8 size={16} className="group-hover:rotate-12 transition-transform" />
-                                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">Tabla IVR</span>
-                                            </button>
-                                            <div className="px-4 py-2 bg-[#f9f9f9] rounded-xl border-2 border-gray-50 flex items-center gap-3">
-                                                <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest leading-none">
-                                                    {semanaTableData.length} Empleados
-                                                </span>
-                                            </div>
-                                        </div>
+                                    <div className="flex items-center gap-2 mb-8">
+                                        <button
+                                            onClick={() => {
+                                                setIsLoading(true);
+                                                setKbsBillingTableData([]);
+                                                setEarningsTableData([]);
+                                                
+                                                setTimeout(() => {
+                                                    setIsLoading(false);
+                                                    setIsAttendanceEyeModalOpen(true);
+                                                }, 1500);
+                                            }}
+                                            disabled={semanaTableData.length === 0}
+                                            className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center justify-center group flex-shrink-0 ${
+                                                semanaTableData.length > 0
+                                                    ? 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100 animate-pulse'
+                                                    : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                                            }`}
+                                            title="Ver Rates y Costos"
+                                        >
+                                            <Eye size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => setIsVWHModalOpen(true)}
+                                            disabled={semanaTableData.length === 0}
+                                            className={`flex-1 p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center justify-center gap-2 group ${semanaTableData.length > 0 ? 'bg-indigo-50 text-[#303a7f] border-indigo-100 hover:bg-indigo-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
+                                            title="Ver Tabla VWH"
+                                        >
+                                            <ClipboardCheck size={16} className="group-hover:rotate-12 transition-transform" />
+                                            <span className="text-[9px] font-black uppercase tracking-widest leading-none">VWH</span>
+                                        </button>
+                                        {(() => {
+                                            const isCurrentWeekApproved = (nominaHistoryData || []).some(h =>
+                                                String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                                                h.fecha_inicio === fechaDesde
+                                            );
+                                            return (
+                                                <button
+                                                    onClick={handleOpenSpecialProjects}
+                                                    disabled={!payrollStore || !fechaDesde || !fechaHasta || isCurrentWeekApproved}
+                                                    title={isCurrentWeekApproved ? 'Semana aprobada: no se pueden agregar P.E.' : 'Abrir Proyectos Especiales'}
+                                                    className={`flex-1 p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center justify-center gap-2 group ${isCurrentWeekApproved
+                                                        ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60'
+                                                        : (payrollStore && fechaDesde && fechaHasta)
+                                                            ? 'bg-amber-50 text-[#b76b00] border-amber-100 hover:bg-amber-100'
+                                                            : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                                                        }`}
+                                                >
+                                                    <Star size={16} fill="currentColor" />
+                                                    <span className="text-[9px] font-black uppercase tracking-widest leading-none">P.E.</span>
+                                                </button>
+                                            );
+                                        })()}
                                     </div>
 
                                     <div ref={attendanceTableRef} className="overflow-x-auto rounded-3xl border-[3px] border-gray-200 bg-white">
