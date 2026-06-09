@@ -5883,77 +5883,76 @@ const VWHTableModal = (props) => {
         if (isAZPEN) {
             // Versión AZPEN: Estructura de 8 columnas idéntica a las otras tiendas para consistencia en PDF
             return (
-                <div className="bg-white mx-auto h-fit max-w-7xl relative shadow-2xl border-2 border-gray-50 rounded-[4rem] overflow-hidden mb-16 last:mb-0">
-                    <div className="p-12 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/20 to-transparent">
-                        <div className="flex items-center gap-6">
-                            <div className="p-5 bg-[#303a7f] text-white rounded-[1.8rem] shadow-2xl shadow-blue-900/30">
-                                <ClipboardCheck size={32} />
+                <div className="bg-white mx-auto h-fit relative shadow-xl border-2 border-gray-50 rounded-2xl overflow-hidden mb-8 last:mb-0">
+                    <div className="p-4 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/20 to-transparent">
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-[#303a7f] text-white rounded-xl shadow-lg shadow-blue-900/30">
+                                <ClipboardCheck size={20} />
                             </div>
                             <div>
-                                <h3 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">REPORTE VWH</h3>
-                                <p className="text-[#6bbdb7] font-black uppercase text-[12px] tracking-[0.2em]">
-                                    {payrollStore} | Period: {start} - {end}
+                                <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-0.5">REPORTE VWH</h3>
+                                <p className="text-[#6bbdb7] font-black uppercase text-[8px] tracking-[0.2em] truncate max-w-[180px]">
+                                    {payrollStore} | {start} - {end}
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Forzamos grid-cols-4 para evitar recortes en PDF */}
-                    <div className="px-12 py-10 grid grid-cols-4 gap-12 border-b-2 border-gray-50 bg-gray-50/30">
+                    <div className="px-4 py-4 grid grid-cols-2 gap-3 border-b-2 border-gray-50 bg-gray-50/30">
                         <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Site Name</p>
-                            <p className="text-[13px] font-black text-[#303a7f] uppercase leading-tight">{payrollStore}</p>
+                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 opacity-60">Site Name</p>
+                            <p className="text-[11px] font-black text-[#303a7f] uppercase leading-tight truncate">{payrollStore}</p>
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">KBS ID</p>
-                            <p className="text-sm font-black text-[#303a7f] uppercase tabular-nums">{kbsId}</p>
+                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 opacity-60">KBS ID</p>
+                            <p className="text-[11px] font-black text-[#303a7f] uppercase tabular-nums">{kbsId}</p>
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Vendor Name</p>
-                            <p className="text-sm font-black text-[#303a7f] uppercase">Logic Group Management</p>
+                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 opacity-60">Vendor Name</p>
+                            <p className="text-[11px] font-black text-[#303a7f] uppercase">Logic Group</p>
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Total Billing</p>
-                            <p className="text-3xl font-black text-[#6bbdb7] tabular-nums leading-none tracking-tighter">$484.33</p>
+                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 opacity-60">Total Billing</p>
+                            <p className="text-xl font-black text-[#6bbdb7] tabular-nums leading-none tracking-tighter">$484.33</p>
                         </div>
                     </div>
 
-                    <div className="p-12">
-                        <div className="overflow-hidden rounded-[2.5rem] border-2 border-gray-100 shadow-2xl shadow-blue-900/[0.04]">
-                            <table className="w-full text-left border-collapse">
+                    <div className="p-2">
+                        <div className="overflow-x-auto rounded-2xl border-2 border-gray-100">
+                            <table className="w-full text-left border-collapse min-w-[600px]">
                                 <thead>
                                     <tr className="bg-gray-50/80">
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Site Code</th>
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">KBS ID</th>
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100">Vendor Name</th>
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Billing Description</th>
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Date</th>
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Hours</th>
-                                        <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Job Code</th>
-                                        <th className="p-5 text-[9px] font-black text-white uppercase tracking-[0.2em] text-right bg-[#303a7f] px-8">Rate</th>
+                                        <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-3">Site Code</th>
+                                        <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">KBS ID</th>
+                                        <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100">Vendor</th>
+                                        <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-3">Billing Description</th>
+                                        <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Date</th>
+                                        <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Hours</th>
+                                        <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Job Code</th>
+                                        <th className="p-1.5 text-[7px] font-black text-white uppercase tracking-[0.2em] text-right bg-[#303a7f] px-3">Rate</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y-2 divide-gray-50">
                                     <tr className="group hover:bg-blue-50/20 transition-all duration-300">
-                                        <td className="p-6 text-[11px] font-bold text-gray-500 uppercase pl-8">{payrollStore}</td>
-                                        <td className="p-6 text-[11px] font-bold text-gray-500 text-center tabular-nums">{kbsId}</td>
-                                        <td className="p-6 text-[10px] font-black text-gray-400 uppercase opacity-40">Logic Group</td>
-                                        <td className="p-6 pl-8">
-                                            <span className="text-[12px] font-black text-[#303a7f] uppercase tracking-tight">Janitorial and Maintenance Services</span>
+                                        <td className="p-1.5 text-[10px] font-bold text-gray-500 uppercase pl-3">{payrollStore}</td>
+                                        <td className="p-1.5 text-[10px] font-bold text-gray-500 text-center tabular-nums">{kbsId}</td>
+                                        <td className="p-1.5 text-[9px] font-black text-gray-400 uppercase opacity-40">LG</td>
+                                        <td className="p-1.5 pl-3">
+                                            <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-tight">Janitorial Services</span>
                                         </td>
-                                        <td className="p-6 text-[11px] font-bold text-gray-400 text-center whitespace-nowrap">{start}-{end}</td>
-                                        <td className="p-6 text-[11px] font-bold text-gray-500 text-center">N/A</td>
-                                        <td className="p-6 text-[11px] font-bold text-gray-500 text-center">---</td>
-                                        <td className="p-6 text-right px-8 bg-[#303a7f]/[0.02]">
-                                            <span className="text-sm font-black text-[#303a7f] tabular-nums">$484.33</span>
+                                        <td className="p-1.5 text-[10px] font-bold text-gray-400 text-center whitespace-nowrap">{start}-{end}</td>
+                                        <td className="p-1.5 text-[10px] font-bold text-gray-500 text-center">N/A</td>
+                                        <td className="p-1.5 text-[10px] font-bold text-gray-500 text-center">---</td>
+                                        <td className="p-1.5 text-right px-3 bg-[#303a7f]/[0.02]">
+                                            <span className="text-[10px] font-black text-[#303a7f] tabular-nums">$484.33</span>
                                         </td>
                                     </tr>
                                     <tr className="bg-[#303a7f] border-t-4 border-white">
-                                        <td colSpan={7} className="p-8 text-[11px] font-black text-white uppercase tracking-[0.3em] text-right italic pr-12 opacity-80">
+                                        <td colSpan={7} className="p-3 text-[9px] font-black text-white uppercase tracking-[0.2em] text-right italic pr-4 opacity-80">
                                             Total
                                         </td>
-                                        <td className="p-8 text-right bg-[#303a7f]/90 px-8">
-                                            <span className="text-2xl font-black text-white tabular-nums drop-shadow-xl tracking-tighter">
+                                        <td className="p-3 text-right bg-[#303a7f]/90 px-3">
+                                            <span className="text-lg font-black text-white tabular-nums drop-shadow-xl tracking-tighter">
                                                 $484.33
                                             </span>
                                         </td>
@@ -5961,14 +5960,14 @@ const VWHTableModal = (props) => {
                                 </tbody>
                             </table>
                         </div>
-                        <div className="mt-16 flex justify-between items-center opacity-30 px-6 border-t-2 border-gray-50 pt-8">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-[#303a7f] flex items-center justify-center text-white">
-                                    <Receipt size={14} />
+                        <div className="mt-4 flex justify-between items-center opacity-30 px-3 border-t-2 border-gray-50 pt-3">
+                            <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-[#303a7f] flex items-center justify-center text-white">
+                                    <Receipt size={10} />
                                 </div>
-                                <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">AdWisers LogicPay</p>
+                                <p className="text-[7px] font-black text-[#303a7f] uppercase tracking-[0.3em]">LogicPay</p>
                             </div>
-                            <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">Logic Group Management LLC.</p>
+                            <p className="text-[7px] font-black text-[#303a7f] uppercase tracking-[0.3em]">LGM LLC.</p>
                         </div>
                     </div>
                 </div>
@@ -5976,90 +5975,89 @@ const VWHTableModal = (props) => {
         }
 
         return (
-            <div className="bg-white mx-auto h-fit max-w-7xl relative shadow-2xl border-2 border-gray-50 rounded-[4rem] overflow-hidden mb-16 last:mb-0">
-                {/* Header Premium (Estilo Referencia) */}
-                <div className="p-12 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/20 to-transparent">
-                    <div className="flex items-center gap-6">
-                        <div className="p-5 bg-[#303a7f] text-white rounded-[1.8rem] shadow-2xl shadow-blue-900/30 transform rotate-0 hover:rotate-3 transition-all duration-500">
-                            <ClipboardCheck size={32} />
+            <div className="bg-white mx-auto h-fit relative shadow-xl border-2 border-gray-50 rounded-2xl overflow-hidden mb-8 last:mb-0">
+                {/* Header Premium */}
+                <div className="p-4 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/20 to-transparent">
+                    <div className="flex items-center gap-3">
+                        <div className="p-3 bg-[#303a7f] text-white rounded-xl shadow-lg shadow-blue-900/30">
+                            <ClipboardCheck size={20} />
                         </div>
                         <div>
-                            <h3 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">REPORTE VWH</h3>
-                            <div className="flex items-center gap-3">
-                                <p className="text-[#6bbdb7] font-black uppercase text-[12px] tracking-[0.2em]">
-                                    {payrollStore} | Period: {start} - {end}
+                            <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-0.5">REPORTE VWH</h3>
+                            <div className="flex items-center gap-2">
+                                <p className="text-[#6bbdb7] font-black uppercase text-[8px] tracking-[0.2em] truncate max-w-[180px]">
+                                    {payrollStore} | {start} - {end}
                                 </p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Resumen de Información (Estilo Limpio) */}
-                <div className="px-12 py-10 grid grid-cols-2 md:grid-cols-4 gap-12 border-b-2 border-gray-50 bg-gray-50/30">
+                {/* Resumen de Información */}
+                <div className="px-4 py-4 grid grid-cols-2 gap-3 border-b-2 border-gray-50 bg-gray-50/30">
                     <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Site Name</p>
-                        <p className="text-[13px] font-black text-[#303a7f] uppercase leading-tight">{payrollStore}</p>
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 opacity-60">Site Name</p>
+                        <p className="text-[11px] font-black text-[#303a7f] uppercase leading-tight truncate">{payrollStore}</p>
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">KBS ID</p>
-                        <p className="text-sm font-black text-[#303a7f] uppercase tabular-nums">{kbsId}</p>
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 opacity-60">KBS ID</p>
+                        <p className="text-[11px] font-black text-[#303a7f] uppercase tabular-nums">{kbsId}</p>
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Vendor Name</p>
-                        <p className="text-sm font-black text-[#303a7f] uppercase">Logic Group Management</p>
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 opacity-60">Vendor Name</p>
+                        <p className="text-[11px] font-black text-[#303a7f] uppercase">Logic Group</p>
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Total Hours</p>
-                        <p className="text-3xl font-black text-[#6bbdb7] tabular-nums leading-none tracking-tighter">{currentTotal.toFixed(2)}</p>
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 opacity-60">Total Hours</p>
+                        <p className="text-xl font-black text-[#6bbdb7] tabular-nums leading-none tracking-tighter">{currentTotal.toFixed(2)}</p>
                     </div>
                 </div>
 
-                {/* Tabla de 8 Columnas con Estilo Premium */}
-                <div className="p-12">
-                    <div className="overflow-hidden rounded-[2.5rem] border-2 border-gray-100 shadow-2xl shadow-blue-900/[0.04]">
-                        <table className="w-full text-left border-collapse">
+                {/* Tabla de 8 Columnas */}
+                <div className="p-2">
+                    <div className="overflow-x-auto rounded-2xl border-2 border-gray-100">
+                        <table className="w-full text-left border-collapse min-w-[600px]">
                             <thead>
                                 <tr className="bg-gray-50/80">
-                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Site Code</th>
-                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">KBS ID</th>
-                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100">Vendor Name</th>
-                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Employee Identifier</th>
-                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Date</th>
-                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Hours</th>
-                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Job Code</th>
-                                    <th className="p-5 text-[9px] font-black text-white uppercase tracking-[0.2em] text-right bg-[#303a7f] px-8">Rate</th>
+                                    <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-3">Site Code</th>
+                                    <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">KBS ID</th>
+                                    <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100">Vendor</th>
+                                    <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-3">Employee</th>
+                                    <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Date</th>
+                                    <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Hours</th>
+                                    <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Job Code</th>
+                                    <th className="p-1.5 text-[7px] font-black text-white uppercase tracking-[0.2em] text-right bg-[#303a7f] px-3">Rate</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y-2 divide-gray-50">
                                 {processedData.filter(emp => emp.fragmentTotal > 0).map((row, idx) => (
                                     <tr key={idx} className="group hover:bg-blue-50/20 transition-all duration-300">
-                                        <td className="p-5 text-[11px] font-bold text-gray-500 uppercase pl-8">{payrollStore}</td>
-                                        <td className="p-5 text-[11px] font-bold text-gray-500 text-center tabular-nums">{kbsId}</td>
-                                        <td className="p-5 text-[10px] font-black text-gray-400 uppercase opacity-40">Logic Group</td>
-                                        <td className="p-5 pl-8">
-                                            <span className="text-[13px] font-black text-[#303a7f] uppercase tracking-tight group-hover:text-blue-600 transition-colors duration-500">{row.nombre}</span>
+                                        <td className="p-1.5 text-[10px] font-bold text-gray-500 uppercase pl-3">{payrollStore}</td>
+                                        <td className="p-1.5 text-[10px] font-bold text-gray-500 text-center tabular-nums">{kbsId}</td>
+                                        <td className="p-1.5 text-[9px] font-black text-gray-400 uppercase opacity-40">LG</td>
+                                        <td className="p-1.5 pl-3">
+                                            <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-tight truncate block max-w-[120px]">{row.nombre}</span>
                                         </td>
-                                        <td className="p-5 text-[11px] font-bold text-gray-400 text-center whitespace-nowrap">{start}-{end}</td>
-                                        <td className="p-5 text-center">
-                                            <span className="px-4 py-1.5 bg-[#303a7f]/5 rounded-xl text-xs font-black text-[#303a7f] tabular-nums">
+                                        <td className="p-1.5 text-[10px] font-bold text-gray-400 text-center whitespace-nowrap">{start}-{end}</td>
+                                        <td className="p-1.5 text-center">
+                                            <span className="px-2 py-1 bg-[#303a7f]/5 rounded-lg text-[10px] font-black text-[#303a7f] tabular-nums">
                                                 {row.fragmentTotal.toFixed(2)}
                                             </span>
                                         </td>
-                                        <td className="p-5 text-center">
-                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-3 py-1 rounded-md">{row.cargo}</span>
+                                        <td className="p-1.5 text-center">
+                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded-md truncate block max-w-[80px]">{row.cargo}</span>
                                         </td>
-                                        <td className="p-5 text-right px-8 bg-[#303a7f]/[0.02]">
-                                            <span className="text-xs font-black text-[#303a7f] tabular-nums">${getKbsRate(row.cargo, row.nombre).toFixed(2)}</span>
+                                        <td className="p-1.5 text-right px-3 bg-[#303a7f]/[0.02]">
+                                            <span className="text-[10px] font-black text-[#303a7f] tabular-nums">${getKbsRate(row.cargo, row.nombre).toFixed(2)}</span>
                                         </td>
                                     </tr>
                                 ))}
-                                {/* Fila de Resumen Final Premium */}
                                 <tr className="bg-[#303a7f] border-t-4 border-white">
-                                    <td colSpan={5} className="p-8 text-[11px] font-black text-white uppercase tracking-[0.3em] text-right italic pr-12 opacity-80">
+                                    <td colSpan={5} className="p-3 text-[9px] font-black text-white uppercase tracking-[0.2em] text-right italic pr-4 opacity-80">
                                         Total Vendor Weekly Hours
                                     </td>
-                                    <td className="p-8 text-center bg-[#303a7f]/90">
-                                        <span className="text-2xl font-black text-white tabular-nums drop-shadow-xl tracking-tighter">
+                                    <td className="p-3 text-center bg-[#303a7f]/90">
+                                        <span className="text-lg font-black text-white tabular-nums drop-shadow-xl tracking-tighter">
                                             {currentTotal.toFixed(2)}
                                         </span>
                                     </td>
@@ -6070,14 +6068,14 @@ const VWHTableModal = (props) => {
                     </div>
 
                     {/* Footer del Reporte */}
-                    <div className="mt-16 flex justify-between items-center opacity-30 px-6 border-t-2 border-gray-50 pt-8">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-[#303a7f] flex items-center justify-center text-white">
-                                <Receipt size={14} />
+                    <div className="mt-4 flex justify-between items-center opacity-30 px-3 border-t-2 border-gray-50 pt-3">
+                        <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-lg bg-[#303a7f] flex items-center justify-center text-white">
+                                <Receipt size={10} />
                             </div>
-                            <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">AdWisers LogicPay</p>
+                            <p className="text-[7px] font-black text-[#303a7f] uppercase tracking-[0.3em]">LogicPay</p>
                         </div>
-                        <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">Logic Group Management LLC.</p>
+                        <p className="text-[7px] font-black text-[#303a7f] uppercase tracking-[0.3em]">LGM LLC.</p>
                     </div>
                 </div>
             </div>
@@ -6087,39 +6085,39 @@ const VWHTableModal = (props) => {
     return (
         <div className="fixed inset-0 z-[300] bg-white animate-in fade-in duration-500 overflow-hidden flex flex-col">
             {/* Header Flotante (Botones de Control Superiores) */}
-            <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-40 shadow-sm" data-html2canvas-ignore="true">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform rotate-0 hover:-rotate-3 transition-transform duration-500">
-                        <Receipt size={20} />
+            <div className="px-3 py-2 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-40 shadow-sm gap-1" data-html2canvas-ignore="true">
+                <div className="flex items-center gap-2 shrink-0">
+                    <div className="p-2 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10">
+                        <Receipt size={16} />
                     </div>
                     <div className="flex flex-col">
-                        <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Visor de Reporte VWH</h2>
-                        <div className="flex items-center gap-2">
-                            <div className="h-0.5 w-6 bg-[#6bbdb7] rounded-full" />
-                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-[0.3em] opacity-90">{payrollStore}</p>
+                        <h2 className="text-base font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-0.5">Reporte VWH</h2>
+                        <div className="flex items-center gap-1.5">
+                            <div className="h-0.5 w-4 bg-[#6bbdb7] rounded-full" />
+                            <p className="text-[#6bbdb7] text-[8px] font-black uppercase tracking-[0.3em] opacity-90 truncate max-w-[80px]">{payrollStore}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* PAGINADOR (Solo si hay split) */}
                 {showSplit && (
-                    <div className="flex items-center gap-1 bg-gray-50 p-1.5 rounded-2xl border-2 border-gray-100 shadow-inner">
+                    <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border-2 border-gray-100 shadow-inner shrink-0">
                         <button
                             onClick={() => setActiveSplitPart('A')}
-                            className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-500 ${activeSplitPart === 'A' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f]'}`}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all duration-500 whitespace-nowrap ${activeSplitPart === 'A' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f]'}`}
                         >
-                            Página 1 de 2
+                            Página 1/2
                         </button>
                         <button
                             onClick={() => setActiveSplitPart('B')}
-                            className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-500 ${activeSplitPart === 'B' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f]'}`}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all duration-500 whitespace-nowrap ${activeSplitPart === 'B' ? 'bg-[#303a7f] text-white shadow-lg' : 'text-gray-400 hover:text-[#303a7f]'}`}
                         >
-                            Página 2 de 2
+                            Página 2/2
                         </button>
                     </div>
                 )}
-                <div className="flex items-center gap-4">
-                    {/* Botón Consolidado UPS (Solo para UPS) - Reubicado por Hermes */}
+                <div className="flex items-center gap-1">
+                    {/* Botón Consolidado UPS (Solo para UPS) */}
                     {(() => {
                         const isUPS = (name) => {
                             const n = String(name || '').toLowerCase();
@@ -6129,10 +6127,10 @@ const VWHTableModal = (props) => {
                             return (
                                 <button
                                     onClick={() => onOpenUPSConsolidated && onOpenUPSConsolidated(fechaDesde)}
-                                    className="px-6 py-3 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-lg shadow-blue-900/10 active:scale-95 flex items-center gap-2 animate-in fade-in zoom-in duration-700"
+                                    className="px-3 py-2 bg-[#303a7f] text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-lg shadow-blue-900/10 active:scale-95 flex items-center gap-1.5 animate-in fade-in zoom-in duration-700"
                                 >
-                                    <Layers size={16} />
-                                    Consolidado UPS
+                                    <Layers size={14} />
+                                    <span className="hidden sm:inline">Consolidado UPS</span>
                                 </button>
                             );
                         }
@@ -6141,33 +6139,26 @@ const VWHTableModal = (props) => {
                     <button
                         onClick={() => !isRadicated && setIsEmailModalOpen(true)}
                         disabled={isRadicated || isSendingEmail}
-                        className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center gap-2 ${isRadicated
+                        className={`px-3 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center gap-1.5 whitespace-nowrap ${isRadicated
                             ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
                             : "bg-[#303a7f] text-white hover:bg-[#1e234d] shadow-blue-900/10"
                             }`}
                     >
-                        <Mail size={16} />
-                        {isRadicated ? "Correo Enviado" : "Enviar por Correo"}
-                    </button>
-                    <button
-                        onClick={downloadVWHAsPDF}
-                        className="px-6 py-3 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 flex items-center gap-2"
-                    >
-                        <Download size={16} />
-                        Descargar PDF
+                        <Mail size={14} />
+                        <span className="hidden sm:inline">{isRadicated ? "Correo Enviado" : "Enviar Mail"}</span>
                     </button>
                     <button
                         onClick={onClose}
-                        className="group p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center"
+                        className="group p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center shrink-0"
                     >
-                        <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
+                        <X size={18} className="group-hover:rotate-90 transition-transform duration-500" />
                     </button>
                 </div>
             </div>
 
             {/* Contenido del Reporte (Capturable - Atractivo Visual) */}
-            <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-[#fcfdfe]">
-                <div ref={reportRef} className="mx-auto h-fit max-w-7xl relative">
+            <div className="flex-1 overflow-y-auto p-2 custom-scrollbar bg-[#fcfdfe]">
+                <div ref={reportRef} className="mx-auto h-fit relative">
                     {!showSplit ? (
                         renderVWHReport(data, fechaDesde, fechaHasta)
                     ) : (
@@ -16021,6 +16012,8 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             });
 
             setRawBiometricData(biometricData);
+            console.log('[DEBUG] biometricData enviado a Gemini:', biometricData.length, 'registros');
+            if (biometricData.length > 0) console.log('[DEBUG] Muestra primeros registros:', JSON.stringify(biometricData.slice(0, 3)));
 
             const text = await callGemini(`
                 Eres un motor de procesamiento de nómina especializado. Tengo registros de ponches biométricos en JSON.
@@ -16054,6 +16047,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             });
             setPayrollProgress(75);
             const aiData = JSON.parse(text.replace(/```json|```/g, '').trim());
+            console.log('[DEBUG] aiData.rows:', aiData?.rows?.length, 'filas');
 
             if (aiData && aiData.rows) {
                 setBiometricTableData(aiData.rows);
@@ -16104,6 +16098,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 });
 
                 setPayrollProgress(semanaTableData.length);
+                console.log('[DEBUG] setSemanaTableData ejecutado desde runAICrossoverInternal');
                 showSuccess("¡Procesamiento Exitoso! El cruce de datos con IA se ha realizado correctamente.");
             }
         } catch (error) {
@@ -17283,6 +17278,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
     }, [specialProjectsHistoryData, variablesLoaded]);
 
     useEffect(() => {
+        console.log('[DEBUG] useEffect restauración disparado. draftKey:', `${payrollStore}_${fechaDesde}_${fechaHasta}`.replace(/\s+/g, '_'), 'payrollView:', payrollView);
         if (!variablesLoaded || !payrollStore || !fechaDesde || !fechaHasta) return;
         const draftKey = `${payrollStore}_${fechaDesde}_${fechaHasta}`.replace(/\s+/g, '_');
         const draft = payrollDrafts[draftKey];
@@ -17299,6 +17295,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             if (draft.rawBiometricData) setRawBiometricData(draft.rawBiometricData);
             if (draft.payrollResults) setPayrollResults(draft.payrollResults);
         } else if (!isApproved) {
+            console.log('[DEBUG] ⚠️ useEffect restauración: SIN borrador, NO aprobada → limpiando semanaTableData a []');
             // Solo limpiar si NO hay borrador Y la semana NO está aprobada
             setSemanaTableData([]);
             setBiometricTableData([]);
