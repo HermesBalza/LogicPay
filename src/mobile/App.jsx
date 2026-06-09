@@ -17777,35 +17777,33 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 let modalSemanaData = semanaTableData, modalKbsData = kbsBillingTableData, modalEarningsData = earningsTableData;
                 if (_approvedRecord?.data_json) { try { const _p = JSON.parse(_approvedRecord.data_json); if (_p.semanaTableData?.length) modalSemanaData = _p.semanaTableData; if (_p.kbsBillingTableData?.length) modalKbsData = _p.kbsBillingTableData; if (_p.earningsTableData?.length) modalEarningsData = _p.earningsTableData; } catch(_e) {} }
                 return (
-                <div className="fixed inset-0 z-[150] bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
-                    <div className="bg-slate-50 w-full h-full max-w-[98vw] max-h-[96vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
+                <div className="fixed inset-0 z-[150] bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-0 animate-in fade-in duration-200">
+                    <div className="bg-slate-50 w-full h-full flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                         {/* Header */}
-                        <div className="px-8 py-5 bg-white border-b border-slate-100 flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-purple-50 text-purple-700 rounded-2xl">
-                                    <Eye size={22} />
+                        <div className="px-4 py-3 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-purple-50 text-purple-700 rounded-xl">
+                                    <Eye size={16} />
                                 </div>
                                 <div className="flex flex-col">
-                                    <h3 className="text-lg font-black text-slate-800 tracking-tight leading-none mb-1">
-                                        Rates y Costos de Asistencia Semanal
+                                    <h3 className="text-base font-black text-slate-800 tracking-tight leading-none mb-0.5">
+                                        Rates y Costos
                                     </h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
-                                        Análisis Financiero de Horas de la Semana
+                                    <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                                        Datos Financieros
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => setIsAttendanceEyeModalOpen(false)}
-                                    className="group p-2.5 bg-slate-50 text-slate-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border border-slate-100 flex items-center justify-center"
-                                >
-                                    <X size={18} />
-                                </button>
-                            </div>
+                            <button
+                                onClick={() => setIsAttendanceEyeModalOpen(false)}
+                                className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-90 flex items-center justify-center shrink-0"
+                            >
+                                <X size={18} />
+                            </button>
                         </div>
 
                         {/* Contenido Scrollable */}
-                        <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
                             {/* KPI Cards */}
                             {(() => {
                                 let totalHours = 0;
@@ -17838,101 +17836,77 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
 
                                 return (
-                                    <div className="grid grid-cols-4 gap-5">
-                                        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
-                                            <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl">
-                                                <Clock size={24} />
+                                    <div className="grid grid-cols-1 gap-2">
+                                        <div className="bg-white p-3 rounded-xl shadow shadow-slate-100/50 border border-slate-50 flex items-center gap-3">
+                                            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                                                <Clock size={16} />
                                             </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Horas</span>
-                                                <span className="text-2xl font-black text-slate-700">{formatDecimal(totalHours)}h</span>
-                                            </div>
-                                        </div>
-                                        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
-                                            <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl">
-                                                <TrendingUp size={24} />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Facturación KBS</span>
-                                                <span className="text-2xl font-black text-emerald-600">{formatCurrency(totalKBS)}</span>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Total Horas</span>
+                                                <span className="text-sm font-black text-slate-700 truncate">{formatDecimal(totalHours)}h</span>
                                             </div>
                                         </div>
-                                        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
-                                            <div className="p-4 bg-rose-50 text-rose-600 rounded-2xl">
-                                                <TrendingDown size={24} />
+                                        <div className="bg-white p-3 rounded-xl shadow shadow-slate-100/50 border border-slate-50 flex items-center gap-3">
+                                            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                                                <TrendingUp size={16} />
                                             </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Costo LGM (Operativo)</span>
-                                                <span className="text-2xl font-black text-rose-600">{formatCurrency(totalLGM)}</span>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Facturación KBS</span>
+                                                <span className="text-sm font-black text-emerald-600 truncate">{formatCurrency(totalKBS)}</span>
                                             </div>
                                         </div>
-                                        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
-                                            <div className="p-4 bg-purple-50 text-purple-600 rounded-2xl">
-                                                <DollarSign size={24} />
+                                        <div className="bg-white p-3 rounded-xl shadow shadow-slate-100/50 border border-slate-50 flex items-center gap-3">
+                                            <div className="p-2 bg-rose-50 text-rose-600 rounded-lg">
+                                                <TrendingDown size={16} />
                                             </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Utilidad Neta LGM</span>
-                                                <span className="text-2xl font-black text-purple-600">{formatCurrency(margin)}</span>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Costo LGM</span>
+                                                <span className="text-sm font-black text-rose-600 truncate">{formatCurrency(totalLGM)}</span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white p-3 rounded-xl shadow shadow-slate-100/50 border border-slate-50 flex items-center gap-3">
+                                            <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+                                                <DollarSign size={16} />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Utilidad Neta</span>
+                                                <span className="text-sm font-black text-purple-600 truncate">{formatCurrency(margin)}</span>
                                             </div>
                                         </div>
                                     </div>
                                 );
                             })()}
 
-                            {/* Tabla Registro de Asistencia Semanal Ampliada */}
-                            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden">
+                            {/* Tabla de Asistencia Semanal Ampliada */}
+                            <div className="bg-white rounded-2xl border border-slate-100 shadow overflow-hidden">
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse table-fixed">
-                                        <colgroup>
-                                            <col className="w-[14%]" />
-                                            <col className="w-[8%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[7%]" />
-                                            <col className="w-[7.5%]" />
-                                            <col className="w-[8.5%]" />
-                                            <col className="w-[7.5%]" />
-                                            <col className="w-[8.5%]" />
-                                        </colgroup>
+                                    <table className="w-full text-left border-collapse">
                                         <thead>
                                             <tr className="bg-slate-50/75 border-b border-slate-100">
-                                                <th className="px-2.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Empleado / Código</th>
-                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Cargo</th>
+                                                <th className="px-1.5 py-2 text-[6.5px] font-black text-slate-500 uppercase tracking-wider">Empleado</th>
+                                                <th className="px-1 py-2 text-[6.5px] font-black text-slate-500 uppercase tracking-wider">Cargo</th>
                                                 {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map((day, dIdx) => {
-                                                    const dayAbbrs = {
-                                                        domingo: 'Dom',
-                                                        lunes: 'Lun',
-                                                        martes: 'Mar',
-                                                        miercoles: 'Mié',
-                                                        jueves: 'Jue',
-                                                        viernes: 'Vie',
-                                                        sabado: 'Sáb'
-                                                    };
+                                                    const dayAbbrs = { domingo: 'D', lunes: 'L', martes: 'M', miercoles: 'X', jueves: 'J', viernes: 'V', sabado: 'S' };
                                                     return (
-                                                        <th key={day} className="px-1 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-center border-l border-slate-100">
+                                                        <th key={day} className="px-0.5 py-2 text-[6.5px] font-black text-slate-500 uppercase tracking-wider text-center border-l border-slate-100">
                                                             <span className="block mb-0.5">{dayAbbrs[day]}</span>
-                                                            <span className="text-[7.5px] text-slate-400 font-bold opacity-75">
+                                                            <span className="text-[6px] text-slate-400 font-bold opacity-75">
                                                                 {fechaDesde ? getFormattedDateForDay(fechaDesde, dIdx) : '--/--'}
                                                             </span>
                                                         </th>
                                                     );
                                                 })}
-                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-center border-l border-slate-100 bg-blue-50/30">Total Hrs</th>
-                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-purple-50/30">Rate KBS</th>
-                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-purple-50/50">Total KBS</th>
-                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-rose-50/30">Rate LGM</th>
-                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-rose-50/50">Total LGM</th>
+                                                <th className="px-1 py-2 text-[6.5px] font-black text-slate-500 uppercase tracking-wider text-center border-l border-slate-100 bg-blue-50/30">Hrs</th>
+                                                <th className="px-1 py-2 text-[6.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-purple-50/30">$KBS</th>
+                                                <th className="px-1 py-2 text-[6.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-purple-50/50">KBS</th>
+                                                <th className="px-1 py-2 text-[6.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-rose-50/30">$LGM</th>
+                                                <th className="px-1 py-2 text-[6.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-rose-50/50">LGM</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
                                             {modalSemanaData.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan="14" className="py-24 text-center text-slate-300 font-extrabold uppercase text-xs tracking-[0.3em] italic">
+                                                    <td colSpan="14" className="py-16 text-center text-slate-300 font-extrabold uppercase text-[8px] tracking-[0.3em] italic">
                                                         No hay datos de asistencia cargados en esta semana.
                                                     </td>
                                                 </tr>
@@ -17957,37 +17931,37 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
 
                                                     return (
                                                         <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
-                                                            <td className="px-2.5 py-2 border-r border-slate-50 overflow-hidden truncate">
+                                                            <td className="px-1.5 py-1.5 border-r border-slate-50 overflow-hidden">
                                                                 <div className="flex flex-col overflow-hidden">
-                                                                    <span className="text-[10.5px] font-black text-slate-700 uppercase leading-none truncate" title={row.nombre}>{row.nombre}</span>
-                                                                    <span className="text-[8px] font-black text-slate-400 tabular-nums tracking-[0.1em] mt-1">ID: {row.codigo || '----'}</span>
+                                                                    <span className="text-[8px] font-black text-slate-700 uppercase leading-none truncate max-w-[80px]" title={row.nombre}>{row.nombre}</span>
+                                                                    <span className="text-[6.5px] font-black text-slate-400 tabular-nums mt-0.5">ID:{row.codigo || '----'}</span>
                                                                 </div>
                                                             </td>
-                                                            <td className="px-1.5 py-2 border-r border-slate-50 overflow-hidden truncate">
-                                                                <span className="text-[8px] font-extrabold text-slate-500 uppercase bg-slate-100 px-1.5 py-0.5 rounded" title={row.cargo}>{row.cargo}</span>
+                                                            <td className="px-1 py-1.5 border-r border-slate-50 overflow-hidden">
+                                                                <span className="text-[7px] font-extrabold text-slate-500 uppercase bg-slate-100 px-1 py-0.5 rounded truncate block max-w-[60px]" title={row.cargo}>{row.cargo}</span>
                                                             </td>
                                                             {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
-                                                                <td key={day} className="p-1 text-center border-l border-slate-50">
-                                                                    <span className="text-[10.5px] font-black text-slate-600 tabular-nums">
+                                                                <td key={day} className="px-0.5 py-1.5 text-center border-l border-slate-50">
+                                                                    <span className="text-[8px] font-black text-slate-600 tabular-nums">
                                                                         {formatDecimal(row[day]?.final)}
                                                                     </span>
                                                                 </td>
                                                             ))}
-                                                            <td className="px-1.5 py-2 text-center border-l border-slate-50 bg-blue-50/10">
-                                                                <span className="text-[10.5px] font-black text-slate-700 tabular-nums">
+                                                            <td className="px-1 py-1.5 text-center border-l border-slate-50 bg-blue-50/10">
+                                                                <span className="text-[8px] font-black text-slate-700 tabular-nums">
                                                                     {formatDecimal(row.total.final)}h
                                                                 </span>
                                                             </td>
-                                                            <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-purple-50/10 font-bold text-slate-600 tabular-nums text-[10.5px]">
+                                                            <td className="px-1 py-1.5 text-right border-l border-slate-50 bg-purple-50/10 font-bold text-slate-600 tabular-nums text-[8px]">
                                                                 {formatCurrency(kbsRate)}
                                                             </td>
-                                                            <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-purple-50/20 font-black text-purple-700 tabular-nums text-[10.5px]">
+                                                            <td className="px-1 py-1.5 text-right border-l border-slate-50 bg-purple-50/20 font-black text-purple-700 tabular-nums text-[8px]">
                                                                 {formatCurrency(kbsTotal)}
                                                             </td>
-                                                            <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-rose-50/10 font-bold text-slate-600 tabular-nums text-[10.5px]">
+                                                            <td className="px-1 py-1.5 text-right border-l border-slate-50 bg-rose-50/10 font-bold text-slate-600 tabular-nums text-[8px]">
                                                                 {formatCurrency(lgmRate)}
                                                             </td>
-                                                            <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-rose-50/20 font-black text-rose-600 tabular-nums text-[10.5px]">
+                                                            <td className="px-1 py-1.5 text-right border-l border-slate-50 bg-rose-50/20 font-black text-rose-600 tabular-nums text-[8px]">
                                                                 {formatCurrency(lgmTotal)}
                                                             </td>
                                                         </tr>
