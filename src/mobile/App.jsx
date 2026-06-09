@@ -7381,140 +7381,134 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
     };
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-7xl h-[90vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-brand-primary/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-0 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-full h-full flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
                 {/* Header */}
-                <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
-                    <div className="flex items-center gap-5">
-                        <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
-                            <ShieldCheck size={24} />
+                <div className="p-4 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                            <ShieldCheck size={20} />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Centro de Resolución de Personal</h3>
-                            <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Mapeo inteligente y detección de duplicados</p>
+                            <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-0.5">Vincular Personal</h3>
+                            <p className="text-[#6bbdb7] text-[8px] font-black uppercase tracking-widest opacity-80 truncate max-w-[200px]">Mapeo Inteligente</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90">
-                        <X size={24} />
+                    <button onClick={onClose} className="p-2 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl transition-all active:scale-90">
+                        <X size={22} />
                     </button>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-[#fcfdfe]">
+                <div className="flex-1 overflow-y-auto p-2 space-y-1.5 bg-[#fcfdfe]">
                     {localResults.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center opacity-30 italic">
-                            <CheckCircle size={64} className="mb-4 text-green-500" />
-                            <p className="text-sm font-black uppercase tracking-[0.3em]">Todo el personal está al día</p>
+                            <CheckCircle size={48} className="mb-4 text-green-500" />
+                            <p className="text-xs font-black uppercase tracking-[0.3em]">Todo el personal está al día</p>
                         </div>
                     ) : (
                         localResults.map((res, idx) => (
                             <div key={idx} className={`group relative ${res.isExcluded ? 'opacity-50' : ''}`}>
-                                <div className={`flex items-center gap-4 py-3 px-6 rounded-2xl border-2 transition-all duration-200 hover:shadow-md ${res.isExcluded ? 'bg-gray-100 border-red-200' : res.resolvedEmployee ? 'bg-green-50/20 border-green-100' : 'bg-white border-gray-100'
+                                <div className={`flex flex-col gap-2 py-2.5 px-3 rounded-xl border-2 transition-all duration-200 hover:shadow-md ${res.isExcluded ? 'bg-gray-100 border-red-200' : res.resolvedEmployee ? 'bg-green-50/20 border-green-100' : 'bg-white border-gray-100'
                                     }`}>
-                                    {/* Left: Excel Data (Gris Oscuro) */}
-                                    <div className="w-[280px] shrink-0">
-                                        <div className="flex items-center gap-2 mb-0.5">
-                                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">En Excel</span>
-                                            {res.isExcluded && (
-                                                <div className="px-1.5 py-0.5 bg-red-500 text-white rounded text-[7px] font-black uppercase tracking-tight flex items-center gap-1">
-                                                    <Trash2 size={8} /> Excluido
-                                                </div>
-                                            )}
-                                            {!res.isExcluded && res.type === 'ambiguous' && (
-                                                <div className="px-1.5 py-0.5 bg-amber-500 text-white rounded text-[7px] font-black uppercase tracking-tight flex items-center gap-1">
-                                                    <AlertTriangle size={8} /> Duplicado
-                                                </div>
-                                            )}
-                                        </div>
-                                        <h4 className="text-[13px] font-black text-gray-700 uppercase leading-none truncate">{res.excelRow.nombre}</h4>
-                                        <p className="text-[10px] font-bold text-gray-400 mt-1">ID: {res.excelRow.codigo || '---'} | {res.excelRow.cargo}</p>
-                                    </div>
-
-                                    {/* Middle: Match/Suggested (Verde) */}
-                                    <div className="flex-1 min-w-[300px]">
-                                        {res.resolvedEmployee ? (
-                                            <div className="flex items-center gap-3 text-green-600 animate-in slide-in-from-left-2 transition-all">
-                                                <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
-                                                    <UserCheck size={16} />
-                                                </div>
-                                                <div className="flex flex-col max-w-[400px]">
-                                                    <h5 className="text-[13px] font-black uppercase leading-none">{res.resolvedEmployee.nombre}</h5>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-[9px] font-black bg-green-100/50 px-1.5 py-0.5 rounded">ID {res.resolvedEmployee.codigo_empleado}</span>
-                                                        <span className="text-[9px] font-bold opacity-60 italic truncate">
-                                                            {res.resolvedEmployee.tienda} {formatHistory(res.resolvedEmployee.locationHistory) ? `(${formatHistory(res.resolvedEmployee.locationHistory)})` : ''}
-                                                        </span>
+                                    {/* Top: Excel Data */}
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                                <span className="text-[7px] font-black text-gray-400 uppercase tracking-widest">En Excel</span>
+                                                {res.isExcluded && (
+                                                    <div className="px-1.5 py-0.5 bg-red-500 text-white rounded text-[7px] font-black uppercase tracking-tight flex items-center gap-1">
+                                                        <Trash2 size={8} /> Excluido
                                                     </div>
-                                                </div>
+                                                )}
+                                                {!res.isExcluded && res.type === 'ambiguous' && (
+                                                    <div className="px-1.5 py-0.5 bg-amber-500 text-white rounded text-[7px] font-black uppercase tracking-tight flex items-center gap-1">
+                                                        <AlertTriangle size={8} /> Duplicado
+                                                    </div>
+                                                )}
                                             </div>
-                                        ) : res.type === 'ambiguous' ? (
-                                            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                                <span className="text-[9px] font-black text-amber-600 uppercase shrink-0 mr-1">Elegir:</span>
-                                                {res.matches.map((m, midx) => (
-                                                    <button
-                                                        key={midx}
-                                                        onClick={() => handleUpdateResolution(idx, m)}
-                                                        className="shrink-0 p-2 bg-amber-50 border border-amber-200 rounded-xl hover:border-amber-400 transition-all text-left"
-                                                    >
-                                                        <p className="text-[10px] font-black text-amber-700 leading-none">{m.nombre}</p>
-                                                        <p className="text-[8px] font-bold text-amber-600/60 mt-0.5">ID: {m.codigo_empleado}</p>
-                                                    </button>
-                                                ))}
+                                            <h4 className="text-[12px] font-black text-gray-700 uppercase leading-tight break-words">{res.excelRow.nombre}</h4>
+                                            <p className="text-[9px] font-bold text-gray-400 mt-0.5">ID: {res.excelRow.codigo || '---'} | {res.excelRow.cargo}</p>
+                                        </div>
+                                        {res.resolvedEmployee ? (
+                                            <div className="w-7 h-7 rounded-full bg-green-100 text-green-600 flex items-center justify-center shadow-sm shrink-0" title="Auto-asociado">
+                                                <Check size={16} strokeWidth={3} />
                                             </div>
                                         ) : (
-                                            <div className="flex items-center gap-3 text-gray-300 italic opacity-60">
-                                                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
-                                                    <UserMinus size={16} />
-                                                </div>
-                                                <span className="text-[11px] font-black uppercase tracking-widest">Sin coincidencia automática</span>
+                                            <div className="w-7 h-7 rounded-full bg-red-50 text-red-400 flex items-center justify-center shadow-sm shrink-0 opacity-50" title="Sin asociación">
+                                                <X size={16} strokeWidth={3} />
                                             </div>
                                         )}
                                     </div>
 
-                                    {/* Right: Options */}
-                                    <div className="flex items-center gap-3 shrink-0">
-                                        <div className="flex items-center gap-2 mr-2">
-                                            {res.resolvedEmployee ? (
-                                                <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center shadow-sm animate-in zoom-in duration-300" title="Auto-asociado">
-                                                    <Check size={18} strokeWidth={3} />
+                                    {/* Middle: Match/Suggested */}
+                                    {res.resolvedEmployee ? (
+                                        <div className="flex items-center gap-2 text-green-600 animate-in slide-in-from-left-2 transition-all">
+                                            <div className="w-6 h-6 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
+                                                <UserCheck size={14} />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <h5 className="text-[11px] font-black uppercase leading-tight truncate">{res.resolvedEmployee.nombre}</h5>
+                                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                                    <span className="text-[8px] font-black bg-green-100/50 px-1.5 py-0.5 rounded">ID {res.resolvedEmployee.codigo_empleado}</span>
+                                                    <span className="text-[8px] font-bold opacity-60 italic truncate max-w-[150px]">
+                                                        {res.resolvedEmployee.tienda} {formatHistory(res.resolvedEmployee.locationHistory) ? `(${formatHistory(res.resolvedEmployee.locationHistory)})` : ''}
+                                                    </span>
                                                 </div>
-                                            ) : (
-                                                <div className="w-8 h-8 rounded-full bg-red-50 text-red-400 flex items-center justify-center shadow-sm opacity-50" title="Sin asociación">
-                                                    <X size={18} strokeWidth={3} />
-                                                </div>
-                                            )}
+                                            </div>
                                         </div>
+                                    ) : res.type === 'ambiguous' ? (
+                                        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar flex-nowrap">
+                                            <span className="text-[8px] font-black text-amber-600 uppercase shrink-0 mr-1">Elegir:</span>
+                                            {res.matches.map((m, midx) => (
+                                                <button
+                                                    key={midx}
+                                                    onClick={() => handleUpdateResolution(idx, m)}
+                                                    className="shrink-0 p-2 bg-amber-50 border border-amber-200 rounded-xl hover:border-amber-400 transition-all text-left w-[120px]"
+                                                >
+                                                    <p className="text-[9px] font-black text-amber-700 leading-tight truncate">{m.nombre}</p>
+                                                    <p className="text-[7px] font-bold text-amber-600/60 mt-0.5">ID: {m.codigo_empleado}</p>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 text-gray-300 italic opacity-60">
+                                            <div className="w-6 h-6 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                                                <UserMinus size={14} />
+                                            </div>
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Sin coincidencia automática</span>
+                                        </div>
+                                    )}
 
-                                        <div className="flex items-center gap-2">
-                                            {res.isExcluded ? (
+                                    {/* Bottom: Options */}
+                                    <div className="flex items-center justify-end gap-2 pt-1 border-t border-gray-100">
+                                        {res.isExcluded ? (
+                                            <button
+                                                onClick={() => handleExcludeResolution(idx)}
+                                                className="px-3 py-1.5 bg-red-50 text-red-500 rounded-xl text-[9px] font-black uppercase tracking-widest border border-red-100 hover:bg-red-500 hover:text-white transition-all active:scale-95 shadow-sm flex items-center gap-1.5"
+                                                title="Restaurar Empleado"
+                                            >
+                                                <ArrowLeftRight size={12} />
+                                                Restaurar
+                                            </button>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    onClick={() => { setSearchingIdx(idx); setManualSearchTerm(res.excelRow.nombre || ''); }}
+                                                    className="px-3 py-1.5 bg-gray-50 text-[#303a7f] rounded-xl text-[9px] font-black uppercase tracking-widest border border-gray-100 hover:bg-[#303a7f] hover:text-white hover:border-[#303a7f] transition-all active:scale-95 shadow-sm flex items-center gap-1.5"
+                                                >
+                                                    <Search size={12} />
+                                                    Buscar
+                                                </button>
                                                 <button
                                                     onClick={() => handleExcludeResolution(idx)}
-                                                    className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[9px] font-black uppercase tracking-widest border border-red-100 hover:bg-red-500 hover:text-white transition-all active:scale-95 shadow-sm flex items-center gap-2"
-                                                    title="Restaurar Empleado"
+                                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100"
+                                                    title="Excluir/Ignorar Empleado"
                                                 >
-                                                    <ArrowLeftRight size={12} />
-                                                    Restaurar
+                                                    <Trash2 size={16} />
                                                 </button>
-                                            ) : (
-                                                <>
-                                                    <button
-                                                        onClick={() => { setSearchingIdx(idx); setManualSearchTerm(res.excelRow.nombre || ''); }}
-                                                        className="px-4 py-2 bg-gray-50 text-[#303a7f] rounded-xl text-[9px] font-black uppercase tracking-widest border border-gray-100 hover:bg-[#303a7f] hover:text-white hover:border-[#303a7f] transition-all active:scale-95 shadow-sm flex items-center gap-2"
-                                                    >
-                                                        <Search size={12} />
-                                                        Buscar
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleExcludeResolution(idx)}
-                                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100"
-                                                        title="Excluir/Ignorar Empleado"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -7524,35 +7518,35 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
 
                 {/* Buscador de Empleados Manual */}
                 {searchingIdx !== null && (
-                    <div className="absolute inset-0 z-[100] flex items-center justify-center p-12 backdrop-blur-md bg-[#303a7f]/40 animate-in fade-in duration-300">
-                        <div className="bg-white w-full max-w-4xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.5)] border-2 border-[#6bbdb7]/20 flex flex-col overflow-hidden">
-                            <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-                                        <Search size={20} />
+                    <div className="absolute inset-0 z-[100] flex items-center justify-center p-0 backdrop-blur-md bg-[#303a7f]/40 animate-in fade-in duration-300">
+                        <div className="bg-white w-full h-full flex flex-col overflow-hidden">
+                            <div className="p-4 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                                        <Search size={18} />
                                     </div>
-                                    <h4 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase">Vincular Registro</h4>
+                                    <h4 className="text-base font-black text-[#303a7f] tracking-tighter uppercase">Vincular Registro</h4>
                                 </div>
                                 <button onClick={() => setSearchingIdx(null)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl">
                                     <X size={20} />
                                 </button>
                             </div>
 
-                            <div className="p-6 bg-gray-50/50">
+                            <div className="p-4 bg-gray-50/50 shrink-0">
                                 <div className="relative group">
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={18} />
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={16} />
                                     <input
                                         autoFocus
                                         type="text"
-                                        placeholder="Buscar por Nombre o ID (Código de Empleado)..."
+                                        placeholder="Buscar por Nombre o ID..."
                                         value={manualSearchTerm}
                                         onChange={(e) => setManualSearchTerm(e.target.value)}
-                                        className="w-full bg-white border-2 border-gray-100 rounded-2xl pl-12 pr-6 py-4 text-sm font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all shadow-sm"
+                                        className="w-full bg-white border-2 border-gray-100 rounded-xl pl-11 pr-4 py-3 text-sm font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all shadow-sm"
                                     />
                                 </div>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-6 space-y-3">
+                            <div className="flex-1 overflow-y-auto p-4 space-y-2">
                                 {employees
                                     .filter(emp => {
                                         const query = manualSearchTerm.toLowerCase();
@@ -7567,17 +7561,17 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                                                 handleUpdateResolution(searchingIdx, emp);
                                                 setSearchingIdx(null);
                                             }}
-                                            className="w-full p-4 bg-white border-2 border-gray-100 rounded-2xl hover:border-[#6bbdb7] hover:bg-teal-50/30 transition-all flex items-center justify-between group"
+                                            className="w-full p-3 bg-white border-2 border-gray-100 rounded-xl hover:border-[#6bbdb7] hover:bg-teal-50/30 transition-all flex items-center justify-between group"
                                         >
-                                            <div className="text-left">
-                                                <p className="text-sm font-black text-[#303a7f] uppercase group-hover:text-[#303a7f]">{emp.nombre}</p>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest">ID: {emp.codigo_empleado}</span>
-                                                    <span className="text-[10px] text-gray-400 font-bold uppercase">• {emp.cargo}</span>
+                                            <div className="text-left min-w-0 flex-1 mr-2">
+                                                <p className="text-[13px] font-black text-[#303a7f] uppercase leading-tight truncate">{emp.nombre}</p>
+                                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                                    <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">ID: {emp.codigo_empleado}</span>
+                                                    <span className="text-[9px] text-gray-400 font-bold uppercase">• {emp.cargo}</span>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[9px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-black uppercase">{emp.tienda || 'Sin Asignar'}</span>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-black uppercase max-w-[100px] truncate">{emp.tienda || 'Sin Asignar'}</span>
                                                 <ChevronRight size={16} className="text-gray-300 group-hover:translate-x-1 group-hover:text-[#6bbdb7] transition-all" />
                                             </div>
                                         </button>
