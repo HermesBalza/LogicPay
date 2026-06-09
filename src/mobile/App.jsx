@@ -19004,7 +19004,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                     )}
 
                                     {(semanaTableData.length > 0 || specialProjectsData.length > 0) && (
-                                        <div className="mt-2 flex justify-end gap-4 border-t-2 border-gray-50 pt-3">
+                                        <div className="mt-2 flex flex-col items-center gap-2 border-t-2 border-gray-50 pt-3">
                                             {/* Botón Aprobar Semana — pasa a estado verde irreversible una vez aprobada */}
                                             {(() => {
                                                 const isCurrentWeekApproved = (nominaHistoryData || []).some(h =>
@@ -19015,9 +19015,9 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                     <>
                                                         <button
                                                             onClick={handleOpenHoursReportEmail}
-                                                            className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-xl text-[8px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/10 transition-all active:scale-95 flex items-center gap-1.5 hover:bg-[#59aba5]"
+                                                            className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-xl text-[8px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/10 transition-all active:scale-95 flex items-center justify-center gap-1.5 hover:bg-[#59aba5] whitespace-nowrap w-full"
                                                         >
-                                                            <Mail size={12} /> Enviar Reporte de Horas
+                                                            <Mail size={12} /> Pedir Aprobación
                                                         </button>
                                                         <button
                                                             onClick={() => {
@@ -19044,7 +19044,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                                 }
                                                             }}
                                                             disabled={isLoading || isCurrentWeekApproved}
-                                                            className={`px-8 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2 ${isCurrentWeekApproved
+                                                            className={`px-8 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap w-full ${isCurrentWeekApproved
                                                                 ? 'bg-green-600 text-white cursor-not-allowed shadow-green-900/10'
                                                                 : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/10'
                                                                 }`}
