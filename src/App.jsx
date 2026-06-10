@@ -14612,6 +14612,8 @@ function App() {
     const [invalidCodes, setInvalidCodes] = useState([]);
     const [isInvalidCodesModalOpen, setIsInvalidCodesModalOpen] = useState(false);
     const [isBiometricIVRModalOpen, setIsBiometricIVRModalOpen] = useState(false);
+    const [isBiometricCommentModalOpen, setIsBiometricCommentModalOpen] = useState(false);
+    const [biometricComment, setBiometricComment] = useState('');
     const [isSupervisorModalOpen, setIsSupervisorModalOpen] = useState(false);
 
     const fechaDesdeRef = useRef(null);
@@ -15639,7 +15641,7 @@ function App() {
 
     // --- Lógica de Procesamiento de Nómina (Impulsado por Gemini AI) ---
     // --- FASE 1: Procesar Solo Datos del Supervisor ---
-    const processPayroll = async () => {
+    const processPayroll = async (comment = '') => {
         console.log('[Payroll] Iniciando proceso...', { supervisorFile, biometricFile, payrollStore, fechaDesde, fechaHasta });
         if (!payrollStore || !fechaDesde || !fechaHasta) {
             showError(`Faltan requisitos para iniciar el proceso de nómina:\nTienda: ${payrollStore ? "OK" : "FALTA"}\nDesde: ${fechaDesde ? "OK" : "FALTA"}\nHasta: ${fechaHasta ? "OK" : "FALTA"}`);
@@ -15652,7 +15654,7 @@ function App() {
         if (!supervisorFile && biometricFile) {
             setIsProcessingPayroll(true);
             document.body.style.overflow = 'hidden';
-            await runAICrossoverInternal();
+            await runAICrossoverInternal(comment);
             return;
         }
 
@@ -15758,7 +15760,7 @@ function App() {
                 console.log('[Payroll] Iniciando Fase 2 (IA) automáticamente...');
                 // Llamamos a la lógica de la IA sin bloquear el estado de carga principal si se prefiere, 
                 // pero por consistencia lo haremos parte del mismo flujo.
-                await runAICrossoverInternal();
+                await runAICrossoverInternal(comment);
             } else {
                 showSuccess("La validación ha sido exitosa. La data del supervisor se ha procesado correctamente.");
             }
@@ -16260,7 +16262,7 @@ function App() {
     };
 
     // --- FUNCIÓN INTERNA DE IA (Para ser llamada automáticamente) ---
-    const runAICrossoverInternal = async () => {
+    const runAICrossoverInternal = async (comment = '') => {
         setIsProcessingIA(true);
         try {
             const readAsText = (file) => {
@@ -16313,7 +16315,7 @@ function App() {
                 5. FORMATO DE SALIDA: Todas las horas deben estar en formato "HH:MM" (ej: "08:30" o "05:00"). Si un día no tiene horas, pon "0:00".
                 
                 DATOS DE ENTRADA: ${JSON.stringify(biometricData)}
-                
+                ${comment ? `\nOBSERVACIÓN/COMENTARIO DEL USUARIO A TENER EN CUENTA AL PROCESAR: ${comment}\n` : ''}
                 RETORNA ESTRICTAMENTE UN JSON CON ESTA ESTRUCTURA: 
                 { 
                   "rows": [
@@ -17935,6 +17937,60 @@ function App() {
                 payrollStore={payrollStore}
             />
 
+            {/* Modal de Observación para IA */}
+            {isBiometricCommentModalOpen && (
+                <div className="fixed inset-0 z-[310] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/10 animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#303a7f]/20 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+                        <div className="p-6 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-blue-50/50 to-transparent">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
+                                    <MessageSquare size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none">Observación para IA</h3>
+                                    <p className="text-[#6bbdb7] font-black uppercase text-[8px] tracking-[0.2em] opacity-80 mt-0.5">Agregar instrucción adicional</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => { setIsBiometricCommentModalOpen(false); setBiometricComment(''); }}
+                                className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-90"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-5">
+                            <textarea
+                                value={biometricComment}
+                                onChange={(e) => setBiometricComment(e.target.value)}
+                                placeholder="Escribe aquí tu observación o instrucción adicional para la IA (ej: ignorar empleados con menos de 4h, priorizar turnos nocturnos, etc.)..."
+                                className="w-full h-36 p-4 text-sm border-2 border-gray-200 rounded-2xl focus:border-[#303a7f] focus:ring-4 focus:ring-[#303a7f]/5 outline-none transition-all resize-none placeholder:text-gray-300 placeholder:font-medium"
+                                autoFocus
+                            />
+                            <div className="flex items-center gap-3 justify-end">
+                                <button
+                                    onClick={() => { setIsBiometricCommentModalOpen(false); setBiometricComment(''); }}
+                                    className="px-6 py-3 bg-gray-100 text-gray-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const comment = biometricComment.trim();
+                                        setIsBiometricCommentModalOpen(false);
+                                        setBiometricComment('');
+                                        processPayroll(comment);
+                                    }}
+                                    className="px-8 py-3 bg-[#303a7f] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 shadow-lg shadow-blue-900/20 flex items-center gap-2"
+                                >
+                                    <Send size={16} />
+                                    Enviar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <VWHTableModal
                 isOpen={isVWHModalOpen}
                 onClose={() => setIsVWHModalOpen(false)}
@@ -19278,7 +19334,7 @@ function App() {
                                 {/* Botón de Procesamiento */}
                                 <div className="mt-10 flex justify-center relative z-10">
                                     <button
-                                        onClick={processPayroll}
+                                        onClick={() => biometricFile ? setIsBiometricCommentModalOpen(true) : processPayroll()}
                                         disabled={!payrollStore || !fechaDesde || !fechaHasta || !(supervisorFile || biometricFile) || isProcessingPayroll}
                                         style={{ backgroundColor: (payrollStore && fechaDesde && fechaHasta && (supervisorFile || biometricFile)) ? '#303a7f' : '#f3f4f6' }}
                                         className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl flex items-center gap-3 ${((supervisorFile || biometricFile) && payrollStore && fechaDesde && fechaHasta)
