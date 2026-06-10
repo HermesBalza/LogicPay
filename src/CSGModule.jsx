@@ -2861,14 +2861,13 @@ const CSGStoreAddView = ({ onSave, onBack }) => {
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const compressed = await compressStoreImage(reader.result);
-                updateField('imagen', compressed);
-            };
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            updateField('imagen', dataUrl);
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleSave = () => {
@@ -3068,16 +3067,15 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
         });
     };
 
-    const handleImageChange = async (e) => {
+    const handleImageChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const compressed = await compressStoreImage(reader.result);
-                updateField('imagen', compressed);
-            };
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            updateField('imagen', dataUrl);
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleSave = () => {

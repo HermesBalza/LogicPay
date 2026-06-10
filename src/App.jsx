@@ -2403,14 +2403,13 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const compressed = await compressImage(reader.result);
-                updateField('imagen', compressed);
-            };
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            updateField('imagen', dataUrl);
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleSave = () => {
@@ -2881,6 +2880,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
 
 // --- Full Screen Store Creator ---
 const StoreAddView = ({ onSave, onBack }) => {
+    const fileInputRef = useRef(null);
     const [newStore, setNewStore] = useState({
         nombre: '',
         codigo: '',
@@ -2905,14 +2905,13 @@ const StoreAddView = ({ onSave, onBack }) => {
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const compressed = await compressImage(reader.result);
-                updateField('imagen', compressed);
-            };
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            setNewStore(function(prev) { return { ...prev, imagen: dataUrl }; });
+        };
+        reader.readAsDataURL(file);
     };
 
     const updateTarifa = (cargo, tipo, value) => {
@@ -2971,18 +2970,21 @@ const StoreAddView = ({ onSave, onBack }) => {
                                         <StoreIcon className="text-gray-200" size={40} />
                                     )}
                                 </div>
-                                <label
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
                                     style={{ backgroundColor: '#303a7f' }}
                                     className="absolute -bottom-2 -right-2 p-3 rounded-xl shadow-xl shadow-blue-900/20 hover:scale-110 transition-all text-white border-2 border-white cursor-pointer"
                                 >
                                     <Plus size={16} />
-                                    <input
-                                        type="file"
-                                        className="hidden"
-                                        accept="image/*"
-                                        onChange={handleImageChange}
-                                    />
-                                </label>
+                                </button>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleImageChange}
+                                />
                             </div>
                             <div className="space-y-3">
                                 <div className="group text-left">
@@ -4373,14 +4375,13 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const compressed = await compressImage(reader.result);
-                updateField('imagen', compressed);
-            };
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            updateField('imagen', dataUrl);
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleSave = () => {
@@ -5021,14 +5022,13 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const compressed = await compressImage(reader.result);
-                updateField('imagen', compressed);
-            };
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            updateField('imagen', dataUrl);
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleSave = () => {
@@ -12089,17 +12089,15 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
         });
     };
 
-    const handleImageChange = async (e) => {
+    const handleImageChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                // Usamos la función de compresión existente
-                const compressed = await compressImage(reader.result);
-                updateField('imagen', compressed);
-            };
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            updateField('imagen', dataUrl);
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleSave = () => {

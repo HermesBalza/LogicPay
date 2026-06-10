@@ -2228,14 +2228,13 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const compressed = await compressImage(reader.result);
-                updateField('imagen', compressed);
-            };
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            updateField('imagen', dataUrl);
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleSave = () => {
@@ -2664,6 +2663,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
 
 // --- Full Screen Store Creator ---
 const StoreAddView = ({ onSave, onBack }) => {
+    const fileInputRef = useRef(null);
     const [newStore, setNewStore] = useState({
         nombre: '',
         codigo: '',
@@ -2688,14 +2688,21 @@ const StoreAddView = ({ onSave, onBack }) => {
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const compressed = await compressImage(reader.result);
-                updateField('imagen', compressed);
-            };
-            reader.readAsDataURL(file);
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            setNewStore(function(prev) { return { ...prev, imagen: dataUrl }; });
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleSave = () => {
+        if (!newStore.nombre.trim() || !newStore.codigo.trim()) {
+            showError("Por favor, asigne al menos un Nombre y un Código a la tienda.");
+            return;
         }
+        onSave(newStore);
     };
 
     const updateTarifa = (cargo, tipo, value) => {
@@ -2709,14 +2716,6 @@ const StoreAddView = ({ onSave, onBack }) => {
                 }
             }
         }));
-    };
-
-    const handleSave = () => {
-        if (!newStore.nombre.trim() || !newStore.codigo.trim()) {
-            showError("Por favor, asigne al menos un Nombre y un Código a la tienda.");
-            return;
-        }
-        onSave(newStore);
     };
 
     return (
@@ -2754,18 +2753,21 @@ const StoreAddView = ({ onSave, onBack }) => {
                                         <StoreIcon className="text-gray-200" size={40} />
                                     )}
                                 </div>
-                                <label
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
                                     style={{ backgroundColor: '#303a7f' }}
                                     className="absolute -bottom-2 -right-2 p-3 rounded-xl shadow-xl shadow-blue-900/20 hover:scale-110 transition-all text-white border-2 border-white cursor-pointer"
                                 >
                                     <Plus size={16} />
-                                    <input
-                                        type="file"
-                                        className="hidden"
-                                        accept="image/*"
-                                        onChange={handleImageChange}
-                                    />
-                                </label>
+                                </button>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleImageChange}
+                                />
                             </div>
                             <div className="space-y-3">
                                 <div className="group text-left">
@@ -4156,14 +4158,13 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const compressed = await compressImage(reader.result);
-                updateField('imagen', compressed);
-            };
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            updateField('imagen', dataUrl);
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleSave = () => {
@@ -4766,14 +4767,13 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const compressed = await compressImage(reader.result);
-                updateField('imagen', compressed);
-            };
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            updateField('imagen', dataUrl);
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleSave = () => {
@@ -11498,90 +11498,61 @@ const BillingView = ({
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                <table className="w-full border-collapse table-auto mb-6">
-                    <thead className="sticky top-0 z-20">
-                        <tr className="bg-white border-b border-gray-100 shadow-sm">
-                            {['Fecha Rad.', isAZPEN ? 'Quincena Facturada' : 'Semana Facturada', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Status'].map((h, i) => (
-                                <th key={i} className="px-2 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {tableData.length === 0 ? (
-                            <tr><td colSpan={10} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros VWH.</td></tr>
-                        ) : tableData.map((row) => (
-                            <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
-                                <td className="px-3 py-4 text-center">
-                                    <div className="inline-block w-24">
-                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${row.radicacion ? 'text-[#303a7f]' : 'text-gray-300'}`}>
-                                            {row.radicacion || '--/--/--'}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td className="px-3 py-4 text-center">
-                                    <div className="flex items-center justify-center gap-2">
+                <div className="px-3 space-y-2 max-w-full">
+                    {tableData.length === 0 ? (
+                        <div className="py-16 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros VWH.</div>
+                    ) : tableData.map((row) => {
+                        const fi = row.fecha_inicio || '';
+                        const ff = row.fecha_fin || '';
+                        const sn = row.nombre_store || storeName || '';
+                        const rowId = String(row.id || '');
+                        const candidateKeys = [
+                            rowId,
+                            normalizeKey(rowId),
+                            `${sn}_${fi}_${ff}`,
+                            `${sn.toLowerCase()}_${fi}_${ff}`,
+                            `${storeName}_${fi}_${ff}`,
+                            `${storeName.toLowerCase()}_${fi}_${ff}`,
+                        ];
+                        const isSent = (row.radicacion && row.radicacion !== '--/--/--') || candidateKeys.some(k => vwhEmailsSent[k]);
+                        return (
+                            <div key={row.id} className="bg-gray-50/50 rounded-2xl p-3 border border-gray-100 space-y-2 max-w-full">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className={`text-[10px] font-bold uppercase ${row.radicacion ? 'text-[#303a7f]' : 'text-gray-300'}`}>
+                                        Rad: {row.radicacion || '--/--/--'}
+                                    </span>
+                                    <div className="flex items-center gap-1.5">
                                         {isAZPEN ? (
-                                            <button
-                                                onClick={() => onOpenQuincenaVWH(row)}
-                                                title="Ver Detalle de Nómina Quincenal VWH"
-                                                className="text-[#303a7f] hover:text-[#6bbdb7] border-[#303a7f]/30 hover:border-[#6bbdb7] active:scale-95 text-[10px] font-bold transition-all border-b border-dashed pb-0.5 whitespace-nowrap px-2"
-                                            >
+                                            <button onClick={() => onOpenQuincenaVWH(row)} title="Ver Detalle de Nómina Quincenal VWH" className="text-[#303a7f] hover:text-[#6bbdb7] text-[10px] font-bold border-b border-dashed border-[#303a7f]/30 pb-0.5">
                                                 {row.semana}
                                             </button>
                                         ) : (
-                                            <button
-                                                onClick={() => onOpenVWH(row.id)}
-                                                title="Ver Detalle de Nómina VWH"
-                                                className="text-[#303a7f] hover:text-[#6bbdb7] border-[#303a7f]/30 hover:border-[#6bbdb7] active:scale-95 text-[10px] font-bold transition-all border-b border-dashed pb-0.5"
-                                            >
+                                            <button onClick={() => onOpenVWH(row.id)} title="Ver Detalle de Nómina VWH" className="text-[#303a7f] hover:text-[#6bbdb7] text-[10px] font-bold border-b border-dashed border-[#303a7f]/30 pb-0.5">
                                                 {row.semana}
                                             </button>
                                         )}
-                                        {(() => {
-                                            // Construir múltiples variantes de clave para máxima compatibilidad con Variables
-                                            const fi = row.fecha_inicio || '';
-                                            const ff = row.fecha_fin || '';
-                                            const sn = row.nombre_store || storeName || '';
-                                            const rowId = String(row.id || '');
-
-                                            const candidateKeys = [
-                                                rowId,
-                                                normalizeKey(rowId),
-                                                `${sn}_${fi}_${ff}`,
-                                                `${sn.toLowerCase()}_${fi}_${ff}`,
-                                                `${storeName}_${fi}_${ff}`,
-                                                `${storeName.toLowerCase()}_${fi}_${ff}`,
-                                            ];
-                                            const isSent = (row.radicacion && row.radicacion !== '--/--/--') || candidateKeys.some(k => vwhEmailsSent[k]);
-                                            return isSent ? (
-                                                <Send
-                                                    size={18}
-                                                    className="text-[#6bbdb7] drop-shadow-[0_0_15px_rgba(107,189,183,1)] animate-in fade-in zoom-in duration-500"
-                                                    title={`Enviado el ${row.radicacion || 'recientemente'}`}
-                                                />
-                                            ) : null;
-                                        })()}
+                                        {isSent && <Send size={14} className="text-[#6bbdb7] shrink-0" />}
                                     </div>
-                                </td>
-                                <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{row.horas.toFixed(1)} <span className="text-[8px] text-gray-300 font-bold ml-0.5">H</span></td>
-                                <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{formatCurrency(row.facturacion)}</td>
-                                <td className="px-3 py-4 text-center text-[10px] font-bold text-red-400">{formatCurrency(row.costos)}</td>
-                                <td className="px-3 py-4 text-center">
-                                    <div className={`px-2 py-0.5 rounded-md inline-block ${row.utilidad >= 0 ? 'bg-teal-50' : 'bg-red-50'}`}>
-                                        <span className={`text-[10px] font-black ${row.utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>{formatCurrency(row.utilidad)}</span>
-                                    </div>
-                                </td>
-                                <td className="px-2 py-4 text-center">
-                                    <span className="text-[10px] font-black text-[#303a7f] whitespace-nowrap">{formatCurrencyInput(row.pago) || '$0.00'}</span>
-                                </td>
-                                <td className="px-2 py-4 text-center">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">{row.fecha_pago || '--/--/--'}</span>
-                                </td>
-                                <td className="px-2 py-4 text-center">
-                                    <span className={`text-[10px] font-black ${row.wos ? 'text-orange-500' : 'text-gray-300'}`}>{row.wos || '---'}</span>
-                                </td>
-                                <td className="px-3 py-4 text-center">
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-[10px] font-black text-[#303a7f]">{row.horas.toFixed(1)}H</span>
+                                    <span className="text-[10px] text-gray-300">|</span>
+                                    <span className="text-[10px] font-black text-[#303a7f]">KBS: {formatCurrency(row.facturacion)}</span>
+                                    <span className="text-[10px] font-bold text-red-400">LGM: {formatCurrency(row.costos)}</span>
+                                    <span className="text-[10px] text-gray-300">|</span>
+                                    <span className={`text-[10px] font-black ${row.utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>
+                                        Util: {formatCurrency(row.utilidad)}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+                                    <span className="font-black text-[#303a7f]">Pago: {formatCurrencyInput(row.pago) || '$0.00'}</span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="font-bold text-gray-400 uppercase">FP: {row.fecha_pago || '--/--/--'}</span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className={`font-black ${row.wos ? 'text-orange-500' : 'text-gray-300'}`}>WOS: {row.wos || '---'}</span>
+                                </div>
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase">Pagado</span>
                                     <input
                                         type="checkbox"
                                         checked={row.pagada}
@@ -11597,11 +11568,10 @@ const BillingView = ({
                                         }}
                                         className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all"
                                     />
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                </label>
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {/* Resumen VWH */}
@@ -11626,91 +11596,56 @@ const BillingView = ({
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                <table className="w-full border-collapse table-auto mb-6">
-                    <thead className="sticky top-0 z-20">
-                        <tr className="bg-white border-b border-gray-100 shadow-sm">
-                            {['Fecha Rad.', 'Fecha', 'Nombre del Proyecto', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Status'].map((h, i) => (
-                                <th key={i} className="px-2 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {peTableData.length === 0 ? (
-                            <tr><td colSpan={11} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros de Proyectos Especiales.</td></tr>
-                        ) : peTableData.map((row) => (
-                            <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
-                                <td className="px-3 py-4 text-center">
-                                    <div className="inline-block w-24">
-                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${row.radicacion ? 'text-[#303a7f]' : 'text-gray-300'}`}>
-                                            {row.radicacion || '--/--/--'}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td className="px-3 py-4 text-center">
-                                    <div className="inline-block w-24">
-                                        <span className="text-[10px] font-bold text-[#333333]">
-                                            {row.fecha || '--/--/--'}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td className="px-2 py-4 text-center">
-                                    <div className="flex items-center justify-center gap-2">
-                                        <button
-                                            onClick={() => onOpenPE(row.id)}
-                                            title="Ver Detalle de Proyecto Especial"
-                                            className="group/pe flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-all"
-                                        >
-                                            <span className="text-[10px] font-black text-[#303a7f] group-hover/pe:text-[#6bbdb7] border-b border-dashed border-[#303a7f]/30 group-hover/pe:border-[#6bbdb7] transition-all mb-0.5 text-center">
-                                                {row.nombre}
-                                            </span>
-                                            <span className="text-[8px] font-bold text-gray-400">Inv: {row.invoice}</span>
-                                        </button>
-                                        {(() => {
-                                            // Comparar número de invoice de forma robusta
-                                            const invRaw = String(row.invoice || '');
-                                            const invNorm = normalizeKey(invRaw);
-                                            const invDigits = invRaw.replace(/[^0-9]/g, '');
-
-                                            return (row.radicacion && row.radicacion !== '--/--/--') ? (
-                                                <Send
-                                                    size={18}
-                                                    className="text-[#6bbdb7] drop-shadow-[0_0_15px_rgba(107,189,183,1)] animate-in fade-in zoom-in duration-500"
-                                                    title={`Enviado el ${row.radicacion}`}
-                                                />
-                                            ) : null;
-                                        })()}
-                                    </div>
-                                </td>
-                                <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{row.horas.toFixed(1)} <span className="text-[8px] text-gray-300 font-bold ml-0.5">H</span></td>
-                                <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{formatCurrency(row.facturacion)}</td>
-                                <td className="px-3 py-4 text-center text-[10px] font-bold text-red-400">{formatCurrency(row.costos)}</td>
-                                <td className="px-3 py-4 text-center">
-                                    <div className={`px-2 py-0.5 rounded-md inline-block ${row.utilidad >= 0 ? 'bg-teal-50' : 'bg-red-50'}`}>
-                                        <span className={`text-[10px] font-black ${row.utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>{formatCurrency(row.utilidad)}</span>
-                                    </div>
-                                </td>
-                                <td className="px-2 py-4 text-center">
-                                    <span className="text-[10px] font-black text-[#303a7f] whitespace-nowrap">{formatCurrencyInput(row.pago) || '$0.00'}</span>
-                                </td>
-                                <td className="px-2 py-4 text-center">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">{row.fecha_pago || '--/--/--'}</span>
-                                </td>
-                                <td className="px-2 py-4 text-center">
-                                    <span className={`text-[10px] font-black ${row.wos ? 'text-orange-500' : 'text-gray-300'}`}>{row.wos || '---'}</span>
-                                </td>
-                                <td className="px-3 py-4 text-center">
+                <div className="px-3 space-y-2 max-w-full">
+                    {peTableData.length === 0 ? (
+                        <div className="py-16 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros de Proyectos Especiales.</div>
+                    ) : peTableData.map((row) => {
+                        const invRaw = String(row.invoice || '');
+                        const isSent = (row.radicacion && row.radicacion !== '--/--/--');
+                        return (
+                            <div key={row.id} className="bg-gray-50/50 rounded-2xl p-3 border border-gray-100 space-y-2 max-w-full">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className={`text-[10px] font-bold uppercase ${row.radicacion ? 'text-[#303a7f]' : 'text-gray-300'}`}>
+                                        Rad: {row.radicacion || '--/--/--'}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-[#333333]">{row.fecha || '--/--/--'}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                    <button onClick={() => onOpenPE(row.id)} title="Ver Detalle de Proyecto Especial" className="text-left">
+                                        <span className="text-[10px] font-black text-[#303a7f] hover:text-[#6bbdb7] border-b border-dashed border-[#303a7f]/30 pb-0.5">{row.nombre}</span>
+                                        <span className="text-[8px] font-bold text-gray-400 ml-1.5">Inv: {row.invoice}</span>
+                                    </button>
+                                    {isSent && <Send size={14} className="text-[#6bbdb7] shrink-0" />}
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-[10px] font-black text-[#303a7f]">{row.horas.toFixed(1)}H</span>
+                                    <span className="text-[10px] text-gray-300">|</span>
+                                    <span className="text-[10px] font-black text-[#303a7f]">KBS: {formatCurrency(row.facturacion)}</span>
+                                    <span className="text-[10px] font-bold text-red-400">LGM: {formatCurrency(row.costos)}</span>
+                                    <span className="text-[10px] text-gray-300">|</span>
+                                    <span className={`text-[10px] font-black ${row.utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>
+                                        Util: {formatCurrency(row.utilidad)}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+                                    <span className="font-black text-[#303a7f]">Pago: {formatCurrencyInput(row.pago) || '$0.00'}</span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="font-bold text-gray-400 uppercase">FP: {row.fecha_pago || '--/--/--'}</span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className={`font-black ${row.wos ? 'text-orange-500' : 'text-gray-300'}`}>WOS: {row.wos || '---'}</span>
+                                </div>
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase">Pagado</span>
                                     <input
                                         type="checkbox"
                                         checked={row.pagada}
                                         onChange={(e) => onUpdateManualPE(row.correlativo, 'pagada', e.target.checked)}
                                         className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all"
                                     />
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                </label>
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {/* Resumen P.E */}
@@ -11765,17 +11700,15 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
         });
     };
 
-    const handleImageChange = async (e) => {
+    const handleImageChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                // Usamos la función de compresión existente
-                const compressed = await compressImage(reader.result);
-                updateField('imagen', compressed);
-            };
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            updateField('imagen', dataUrl);
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleSave = () => {
