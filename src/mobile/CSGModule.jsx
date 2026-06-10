@@ -2023,24 +2023,26 @@ const CSGNominaView = ({ csgServicesData = [], syncToDatabase, csgNominaHistory 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div ref={reportRef} className="bg-white rounded-[2.5rem] border-2 border-gray-50 overflow-hidden shadow-2xl shadow-blue-900/5">
-                <div className="px-10 py-8 bg-gradient-to-r from-[#303a7f]/5 to-transparent border-b border-gray-100 flex items-center justify-between">
+                <div className="px-4 py-4 md:px-10 md:py-8 bg-gradient-to-r from-[#303a7f]/5 to-transparent border-b border-gray-100 flex items-center justify-between">
                     <div>
-                        <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter">Historial de Bisemanas</h3>
+                        <h3 className="text-lg md:text-xl font-black text-[#303a7f] uppercase tracking-tighter">Historial de Bisemanas</h3>
                         <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest mt-1 opacity-80">
                             Cleaning Services Group — Pago por Servicio
                         </p>
                     </div>
-                    <button onClick={handleExportPDF} className="px-6 py-3 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-teal-900/10">
-                        <Download size={15} /> Exportar Historial
+                    <button onClick={handleExportPDF} className="px-4 py-2.5 md:px-6 md:py-3 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-teal-900/10 shrink-0 ml-2">
+                        <Download size={15} /> <span className="hidden sm:inline">Exportar Historial</span>
                     </button>
                 </div>
 
-                <table className="w-full border-collapse">
+                <div className="overflow-x-auto">
+                <table className="w-full border-collapse min-w-[500px]">
                     <thead>
                         <tr className="bg-[#f9f9f9]/50 border-b border-gray-100">
-                            {['Rango de Bisemana', 'Servicios Totales', 'Total a Pagar', ''].map(h => (
-                                <th key={h} className="px-10 py-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-left">{h}</th>
-                            ))}
+                            <th className="px-3 md:px-10 py-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-left">Rango de Bisemana</th>
+                            <th className="px-3 md:px-10 py-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-left hidden md:table-cell">Servicios Totales</th>
+                            <th className="px-3 md:px-10 py-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-left">Total a Pagar</th>
+                            <th className="px-3 md:px-10 py-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-left"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
@@ -2048,12 +2050,12 @@ const CSGNominaView = ({ csgServicesData = [], syncToDatabase, csgNominaHistory 
                             <tr><td colSpan={4} className="py-24 text-center text-gray-300 font-bold text-sm uppercase tracking-widest italic opacity-50">No hay servicios registrados</td></tr>
                         ) : biweeks.map((bw, i) => (
                             <tr key={i} className="hover:bg-[#303a7f]/[0.02] transition-all group">
-                                <td className="px-10 py-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-3 bg-[#303a7f]/5 rounded-xl text-[#303a7f] group-hover:bg-[#303a7f] group-hover:text-white transition-all">
+                                <td className="px-3 md:px-10 py-4">
+                                    <div className="flex items-center gap-2 md:gap-4">
+                                        <div className="p-2 md:p-3 bg-[#303a7f]/5 rounded-xl text-[#303a7f] group-hover:bg-[#303a7f] group-hover:text-white transition-all">
                                             <Calendar size={18} />
                                         </div>
-                                        <span className="font-black text-sm text-[#303a7f] tracking-tight">{bw.label}</span>
+                                        <span className="font-black text-xs md:text-sm text-[#303a7f] tracking-tight">{bw.label}</span>
                                         {nominaStatus[bw.id] === 'Enviado' && (
                                             <div className="text-[#6bbdb7] animate-in zoom-in duration-300" title="Correo Enviado">
                                                 <Send size={14} />
@@ -2061,16 +2063,16 @@ const CSGNominaView = ({ csgServicesData = [], syncToDatabase, csgNominaHistory 
                                         )}
                                     </div>
                                 </td>
-                                <td className="px-10 py-6">
+                                <td className="px-3 md:px-10 py-4 hidden md:table-cell">
                                     <span className="px-4 py-1.5 bg-gray-100 text-gray-500 rounded-full text-[11px] font-black group-hover:bg-[#6bbdb7]/10 group-hover:text-[#6bbdb7] transition-all">
                                         {bw.services.reduce((acc, s) => acc + (s.num_servicios || 1), 0)} Servicios
                                     </span>
                                 </td>
-                                <td className="px-10 py-6 font-black text-base text-[#303a7f]">{fmtCurrency(bw.totalLGM)}</td>
-                                <td className="px-10 py-6 text-right">
+                                <td className="px-3 md:px-10 py-4 font-black text-sm md:text-base text-[#303a7f]">{fmtCurrency(bw.totalLGM)}</td>
+                                <td className="px-3 md:px-10 py-4 text-right">
                                     <button
                                         onClick={() => setSelectedBiweekId(bw.id)}
-                                        className="px-6 py-2.5 bg-[#303a7f] text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all hover:bg-[#252a5e] shadow-lg shadow-blue-900/10 active:scale-95"
+                                        className="px-4 py-2 md:px-6 md:py-2.5 bg-[#303a7f] text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all hover:bg-[#252a5e] shadow-lg shadow-blue-900/10 active:scale-95"
                                     >
                                         Ver Detalles
                                     </button>
@@ -2079,6 +2081,7 @@ const CSGNominaView = ({ csgServicesData = [], syncToDatabase, csgNominaHistory 
                         ))}
                     </tbody>
                 </table>
+                </div>
             </div>
 
             <CSGBiweekDetailsModal
@@ -2237,12 +2240,18 @@ const CSGBillingView = ({ csgServicesData = [], syncToDatabase, onRefresh }) => 
 
             <div className="bg-white rounded-[2rem] border-2 border-gray-50 overflow-hidden shadow-xl shadow-blue-900/5 relative min-h-[400px]">
                 <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
+                    <table className="w-full border-collapse min-w-[600px]">
                         <thead>
                             <tr className="bg-[#303a7f] text-white">
-                                {['Fecha Rad.', 'Fecha Serv.', 'Facturación (CSG)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Status'].map(h => (
-                                    <th key={h} className="px-5 py-4 text-[9px] font-black uppercase tracking-widest text-center whitespace-nowrap">{h}</th>
-                                ))}
+                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center hidden md:table-cell">Fecha Rad.</th>
+                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center">Fecha Serv.</th>
+                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center">Facturación</th>
+                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center hidden md:table-cell">Costos</th>
+                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center">Utilidad</th>
+                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center">Pago</th>
+                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center">Fecha Pago</th>
+                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center hidden md:table-cell">WOS</th>
+                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -2255,26 +2264,26 @@ const CSGBillingView = ({ csgServicesData = [], syncToDatabase, onRefresh }) => 
 
                                 return (
                                     <tr key={s.correlativo} className="hover:bg-gray-50/50 transition-colors group border-b border-gray-50">
-                                        <td className="px-5 py-4 text-center">
+                                        <td className="px-2 md:px-5 py-3 text-center hidden md:table-cell">
                                             <span className={`text-[10px] font-bold uppercase tracking-wider ${s['Fecha Rad.'] ? 'text-[#303a7f]' : 'text-gray-300'}`}>
                                                 {s['Fecha Rad.'] || '--/--/--'}
                                             </span>
                                         </td>
-                                        <td className="px-5 py-4 text-center text-[10px] font-black text-[#303a7f] whitespace-nowrap">
+                                        <td className="px-2 md:px-5 py-3 text-center text-[10px] font-black text-[#303a7f]">
                                             {s.fecha}
                                         </td>
-                                        <td className="px-5 py-4 text-center text-[11px] font-black text-[#303a7f]">
+                                        <td className="px-2 md:px-5 py-3 text-center text-[11px] font-black text-[#303a7f]">
                                             {fmtCurrency(s.monto_csg)}
                                         </td>
-                                        <td className="px-5 py-4 text-center text-[11px] font-bold text-amber-600">
+                                        <td className="px-2 md:px-5 py-3 text-center text-[11px] font-bold text-amber-600 hidden md:table-cell">
                                             {fmtCurrency(s.monto_lgm)}
                                         </td>
-                                        <td className="px-5 py-4 text-center">
+                                        <td className="px-2 md:px-5 py-3 text-center">
                                             <div className={`px-2 py-0.5 rounded-md inline-block ${utilidad >= 0 ? 'bg-teal-50' : 'bg-red-50'}`}>
                                                 <span className={`text-[10px] font-black ${utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>{fmtCurrency(utilidad)}</span>
                                             </div>
                                         </td>
-                                        <td className="px-5 py-4 text-center">
+                                        <td className="px-2 md:px-5 py-3 text-center">
                                             <input
                                                 type="text"
                                                 defaultValue={s.Pago || s.pago || ''}
@@ -2285,10 +2294,10 @@ const CSGBillingView = ({ csgServicesData = [], syncToDatabase, onRefresh }) => 
                                                     }
                                                 }}
                                                 placeholder="$0.00"
-                                                className="w-24 text-center bg-transparent border-b border-dashed border-gray-200 focus:border-[#303a7f] focus:outline-none text-[11px] font-black text-[#303a7f] transition-all hover:bg-gray-50/50 rounded-sm"
+                                                className="w-20 md:w-24 text-center bg-transparent border-b border-dashed border-gray-200 focus:border-[#303a7f] focus:outline-none text-[11px] font-black text-[#303a7f] transition-all hover:bg-gray-50/50 rounded-sm"
                                             />
                                         </td>
-                                        <td className="px-5 py-4 text-center">
+                                        <td className="px-2 md:px-5 py-3 text-center">
                                             <input
                                                 type="text"
                                                 defaultValue={s['Fecha de Pago'] || s.fecha_pago || ''}
@@ -2299,10 +2308,10 @@ const CSGBillingView = ({ csgServicesData = [], syncToDatabase, onRefresh }) => 
                                                     }
                                                 }}
                                                 placeholder="MM/DD/YYYY"
-                                                className="w-28 text-center bg-transparent border-b border-dashed border-gray-200 focus:border-[#303a7f] focus:outline-none text-[10px] font-bold text-gray-500 uppercase transition-all hover:bg-gray-50/50 rounded-sm"
+                                                className="w-22 md:w-28 text-center bg-transparent border-b border-dashed border-gray-200 focus:border-[#303a7f] focus:outline-none text-[10px] font-bold text-gray-500 uppercase transition-all hover:bg-gray-50/50 rounded-sm"
                                             />
                                         </td>
-                                        <td className="px-5 py-4 text-center">
+                                        <td className="px-2 md:px-5 py-3 text-center hidden md:table-cell">
                                             <input
                                                 type="text"
                                                 defaultValue={s.WOS || s.wos || ''}
@@ -2313,10 +2322,10 @@ const CSGBillingView = ({ csgServicesData = [], syncToDatabase, onRefresh }) => 
                                                     }
                                                 }}
                                                 placeholder="---"
-                                                className={`w-20 text-center bg-transparent border-b border-dashed border-gray-200 focus:border-[#303a7f] focus:outline-none text-[10px] font-black transition-all hover:bg-gray-50/50 rounded-sm ${s.WOS || s.wos ? 'text-orange-500' : 'text-gray-300'}`}
+                                                className={`w-16 md:w-20 text-center bg-transparent border-b border-dashed border-gray-200 focus:border-[#303a7f] focus:outline-none text-[10px] font-black transition-all hover:bg-gray-50/50 rounded-sm ${s.WOS || s.wos ? 'text-orange-500' : 'text-gray-300'}`}
                                             />
                                         </td>
-                                        <td className="px-5 py-4 text-center">
+                                        <td className="px-2 md:px-5 py-3 text-center">
                                             <input
                                                 type="checkbox"
                                                 checked={isPaid}
@@ -2354,63 +2363,63 @@ const CSGHistorialView = ({ csgServicesData = [], onViewPhotos, syncToDatabase }
                 <input className="w-full bg-white border-2 border-gray-100 rounded-2xl pl-5 pr-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all placeholder:text-gray-300 shadow-sm" placeholder="Filtrar por empleado o tienda..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <div className="bg-white rounded-[2rem] border-2 border-gray-50 overflow-hidden shadow-sm">
-                <table className="w-full border-collapse text-sm">
-                    <thead>
-                        <tr className="bg-[#f9f9f9] border-b border-gray-100">
-                            {['Correlativo', 'Fecha', 'Tienda', 'Empleado', 'Servicios', 'Cobro CSG', 'Pago LGM', 'Utilidad', 'Fotos', ''].map(h => (
-                                <th key={h} className="px-5 py-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest text-left whitespace-nowrap">{h}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {filtered.length === 0 ? (
-                            <tr><td colSpan={9} className="py-16 text-center text-gray-300 font-bold text-xs uppercase tracking-widest">No hay registros</td></tr>
-                        ) : filtered.map((s, i) => (
-                            <tr key={i} className="hover:bg-[#f9fffe] transition-colors group">
-                                <td className="px-5 py-3 text-[11px] font-black text-[#303a7f] whitespace-nowrap">{s.correlativo}</td>
-                                <td className="px-5 py-3 text-[11px] font-bold text-[#303a7f] whitespace-nowrap">
-                                    <div className="flex items-center gap-2">
+                <div className="p-3 space-y-2 max-w-full">
+                    {filtered.length === 0 ? (
+                        <div className="py-16 text-center text-gray-300 font-bold text-xs uppercase tracking-widest">No hay registros</div>
+                    ) : filtered.map((s, i) => {
+                        const utilidad = (s.monto_csg || 0) - (s.monto_lgm || 0);
+                        const fotosCount = s.fotos ? s.fotos.length : 0;
+                        return (
+                            <div key={i} className="bg-gray-50/50 rounded-2xl p-3 border border-gray-100 space-y-2 max-w-full">
+                                {/* Row 1: Correlativo + Fecha */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider truncate">{s.correlativo}</span>
+                                    <div className="flex items-center gap-2 shrink-0">
                                         <button
                                             onClick={() => setSelectedService(s)}
-                                            className="hover:text-[#6bbdb7] border-b-2 border-dashed border-[#303a7f]/20 transition-all pb-0.5"
+                                            className="text-[11px] font-black text-[#303a7f] hover:text-[#6bbdb7] border-b-2 border-dashed border-[#303a7f]/20 transition-all pb-0.5"
                                         >
                                             {fmtDate(s.fecha)}
                                         </button>
                                         {s.correo_enviado === 'Enviado' && (
-                                            <div className="text-[#6bbdb7] animate-in zoom-in duration-300">
-                                                <Send size={12} />
-                                            </div>
+                                            <Send size={12} className="text-[#6bbdb7]" />
                                         )}
                                     </div>
-                                </td>
-                                <td className="px-5 py-3 font-black text-xs text-[#303a7f] whitespace-nowrap">{s.tienda}</td>
-                                <td className="px-5 py-3 font-bold text-xs text-[#303a7f]">{s.empleado}</td>
-                                <td className="px-5 py-3 text-center"><span className="px-2.5 py-1 bg-[#303a7f]/10 text-[#303a7f] rounded-full text-[11px] font-black">{s.num_servicios}</span></td>
-                                <td className="px-5 py-3 font-black text-xs text-[#303a7f] whitespace-nowrap">{fmtCurrency(s.monto_csg)}</td>
-                                <td className="px-5 py-3 font-black text-xs text-red-500 whitespace-nowrap">{fmtCurrency(s.monto_lgm)}</td>
-                                <td className="px-5 py-3">
-                                    <div className="bg-teal-50/50 px-3 py-1.5 rounded-xl border border-teal-100/50 flex items-center justify-center min-w-[80px]">
-                                        <span className="text-[11px] font-black text-teal-600 drop-shadow-[0_0_8px_rgba(20,184,166,0.3)]">
-                                            {fmtCurrency((s.monto_csg || 0) - (s.monto_lgm || 0))}
+                                </div>
+                                {/* Row 2: Tienda + Empleado */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-black text-[#303a7f] truncate max-w-[60%]">{s.tienda}</span>
+                                    <span className="text-[11px] font-bold text-gray-500 truncate max-w-[40%] text-right">{s.empleado}</span>
+                                </div>
+                                {/* Row 3: Servicios + Montos */}
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    <span className="px-2 py-0.5 bg-[#303a7f]/10 text-[#303a7f] rounded-full text-[10px] font-black">{s.num_servicios} serv.</span>
+                                    <span className="text-[10px] font-bold text-[#303a7f]">CSG: {fmtCurrency(s.monto_csg)}</span>
+                                    <span className="text-[10px] font-bold text-red-500">LGM: {fmtCurrency(s.monto_lgm)}</span>
+                                </div>
+                                {/* Row 4: Utilidad + Fotos */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[9px] font-black text-gray-400 uppercase">Utilidad:</span>
+                                        <span className={`text-xs font-black ${utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>
+                                            {fmtCurrency(utilidad)}
                                         </span>
                                     </div>
-                                </td>
-                                <td className="px-5 py-3 text-center">
-                                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-black ${s.fotos && s.fotos.length > 0 ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-300'}`}>
-                                        {s.fotos ? s.fotos.length : 0}
-                                    </span>
-                                </td>
-                                <td className="px-5 py-3">
-                                    {s.fotos && s.fotos.length > 0 && (
-                                        <button onClick={() => onViewPhotos(s)} className="p-2 rounded-xl hover:bg-[#6bbdb7]/10 text-[#6bbdb7] transition-all opacity-0 group-hover:opacity-100" title="Ver fotos">
-                                            <Eye size={15} />
-                                        </button>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-[10px] font-black ${fotosCount > 0 ? 'text-green-600' : 'text-gray-300'}`}>
+                                            {fotosCount} {fotosCount === 1 ? 'foto' : 'fotos'}
+                                        </span>
+                                        {fotosCount > 0 && (
+                                            <button onClick={() => onViewPhotos(s)} className="p-1.5 bg-teal-50 text-[#6bbdb7] rounded-lg hover:bg-teal-100 transition-all min-w-[32px] min-h-[32px] flex items-center justify-center" title="Ver fotos">
+                                                <Eye size={14} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
             {/* Modal de Detalles del Servicio */}
@@ -2894,10 +2903,10 @@ const CSGStoreAddView = ({ onSave, onBack }) => {
         >
             <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-16">
                 {/* Top Navigation */}
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex flex-wrap items-center justify-between mb-8 gap-3">
                     <button
                         onClick={onBack}
-                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border-2 border-brand-primary/20 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
+                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-4 bg-white rounded-xl border-2 border-brand-primary/20 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
                         Cancelar
@@ -2906,7 +2915,7 @@ const CSGStoreAddView = ({ onSave, onBack }) => {
                     <button
                         onClick={handleSave}
                         style={{ backgroundColor: '#303a7f' }}
-                        className="text-white font-black px-10 py-4 shadow-2xl shadow-blue-900/20 text-xs tracking-widest uppercase rounded-2xl active:scale-95 flex items-center gap-2 hover:bg-[#252a5e] transition-colors"
+                        className="text-white font-black px-6 md:px-10 py-3 md:py-4 shadow-2xl shadow-blue-900/20 text-xs tracking-widest uppercase rounded-2xl active:scale-95 flex items-center gap-2 hover:bg-[#252a5e] transition-colors"
                     >
                         <Plus size={18} />
                         Registrar Tienda CSG
@@ -3106,21 +3115,21 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
             style={{ top: '-1px', left: '-1px', right: '-1px', bottom: '-1px', borderRadius: '0px' }}
         >
             {/* Header */}
-            <div className="bg-white border-b-2 border-gray-100 px-10 py-8 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-6">
-                    <button onClick={onBack} className="p-3 bg-gray-50 text-[#303a7f] rounded-2xl hover:bg-gray-100 transition-all active:scale-90"><ArrowLeft size={24} /></button>
-                    <div>
-                        <h2 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase">Nuevo Personal CSG</h2>
-                        <p className="text-gray-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-1">Registro de colaboradores para pago por servicio</p>
+            <div className="bg-white border-b-2 border-gray-100 px-4 py-4 md:px-10 md:py-8 flex items-center justify-between shadow-sm flex-wrap gap-3">
+                <div className="flex items-center gap-4 md:gap-6">
+                    <button onClick={onBack} className="p-3 bg-gray-50 text-[#303a7f] rounded-2xl hover:bg-gray-100 transition-all active:scale-90 shrink-0"><ArrowLeft size={24} /></button>
+                    <div className="min-w-0">
+                        <h2 className="text-xl md:text-3xl font-black text-[#303a7f] tracking-tighter uppercase">Nuevo Personal CSG</h2>
+                        <p className="text-gray-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-1 hidden sm:block">Registro de colaboradores para pago por servicio</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-4">
-                    <button onClick={onBack} className="px-8 py-4 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600 transition-all">Cancelar</button>
-                    <button onClick={handleSave} className="px-10 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-xl shadow-blue-900/20 active:scale-95">Registrar Colaborador</button>
+                <div className="flex items-center gap-3">
+                    <button onClick={onBack} className="px-4 md:px-8 py-3 md:py-4 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600 transition-all">Cancelar</button>
+                    <button onClick={handleSave} className="px-6 md:px-10 py-3 md:py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-xl shadow-blue-900/20 active:scale-95">Registrar</button>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto bg-[#fcfcfd] p-10">
+            <div className="flex-1 overflow-y-auto bg-[#fcfcfd] p-4 md:p-10" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
                     {/* Left Column: ID & Photo */}
                     <div className="lg:col-span-4 space-y-8">
@@ -3382,8 +3391,8 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
 
     const TABS = [
         { id: 'registro', label: 'Historial', icon: FileText },
-        { id: 'nomina', label: 'Nómina CSG', icon: Users },
-        { id: 'facturacion', label: 'Facturación', icon: DollarSign },
+        { id: 'nomina', label: 'Nómina', icon: Users },
+        { id: 'facturacion', label: 'Facturas', icon: DollarSign },
     ];
 
     return (
@@ -3396,7 +3405,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                         <button
                             key={t.id}
                             onClick={() => setActiveCSGTab(t.id)}
-                            className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeCSGTab === t.id ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}
+                            className={`flex items-center gap-2 px-3 md:px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeCSGTab === t.id ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}
                         >
                             <t.icon size={14} />
                             {t.label}
@@ -3405,31 +3414,31 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 </div>
 
                 {/* Action Buttons - Lado Derecho */}
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                     <button
                         onClick={() => setIsWosOpen(true)}
-                        className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
+                        className="hidden"
                     >
-                        <LayoutGrid size={18} className="group-hover:rotate-12 transition-transform duration-500" />
-                        <span className="tracking-widest uppercase text-[10px]">WOS</span>
+                        <LayoutGrid size={18} />
+                        <span>WOS</span>
                     </button>
 
-                    <button onClick={() => setIsAddingCsgStore(true)} className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap">
+                    <button onClick={() => setIsAddingCsgStore(true)} className="flex items-center justify-center gap-2 px-3 md:px-6 py-2.5 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group">
                         <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
-                        <span className="tracking-widest uppercase text-[10px]">Agregar Tienda</span>
+                        <span className="tracking-widest uppercase text-[10px]">Tienda</span>
                     </button>
 
                     <button
                         onClick={() => setIsAddingCsgEmployee(true)}
-                        className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
+                        className="flex items-center justify-center gap-2 px-3 md:px-6 py-2.5 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group"
                     >
                         <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
-                        <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
+                        <span className="tracking-widest uppercase text-[10px]">Personal</span>
                     </button>
 
-                    <button onClick={() => setIsCsgFormOpen(true)} className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap">
+                    <button onClick={() => setIsCsgFormOpen(true)} className="flex items-center justify-center gap-2 px-3 md:px-6 py-2.5 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group">
                         <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
-                        <span className="tracking-widest uppercase text-[10px]">Registrar Servicio</span>
+                        <span className="tracking-widest uppercase text-[10px]">Servicio</span>
                     </button>
                 </div>
             </div>
