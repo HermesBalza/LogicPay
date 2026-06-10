@@ -2023,64 +2023,49 @@ const CSGNominaView = ({ csgServicesData = [], syncToDatabase, csgNominaHistory 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div ref={reportRef} className="bg-white rounded-[2.5rem] border-2 border-gray-50 overflow-hidden shadow-2xl shadow-blue-900/5">
-                <div className="px-4 py-4 md:px-10 md:py-8 bg-gradient-to-r from-[#303a7f]/5 to-transparent border-b border-gray-100 flex items-center justify-between">
+                <div className="px-4 py-4 md:px-10 md:py-8 bg-gradient-to-r from-[#303a7f]/5 to-transparent border-b border-gray-100">
                     <div>
                         <h3 className="text-lg md:text-xl font-black text-[#303a7f] uppercase tracking-tighter">Historial de Bisemanas</h3>
                         <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest mt-1 opacity-80">
-                            Cleaning Services Group — Pago por Servicio
+                            Nóminas Bisemanales
                         </p>
                     </div>
-                    <button onClick={handleExportPDF} className="px-4 py-2.5 md:px-6 md:py-3 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-teal-900/10 shrink-0 ml-2">
-                        <Download size={15} /> <span className="hidden sm:inline">Exportar Historial</span>
-                    </button>
                 </div>
 
-                <div className="overflow-x-auto">
-                <table className="w-full border-collapse min-w-[500px]">
-                    <thead>
-                        <tr className="bg-[#f9f9f9]/50 border-b border-gray-100">
-                            <th className="px-3 md:px-10 py-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-left">Rango de Bisemana</th>
-                            <th className="px-3 md:px-10 py-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-left hidden md:table-cell">Servicios Totales</th>
-                            <th className="px-3 md:px-10 py-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-left">Total a Pagar</th>
-                            <th className="px-3 md:px-10 py-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest text-left"></th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {biweeks.length === 0 ? (
-                            <tr><td colSpan={4} className="py-24 text-center text-gray-300 font-bold text-sm uppercase tracking-widest italic opacity-50">No hay servicios registrados</td></tr>
-                        ) : biweeks.map((bw, i) => (
-                            <tr key={i} className="hover:bg-[#303a7f]/[0.02] transition-all group">
-                                <td className="px-3 md:px-10 py-4">
-                                    <div className="flex items-center gap-2 md:gap-4">
-                                        <div className="p-2 md:p-3 bg-[#303a7f]/5 rounded-xl text-[#303a7f] group-hover:bg-[#303a7f] group-hover:text-white transition-all">
-                                            <Calendar size={18} />
-                                        </div>
-                                        <span className="font-black text-xs md:text-sm text-[#303a7f] tracking-tight">{bw.label}</span>
-                                        {nominaStatus[bw.id] === 'Enviado' && (
-                                            <div className="text-[#6bbdb7] animate-in zoom-in duration-300" title="Correo Enviado">
-                                                <Send size={14} />
-                                            </div>
-                                        )}
+                <div className="p-3 space-y-2 max-w-full">
+                    {biweeks.length === 0 ? (
+                        <div className="py-16 text-center text-gray-300 font-bold text-sm uppercase tracking-widest italic opacity-50">No hay servicios registrados</div>
+                    ) : biweeks.map((bw, i) => {
+                        const totalServicios = bw.services.reduce((acc, s) => acc + (s.num_servicios || 1), 0);
+                        const enviado = nominaStatus[bw.id] === 'Enviado';
+                        return (
+                            <div key={i} className="bg-gray-50/50 rounded-2xl p-3 border border-gray-100 space-y-2 max-w-full">
+                                {/* Row 1: Icon + Label + Status */}
+                                <div className="flex items-center gap-2">
+                                    <div className="p-2 bg-[#303a7f]/5 rounded-xl text-[#303a7f] shrink-0">
+                                        <Calendar size={16} />
                                     </div>
-                                </td>
-                                <td className="px-3 md:px-10 py-4 hidden md:table-cell">
-                                    <span className="px-4 py-1.5 bg-gray-100 text-gray-500 rounded-full text-[11px] font-black group-hover:bg-[#6bbdb7]/10 group-hover:text-[#6bbdb7] transition-all">
-                                        {bw.services.reduce((acc, s) => acc + (s.num_servicios || 1), 0)} Servicios
-                                    </span>
-                                </td>
-                                <td className="px-3 md:px-10 py-4 font-black text-sm md:text-base text-[#303a7f]">{fmtCurrency(bw.totalLGM)}</td>
-                                <td className="px-3 md:px-10 py-4 text-right">
+                                    <span className="font-black text-sm text-[#303a7f] tracking-tight truncate">{bw.label}</span>
+                                    {enviado && <Send size={14} className="text-[#6bbdb7] shrink-0" />}
+                                </div>
+                                {/* Row 2: Servicios + Total + Acción */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="px-2.5 py-1 bg-gray-100 text-gray-500 rounded-full text-[10px] font-black">
+                                            {totalServicios} Servicios
+                                        </span>
+                                        <span className="text-sm font-black text-[#303a7f]">{fmtCurrency(bw.totalLGM)}</span>
+                                    </div>
                                     <button
                                         onClick={() => setSelectedBiweekId(bw.id)}
-                                        className="px-4 py-2 md:px-6 md:py-2.5 bg-[#303a7f] text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all hover:bg-[#252a5e] shadow-lg shadow-blue-900/10 active:scale-95"
+                                        className="px-4 py-2 bg-[#303a7f] text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all hover:bg-[#252a5e] shadow-lg shadow-blue-900/10 active:scale-95 shrink-0"
                                     >
                                         Ver Detalles
                                     </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -2239,106 +2224,99 @@ const CSGBillingView = ({ csgServicesData = [], syncToDatabase, onRefresh }) => 
             </div>
 
             <div className="bg-white rounded-[2rem] border-2 border-gray-50 overflow-hidden shadow-xl shadow-blue-900/5 relative min-h-[400px]">
-                <div className="overflow-x-auto">
-                    <table className="w-full border-collapse min-w-[600px]">
-                        <thead>
-                            <tr className="bg-[#303a7f] text-white">
-                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center hidden md:table-cell">Fecha Rad.</th>
-                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center">Fecha Serv.</th>
-                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center">Facturación</th>
-                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center hidden md:table-cell">Costos</th>
-                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center">Utilidad</th>
-                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center">Pago</th>
-                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center">Fecha Pago</th>
-                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center hidden md:table-cell">WOS</th>
-                                <th className="px-2 md:px-5 py-3 text-[9px] font-black uppercase tracking-widest text-center">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {reconciledData.length === 0 ? (
-                                <tr><td colSpan={9} className="py-20 text-center text-gray-300 font-bold text-xs uppercase tracking-widest italic opacity-50">No hay servicios registrados para mostrar</td></tr>
-                            ) : reconciledData.map((s, i) => {
-                                const utilidad = (parseFloat(s.monto_csg) || 0) - (parseFloat(s.monto_lgm) || 0);
-                                const currentStatus = localStatuses[s.correlativo] || s.Status || s.status;
-                                const isPaid = currentStatus === 'Paid';
+                <div className="p-3 space-y-2 max-w-full">
+                    {reconciledData.length === 0 ? (
+                        <div className="py-16 text-center text-gray-300 font-bold text-xs uppercase tracking-widest italic opacity-50">No hay servicios registrados para mostrar</div>
+                    ) : reconciledData.map((s, i) => {
+                        const utilidad = (parseFloat(s.monto_csg) || 0) - (parseFloat(s.monto_lgm) || 0);
+                        const currentStatus = localStatuses[s.correlativo] || s.Status || s.status;
+                        const isPaid = currentStatus === 'Paid';
 
-                                return (
-                                    <tr key={s.correlativo} className="hover:bg-gray-50/50 transition-colors group border-b border-gray-50">
-                                        <td className="px-2 md:px-5 py-3 text-center hidden md:table-cell">
-                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${s['Fecha Rad.'] ? 'text-[#303a7f]' : 'text-gray-300'}`}>
-                                                {s['Fecha Rad.'] || '--/--/--'}
-                                            </span>
-                                        </td>
-                                        <td className="px-2 md:px-5 py-3 text-center text-[10px] font-black text-[#303a7f]">
-                                            {s.fecha}
-                                        </td>
-                                        <td className="px-2 md:px-5 py-3 text-center text-[11px] font-black text-[#303a7f]">
-                                            {fmtCurrency(s.monto_csg)}
-                                        </td>
-                                        <td className="px-2 md:px-5 py-3 text-center text-[11px] font-bold text-amber-600 hidden md:table-cell">
-                                            {fmtCurrency(s.monto_lgm)}
-                                        </td>
-                                        <td className="px-2 md:px-5 py-3 text-center">
-                                            <div className={`px-2 py-0.5 rounded-md inline-block ${utilidad >= 0 ? 'bg-teal-50' : 'bg-red-50'}`}>
-                                                <span className={`text-[10px] font-black ${utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>{fmtCurrency(utilidad)}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-2 md:px-5 py-3 text-center">
-                                            <input
-                                                type="text"
-                                                defaultValue={s.Pago || s.pago || ''}
-                                                onBlur={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val !== String(s.Pago || s.pago || '')) {
-                                                        handleUpdateField(s.correlativo, 'pago', val);
-                                                    }
-                                                }}
-                                                placeholder="$0.00"
-                                                className="w-20 md:w-24 text-center bg-transparent border-b border-dashed border-gray-200 focus:border-[#303a7f] focus:outline-none text-[11px] font-black text-[#303a7f] transition-all hover:bg-gray-50/50 rounded-sm"
-                                            />
-                                        </td>
-                                        <td className="px-2 md:px-5 py-3 text-center">
-                                            <input
-                                                type="text"
-                                                defaultValue={s['Fecha de Pago'] || s.fecha_pago || ''}
-                                                onBlur={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val !== String(s['Fecha de Pago'] || s.fecha_pago || '')) {
-                                                        handleUpdateField(s.correlativo, 'fecha_pago', val);
-                                                    }
-                                                }}
-                                                placeholder="MM/DD/YYYY"
-                                                className="w-22 md:w-28 text-center bg-transparent border-b border-dashed border-gray-200 focus:border-[#303a7f] focus:outline-none text-[10px] font-bold text-gray-500 uppercase transition-all hover:bg-gray-50/50 rounded-sm"
-                                            />
-                                        </td>
-                                        <td className="px-2 md:px-5 py-3 text-center hidden md:table-cell">
-                                            <input
-                                                type="text"
-                                                defaultValue={s.WOS || s.wos || ''}
-                                                onBlur={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val !== String(s.WOS || s.wos || '')) {
-                                                        handleUpdateField(s.correlativo, 'wos', val);
-                                                    }
-                                                }}
-                                                placeholder="---"
-                                                className={`w-16 md:w-20 text-center bg-transparent border-b border-dashed border-gray-200 focus:border-[#303a7f] focus:outline-none text-[10px] font-black transition-all hover:bg-gray-50/50 rounded-sm ${s.WOS || s.wos ? 'text-orange-500' : 'text-gray-300'}`}
-                                            />
-                                        </td>
-                                        <td className="px-2 md:px-5 py-3 text-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={isPaid}
-                                                disabled={isUpdating}
-                                                onChange={(e) => handleUpdateField(s.correlativo, 'status', e.target.checked)}
-                                                className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all disabled:opacity-50"
-                                            />
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                        return (
+                            <div key={s.correlativo} className="bg-gray-50/50 rounded-2xl p-3 border border-gray-100 space-y-2 max-w-full">
+                                {/* Row 1: Fechas */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-black text-[#303a7f]">{s.fecha}</span>
+                                    <span className="text-[9px] font-bold text-gray-400 uppercase">
+                                        Rad: {s['Fecha Rad.'] || '--/--/--'}
+                                    </span>
+                                </div>
+                                {/* Row 2: Montos CSG + LGM */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[11px] font-black text-[#303a7f]">CSG: {fmtCurrency(s.monto_csg)}</span>
+                                    <span className="text-[11px] font-bold text-amber-600">LGM: {fmtCurrency(s.monto_lgm)}</span>
+                                </div>
+                                {/* Row 3: Utilidad */}
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase">Utilidad:</span>
+                                    <span className={`text-xs font-black ${utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>
+                                        {fmtCurrency(utilidad)}
+                                    </span>
+                                </div>
+                                {/* Row 4: Pago + Fecha Pago inputs (stacked) */}
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[9px] font-black text-gray-400 uppercase shrink-0 w-10">Pago:</span>
+                                        <input
+                                            type="text"
+                                            defaultValue={s.Pago || s.pago || ''}
+                                            onBlur={(e) => {
+                                                const val = e.target.value;
+                                                if (val !== String(s.Pago || s.pago || '')) {
+                                                    handleUpdateField(s.correlativo, 'pago', val);
+                                                }
+                                            }}
+                                            placeholder="$0.00"
+                                            className="flex-1 min-w-0 text-center bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-[11px] font-black text-[#303a7f] outline-none focus:border-[#303a7f] transition-all"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[9px] font-black text-gray-400 uppercase shrink-0 w-10">F.Pago:</span>
+                                        <input
+                                            type="text"
+                                            defaultValue={s['Fecha de Pago'] || s.fecha_pago || ''}
+                                            onBlur={(e) => {
+                                                const val = e.target.value;
+                                                if (val !== String(s['Fecha de Pago'] || s.fecha_pago || '')) {
+                                                    handleUpdateField(s.correlativo, 'fecha_pago', val);
+                                                }
+                                            }}
+                                            placeholder="MM/DD/YYYY"
+                                            className="flex-1 min-w-0 text-center bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-[10px] font-bold text-gray-500 uppercase outline-none focus:border-[#303a7f] transition-all"
+                                        />
+                                    </div>
+                                </div>
+                                {/* Row 5: WOS + Status */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[9px] font-black text-gray-400 uppercase">WOS:</span>
+                                        <input
+                                            type="text"
+                                            defaultValue={s.WOS || s.wos || ''}
+                                            onBlur={(e) => {
+                                                const val = e.target.value;
+                                                if (val !== String(s.WOS || s.wos || '')) {
+                                                    handleUpdateField(s.correlativo, 'wos', val);
+                                                }
+                                            }}
+                                            placeholder="---"
+                                            className={`w-20 text-center bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-[10px] font-black outline-none focus:border-[#303a7f] transition-all ${s.WOS || s.wos ? 'text-orange-500' : 'text-gray-300'}`}
+                                        />
+                                    </div>
+                                    <label className="flex items-center gap-1.5 cursor-pointer">
+                                        <span className="text-[9px] font-black text-gray-400 uppercase">Pagado</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={isPaid}
+                                            disabled={isUpdating}
+                                            onChange={(e) => handleUpdateField(s.correlativo, 'status', e.target.checked)}
+                                            className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all disabled:opacity-50"
+                                        />
+                                    </label>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -3414,7 +3392,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                 </div>
 
                 {/* Action Buttons - Lado Derecho */}
-                <div className="flex gap-2">
+                <div className="flex w-full gap-2">
                     <button
                         onClick={() => setIsWosOpen(true)}
                         className="hidden"
@@ -3423,20 +3401,20 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
                         <span>WOS</span>
                     </button>
 
-                    <button onClick={() => setIsAddingCsgStore(true)} className="flex items-center justify-center gap-2 px-3 md:px-6 py-2.5 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group">
+                    <button onClick={() => setIsAddingCsgStore(true)} className="flex-1 flex items-center justify-center gap-2 px-3 md:px-6 py-2.5 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group">
                         <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
                         <span className="tracking-widest uppercase text-[10px]">Tienda</span>
                     </button>
 
                     <button
                         onClick={() => setIsAddingCsgEmployee(true)}
-                        className="flex items-center justify-center gap-2 px-3 md:px-6 py-2.5 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group"
+                        className="flex-1 flex items-center justify-center gap-2 px-3 md:px-6 py-2.5 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group"
                     >
                         <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
                         <span className="tracking-widest uppercase text-[10px]">Personal</span>
                     </button>
 
-                    <button onClick={() => setIsCsgFormOpen(true)} className="flex items-center justify-center gap-2 px-3 md:px-6 py-2.5 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group">
+                    <button onClick={() => setIsCsgFormOpen(true)} className="flex-1 flex items-center justify-center gap-2 px-3 md:px-6 py-2.5 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group">
                         <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
                         <span className="tracking-widest uppercase text-[10px]">Servicio</span>
                     </button>
