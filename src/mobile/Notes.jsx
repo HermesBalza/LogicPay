@@ -313,7 +313,7 @@ export default function Notes({ currentUser }) {
           <div className="notes-content" onClick={e => e.stopPropagation()}>
             <header className="notes-header">
               <h2>Bloc de notas</h2>
-              <button onClick={() => setOpen(false)} className="close-btn">✖️</button>
+              <button onClick={() => setOpen(false)} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-90 flex items-center justify-center shrink-0"><X size={18} /></button>
             </header>
             <section className="notes-list" ref={notesListRef}>
               {buildTree(notes).map(root => renderNote(root))}
@@ -328,7 +328,7 @@ export default function Notes({ currentUser }) {
                       ) : (
                         <FileText size={20} className="text-gray-400 shrink-0" />
                       )}
-                      <span className="attachment-name">{att.name.length > 22 ? att.name.slice(0, 19) + '...' : att.name}</span>
+                      <span className="attachment-name">{att.name}</span>
                       <button type="button" className="remove-attachment" onClick={() => removeAttachment(i)}>
                         <X size={12} />
                       </button>

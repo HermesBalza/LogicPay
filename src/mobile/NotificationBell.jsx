@@ -149,19 +149,19 @@ export default function NotificationBell({ onSelectCandidato, onSelectProveedor 
       </button>
 
       {showModal && createPortal(
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-2 sm:p-4" onClick={() => setShowModal(false)}>
           <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-300" />
           <div
-            className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col min-h-[85vh] max-h-[85vh] overflow-hidden"
+            className="relative w-[95vw] max-w-lg bg-white rounded-[1.5rem] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col min-h-[80vh] max-h-[90vh] overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
-            <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
-              <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
+            <div className="px-4 py-4 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
+              <h3 className="text-base font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-2">
                 <Bell size={20} /> Próximas Llamadas
               </h3>
-              <button onClick={() => setShowModal(false)} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
+              <button onClick={() => setShowModal(false)} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-90 flex items-center justify-center shrink-0"><X size={18} /></button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="w-8 h-8 border-4 border-[#303a7f]/20 border-t-[#303a7f] rounded-full animate-spin" />
@@ -172,61 +172,41 @@ export default function NotificationBell({ onSelectCandidato, onSelectProveedor 
                   <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">No hay llamadas programadas</p>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-5">
                   {groupedByDate.map(([date, items]) => (
                     <div key={date}>
-                      <div className="flex items-center gap-3 mb-3">
+                      <div className="flex items-center gap-2 mb-3">
                         <div className="h-px flex-1 bg-gray-100" />
-                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest shrink-0">{formatDateLabel(date)}</span>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0 max-w-[70%] truncate">{formatDateLabel(date)}</span>
                         <div className="h-px flex-1 bg-gray-100" />
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2.5">
                         {items.map(r => (
-                          <div key={`${r.tipo_origen}-${r.id}`} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${isPastDate(r.proxima_llamada) ? 'bg-red-50 border-red-300 hover:border-red-400' : 'bg-gray-50 border-gray-100 hover:border-[#303a7f]/10'}`}>
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[12px] border shrink-0 ${isPastDate(r.proxima_llamada) ? 'bg-red-100 text-red-600 border-red-200' : 'bg-[#303a7f]/5 text-[#303a7f] border-[#303a7f]/10'}`}>
-                              <Phone size={18} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <button
-                                  onClick={() => {
-                                    setShowModal(false);
-                                    if (r.tipo_origen === 'Proveedor') {
-                                      onSelectProveedor?.(r.id);
-                                    } else {
-                                      onSelectCandidato(r.id);
-                                    }
-                                  }}
-                                  className={`text-[12px] font-black uppercase tracking-tight hover:text-[#6bbdb7] transition-colors text-left leading-tight truncate ${isPastDate(r.proxima_llamada) ? 'text-red-600' : 'text-[#303a7f]'}`}
-                                >
+                          <div key={`${r.tipo_origen}-${r.id}`} className={`p-3 rounded-2xl border transition-all ${isPastDate(r.proxima_llamada) ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-100'}`}>
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[12px] border shrink-0 ${isPastDate(r.proxima_llamada) ? 'bg-red-100 text-red-600 border-red-200' : 'bg-[#303a7f]/5 text-[#303a7f] border-[#303a7f]/10'}`}>
+                                <Phone size={18} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <span className={`text-sm font-black uppercase tracking-tight text-left leading-tight break-words max-w-full block ${isPastDate(r.proxima_llamada) ? 'text-red-600' : 'text-[#303a7f]'}`}>
                                   {r.nombre}
-                                </button>
-                                <span className={`px-2 py-0.5 rounded-lg border text-[8px] font-black uppercase tracking-widest ${r.tipo_origen === 'Candidato' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>
-                                  {r.tipo_origen}
                                 </span>
-                                {r.telefono && (
-                                  <div className="flex items-center gap-1.5 ml-1">
-                                    <Phone size={10} className="text-gray-300" />
-                                    <span className="text-[9px] font-bold text-gray-500">{r.telefono}</span>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-3">
+                                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                  <span className={`px-2 py-0.5 rounded-lg border text-[10px] font-black uppercase tracking-widest ${r.tipo_origen === 'Candidato' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>
+                                    {r.tipo_origen}
+                                  </span>
+                                  {r.telefono && (
+                                    <span className="text-[11px] font-bold text-gray-500">{r.telefono}</span>
+                                  )}
+                                </div>
                                 {r.creado_por && (
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-[8px] font-black text-gray-300 uppercase tracking-wider">Asistente:</span>
-                                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-tight">{r.creado_por}</span>
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <span className="text-[10px] font-black text-gray-300 uppercase tracking-wider">Asistente:</span>
+                                    <span className="text-[11px] font-bold text-gray-500 uppercase tracking-tight truncate">{r.creado_por}</span>
                                   </div>
                                 )}
                               </div>
                             </div>
-                            <button
-                              onClick={() => markAsRealizada(r)}
-                              className="flex items-center gap-2 px-4 py-2.5 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-xl border border-[#6bbdb7]/20 hover:bg-[#6bbdb7]/20 transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest shrink-0"
-                              title="Marcar como realizada"
-                            >
-                              <CheckCircle size={14} /> Realizada
-                            </button>
                           </div>
                         ))}
                       </div>
