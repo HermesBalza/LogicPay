@@ -39,6 +39,22 @@ const AdminExpensesView = ({
         return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
     };
 
+    const toDateInput = (dateStr) => {
+        if (!dateStr) return '';
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+        const parts = dateStr.split('/');
+        if (parts.length === 3) return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+        if (parts.length === 2) return `${new Date().getFullYear()}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+        return '';
+    };
+
+    const fromDateInput = (val) => {
+        if (!val) return '';
+        const parts = val.split('-');
+        if (parts.length === 3) return `${parts[1]}/${parts[2]}/${parts[0]}`;
+        return val;
+    };
+
     const showNotif = (type, msg) => {
         setNotif({ open: true, type, msg });
         setTimeout(() => setNotif({ open: false, type: 'success', msg: '' }), 3500);
@@ -84,7 +100,7 @@ const AdminExpensesView = ({
             const newExpense = {
                 concepto: concepto.trim(),
                 monto: String(parseFloat(monto).toFixed(2)),
-                fecha: fecha || `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`,
+                fecha: fecha || `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`,
                 categoria,
                 created_at: timestamp
             };
@@ -314,13 +330,12 @@ const AdminExpensesView = ({
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Fecha</label>
                             <div className="relative">
-                                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" size={18} />
                                 <input
-                                    type="text"
-                                    value={fecha}
-                                    onChange={e => setFecha(e.target.value)}
-                                    placeholder="MM/DD"
-                                    className="w-full h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl pl-10 pr-4 outline-none focus:border-[#303a7f]/30 focus:bg-white text-sm font-bold text-[#303a7f] placeholder:text-gray-300 transition-all"
+                                    type="date"
+                                    value={toDateInput(fecha)}
+                                    onChange={e => setFecha(fromDateInput(e.target.value))}
+                                    className="w-full h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl pl-10 pr-4 outline-none focus:border-[#303a7f]/30 focus:bg-white text-sm font-bold text-[#303a7f] transition-all cursor-pointer [color-scheme:light]"
                                 />
                             </div>
                         </div>

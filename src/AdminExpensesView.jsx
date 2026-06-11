@@ -39,6 +39,22 @@ const AdminExpensesView = ({
         return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
     };
 
+    const toDateInput = (dateStr) => {
+        if (!dateStr) return '';
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+        const parts = dateStr.split('/');
+        if (parts.length === 3) return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+        if (parts.length === 2) return `${new Date().getFullYear()}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+        return '';
+    };
+
+    const fromDateInput = (val) => {
+        if (!val) return '';
+        const parts = val.split('-');
+        if (parts.length === 3) return `${parts[1]}/${parts[2]}/${parts[0]}`;
+        return val;
+    };
+
     const showNotif = (type, msg) => {
         setNotif({ open: true, type, msg });
         setTimeout(() => setNotif({ open: false, type: 'success', msg: '' }), 3500);
@@ -84,7 +100,7 @@ const AdminExpensesView = ({
             const newExpense = {
                 concepto: concepto.trim(),
                 monto: String(parseFloat(monto).toFixed(2)),
-                fecha: fecha || `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`,
+                fecha: fecha || `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`,
                 categoria,
                 created_at: timestamp
             };
@@ -312,8 +328,8 @@ const AdminExpensesView = ({
             {/* Modal Agregar/Editar Gasto */}
             {openAdd && (
                 <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-300">
-                        <div className="sticky top-0 bg-white rounded-t-[2rem] px-6 py-4 border-b-2 border-gray-50 flex items-center justify-between z-10">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-300">
+                        <div className="shrink-0 bg-white rounded-t-[2rem] px-6 py-4 border-b-2 border-gray-50 flex items-center justify-between">
                             <h2 className="text-sm font-black text-[#303a7f] uppercase tracking-widest">
                                 {editingExpense ? 'Editar Gasto' : 'Nuevo Gasto'}
                             </h2>
@@ -325,7 +341,7 @@ const AdminExpensesView = ({
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-5">
+                        <div className="flex-1 overflow-y-auto p-6 space-y-5">
                             {/* Concepto */}
                             <div>
                                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Concepto</label>
@@ -376,20 +392,19 @@ const AdminExpensesView = ({
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Fecha</label>
                                     <div className="relative">
-                                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" size={16} />
                                         <input
-                                            type="text"
-                                            value={fecha}
-                                            onChange={e => setFecha(e.target.value)}
-                                            placeholder="MM/DD"
-                                            className="w-full h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl pl-10 pr-4 outline-none focus:border-[#303a7f]/30 focus:bg-white text-sm font-bold text-[#303a7f] placeholder:text-gray-300 transition-all"
+                                            type="date"
+                                            value={toDateInput(fecha)}
+                                            onChange={e => setFecha(fromDateInput(e.target.value))}
+                                            className="w-full h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl pl-10 pr-4 outline-none focus:border-[#303a7f]/30 focus:bg-white text-sm font-bold text-[#303a7f] transition-all cursor-pointer [color-scheme:light]"
                                         />
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="sticky bottom-0 bg-white rounded-b-[2rem] px-6 py-4 border-t-2 border-gray-50 flex gap-3">
+                        <div className="shrink-0 bg-white rounded-b-[2rem] px-6 py-4 border-t-2 border-gray-50 flex gap-3">
                             <button
                                 onClick={() => { setOpenAdd(false); resetForm(); }}
                                 className="flex-1 h-12 rounded-2xl border-2 border-gray-100 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all"
