@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Receipt, Plus, Trash2, Search, DollarSign, Calendar, X } from 'lucide-react';
 
 const CATEGORIAS = [
@@ -20,11 +20,12 @@ const AdminExpensesView = ({
     setAdminExpenses,
     syncToDatabase,
     apiUrl,
-    onRefresh
+    onRefresh,
+    openAdd = false,
+    setOpenAdd = () => {}
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [notif, setNotif] = useState({ open: false, type: 'success', msg: '' });
-    const [isAdding, setIsAdding] = useState(false);
     const [editingExpense, setEditingExpense] = useState(null);
     const [concepto, setConcepto] = useState('');
     const [monto, setMonto] = useState('');
@@ -53,8 +54,17 @@ const AdminExpensesView = ({
 
     const handleOpenAdd = () => {
         resetForm();
-        setIsAdding(true);
+        setOpenAdd(true);
     };
+
+    useEffect(() => {
+        if (openAdd && !editingExpense) {
+            setConcepto('');
+            setMonto('');
+            setFecha('');
+            setCategoria('Otros');
+        }
+    }, [openAdd]);
 
     const handleSave = async () => {
         if (!concepto.trim()) {
@@ -90,7 +100,7 @@ const AdminExpensesView = ({
                 showNotif('success', 'Gasto registrado correctamente.');
             }
 
-            setIsAdding(false);
+            setOpenAdd(false);
             resetForm();
         } catch (e) {
             console.error('[LGM Gastos] Error al guardar:', e);
@@ -118,7 +128,7 @@ const AdminExpensesView = ({
         setFecha(expense.fecha || '');
         setCategoria(expense.categoria || 'Otros');
         setEditingExpense(expense);
-        setIsAdding(true);
+        setOpenAdd(true);
     };
 
     const filteredExpenses = useMemo(() => {
@@ -154,28 +164,6 @@ const AdminExpensesView = ({
                     {notif.msg}
                 </div>
             )}
-
-            {/* Actions Row */}
-            <div className="flex flex-col gap-3 mb-6">
-                <button
-                    onClick={handleOpenAdd}
-                    className="flex items-center justify-center gap-3 px-6 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 active:bg-[#252a5e] whitespace-nowrap"
-                >
-                    <Plus size={18} />
-                    <span className="tracking-widest uppercase text-[10px]">Nuevo Gasto</span>
-                </button>
-
-                <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
-                    <input
-                        type="text"
-                        placeholder="Buscar por concepto o categoría..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full h-11 bg-white border-2 border-[#303a7f]/10 text-[#303a7f] rounded-2xl pl-11 pr-4 outline-none focus:border-[#303a7f]/20 font-bold shadow-sm text-sm placeholder:text-gray-300"
-                    />
-                </div>
-            </div>
 
             {/* Filtros por Categoría (scroll horizontal) */}
             {categoriasUnicas.length > 0 && (
@@ -260,14 +248,14 @@ const AdminExpensesView = ({
             )}
 
             {/* Modal Agregar/Editar Gasto (Full Screen en móvil) */}
-            {isAdding && (
+            {openAdd && (
                 <div className="fixed inset-0 z-[200] bg-[#f9f9f9] animate-in slide-in-from-bottom duration-300 flex flex-col">
                     <div className="bg-white px-5 py-4 border-b-2 border-gray-50 flex items-center justify-between flex-shrink-0">
                         <h2 className="text-sm font-black text-[#303a7f] uppercase tracking-widest">
                             {editingExpense ? 'Editar Gasto' : 'Nuevo Gasto'}
                         </h2>
                         <button
-                            onClick={() => { setIsAdding(false); resetForm(); }}
+                            onClick={() => { setOpenAdd(false); resetForm(); }}
                             className="p-2 rounded-xl text-gray-400 active:text-gray-600 active:bg-gray-50 transition-all"
                         >
                             <X size={20} />
@@ -340,7 +328,7 @@ const AdminExpensesView = ({
 
                     <div className="bg-white px-5 py-4 border-t-2 border-gray-50 flex gap-3 flex-shrink-0">
                         <button
-                            onClick={() => { setIsAdding(false); resetForm(); }}
+                            onClick={() => { setOpenAdd(false); resetForm(); }}
                             className="flex-1 h-12 rounded-2xl border-2 border-gray-100 text-gray-400 font-black text-[10px] uppercase tracking-widest active:bg-gray-50 transition-all"
                         >
                             Cancelar

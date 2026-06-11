@@ -11939,6 +11939,7 @@ const AdminPayrollView = ({
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [isAddingAdminEmployee, setIsAddingAdminEmployee] = useState(false);
     const [editingAdminEmployee, setEditingAdminEmployee] = useState(null);
+    const [isAddingExpense, setIsAddingExpense] = useState(false);
 
     // Cargar empleados automáticamente al cambiar el período
     useEffect(() => {
@@ -12118,6 +12119,7 @@ const AdminPayrollView = ({
                 </div>
 
                 {/* Action Buttons - Lado Derecho */}
+                {activeSection === 'employees' && (
                 <div className="flex gap-3">
                     <button
                         onClick={() => setIsAddingAdminEmployee(true)}
@@ -12128,6 +12130,18 @@ const AdminPayrollView = ({
                     </button>
 
                 </div>
+                )}
+                {activeSection === 'expenses' && (
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setIsAddingExpense(true)}
+                        className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
+                    >
+                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
+                        <span className="tracking-widest uppercase text-[10px]">Nuevo Gasto</span>
+                    </button>
+                </div>
+                )}
             </div>
 
             {isAddingAdminEmployee && (
@@ -12158,18 +12172,6 @@ const AdminPayrollView = ({
             {/* ── SECCIÓN: EQUIPO ── */}
             {activeSection === 'employees' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    {/* Buscador */}
-                    <div className="relative mb-6 group">
-                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Buscar por nombre o cargo..."
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            className="w-full h-11 bg-white border-2 border-[#303a7f]/10 text-[#303a7f] rounded-2xl pl-12 pr-6 outline-none focus:border-[#303a7f]/20 font-bold shadow-sm text-sm placeholder:text-gray-300"
-                        />
-                    </div>
-
                     {filteredEmployees.length === 0 ? (
                         <div className="py-32 text-center bg-white rounded-[2rem] border-2 border-dashed border-gray-100">
                             <Target size={48} className="text-gray-100 mx-auto mb-6" />
@@ -12361,6 +12363,8 @@ const AdminPayrollView = ({
                     syncToDatabase={syncToDatabase}
                     apiUrl={apiUrl}
                     onRefresh={onRefreshExpenses}
+                    openAdd={isAddingExpense}
+                    setOpenAdd={setIsAddingExpense}
                 />
             )}
         </div>

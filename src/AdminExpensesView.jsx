@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Receipt, Plus, Trash2, Search, DollarSign, Calendar, X } from 'lucide-react';
 
 const CATEGORIAS = [
@@ -20,11 +20,12 @@ const AdminExpensesView = ({
     setAdminExpenses,
     syncToDatabase,
     apiUrl,
-    onRefresh
+    onRefresh,
+    openAdd = false,
+    setOpenAdd = () => {}
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [notif, setNotif] = useState({ open: false, type: 'success', msg: '' });
-    const [isAdding, setIsAdding] = useState(false);
     const [editingExpense, setEditingExpense] = useState(null);
     const [concepto, setConcepto] = useState('');
     const [monto, setMonto] = useState('');
@@ -53,8 +54,17 @@ const AdminExpensesView = ({
 
     const handleOpenAdd = () => {
         resetForm();
-        setIsAdding(true);
+        setOpenAdd(true);
     };
+
+    useEffect(() => {
+        if (openAdd && !editingExpense) {
+            setConcepto('');
+            setMonto('');
+            setFecha('');
+            setCategoria('Otros');
+        }
+    }, [openAdd]);
 
     const handleSave = async () => {
         if (!concepto.trim()) {
@@ -90,7 +100,7 @@ const AdminExpensesView = ({
                 showNotif('success', 'Gasto registrado correctamente.');
             }
 
-            setIsAdding(false);
+            setOpenAdd(false);
             resetForm();
         } catch (e) {
             console.error('[LGM Gastos] Error al guardar:', e);
@@ -118,7 +128,7 @@ const AdminExpensesView = ({
         setFecha(expense.fecha || '');
         setCategoria(expense.categoria || 'Otros');
         setEditingExpense(expense);
-        setIsAdding(true);
+        setOpenAdd(true);
     };
 
     const filteredExpenses = useMemo(() => {
@@ -154,31 +164,6 @@ const AdminExpensesView = ({
                     {notif.msg}
                 </div>
             )}
-
-            {/* Actions Row */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleOpenAdd}
-                        className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
-                    >
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
-                        <span className="tracking-widest uppercase text-[10px]">Nuevo Gasto</span>
-                    </button>
-                </div>
-
-                {/* Buscador */}
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
-                    <input
-                        type="text"
-                        placeholder="Buscar por concepto o categoría..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full h-11 bg-white border-2 border-[#303a7f]/10 text-[#303a7f] rounded-2xl pl-11 pr-4 outline-none focus:border-[#303a7f]/20 font-bold shadow-sm text-sm placeholder:text-gray-300"
-                    />
-                </div>
-            </div>
 
             {/* Filtros por Categoría */}
             {categoriasUnicas.length > 0 && (
@@ -325,7 +310,7 @@ const AdminExpensesView = ({
             )}
 
             {/* Modal Agregar/Editar Gasto */}
-            {isAdding && (
+            {openAdd && (
                 <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-300">
                         <div className="sticky top-0 bg-white rounded-t-[2rem] px-6 py-4 border-b-2 border-gray-50 flex items-center justify-between z-10">
@@ -333,7 +318,7 @@ const AdminExpensesView = ({
                                 {editingExpense ? 'Editar Gasto' : 'Nuevo Gasto'}
                             </h2>
                             <button
-                                onClick={() => { setIsAdding(false); resetForm(); }}
+                                onClick={() => { setOpenAdd(false); resetForm(); }}
                                 className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
                             >
                                 <X size={18} />
@@ -406,7 +391,7 @@ const AdminExpensesView = ({
 
                         <div className="sticky bottom-0 bg-white rounded-b-[2rem] px-6 py-4 border-t-2 border-gray-50 flex gap-3">
                             <button
-                                onClick={() => { setIsAdding(false); resetForm(); }}
+                                onClick={() => { setOpenAdd(false); resetForm(); }}
                                 className="flex-1 h-12 rounded-2xl border-2 border-gray-100 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all"
                             >
                                 Cancelar
