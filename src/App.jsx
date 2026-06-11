@@ -19247,10 +19247,20 @@ function App() {
                                         </div>
                                     </div>
 
-                                    <div className="md:col-span-2 lg:col-span-2 flex items-end">
+                                    <div className="md:col-span-2 lg:col-span-2 flex items-end gap-2">
+                                        <a
+                                            href="/Formato_de_Carga_de_Asistencia.xlsx"
+                                            download
+                                            className="bg-white text-[#6bbdb7] rounded-xl hover:bg-[#6bbdb7]/5 transition-all active:scale-95 border-[3px] border-[#6bbdb7]/30 shadow-sm flex items-center justify-center gap-1.5 group h-[48px] px-3 flex-1"
+                                            title="Descargar formato de carga de asistencia para el supervisor"
+                                        >
+                                            <Download size={14} className="shrink-0" />
+                                            <span className="text-[8px] font-black uppercase tracking-widest leading-none truncate hidden xl:inline">Formato</span>
+                                            <span className="text-[8px] font-black uppercase tracking-widest leading-none truncate xl:hidden">Formato</span>
+                                        </a>
                                         <button
                                             onClick={() => setPayrollView('history')}
-                                            className="w-full bg-white text-[#303a7f] rounded-xl hover:bg-gray-50 transition-all active:scale-95 border-[3px] border-[#303a7f]/20 shadow-sm flex items-center justify-center gap-2 group h-[48px]"
+                                            className="bg-white text-[#303a7f] rounded-xl hover:bg-gray-50 transition-all active:scale-95 border-[3px] border-[#303a7f]/20 shadow-sm flex items-center justify-center gap-1.5 group h-[48px] px-3 flex-1"
                                         >
                                             <History size={16} className="group-hover:-rotate-45 transition-transform text-[#303a7f] shrink-0" />
                                             <span className="text-[9px] font-black uppercase tracking-widest leading-none truncate hidden lg:inline">Volver</span>
