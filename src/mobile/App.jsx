@@ -818,6 +818,8 @@ const DashboardView = ({
     csgServicesData = [],
     stores = [],
     employees = [],
+    adminExpenses = [],
+    adminPayrollHistory = [],
     onShowResumen
 }) => {
     const [dateFrom, setDateFrom] = useState(null);
@@ -842,6 +844,7 @@ const DashboardView = ({
         'margen-ganancia': 'Diferencia entre el total facturado y los costos operativos. Representa la ganancia bruta del periodo.',
         'rentabilidad-roi': 'Porcentaje de margen sobre ingresos totales. Indica la eficiencia del negocio: qué tan rentable es cada dólar facturado.',
         'cuentas-cobrar': 'Monto total pendiente de cobro a clientes. Representa el efectivo por recuperar.',
+        'gastos-admin': 'Total de gastos administrativos de Logic Group Management. Incluye pagos al personal administrativo (nómina LGM) y gastos misceláneos como publicidad, seguros, servicios, viáticos, transporte, honorarios, tecnología y otros gastos operativos no relacionados con tiendas.',
         'crecimiento': 'Variación porcentual de los ingresos totales entre el último periodo con datos y el periodo inmediatamente anterior.',
         'tendencia-financiera': 'Evolución mensual o semanal de ingresos vs costos. Permite visualizar la estacionalidad y tendencias del negocio a lo largo del tiempo.',
         'mix-ingresos': 'Distribución porcentual de los ingresos por tipo: Nómina Regular (KBS), Proyectos Especiales y CSG Services.',
@@ -1005,6 +1008,14 @@ const DashboardView = ({
         return passDate && passStore;
     }), [csgServicesData, dateFrom, dateTo, selectedStore]);
 
+    const filteredAdminExpenses = useMemo(() => adminExpenses.filter(e => {
+        return isDateInRange(e.fecha);
+    }), [adminExpenses, dateFrom, dateTo]);
+
+    const filteredAdminPayroll = useMemo(() => adminPayrollHistory.filter(p => {
+        return isDateInRange(p.fecha_confirmacion);
+    }), [adminPayrollHistory, dateFrom, dateTo]);
+
     // 2. Cálculos de KPIs Principales
     const totalKBS_Nomina = filteredNomina.reduce((acc, curr) => acc + (parseFloat(curr.Pago_KBS) || 0), 0);
     const totalLGM_Nomina = filteredNomina.reduce((acc, curr) => acc + (parseFloat(curr.Pago_LGM) || 0), 0);
@@ -1015,8 +1026,12 @@ const DashboardView = ({
     const totalCSG_Ingresos = (filteredCSG || []).reduce((acc, curr) => acc + (parseFloat(curr.monto_csg) || 0), 0);
     const totalCSG_Costos = (filteredCSG || []).reduce((acc, curr) => acc + (parseFloat(curr.monto_lgm) || 0), 0);
 
+    const totalGastosMisc = filteredAdminExpenses.reduce((acc, e) => acc + (parseFloat(e.monto) || 0), 0);
+    const totalGastosPersonal = filteredAdminPayroll.reduce((acc, p) => acc + (p.total_nomina || 0), 0);
+    const totalGastosAdmin = totalGastosMisc + totalGastosPersonal;
+
     const totalIngresos = totalKBS_Nomina + totalKBS_PE + totalCSG_Ingresos;
-    const totalCostos = totalLGM_Nomina + totalLGM_PE + totalCSG_Costos;
+    const totalCostos = totalLGM_Nomina + totalLGM_PE + totalCSG_Costos + totalGastosAdmin;
     const margenBruto = totalIngresos - totalCostos;
     const roiPercent = totalIngresos > 0 ? ((margenBruto / totalIngresos) * 100).toFixed(1) : 0;
 
@@ -1466,6 +1481,7 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                         { title: "Margen de Ganancia", val: formatMoney(margenBruto), subtitle: "Gross Profit", icon: DollarSign, color: "text-green-500", bg: "bg-green-50", descKey: 'margen-ganancia' },
                         { title: "Rentabilidad (ROI)", val: `${roiPercent}%`, subtitle: "Margen %", icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50", descKey: 'rentabilidad-roi' },
                         { title: "Cuentas por Cobrar", val: formatMoney(cuentasPorCobrar), subtitle: "Facturas Pendientes de Pago", icon: Receipt, color: "text-orange-500", bg: "bg-orange-50", descKey: 'cuentas-cobrar' },
+                        { title: "Gastos Administrativos", val: formatMoney(totalGastosAdmin), subtitle: `Personal: ${formatMoney(totalGastosPersonal)} | Misceláneos: ${formatMoney(totalGastosMisc)}`, icon: ShieldCheck, color: "text-purple-500", bg: "bg-purple-50", descKey: 'gastos-admin' },
                     ].map((kpi, idx) => (
                         <div key={idx} className="bg-white rounded-[1.5rem] p-4 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col gap-3 hover:-translate-y-1 transition-transform cursor-default relative group">
                             <div className="flex items-center gap-3">
@@ -19189,6 +19205,8 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             csgServicesData={csgServicesData}
                             stores={stores}
                             employees={employees}
+                            adminExpenses={adminExpenses}
+                            adminPayrollHistory={adminPayrollHistory}
                             onShowResumen={() => setShowResumen(true)}
                         />
                     )}
@@ -19201,6 +19219,8 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             specialProjectsHistoryData={specialProjectsHistoryData}
                             csgServicesData={csgServicesData}
                             stores={stores}
+                            adminExpenses={adminExpenses}
+                            adminPayrollHistory={adminPayrollHistory}
                             onClose={() => setShowResumen(false)}
                         />
                     </div>

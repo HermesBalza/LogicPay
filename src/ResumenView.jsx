@@ -103,6 +103,8 @@ const ResumenView = ({
     specialProjectsHistoryData = [],
     csgServicesData = [],
     stores = [],
+    adminExpenses = [],
+    adminPayrollHistory = [],
     onClose
 }) => {
     const now = new Date();
@@ -126,9 +128,17 @@ const ResumenView = ({
             const y = getYearFromDate(cs.fecha);
             if (y) years.add(y);
         });
+        adminExpenses.forEach(e => {
+            const y = getYearFromDate(e.fecha);
+            if (y) years.add(y);
+        });
+        adminPayrollHistory.forEach(p => {
+            const y = getYearFromDate(p.fecha_confirmacion);
+            if (y) years.add(y);
+        });
         if (!years.has(currentYear)) years.add(currentYear);
         return [...years].sort((a, b) => b - a);
-    }, [nominaHistoryData, specialProjectsHistoryData, csgServicesData, currentYear]);
+    }, [nominaHistoryData, specialProjectsHistoryData, csgServicesData, adminExpenses, adminPayrollHistory, currentYear]);
 
     const toggleMonth = (monthIndex) => {
         setExpandedMonths(prev => {
@@ -199,6 +209,15 @@ const ResumenView = ({
                 totalGastos += gastos;
             });
 
+            const gastosMiscMes = adminExpenses
+                .filter(e => getYearFromDate(e.fecha) === selectedYear && getMonthFromDate(e.fecha) === m)
+                .reduce((acc, e) => acc + (parseFloat(e.monto) || 0), 0);
+            const gastosPersonalMes = adminPayrollHistory
+                .filter(p => getYearFromDate(p.fecha_confirmacion) === selectedYear && getMonthFromDate(p.fecha_confirmacion) === m)
+                .reduce((acc, p) => acc + (p.total_nomina || 0), 0);
+            const gastosAdminMes = gastosMiscMes + gastosPersonalMes;
+            totalGastos += gastosAdminMes;
+
             tiendas.sort((a, b) => (b.ingresos + b.gastos) - (a.ingresos + a.gastos));
 
             result.push({
@@ -207,11 +226,14 @@ const ResumenView = ({
                 tiendas,
                 totalIngresos,
                 totalGastos,
-                totalUtilidad: totalIngresos - totalGastos
+                totalUtilidad: totalIngresos - totalGastos,
+                gastosAdminMes,
+                gastosMiscMes,
+                gastosPersonalMes
             });
         }
         return result;
-    }, [nominaHistoryData, specialProjectsHistoryData, csgServicesData, stores, selectedYear, monthsToShow]);
+    }, [nominaHistoryData, specialProjectsHistoryData, csgServicesData, stores, selectedYear, monthsToShow, adminExpenses, adminPayrollHistory]);
 
     const totalesAnuales = useMemo(() => {
         let ingresos = 0;
@@ -242,6 +264,16 @@ const ResumenView = ({
                     'Utilidad': t.utilidad
                 });
             });
+            if (mes.gastosAdminMes > 0) {
+                rows.push({
+                    'Mes': mes.mes,
+                    'Tienda': 'Gastos Administrativos',
+                    'Tipo': 'LGM',
+                    'Ingresos': 0,
+                    'Gastos': mes.gastosAdminMes,
+                    'Utilidad': -mes.gastosAdminMes
+                });
+            }
             rows.push({
                 'Mes': '',
                 'Tienda': `Total ${mes.mes}`,
@@ -514,6 +546,21 @@ const ResumenView = ({
                                         cliente={t.cliente}
                                     />
                                 ))}
+                                {mesData.gastosAdminMes > 0 && (
+                                    <div className="border-b border-gray-50 hover:bg-[#f9f9f9]/50 transition-colors rounded-lg">
+                                        <Row
+                                            label="Gastos Administrativos"
+                                            ingresos={0}
+                                            gastos={mesData.gastosAdminMes}
+                                            utilidad={-mesData.gastosAdminMes}
+                                            cliente="LGM"
+                                        />
+                                        <div className="flex items-center gap-4 px-4 pb-2 pl-8">
+                                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Personal Admin: {formatMoney(mesData.gastosPersonalMes)}</span>
+                                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Misceláneos: {formatMoney(mesData.gastosMiscMes)}</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="px-6 py-4 border-t border-gray-100 bg-gradient-to-r from-[#303a7f]/5 to-transparent">
