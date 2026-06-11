@@ -12961,14 +12961,6 @@ const VAScheduleSettings = ({ vaSchedule = [], onSave }) => {
     );
 };
 
-const ALLOWED_TABLES = [
-    'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle',
-    'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
-    'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
-    'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
-    'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios', 'AuditLog'
-];
-
 const DB_DATA_API = 'http://localhost:3001/api/data';
 
 const BackupButton = () => {
@@ -13016,11 +13008,19 @@ const DatabaseExplorer = () => {
     const [selectedColsToDelete, setSelectedColsToDelete] = useState([]);
     const [deletingCol, setDeletingCol] = useState(false);
     const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+    const [availableTables, setAvailableTables] = useState([]);
 
     const showNotif = (message, type = 'success') => {
         setNotification({ show: true, message, type });
         setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     };
+
+    useEffect(() => {
+        fetch('http://localhost:3001/api/tables')
+            .then(res => res.json())
+            .then(tables => setAvailableTables(Array.isArray(tables) ? tables : []))
+            .catch(() => {});
+    }, []);
 
     const fetchTableData = async (table) => {
         if (!table) return;
@@ -13185,7 +13185,7 @@ const DatabaseExplorer = () => {
                                 className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all appearance-none cursor-pointer"
                             >
                                 <option value="">Seleccionar tabla...</option>
-                                {ALLOWED_TABLES.map(t => (
+                                {availableTables.map(t => (
                                     <option key={t} value={t}>{t}</option>
                                 ))}
                             </select>

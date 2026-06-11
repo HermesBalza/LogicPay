@@ -745,3 +745,16 @@ app.get('/api/audit-log', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Servidor Backend escuchando en el puerto ${PORT}`);
 });
+
+// Endpoint para obtener la lista de tablas automáticamente desde sqlite_master
+app.get('/api/tables', (req, res) => {
+    try {
+        const tables = db.prepare(
+            `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
+        ).all().map(r => r.name);
+        res.json(tables);
+    } catch (error) {
+        console.error('Error obteniendo lista de tablas:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
