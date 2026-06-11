@@ -12114,9 +12114,9 @@ const AdminPayrollView = ({
             )}
 
             {/* Header / Tabs & Actions Row */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                {/* Navigation Tabs - Lado Izquierdo */}
-                <div className="bg-white rounded-2xl border-2 border-gray-100 p-1.5 inline-flex gap-1 shadow-sm">
+            <div className="flex flex-col gap-4 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Navigation Tabs */}
+                <div className="bg-white rounded-2xl border-2 border-gray-100 p-1 flex flex-wrap gap-1 shadow-sm">
                     {[
                         { id: 'employees', label: 'Equipo', icon: Users },
                         { id: 'payroll', label: 'Pago', icon: CreditCard },
@@ -12126,37 +12126,32 @@ const AdminPayrollView = ({
                         <button
                             key={tab.id}
                             onClick={() => setActiveSection(tab.id)}
-                            className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSection === tab.id ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 hover:text-[#303a7f] hover:bg-gray-50'}`}
+                            className={`flex-1 min-w-[calc(50%-0.25rem)] flex items-center justify-center gap-1.5 px-2 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSection === tab.id ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/10' : 'text-gray-400 active:bg-gray-50'}`}
                         >
-                            <tab.icon size={14} />
+                            <tab.icon size={12} />
                             {tab.label}
                         </button>
                     ))}
                 </div>
 
-                {/* Action Buttons - Lado Derecho */}
+                {/* Action Buttons */}
                 {activeSection === 'employees' && (
-                <div className="flex gap-3">
-                    <button
-                        onClick={() => setIsAddingAdminEmployee(true)}
-                        className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
-                    >
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
-                        <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
-                    </button>
-
-                </div>
+                <button
+                    onClick={() => setIsAddingAdminEmployee(true)}
+                    className="flex items-center justify-center gap-2 px-4 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 active:bg-[#252a5e]"
+                >
+                    <Plus size={18} />
+                    <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
+                </button>
                 )}
                 {activeSection === 'expenses' && (
-                <div className="flex gap-3">
-                    <button
-                        onClick={() => setIsAddingExpense(true)}
-                        className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
-                    >
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
-                        <span className="tracking-widest uppercase text-[10px]">Nuevo Gasto</span>
-                    </button>
-                </div>
+                <button
+                    onClick={() => setIsAddingExpense(true)}
+                    className="flex items-center justify-center gap-2 px-4 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 active:bg-[#252a5e]"
+                >
+                    <Plus size={18} />
+                    <span className="tracking-widest uppercase text-[10px]">Nuevo Gasto</span>
+                </button>
                 )}
             </div>
 
@@ -12266,53 +12261,48 @@ const AdminPayrollView = ({
                         </div>
                     ) : (
                         <>
-                            <div className="bg-white rounded-[2rem] border-2 border-gray-50 shadow-sm overflow-hidden mb-6">
-                                {/* Cabecera de tabla */}
-                                <div className="bg-gray-50/80 px-6 py-4 border-b-2 border-gray-100 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 text-[9px] font-black text-[#303a7f] uppercase tracking-widest">
-                                    <div>Empleado / Cargo</div>
-                                    <div className="text-right w-28">Sueldo Base</div>
-                                    <div className="text-right w-28">Ajuste</div>
-                                    <div className="text-right w-28">Total</div>
-                                    <div className="w-10"></div>
-                                </div>
-
-                                <div className="divide-y-2 divide-gray-50">
-                                    {payrollRows.map((row) => (
-                                        <div key={row.id} className="px-6 py-4 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center hover:bg-blue-50/20 transition-all">
-                                            <div>
-                                                <p className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</p>
-                                                <p className="text-[9px] font-bold text-[#6bbdb7] uppercase tracking-wider mt-0.5">{row.cargo}</p>
+                            {/* Tabla nómina — estilo cards para móvil */}
+                            <div className="space-y-3 mb-6">
+                                {payrollRows.map((row) => (
+                                    <div key={row.id} className="bg-white rounded-2xl border-2 border-gray-50 shadow-sm overflow-hidden">
+                                        <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs font-black text-[#303a7f] uppercase truncate">{row.nombre}</p>
+                                                <p className="text-[9px] font-bold text-[#6bbdb7] uppercase tracking-wider truncate">{row.cargo}</p>
                                             </div>
-                                            <div className="text-right w-28">
+                                            <button onClick={() => removeRow(row.id)} className="p-2 ml-2 text-gray-300 active:text-red-500 active:bg-red-50 rounded-xl transition-colors flex-shrink-0">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                        <div className="px-4 py-3 grid grid-cols-3 gap-3">
+                                            <div>
+                                                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-1">Sueldo Base</span>
                                                 <span className="text-xs font-black text-[#303a7f]">{fmtCurrency(row.salario_base)}</span>
                                             </div>
-                                            <div className="w-28">
+                                            <div>
+                                                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-1">Ajuste</span>
                                                 <input
                                                     type="number"
                                                     value={row.ajuste}
                                                     onChange={e => updateRow(row.id, 'ajuste', e.target.value)}
-                                                    className="w-full bg-gray-50 border-2 border-transparent focus:border-[#303a7f]/10 text-[#303a7f] font-black rounded-xl px-3 py-1.5 outline-none text-xs text-right transition-all"
+                                                    className="w-full bg-gray-50 border border-gray-100 focus:border-[#303a7f]/20 text-[#303a7f] font-black rounded-lg px-2 py-1.5 outline-none text-xs text-right transition-all"
                                                     step="0.01"
                                                     placeholder="0.00"
                                                 />
                                             </div>
-                                            <div className="text-right w-28">
+                                            <div>
+                                                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-1">Total</span>
                                                 <span className="text-sm font-black text-[#6bbdb7]">{fmtCurrency(row.total)}</span>
                                             </div>
-                                            <div className="flex justify-end w-10">
-                                                <button onClick={() => removeRow(row.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors">
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
                                         </div>
-                                    ))}
-                                </div>
+                                    </div>
+                                ))}
+                            </div>
 
-                                {/* Footer de totales */}
-                                <div className="bg-[#303a7f] px-6 py-4 flex items-center justify-between">
-                                    <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Total Nómina Bisemanal</span>
-                                    <span className="text-2xl font-black text-white tracking-tighter">{fmtCurrency(totalNomina)}</span>
-                                </div>
+                            {/* Footer de totales */}
+                            <div className="bg-[#303a7f] rounded-2xl px-5 py-4 flex items-center justify-between mb-6">
+                                <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Total Nómina</span>
+                                <span className="text-xl font-black text-white tracking-tighter">{fmtCurrency(totalNomina)}</span>
                             </div>
 
                             {/* Botón confirmar */}

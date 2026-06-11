@@ -186,12 +186,12 @@ const AdminExpensesView = ({
                 </div>
             )}
 
-            {/* Filtros por Categoría (scroll horizontal) */}
+            {/* Filtros por Categoría */}
             {categoriasUnicas.length > 0 && (
-                <div className="flex gap-2 mb-6 overflow-x-auto pb-1 no-scrollbar">
+                <div className="flex flex-wrap gap-2 mb-6">
                     <button
                         onClick={() => setFilterCategoria('')}
-                        className={`px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest whitespace-nowrap transition-all flex-shrink-0 ${!filterCategoria ? 'bg-[#303a7f] text-white shadow-lg' : 'bg-white text-gray-400 border-2 border-gray-100'}`}
+                        className={`px-3 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${!filterCategoria ? 'bg-[#303a7f] text-white shadow-lg' : 'bg-white text-gray-400 border-2 border-gray-100 active:bg-gray-50'}`}
                     >
                         Todas
                     </button>
@@ -199,7 +199,7 @@ const AdminExpensesView = ({
                         <button
                             key={cat}
                             onClick={() => setFilterCategoria(filterCategoria === cat ? '' : cat)}
-                            className={`px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest whitespace-nowrap transition-all flex-shrink-0 ${filterCategoria === cat ? 'bg-[#303a7f] text-white shadow-lg' : 'bg-white text-gray-400 border-2 border-gray-100'}`}
+                            className={`px-3 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${filterCategoria === cat ? 'bg-[#303a7f] text-white shadow-lg' : 'bg-white text-gray-400 border-2 border-gray-100 active:bg-gray-50'}`}
                         >
                             {cat}
                         </button>
