@@ -89,6 +89,7 @@ import { CSGView } from './CSGModule.jsx';
 import Notes from './Notes.jsx';
 import ResumenView from './ResumenView.jsx';
 import CRMView from './CRMView.jsx';
+import AdminExpensesView from './AdminExpensesView.jsx';
 import NotificationBell from './NotificationBell.jsx';
 
 // ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
@@ -143,6 +144,7 @@ const CSG_SERVICES_API_URL = `${LOCAL_API_BASE}/CSG_Servicios`;
 const CSG_NOMINA_API_URL = `${LOCAL_API_BASE}/CSG_Nomina`;
 const ADMIN_EMPLOYEES_API_URL = `${LOCAL_API_BASE}/Personal_Admin`;
 const ADMIN_NOMINA_HISTORICO_API_URL = `${LOCAL_API_BASE}/Admin_Nomina_Historico`;
+const ADMIN_EXPENSES_API_URL = `${LOCAL_API_BASE}/Gastos_Miscelaneos`;
 const VASCHEDULE_API_URL = `${LOCAL_API_BASE}/VASchedule`;
 const CRM_CANDIDATOS_API_URL = `${LOCAL_API_BASE}/CRM_Candidatos`;
 const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
@@ -11924,9 +11926,12 @@ const AdminPayrollView = ({
     apiUrl,
     onRefresh,
     onAddEmployee,
-    onDeleteEmployee
+    onDeleteEmployee,
+    adminExpenses = [],
+    setAdminExpenses,
+    onRefreshExpenses
 }) => {
-    const [activeSection, setActiveSection] = useState('employees'); // 'employees' | 'payroll' | 'history'
+    const [activeSection, setActiveSection] = useState('employees'); // 'employees' | 'payroll' | 'history' | 'expenses'
     const [selectedPeriod, setSelectedPeriod] = useState('');
     const [payrollRows, setPayrollRows] = useState([]);
     const [isConfirming, setIsConfirming] = useState(false);
@@ -12098,7 +12103,8 @@ const AdminPayrollView = ({
                     {[
                         { id: 'employees', label: 'Equipo', icon: Users },
                         { id: 'payroll', label: 'Pago', icon: CreditCard },
-                        { id: 'history', label: 'Historial', icon: History }
+                        { id: 'history', label: 'Historial', icon: History },
+                        { id: 'expenses', label: 'Gastos', icon: Receipt }
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -12345,6 +12351,17 @@ const AdminPayrollView = ({
                         </div>
                     )}
                 </div>
+            )}
+
+            {/* ── SECCIÓN: GASTOS ── */}
+            {activeSection === 'expenses' && (
+                <AdminExpensesView
+                    adminExpenses={adminExpenses}
+                    setAdminExpenses={setAdminExpenses}
+                    syncToDatabase={syncToDatabase}
+                    apiUrl={apiUrl}
+                    onRefresh={onRefreshExpenses}
+                />
             )}
         </div>
     );
@@ -14204,6 +14221,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
     const [adminEmployees, setAdminEmployees] = useState([]);
     const [adminPayrollHistory, setAdminPayrollHistory] = useState([]);
     const [adminPayrollSearchTerm, setAdminPayrollSearchTerm] = useState('');
+    const [adminExpenses, setAdminExpenses] = useState([]);
 
     // ─── Estados Módulo CSG ───────────────────────────────────────────────────
     const [csgServicesData, setCsgServicesData] = useState([]);
@@ -17053,6 +17071,17 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
         }
     };
 
+    const fetchAdminExpenses = async () => {
+        if (!ADMIN_EXPENSES_API_URL) return;
+        try {
+            const data = await fetchTableData(ADMIN_EXPENSES_API_URL);
+            setAdminExpenses(Array.isArray(data) ? data : []);
+            console.log(`[LogicPay LGM] ${data.length || 0} gastos misceláneos cargados.`);
+        } catch (error) {
+            console.error('[LogicPay LGM] Error cargando Gastos Misceláneos:', error);
+        }
+    };
+
     const fetchAdminPayrollHistory = async () => {
         if (!ADMIN_NOMINA_HISTORICO_API_URL || ADMIN_NOMINA_HISTORICO_API_URL.includes('XXXXXXXXX')) return;
         try {
@@ -17128,6 +17157,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
         fetchCSGNomina();
         fetchAdminEmployees();
         fetchAdminPayrollHistory();
+        fetchAdminExpenses();
         fetchVASchedule();
         fetchPendingContratados();
     }, []);
@@ -17250,6 +17280,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     if (sheetName === 'CSG_Servicios') fetchCSGServices();
                     if (sheetName === 'Personal_Admin') fetchAdminEmployees();
                     if (sheetName === 'Admin_Nomina_Historico') fetchAdminPayrollHistory();
+                    if (sheetName === 'Gastos_Miscelaneos') fetchAdminExpenses();
                     if (sheetName === 'VASchedule') fetchVASchedule();
                 }
             })
@@ -19133,6 +19164,9 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             onRefresh={fetchAdminEmployees}
                             onAddEmployee={handleCreateAdminEmployee}
                             onDeleteEmployee={handleDeleteAdminEmployee}
+                            adminExpenses={adminExpenses}
+                            setAdminExpenses={setAdminExpenses}
+                            onRefreshExpenses={fetchAdminExpenses}
                         />
                     )}
 

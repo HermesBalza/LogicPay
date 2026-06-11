@@ -200,6 +200,16 @@ CREATE TABLE IF NOT EXISTS WOS_CSG (
     "Date" TEXT,
     "Data_JSON" TEXT
 );
+
+-- Tabla Gastos_Miscelaneos
+CREATE TABLE IF NOT EXISTS Gastos_Miscelaneos (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "concepto" TEXT,
+    "monto" TEXT,
+    "fecha" TEXT,
+    "categoria" TEXT,
+    "created_at" TEXT
+);
 `;
 
 try {

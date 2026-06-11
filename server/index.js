@@ -71,6 +71,7 @@ const ENTITY_MAP = {
     CRM_Candidatos: 'Contacto', CRM_Proveedores: 'Proveedor',
     CRM_Proyectos: 'Proyecto', CRM_Cotizaciones: 'Cotización',
     Notas: 'Nota', NotasLeidas: 'Lectura',
+    Gastos_Miscelaneos: 'Gasto Misceláneo',
 };
 
 function mapEntityName(sheetName) {
@@ -220,8 +221,8 @@ app.post('/api/alter-table', (req, res) => {
       'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle',
       'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
       'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
-      'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
-      'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios', 'AuditLog'
+    'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
+    'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios', 'AuditLog', 'Gastos_Miscelaneos'
     ];
 
     if (!allowedTables.includes(table)) {
