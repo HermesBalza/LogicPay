@@ -112,7 +112,11 @@ const AdminExpensesView = ({
                 setAdminExpenses(prev => prev.map(e => e.id === editingExpense.id ? { ...e, ...newExpense } : e));
                 showNotif('success', 'Gasto actualizado correctamente.');
             } else {
+                const optimisticExpense = { ...newExpense, id: `temp_${Date.now()}` };
+                setAdminExpenses(prev => [optimisticExpense, ...prev]);
+
                 await syncToDatabase('upsert', newExpense, 'Gastos_Miscelaneos', true);
+
                 if (onRefresh) await onRefresh();
                 showNotif('success', 'Gasto registrado correctamente.');
             }

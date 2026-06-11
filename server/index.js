@@ -86,7 +86,7 @@ app.get('/api/data/:table', (req, res) => {
     'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
     'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
     'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
-    'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios', 'AuditLog'
+    'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios', 'AuditLog', 'Gastos_Miscelaneos'
   ];
 
   if (!allowedTables.includes(table)) {
@@ -217,13 +217,13 @@ app.post('/api/alter-table', (req, res) => {
     const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     const { table, action, columnName } = payload;
 
-    const allowedTables = [
-      'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle',
-      'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
-      'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
+  const allowedTables = [
+    'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle',
+    'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
+    'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
     'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
     'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios', 'AuditLog', 'Gastos_Miscelaneos'
-    ];
+  ];
 
     if (!allowedTables.includes(table)) {
       return res.status(404).json({ error: 'Tabla no encontrada o no permitida' });

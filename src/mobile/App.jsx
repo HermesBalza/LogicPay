@@ -17287,8 +17287,10 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     if (sheetName === 'Gastos_Miscelaneos') fetchAdminExpenses();
                     if (sheetName === 'VASchedule') fetchVASchedule();
                 }
+                setDbStatus('conectado');
             })
             .catch(error => {
+                setDbStatus('desconectado');
                 console.error(`[LogicPay] Error en POST a ${sheetName}:`, error);
                 throw error;
             });

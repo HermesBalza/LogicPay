@@ -162,6 +162,18 @@ db.exec(`CREATE TABLE IF NOT EXISTS VASchedule (
 
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_va_asistente_dia ON VASchedule(asistente, dia_semana);`);
 
+// ------------------------------------------------------------
+// Tabla de Gastos Misceláneos (LGM)
+// ------------------------------------------------------------
+db.exec(`CREATE TABLE IF NOT EXISTS Gastos_Miscelaneos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    concepto TEXT,
+    monto TEXT,
+    fecha TEXT,
+    categoria TEXT,
+    created_at TEXT
+);`);
+
 // Sembrado inicial solo si la tabla está vacía
 const existingCount = db.prepare(`SELECT COUNT(*) AS cnt FROM VASchedule`).get();
 if (existingCount.cnt === 0) {

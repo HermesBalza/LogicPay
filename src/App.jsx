@@ -17677,8 +17677,10 @@ function App() {
                     if (sheetName === 'Gastos_Miscelaneos') fetchAdminExpenses();
                     if (sheetName === 'VASchedule') fetchVASchedule();
                 }
+                setDbStatus('conectado');
             })
             .catch(error => {
+                setDbStatus('desconectado');
                 console.error(`[LogicPay] Error en POST a ${sheetName}:`, error);
                 throw error;
             });
@@ -18710,9 +18712,9 @@ function App() {
                 <nav className="fixed bottom-0 inset-x-0 z-50 bg-[#303a7f] border-t border-white/10 p-2 flex items-center justify-center gap-2 shadow-[0_-10px_40px_rgba(48,58,127,0.2)]">
                     {/* Database status al extremo izquierdo */}
                     <div className="absolute left-6 hidden xl:flex items-center gap-3 px-4 py-2 bg-white/5 rounded-2xl border border-white/10 transition-all duration-500 hover:bg-white/10">
-                        <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-[#6bbdb7] animate-pulse' : dbStatus === 'conectado' ? 'bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.4)]' : 'bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.4)]'}`} />
+                        <div className={`w-2 h-2 rounded-full ${isLoading || dbStatus === 'sincronizando' ? 'bg-[#6bbdb7] animate-pulse' : dbStatus === 'conectado' ? 'bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.4)]' : 'bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.4)]'}`} />
                         <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/40">
-                            {isLoading ? 'Sincronizando...' : dbStatus === 'conectado' ? 'Online' : 'Offline'}
+                            {isLoading || dbStatus === 'sincronizando' ? 'Sincronizando...' : dbStatus === 'conectado' ? 'Online' : 'Offline'}
                         </span>
                     </div>
                     {navItems.map((item) => (
