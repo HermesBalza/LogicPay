@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Receipt, Plus, Trash2, Search, DollarSign, Calendar, X } from 'lucide-react';
 
 const CATEGORIAS = [
@@ -33,6 +33,7 @@ const AdminExpensesView = ({
     const [categoria, setCategoria] = useState('Otros');
     const [isSaving, setIsSaving] = useState(false);
     const [filterCategoria, setFilterCategoria] = useState('');
+    const dateInputRef = useRef(null);
 
     const fmtCurrency = (val) => {
         const n = parseFloat(val) || 0;
@@ -392,12 +393,35 @@ const AdminExpensesView = ({
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Fecha</label>
                                     <div className="relative">
-                                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" size={16} />
+                                        <input
+                                            type="text"
+                                            value={fecha}
+                                            onChange={e => setFecha(e.target.value)}
+                                            placeholder="MM/DD/YYYY"
+                                            className="w-full h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl pl-4 pr-10 outline-none focus:border-[#303a7f]/30 focus:bg-white text-sm font-bold text-[#303a7f] placeholder:text-gray-300 transition-all"
+                                        />
+                                        <Calendar
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#303a7f] z-20 cursor-pointer"
+                                            size={16}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const input = dateInputRef.current;
+                                                if (input) {
+                                                    if (typeof input.showPicker === 'function') {
+                                                        input.showPicker();
+                                                    } else {
+                                                        input.focus();
+                                                        input.click();
+                                                    }
+                                                }
+                                            }}
+                                        />
                                         <input
                                             type="date"
+                                            ref={dateInputRef}
                                             value={toDateInput(fecha)}
                                             onChange={e => setFecha(fromDateInput(e.target.value))}
-                                            className="w-full h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl pl-10 pr-4 outline-none focus:border-[#303a7f]/30 focus:bg-white text-sm font-bold text-[#303a7f] transition-all cursor-pointer [color-scheme:light]"
+                                            className="absolute inset-0 z-10 opacity-0 cursor-pointer"
                                         />
                                     </div>
                                 </div>
