@@ -77,7 +77,8 @@ import {
     Briefcase,
     Database,
     Pencil,
-    PawPrint
+    PawPrint,
+    Youtube
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -750,12 +751,24 @@ ${systemContext || "Contexto cargando..."}
                                 </div>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setIsOpen(false)}
-                            className="text-white/50 hover:text-[#fc6410] transition-colors p-1 bg-white/5 rounded-lg"
-                        >
-                            <X size={20} />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <a
+                                href="https://www.youtube.com/playlist?list=PLXziDeNAZ08Pg1KESMmhVFshSLUzKFBMI"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Videotutoriales LogicPay"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#fc6410]/20 hover:bg-[#fc6410]/30 text-[#fc6410] rounded-xl font-black text-[9px] uppercase tracking-widest transition-all border border-[#fc6410]/30 hover:border-[#fc6410]/50"
+                            >
+                                <Youtube size={14} />
+                                Tutoriales
+                            </a>
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                className="text-white/50 hover:text-[#fc6410] transition-colors p-1 bg-white/5 rounded-lg"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Body */}
