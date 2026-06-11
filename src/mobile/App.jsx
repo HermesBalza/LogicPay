@@ -11747,156 +11747,147 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
     return (
         <div className="fixed inset-0 z-[1000] bg-white flex flex-col animate-in slide-in-from-right duration-500">
             {/* Header */}
-            <div className="bg-white border-b-2 border-gray-100 px-10 py-8 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-6">
-                    <button onClick={onBack} className="p-3 bg-gray-50 text-[#303a7f] rounded-2xl hover:bg-gray-100 transition-all active:scale-90">
-                        <ArrowLeft size={24} />
-                    </button>
-                    <div>
-                        <h2 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase">{isEdit ? 'Editar Personal' : 'Nuevo Personal Administrativo'}</h2>
-                        <p className="text-gray-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-1">Registro de colaboradores LGM</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-4">
+            <div className="bg-white border-b-2 border-gray-100 px-4 py-4 flex items-center gap-3 shadow-sm flex-shrink-0">
+                <button
+                    onClick={onBack}
+                    className="flex items-center gap-1 px-2.5 py-2 bg-gray-100 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all flex-shrink-0"
+                >
+                    <ArrowLeft size={14} />
+                    Atrás
+                </button>
+                <div className="flex-1" />
+                <div className="flex items-center gap-2 flex-shrink-0">
                     {isEdit && onDelete && (
-                        <button onClick={() => setShowDeleteModal(true)} className="px-8 py-4 text-red-500 font-black text-[10px] uppercase tracking-widest hover:bg-red-50 transition-all rounded-2xl">Eliminar</button>
+                        <button onClick={() => setShowDeleteModal(true)} className="px-3 py-2.5 text-red-500 font-black text-[9px] uppercase tracking-widest active:bg-red-50 rounded-xl transition-all">Eliminar</button>
                     )}
-                    <button onClick={onBack} className="px-8 py-4 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600 transition-all">Cancelar</button>
-                    <button onClick={handleSave} className="px-10 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-xl shadow-blue-900/20 active:scale-95">{isEdit ? 'Guardar Cambios' : 'Registrar Colaborador'}</button>
+                    <button onClick={handleSave} className="px-4 py-2.5 bg-[#303a7f] text-white rounded-xl font-black text-[9px] uppercase tracking-widest active:bg-[#252a5e] shadow-lg shadow-blue-900/20 transition-all">{isEdit ? 'Guardar' : 'Registrar'}</button>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto bg-[#fcfcfd] p-10">
-                <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
-                    {/* Left Column: ID & Photo */}
-                    <div className="lg:col-span-4 space-y-8">
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-gray-50 flex flex-col items-center">
-                            <div className="relative group">
-                                <div className="w-48 h-48 rounded-[2.5rem] bg-gray-50 border-4 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7]/50">
-                                    {newEmp.imagen ? (
-                                        <img src={newEmp.imagen} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="text-center">
-                                            <div className="bg-gray-100 p-4 rounded-2xl inline-block mb-3 text-gray-300">
-                                                <Users size={32} />
-                                            </div>
-                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Foto Perfil</p>
-                                        </div>
-                                    )}
-                                    <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                </div>
-                                <div className="absolute -bottom-2 -right-2 bg-[#6bbdb7] text-white p-3 rounded-2xl shadow-lg border-4 border-white">
-                                    <Settings size={18} />
-                                </div>
+            <div className="flex-1 overflow-y-auto bg-[#fcfcfd] p-4">
+                <div className="max-w-lg mx-auto space-y-5">
+                    {/* Photo & ID Section */}
+                    <section className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 flex flex-col items-center">
+                        <div className="relative">
+                            <div className="w-32 h-32 rounded-2xl bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
+                                {newEmp.imagen ? (
+                                    <img src={newEmp.imagen} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="text-center">
+                                        <Users size={28} className="text-gray-300 mx-auto" />
+                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-wider mt-1">Foto</p>
+                                    </div>
+                                )}
+                                <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" />
                             </div>
-                            <div className="mt-8 w-full space-y-4">
-                                <div>
-                                    <label className={labelCls}>Identificador (SSN/ITIN/ID)</label>
-                                    <input type="text" placeholder="Ej: 0123" value={newEmp.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className={inputCls} maxLength={4} pattern="\d{4}" inputMode="numeric" />
-                                </div>
-                                <div>
-                                    <label className={labelCls}>Cargo Administrativo</label>
-                                    <input type="text" placeholder="Ej: Administrador" value={newEmp.cargo} onChange={(e) => updateField('cargo', e.target.value)} className={inputCls} />
-                                </div>
+                            <div className="absolute -bottom-1.5 -right-1.5 bg-[#6bbdb7] text-white p-2 rounded-xl shadow-md border-2 border-white">
+                                <Settings size={14} />
                             </div>
-                        </section>
-                    </div>
+                        </div>
+                        <div className="mt-4 w-full space-y-3">
+                            <div>
+                                <label className={labelCls}>Identificador (SSN/ITIN/ID)</label>
+                                <input type="text" placeholder="Ej: 0123" value={newEmp.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className={inputCls} maxLength={4} pattern="\d{4}" inputMode="numeric" />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Cargo Administrativo</label>
+                                <input type="text" placeholder="Ej: Administrador" value={newEmp.cargo} onChange={(e) => updateField('cargo', e.target.value)} className={inputCls} />
+                            </div>
+                        </div>
+                    </section>
 
-                    {/* Right Column: Financial & Personal Data */}
-                    <div className="lg:col-span-8 space-y-8">
-                        {/* Financial Data */}
-                        <section className="bg-white rounded-[2rem] p-10 shadow-xl shadow-blue-900/5 border-2 border-[#6bbdb7]/20">
-                            <h3 className="text-xl font-black text-[#6bbdb7] tracking-tighter mb-8 flex items-center gap-3">
-                                <div className="bg-[#6bbdb7] p-2 rounded-lg"><DollarSign className="text-white" size={18} /></div>
-                                Salario y Nómina
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="bg-[#303a7f]/5 rounded-2xl p-6 border-2 border-[#303a7f]/10">
-                                    <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest block mb-4">Salario Base ({newEmp.frecuencia_pago})</span>
-                                    <div className="flex items-center bg-white border-2 border-[#303a7f]/20 rounded-xl px-5 py-4 shadow-sm">
-                                        <span className="text-[#303a7f] font-black mr-3 text-lg">$</span>
-                                        <input type="number" step="0.01" placeholder="0.00" value={newEmp.salario_quincenal} onChange={(e) => updateField('salario_quincenal', e.target.value)} className="w-full bg-transparent font-black text-[#303a7f] outline-none text-xl" />
-                                    </div>
-                                </div>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className={labelCls}>Frecuencia de Pago</label>
-                                        <select value={newEmp.frecuencia_pago} onChange={(e) => updateField('frecuencia_pago', e.target.value)} className={inputCls}>
-                                            <option value="Quincenal">Quincenal</option>
-                                            <option value="Mensual">Mensual</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className={labelCls}>Método de Pago</label>
-                                        <select value={newEmp.metodo_pago} onChange={(e) => updateField('metodo_pago', e.target.value)} className={inputCls}>
-                                            <option value="Direct Deposit">Depósito Directo</option>
-                                            <option value="Check">Cheque</option>
-                                            <option value="Zelle">Zelle</option>
-                                            <option value="Cash">Efectivo</option>
-                                        </select>
-                                    </div>
+                    {/* Salary & Payroll Section */}
+                    <section className="bg-white rounded-2xl p-5 shadow-sm border border-[#6bbdb7]/10">
+                        <h3 className="text-sm font-black text-[#6bbdb7] tracking-tighter mb-4 flex items-center gap-2">
+                            <div className="bg-[#6bbdb7] p-1.5 rounded-lg"><DollarSign className="text-white" size={14} /></div>
+                            Salario y Nómina
+                        </h3>
+                        <div className="space-y-4">
+                            <div className="bg-[#303a7f]/5 rounded-xl p-4 border border-[#303a7f]/10">
+                                <span className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest block mb-3">Salario Base ({newEmp.frecuencia_pago})</span>
+                                <div className="flex items-center bg-white border border-[#303a7f]/20 rounded-xl px-4 py-3 shadow-sm">
+                                    <span className="text-[#303a7f] font-black mr-2 text-base">$</span>
+                                    <input type="number" step="0.01" placeholder="0.00" value={newEmp.salario_quincenal} onChange={(e) => updateField('salario_quincenal', e.target.value)} className="w-full bg-transparent font-black text-[#303a7f] outline-none text-base" />
                                 </div>
                             </div>
-                        </section>
+                            <div>
+                                <label className={labelCls}>Frecuencia de Pago</label>
+                                <select value={newEmp.frecuencia_pago} onChange={(e) => updateField('frecuencia_pago', e.target.value)} className={inputCls}>
+                                    <option value="Quincenal">Quincenal</option>
+                                    <option value="Mensual">Mensual</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className={labelCls}>Método de Pago</label>
+                                <select value={newEmp.metodo_pago} onChange={(e) => updateField('metodo_pago', e.target.value)} className={inputCls}>
+                                    <option value="Direct Deposit">Depósito Directo</option>
+                                    <option value="Check">Cheque</option>
+                                    <option value="Zelle">Zelle</option>
+                                    <option value="Cash">Efectivo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
 
-                        {/* Personal Data */}
-                        <section className="bg-white rounded-[2rem] p-10 shadow-xl shadow-blue-900/5 border-2 border-gray-50">
-                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
-                                <div className="bg-[#303a7f] p-2 rounded-lg"><Users className="text-white" size={18} /></div>
-                                Información Personal y Fiscal
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className={labelCls}>Nombre(s)</label>
-                                    <input type="text" placeholder="Ej: Mariana" value={newEmp.first_name} onChange={(e) => updateField('first_name', e.target.value)} className={inputCls} />
-                                </div>
-                                <div>
-                                    <label className={labelCls}>Apellido(s)</label>
-                                    <input type="text" placeholder="Ej: Pepper" value={newEmp.last_name} onChange={(e) => updateField('last_name', e.target.value)} className={inputCls} />
-                                </div>
-                                <div>
-                                    <label className={labelCls}>Email de Contacto</label>
-                                    <input type="email" placeholder="email@ejemplo.com" value={newEmp.email} onChange={(e) => updateField('email', e.target.value)} className={inputCls} />
-                                </div>
-                                <div>
-                                    <label className={labelCls}>Tipo de Tax ID</label>
-                                    <select value={newEmp.tin_type} onChange={(e) => updateField('tin_type', e.target.value)} className={inputCls}>
-                                        <option value="SSN">SSN</option>
-                                        <option value="ITIN">ITIN</option>
-                                        <option value="EIN">EIN</option>
-                                    </select>
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className={labelCls}>Dirección</label>
-                                    <input type="text" placeholder="Calle, Número, Apto..." value={newEmp.address_1} onChange={(e) => updateField('address_1', e.target.value)} className={inputCls} />
-                                </div>
+                    {/* Personal & Tax Info */}
+                    <section className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50">
+                        <h3 className="text-sm font-black text-[#333333] tracking-tighter mb-4 flex items-center gap-2">
+                            <div className="bg-[#303a7f] p-1.5 rounded-lg"><Users className="text-white" size={14} /></div>
+                            Información Personal y Fiscal
+                        </h3>
+                        <div className="space-y-3">
+                            <div>
+                                <label className={labelCls}>Nombre(s)</label>
+                                <input type="text" placeholder="Ej: Mariana" value={newEmp.first_name} onChange={(e) => updateField('first_name', e.target.value)} className={inputCls} />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Apellido(s)</label>
+                                <input type="text" placeholder="Ej: Pepper" value={newEmp.last_name} onChange={(e) => updateField('last_name', e.target.value)} className={inputCls} />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Email de Contacto</label>
+                                <input type="email" placeholder="email@ejemplo.com" value={newEmp.email} onChange={(e) => updateField('email', e.target.value)} className={inputCls} />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Tipo de Tax ID</label>
+                                <select value={newEmp.tin_type} onChange={(e) => updateField('tin_type', e.target.value)} className={inputCls}>
+                                    <option value="SSN">SSN</option>
+                                    <option value="ITIN">ITIN</option>
+                                    <option value="EIN">EIN</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className={labelCls}>Dirección</label>
+                                <input type="text" placeholder="Calle, Número, Apto..." value={newEmp.address_1} onChange={(e) => updateField('address_1', e.target.value)} className={inputCls} />
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
                                 <div>
                                     <label className={labelCls}>Ciudad</label>
-                                    <input type="text" placeholder="Ej: Orlando" value={newEmp.city} onChange={(e) => updateField('city', e.target.value)} className={inputCls} />
+                                    <input type="text" placeholder="Orlando" value={newEmp.city} onChange={(e) => updateField('city', e.target.value)} className={inputCls} />
                                 </div>
                                 <div>
                                     <label className={labelCls}>Estado</label>
-                                    <input type="text" placeholder="Ej: Florida" value={newEmp.state} onChange={(e) => updateField('state', e.target.value)} className={inputCls} />
+                                    <input type="text" placeholder="FL" value={newEmp.state} onChange={(e) => updateField('state', e.target.value)} className={inputCls} />
                                 </div>
                                 <div>
-                                    <label className={labelCls}>ZIP Code</label>
-                                    <input type="text" placeholder="Ej: 32803" value={newEmp.zip} onChange={(e) => updateField('zip', e.target.value)} className={inputCls} />
+                                    <label className={labelCls}>ZIP</label>
+                                    <input type="text" placeholder="32803" value={newEmp.zip} onChange={(e) => updateField('zip', e.target.value)} className={inputCls} />
                                 </div>
                             </div>
-                        </section>
+                        </div>
+                    </section>
 
-                        {/* Banking Info */}
-                        <section className="bg-white rounded-[2rem] p-10 shadow-xl shadow-blue-900/5 border-2 border-gray-50">
-                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
-                                <div className="bg-gray-100 p-2 rounded-lg"><CreditCard className="text-[#303a7f]" size={18} /></div>
-                                Información Bancaria
-                            </h3>
-                            <div>
-                                <label className={labelCls}>Detalles de Cuenta</label>
-                                <textarea rows="3" placeholder="Número de cuenta, Routing, Banco..." value={newEmp.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className={inputCls + " resize-none"}></textarea>
-                            </div>
-                        </section>
-                    </div>
+                    {/* Banking Info */}
+                    <section className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50">
+                        <h3 className="text-sm font-black text-[#333333] tracking-tighter mb-4 flex items-center gap-2">
+                            <div className="bg-gray-100 p-1.5 rounded-lg"><CreditCard className="text-[#303a7f]" size={14} /></div>
+                            Información Bancaria
+                        </h3>
+                        <div>
+                            <label className={labelCls}>Detalles de Cuenta</label>
+                            <textarea rows={3} placeholder="Número de cuenta, Routing, Banco..." value={newEmp.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className={inputCls + " resize-none"}></textarea>
+                        </div>
+                    </section>
                 </div>
             </div>
 

@@ -262,9 +262,9 @@ const AdminExpensesView = ({
 
             {/* Footer Total */}
             {filteredExpenses.length > 0 && (
-                <div className="bg-white rounded-[1.5rem] border-2 border-gray-50 shadow-sm p-4 flex items-center justify-between sticky bottom-0">
+                <div className="bg-white rounded-[1.5rem] border-2 border-gray-50 shadow-sm p-4 flex items-center justify-between">
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total</span>
-                    <span className="text-lg font-black text-[#6bbdb7]">{fmtCurrency(totalGeneral)}</span>
+                    <span className="text-lg font-black text-[#303a7f]">{fmtCurrency(totalGeneral)}</span>
                 </div>
             )}
 
