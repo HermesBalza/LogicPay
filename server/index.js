@@ -252,7 +252,7 @@ app.post('/api/alter-table', (req, res) => {
 // Seed usuarios iniciales si la tabla está vacía
 const userCount = db.prepare(`SELECT COUNT(*) AS cnt FROM Usuarios`).get();
 if (userCount.cnt === 0) {
-    const defaultPassword = 'admin';
+    const defaultPassword = bcrypt.hashSync('admin', 10);
     const insertUser = db.prepare(`INSERT INTO Usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)`);
     const users = [
         ['David Torres', 'david@logicgroup.com', defaultPassword, 'Asistente'],
@@ -268,6 +268,21 @@ if (userCount.cnt === 0) {
     console.log('[Usuarios] Datos iniciales sembrados correctamente.');
 }
 
+if (userCount.cnt > 0) {
+    const plainUsers = db.prepare(`SELECT id, password_hash FROM Usuarios WHERE password_hash NOT LIKE '$2%'`).all();
+    if (plainUsers.length > 0) {
+        const updateStmt = db.prepare(`UPDATE Usuarios SET password_hash = ? WHERE id = ?`);
+        const txMigrate = db.transaction(() => {
+            for (const u of plainUsers) {
+                const hashed = bcrypt.hashSync(u.password_hash, 10);
+                updateStmt.run(hashed, u.id);
+            }
+        });
+        txMigrate();
+        console.log(`[Usuarios] Migradas ${plainUsers.length} contraseña(s) a bcrypt.`);
+    }
+}
+
 // POST /api/login — autenticación de usuarios
 app.post('/api/login', (req, res) => {
     try {
@@ -281,7 +296,7 @@ app.post('/api/login', (req, res) => {
             return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
         }
 
-        const valid = password === user.password_hash;
+        const valid = bcrypt.compareSync(password, user.password_hash);
         if (!valid) {
             return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
         }
@@ -313,7 +328,7 @@ app.post('/api/change-password', (req, res) => {
         if (newPassword.length < 6) {
             return res.status(400).json({ success: false, error: 'La contraseña debe tener al menos 6 caracteres' });
         }
-        const hash = newPassword;
+        const hash = bcrypt.hashSync(newPassword, 10);
         db.prepare(`UPDATE Usuarios SET password_hash = ? WHERE id = ?`).run(hash, userId);
         auditLog(userId, userName || 'Sistema', 'Cambió su contraseña', 'Usuario', null);
         res.json({ success: true, message: 'Contraseña actualizada correctamente' });
