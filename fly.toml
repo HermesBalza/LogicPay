@@ -1,0 +1,30 @@
+app = "logicpay"
+primary_region = "mia"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3001"
+
+[mounts]
+  source = "logicpay_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = false
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "get"
+    path = "/api/tables"
+
+[vm]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

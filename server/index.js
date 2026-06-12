@@ -823,6 +823,19 @@ app.get('/api/audit-log', (req, res) => {
 });
 
 // ---------------------------------------------------------------------
+// Servir frontend en producción
+// ---------------------------------------------------------------------
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(__dirname, '..', 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api/')) return;
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+  console.log('[Servidor] Sirviendo frontend desde:', distPath);
+}
+
+// ---------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------
 app.listen(PORT, () => {
