@@ -1,8 +1,8 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
-const CSG_GEMINI_API_URL = 'http://localhost:3001/api/gemini/generate';
-const CSG_EMAIL_API_URL = 'http://localhost:3001/api/send-email';
+const CSG_GEMINI_API_URL = '/api/gemini/generate';
+const CSG_EMAIL_API_URL = '/api/send-email';
 
 const callGeminiCSG = async (prompt, { model = 'gemini-3-flash-preview', generationConfig, contents } = {}) => {
   const body = { model, generationConfig };
@@ -81,7 +81,7 @@ const compressStoreImage = (base64Str, maxWidth = 300, quality = 0.7) => {
 const fmtCurrency = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
 const fmtDate = (d) => d || '--';
 
-const CSG_NOMINA_API_URL = 'http://localhost:3001/api/data/CSG_Nomina';
+const CSG_NOMINA_API_URL = '/api/data/CSG_Nomina';
 
 // Parsea una fila CSV respetando campos entre comillas y comillas escapadas (indispensable para Data_JSON)
 const parseCSVRow = (row) => {
@@ -3254,7 +3254,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
     const fetchCSGWosHistory = async () => {
         setIsLoadingWosHistory(true);
         try {
-            const response = await fetch('http://localhost:3001/api/data/WOS_CSG', { cache: 'no-store' });
+            const response = await fetch('/api/data/WOS_CSG', { cache: 'no-store' });
             if (!response.ok) return;
             const data = await response.json();
             if (!data.length) {
@@ -3272,7 +3272,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
     const fetchNominaHistory = async () => {
         setIsLoadingNomina(true);
         try {
-            const response = await fetch('http://localhost:3001/api/data/CSG_Nomina', { cache: 'no-store' });
+            const response = await fetch('/api/data/CSG_Nomina', { cache: 'no-store' });
             if (!response.ok) return;
             const data = await response.json();
             if (!data.length) {

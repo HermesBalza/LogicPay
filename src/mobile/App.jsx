@@ -95,9 +95,9 @@ import NotificationBell from './NotificationBell.jsx';
 // ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
 // La API Key debe ser ingresada en la sección de Ajustes para evitar filtraciones.
 // ─── BASE DE DATOS: SQLite via API local (escritura) ───────────────
-const API_URL = 'http://localhost:3001/api/write';
-const GEMINI_API_URL = 'http://localhost:3001/api/gemini/generate';
-const SEND_EMAIL_API_URL = 'http://localhost:3001/api/send-email';
+const API_URL = '/api/write';
+const GEMINI_API_URL = '/api/gemini/generate';
+const SEND_EMAIL_API_URL = '/api/send-email';
 
 // Helper: llama a Gemini a través del backend (la API Key nunca sale del servidor)
 // Uso simple: await callGemini("text prompt")
@@ -132,7 +132,7 @@ const sendEmail = async (purpose, { to, cc, subject, body, attachments } = {}) =
 };
 
 // ─── BASE DE DATOS: SQLite Local (Lectura) ───────────────
-const LOCAL_API_BASE = 'http://localhost:3001/api/data';
+const LOCAL_API_BASE = '/api/data';
 const STORES_API_URL = `${LOCAL_API_BASE}/Tiendas`;
 const EMPLOYEES_API_URL = `${LOCAL_API_BASE}/Personal`;
 const NOMINA_HISTORY_API_URL = `${LOCAL_API_BASE}/Nomina_Historico`;
@@ -546,7 +546,7 @@ const LoginView = ({ onLogin }) => {
         }
         setIsLogging(true);
         try {
-            const res = await fetch('http://localhost:3001/api/login', {
+            const res = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nombre: selectedUser.trim(), password })
@@ -12569,7 +12569,7 @@ const VAScheduleSettings = ({ vaSchedule = [], onSave }) => {
     );
 };
 
-const DB_DATA_API = 'http://localhost:3001/api/data';
+const DB_DATA_API = '/api/data';
 
 const BackupButton = () => {
     const [downloading, setDownloading] = useState(false);
@@ -12624,7 +12624,7 @@ const DatabaseExplorer = () => {
     };
 
     useEffect(() => {
-        fetch('http://localhost:3001/api/tables')
+        fetch('/api/tables')
             .then(res => res.json())
             .then(tables => setAvailableTables(Array.isArray(tables) ? tables : []))
             .catch(() => {});
@@ -12639,7 +12639,7 @@ const DatabaseExplorer = () => {
         try {
             const [dataRes, infoRes] = await Promise.all([
                 fetch(`${DB_DATA_API}/${table}`, { cache: 'no-store' }),
-                fetch(`http://localhost:3001/api/table-info/${table}`, { cache: 'no-store' })
+                fetch(`/api/table-info/${table}`, { cache: 'no-store' })
             ]);
             if (!dataRes.ok) throw new Error(`HTTP ${dataRes.status}`);
             const data = await dataRes.json();
@@ -12686,7 +12686,7 @@ const DatabaseExplorer = () => {
         const data = { ...row, [col]: editValue };
         setSavingCell(true);
         try {
-            const res = await fetch('http://localhost:3001/api/write', {
+            const res = await fetch('/api/write', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'upsert', sheetName: selectedTable, data, matchKeys })
@@ -12713,7 +12713,7 @@ const DatabaseExplorer = () => {
         matchKeys.forEach(k => { data[k] = row[k]; });
         setDeletingRow(true);
         try {
-            const res = await fetch('http://localhost:3001/api/write', {
+            const res = await fetch('/api/write', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'delete', sheetName: selectedTable, data, matchKeys })
@@ -12734,7 +12734,7 @@ const DatabaseExplorer = () => {
         setDeletingCol(true);
         try {
             for (const col of selectedColsToDelete) {
-                const res = await fetch('http://localhost:3001/api/alter-table', {
+                const res = await fetch('/api/alter-table', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ table: selectedTable, action: 'dropColumn', columnName: col })
@@ -13008,7 +13008,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const res = await fetch('http://localhost:3001/api/data/Usuarios', { cache: 'no-store' });
+            const res = await fetch('/api/data/Usuarios', { cache: 'no-store' });
             if (res.ok) {
                 const data = await res.json();
                 setUsers(data);
@@ -13052,7 +13052,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
         try {
             const bcrypt = await import('bcryptjs');
             // Generar hash en cliente es mala práctica, mandamos password al backend
-            const res = await fetch('http://localhost:3001/api/write', {
+            const res = await fetch('/api/write', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -13072,11 +13072,11 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
             const result = await res.json();
             // Ahora cambiar la contraseña via API
             // Primero obtenemos el ID del usuario creado
-            const usersRes = await fetch('http://localhost:3001/api/data/Usuarios', { cache: 'no-store' });
+            const usersRes = await fetch('/api/data/Usuarios', { cache: 'no-store' });
             const allUsers = await usersRes.json();
             const created = allUsers.find(u => u.nombre === newUserForm.nombre.trim());
             if (created) {
-                await fetch('http://localhost:3001/api/change-password', {
+                await fetch('/api/change-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: created.id, newPassword: newUserForm.password, userName: currentUser?.nombre })
@@ -13093,7 +13093,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
 
     const handleEditField = async (userId, field, value) => {
         try {
-            const res = await fetch('http://localhost:3001/api/write', {
+            const res = await fetch('/api/write', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -13116,7 +13116,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
         if (!confirmDelete) return;
         setDeleting(true);
         try {
-            const res = await fetch('http://localhost:3001/api/write', {
+            const res = await fetch('/api/write', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -13140,7 +13140,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
         if (passwordForm.newPassword !== passwordForm.confirmPassword) { showNotif('Las contraseñas no coinciden', 'error'); return; }
         setSavingPassword(true);
         try {
-            const res = await fetch('http://localhost:3001/api/change-password', {
+            const res = await fetch('/api/change-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: showPasswordModal.id, newPassword: passwordForm.newPassword, userName: currentUser?.nombre })
@@ -13449,7 +13449,7 @@ const GeneralSettings = ({ currentUser }) => {
     const fetchConfig = async () => {
         try {
             setLoading(true);
-            const res = await fetch('http://localhost:3001/api/config');
+            const res = await fetch('/api/config');
             const data = await res.json();
             if (data.success) {
                 setConfig(data.config);
@@ -13466,7 +13466,7 @@ const GeneralSettings = ({ currentUser }) => {
     const handleSave = async (key) => {
         try {
             setSaving(prev => ({ ...prev, [key]: true }));
-            const res = await fetch('http://localhost:3001/api/config/save', {
+            const res = await fetch('/api/config/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ key, value: dirty[key] || config[key], userId: currentUser?.id, userName: currentUser?.nombre }),
@@ -13596,8 +13596,8 @@ const SettingsView = ({ vaSchedule, onSaveVASchedule, currentUser, onUserUpdate 
 
 // ─── HISTORIAL DE ACTIVIDAD (Audit Log) ────────────────────────────────────
 const HistorialActividad = ({ currentUser }) => {
-    const HISTORIAL_API = 'http://localhost:3001/api/audit-log';
-    const USUARIOS_API = 'http://localhost:3001/api/data/Usuarios';
+    const HISTORIAL_API = '/api/audit-log';
+    const USUARIOS_API = '/api/data/Usuarios';
     const LIMIT = 50;
 
     const [logs, setLogs] = useState([]);
@@ -16206,7 +16206,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
     const refreshCurrentUser = async () => {
         if (!user?.id && !user?.nombre) return;
         try {
-            const res = await fetch('http://localhost:3001/api/data/Usuarios', { cache: 'no-store' });
+            const res = await fetch('/api/data/Usuarios', { cache: 'no-store' });
             if (res.ok) {
                 const users = await res.json();
                 const updated = users.find(u => u.id === user.id || (user.nombre && u.nombre === user.nombre));
