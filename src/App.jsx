@@ -7426,7 +7426,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                                                                 const pdf = await generatePayStubPDF(emp.id);
                                                                 if (pdf) {
                                                                     const blob = await (await fetch(`data:application/pdf;base64,${pdf}`)).blob();
-                                                                    setPreviewPdf({ isOpen: true, url: URL.createObjectURL(blob), name: emp.nombre });
+                                                                     setPreviewPdf({ isOpen: true, url: URL.createObjectURL(blob), name: emp.nombre, email: emp.email_tax || '', pdfBase64: pdf, period: selectedPeriod?.range || '' });
                                                                     setNotificationModal({ isOpen: false, type: 'loading', message: '' });
                                                                 }
                                                             }} className="p-2 text-[#6bbdb7] hover:bg-[#6bbdb7] hover:text-white rounded-lg transition-all"><Eye size={16} /></button>
@@ -9015,7 +9015,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             const pdfBlob = await (await fetch(`data:application/pdf;base64,${pdfBase64}`)).blob();
             const pdfUrl = URL.createObjectURL(pdfBlob);
 
-            setPreviewPdf({ isOpen: true, url: pdfUrl, name: emp.nombre });
+            setPreviewPdf({ isOpen: true, url: pdfUrl, name: emp.nombre, email: emp.email_tax || '', pdfBase64, period });
             setNotificationModal({ isOpen: false, type: 'loading', message: '' });
         } catch (error) {
             console.error("Error en vista previa:", error);
@@ -9815,15 +9815,57 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                 title="PDF Preview"
                             />
                         </div>
-                        <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex justify-center">
+                        <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex items-center justify-center gap-4">
+                            <button
+                                onClick={async () => {
+                                    if (!previewPdf.email) {
+                                        alert('Este empleado no tiene correo electrónico registrado.');
+                                        return;
+                                    }
+                                    setNotificationModal({ isOpen: true, type: 'loading', message: `Enviando recibo a ${previewPdf.name}...` });
+                                    try {
+                                        await sendEmail('payroll', {
+                                            to: previewPdf.email,
+                                            subject: `Recibo de Pago - Periodo ${previewPdf.period || ''} - Logic Group Management`,
+                                            body: `Hola ${previewPdf.name},\n\nAdjunto encontrarás tu recibo de pago correspondiente al periodo del ${previewPdf.period || ''}.\n\nEste es un correo automático, por favor no respondas a este mensaje.\n\nAtentamente,\nLogic Group Management.`,
+                                            attachments: [{
+                                                name: `Recibo_Pago_${previewPdf.name.replace(/\s+/g, '_')}.pdf`,
+                                                type: 'application/pdf',
+                                                base64: previewPdf.pdfBase64
+                                            }]
+                                        });
+                                        setNotificationModal({ isOpen: true, type: 'success', message: `Recibo enviado con éxito a ${previewPdf.email}` });
+                                    } catch (error) {
+                                        setNotificationModal({ isOpen: true, type: 'error', message: `Error al enviar: ${error.message}` });
+                                    }
+                                }}
+                                disabled={!previewPdf.email}
+                                className="px-8 py-4 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-teal-900/10 hover:bg-[#5aa8a2] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                                title={!previewPdf.email ? 'Sin correo registrado' : 'Enviar recibo por correo'}
+                            >
+                                <Send size={14} /> Enviar por Correo
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const a = document.createElement('a');
+                                    a.href = previewPdf.url;
+                                    a.download = `Recibo_Pago_${previewPdf.name.replace(/\s+/g, '_')}.pdf`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    document.body.removeChild(a);
+                                }}
+                                className="px-8 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/10 hover:bg-[#252a5e] transition-all flex items-center gap-2"
+                            >
+                                <Download size={14} /> Descargar PDF
+                            </button>
                             <button
                                 onClick={() => {
                                     if (previewPdf.url) URL.revokeObjectURL(previewPdf.url);
                                     setPreviewPdf({ ...previewPdf, isOpen: false });
                                 }}
-                                className="px-12 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/10 hover:bg-[#252a5e] transition-all"
+                                className="px-8 py-4 bg-white text-gray-500 border-2 border-gray-100 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all flex items-center gap-2"
                             >
-                                Cerrar Vista Previa
+                                <X size={14} /> Cerrar
                             </button>
                         </div>
                     </div>
