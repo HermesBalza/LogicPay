@@ -78,7 +78,9 @@ import {
     Database,
     Pencil,
     PawPrint,
-    Youtube
+    Youtube,
+    Cloud,
+    RefreshCw
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -12992,6 +12994,195 @@ const VAScheduleSettings = ({ vaSchedule = [], onSave }) => {
 
 const DB_DATA_API = 'http://localhost:3001/api/data';
 
+const BackupManager = () => {
+    const [backups, setBackups] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [backingUp, setBackingUp] = useState(false);
+    const [downloading, setDownloading] = useState(null);
+
+    const fetchBackups = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const res = await fetch('http://localhost:3001/api/backup/r2/list');
+            const data = await res.json();
+            if (data.success) {
+                setBackups(data.backups);
+            } else {
+                setError(data.error || 'Error al cargar respaldos');
+            }
+        } catch (e) {
+            setError('No se pudo conectar con R2. Verifica la configuración.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchBackups();
+    }, []);
+
+    const handleBackupNow = async () => {
+        setBackingUp(true);
+        try {
+            const res = await fetch('http://localhost:3001/api/backup/trigger', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                await fetchBackups();
+            } else {
+                setError(data.error || 'Error al crear respaldo');
+            }
+        } catch (e) {
+            setError('Error al conectar con el servidor');
+        } finally {
+            setBackingUp(false);
+        }
+    };
+
+    const handleDownload = async (backup) => {
+        setDownloading(backup.date);
+        try {
+            const res = await fetch(`http://localhost:3001/api/backup/r2/download/${backup.date}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `LogicPay_BackUp_${backup.date}.db`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            alert('Error al descargar backup: ' + e.message);
+        } finally {
+            setDownloading(null);
+        }
+    };
+
+    const formatFileSize = (bytes) => {
+        if (!bytes) return '—';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    };
+
+    const formatDate = (dateStr) => {
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return dateStr;
+        const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        return `${parseInt(parts[2])} ${meses[parseInt(parts[1]) - 1]} ${parts[0]}`;
+    };
+
+    return (
+        <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm overflow-hidden animate-in fade-in duration-500 mt-4">
+            <div className="px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-[#6bbdb7]/10 to-transparent">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <div className="flex items-center gap-3">
+                            <Cloud size={22} className="text-[#6bbdb7]" />
+                            <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase">Respaldos en la Nube</h3>
+                        </div>
+                        <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-1 ml-[34px]">Cloudflare R2 · Backup automático a medianoche</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleBackupNow}
+                            disabled={backingUp}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all bg-[#303a7f] text-white shadow-lg shadow-[#303a7f]/20 hover:bg-[#252d6a] active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+                        >
+                            {backingUp ? (
+                                <><Loader2 size={14} className="animate-spin" /> Respaldando...</>
+                            ) : (
+                                <><Upload size={14} /> Respaldar Ahora</>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="p-6">
+                {loading && (
+                    <div className="flex items-center justify-center py-16">
+                        <Loader2 size={28} className="animate-spin text-[#6bbdb7]" />
+                        <span className="ml-3 text-[11px] font-black text-gray-400 uppercase tracking-widest">Cargando respaldos...</span>
+                    </div>
+                )}
+
+                {error && !loading && (
+                    <div className="flex flex-col items-center justify-center py-12 gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
+                            <AlertTriangle size={24} className="text-red-400" />
+                        </div>
+                        <p className="text-[11px] font-black text-red-500 uppercase tracking-wider text-center">{error}</p>
+                        <button onClick={fetchBackups} className="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest border bg-white text-gray-500 border-gray-200 hover:border-[#6bbdb7]/30 hover:text-[#6bbdb7] transition-all">
+                            <RefreshCw size={12} /> Reintentar
+                        </button>
+                    </div>
+                )}
+
+                {!loading && !error && backups.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center">
+                            <Cloud size={24} className="text-gray-300" />
+                        </div>
+                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest text-center">Aún no hay respaldos en la nube.</p>
+                        <p className="text-[9px] font-bold text-gray-300 uppercase tracking-wider -mt-2">El primero se creará a la próxima medianoche.</p>
+                    </div>
+                )}
+
+                {!loading && !error && backups.length > 0 && (
+                    <>
+                        <div className="flex items-center justify-between mb-4">
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{backups.length} respaldo(s) · Retención: 7 días</span>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b border-gray-100">
+                                        <th className="text-left px-4 py-3 text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">Fecha</th>
+                                        <th className="text-left px-4 py-3 text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">Tamaño</th>
+                                        <th className="text-right px-4 py-3 text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {backups.map(b => (
+                                        <tr key={b.date} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <Clock size={13} className="text-gray-300" />
+                                                    <span className="text-[11px] font-bold text-[#303a7f]">{formatDate(b.date)}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{formatFileSize(b.size)}</span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <button
+                                                    onClick={() => handleDownload(b)}
+                                                    disabled={downloading === b.date}
+                                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all border bg-white text-[#6bbdb7] border-[#6bbdb7]/20 hover:bg-[#6bbdb7]/5 hover:border-[#6bbdb7]/40 active:scale-95 disabled:opacity-50"
+                                                >
+                                                    {downloading === b.date ? (
+                                                        <><Loader2 size={12} className="animate-spin" /> Descargando...</>
+                                                    ) : (
+                                                        <><Download size={12} /> Descargar</>
+                                                    )}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const BackupButton = () => {
     const [downloading, setDownloading] = useState(false);
     const handleBackup = async () => {
@@ -13999,7 +14190,10 @@ const SettingsView = ({ vaSchedule, onSaveVASchedule, currentUser, onUserUpdate 
 
                 {settingsTab === 'general' && <GeneralSettings currentUser={currentUser} />}
                 {settingsTab === 'database' && (
-                    <DatabaseExplorer />
+                    <>
+                        <DatabaseExplorer />
+                        <BackupManager />
+                    </>
                 )}
                 {settingsTab === 'users' && (
                     <>

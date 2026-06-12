@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 import db from './db.js';
+import { runBackup, isBackupConfigured, startBackupScheduler, listBackups, getBackupStream } from './backup.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -711,6 +712,73 @@ app.get('/api/backup', (req, res) => {
   }
 });
 
+app.post('/api/backup/trigger', async (req, res) => {
+  try {
+    if (!isBackupConfigured()) {
+      return res.status(400).json({ success: false, error: 'R2 no está configurado. Configura las variables de entorno R2_*.' });
+    }
+    const success = await runBackup(db, auditLog);
+    if (success) {
+      res.json({ success: true, message: 'Backup completado y subido a R2.' });
+    } else {
+      res.status(500).json({ success: false, error: 'El backup falló. Revisa los logs del servidor.' });
+    }
+  } catch (error) {
+    console.error('Error en backup trigger:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/backup/r2/list', async (req, res) => {
+  try {
+    if (!isBackupConfigured()) {
+      return res.status(400).json({ success: false, error: 'R2 no está configurado.' });
+    }
+    const backups = await listBackups();
+    res.json({ success: true, backups });
+  } catch (error) {
+    console.error('Error listando backups R2:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/backup/r2/download/:date', async (req, res) => {
+  try {
+    if (!isBackupConfigured()) {
+      return res.status(400).json({ error: 'R2 no está configurado.' });
+    }
+    const { date } = req.params;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'Formato de fecha inválido. Use YYYY-MM-DD.' });
+    }
+    const key = `backup-${date}.db`;
+    const { body, contentLength } = await getBackupStream(key);
+
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="LogicPay_BackUp_${date}.db"`);
+    if (contentLength) {
+      res.setHeader('Content-Length', contentLength);
+    }
+
+    if (body.pipe) {
+      body.pipe(res);
+    } else {
+      const chunks = [];
+      for await (const chunk of body) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
+      res.send(buffer);
+    }
+  } catch (error) {
+    console.error('Error descargando backup R2:', error.message);
+    if (error.name === 'NoSuchKey') {
+      return res.status(404).json({ error: `No existe backup para la fecha ${req.params.date}.` });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ---------------------------------------------------------------------
 // Historial de Actividad (Audit Log)
 // ---------------------------------------------------------------------
@@ -744,6 +812,12 @@ app.get('/api/audit-log', (req, res) => {
 // ---------------------------------------------------------------------
 app.listen(PORT, () => {
   console.log(`Servidor Backend escuchando en el puerto ${PORT}`);
+
+  if (isBackupConfigured()) {
+    startBackupScheduler(db, auditLog);
+  } else {
+    console.log('[Backup] R2 no configurado. Scheduler de backup automático desactivado.');
+  }
 });
 
 // Endpoint para obtener la lista de tablas automáticamente desde sqlite_master

@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1067.0",
     "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.10.0",

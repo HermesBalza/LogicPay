@@ -18,6 +18,9 @@ PROJECT_RULES.md
 *.db-wal
 data/database.db
 
+# Directorio temporal de backups
+temp/
+
 # Logs de salida del servidor
 server_*.txt
 vite_*.txt
