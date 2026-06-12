@@ -5347,7 +5347,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                         </div>
                         <div>
                             <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Manual de Uso</h2>
-                            <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Documentación y Estatus Legal</p>
+                            <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">LogicPay v1.23</p>
                         </div>
                     </div>
                     <button
@@ -5368,78 +5368,37 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                             <p className="text-[10px] text-gray-400 mt-2">Esta sección será expandida progresivamente con guías operativas.</p>
                         </div>
 
-                        {/* Property & License Section (Hermes Note) */}
-                        <div className="space-y-8">
-                            <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter border-b-2 border-gray-100 pb-4">
-                                Nota de Propiedad y Licencia de Uso
-                            </h3>
-
-                            <p className="text-sm font-bold text-gray-600 leading-relaxed">
-                                El sistema <span className="text-[#303a7f] font-black">LogicPay</span> es una plataforma de gestión de nómina desarrollada, de propiedad exclusiva y operada por la agencia de marketing <span className="text-[#303a7f] font-black">Adwisers LLC</span>.
-                            </p>
-
-                            <div className="grid grid-cols-1 gap-6">
-                                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
-                                    <h4 className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-[0.2em]">Origen del Servicio</h4>
-                                    <p className="text-[11px] text-gray-500 font-bold leading-relaxed">
-                                        Este sistema ha sido provisto a <span className="font-black text-gray-700">Logic Group Management</span> como parte integral de los servicios contratados a <span className="font-black text-gray-700">Adwisers LLC</span>.
-                                    </p>
-                                </div>
-
-                                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
-                                    <h4 className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-[0.2em]">Propiedad Intelectual</h4>
-                                    <p className="text-[11px] text-gray-500 font-bold leading-relaxed">
-                                        La arquitectura, el código fuente y la marca <span className="font-black text-gray-700">LogicPay</span> pertenecen únicamente a <span className="font-black text-gray-700">Adwisers LLC</span>. Su uso por parte de terceros está sujeto a la vigencia del contrato de servicios entre ambas organizaciones.
-                                    </p>
-                                </div>
-
-                                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
-                                    <h4 className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-[0.2em]">Licencia Operativa</h4>
-                                    <p className="text-[11px] text-gray-500 font-bold leading-relaxed">
-                                        <span className="font-black text-gray-700">Logic Group Management</span> cuenta con la autorización para el uso de <span className="font-black text-gray-700">LogicPay</span> con el fin de optimizar la atención a sus clientes, bajo el respaldo tecnológico y la supervisión de procesos de la agencia <span className="font-black text-gray-700">Adwisers LLC</span>, exclusivamente mientras mantenga un contrato activo con la agencia.
-                                    </p>
-                                </div>
-
-                                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
-                                    <h4 className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-[0.2em]">Garantía de Calidad</h4>
-                                    <p className="text-[11px] text-gray-500 font-bold leading-relaxed">
-                                        La implementación de este software asegura que el pago al personal bajo <span className="font-black text-gray-700">Logic Group Management</span> sea gestionado bajo los estándares de eficiencia de <span className="font-black text-gray-700">Adwisers LLC</span>, aplicados a la estructura operativa de <span className="font-black text-gray-700">Logic Group Management</span>.
-                                    </p>
-                                </div>
+                        {/* Version Info */}
+                        <div className="pt-10 border-t-2 border-gray-50 flex flex-col items-center text-center space-y-6">
+                            <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Desarrollado por</p>
+                                <p className="text-lg font-black text-[#303a7f] uppercase tracking-tighter leading-none mb-1">Hermes Balza</p>
+                                <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">Coordinador de Procesos de AdWisers LLC</p>
                             </div>
 
-                            {/* Signature / Footer Info */}
-                            <div className="pt-10 border-t-2 border-gray-50 flex flex-col items-center text-center space-y-6">
-                                <div>
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Desarrollado por</p>
-                                    <p className="text-lg font-black text-[#303a7f] uppercase tracking-tighter leading-none mb-1">Hermes Balza</p>
-                                    <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">Coordinador de Procesos de AdWisers LLC</p>
-                                </div>
+                            <div className="bg-gray-50 px-8 py-4 rounded-2xl border border-gray-100">
+                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-2">En colaboración con</p>
+                                <p className="text-[10px] font-black text-[#303a7f] uppercase leading-relaxed">
+                                    Nirvana Márquez y David Torres
+                                </p>
+                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Asistentes Virtuales de AdWisers LLC para Lasting Solutions Group</p>
+                            </div>
 
-                                <div className="bg-gray-50 px-8 py-4 rounded-2xl border border-gray-100">
-                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-2">En colaboración con</p>
-                                    <p className="text-[10px] font-black text-[#303a7f] uppercase leading-relaxed">
-                                        Nirvana Márquez y David Torres
-                                    </p>
-                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Asistentes Virtuales de AdWisers LLC para Lasting Solutions Group</p>
-                                </div>
+                            <div className="space-y-2">
+                                <p className="text-sm font-black text-[#303a7f] tracking-widest">AdWisers LLC</p>
+                                <a href="https://adwisersllc.com" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-[#6bbdb7] hover:text-[#303a7f] transition-colors uppercase tracking-[0.2em]">
+                                    https://adwisersllc.com
+                                </a>
+                            </div>
 
-                                <div className="space-y-2">
-                                    <p className="text-sm font-black text-[#303a7f] tracking-widest">AdWisers LLC</p>
-                                    <a href="https://adwisersllc.com" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-[#6bbdb7] hover:text-[#303a7f] transition-colors uppercase tracking-[0.2em]">
-                                        https://adwisersllc.com
-                                    </a>
+                            <div className="grid grid-cols-2 gap-8 w-full pt-6">
+                                <div className="text-left">
+                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Sistema</p>
+                                    <p className="text-[11px] font-black text-[#303a7f] uppercase">LogicPay v1.23</p>
                                 </div>
-
-                                <div className="grid grid-cols-2 gap-8 w-full pt-6">
-                                    <div className="text-left">
-                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Sistema</p>
-                                        <p className="text-[11px] font-black text-[#303a7f] uppercase">LogicPay v1.22</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Última Actualización</p>
-                                        <p className="text-[11px] font-black text-[#303a7f] uppercase">20 de Abril 2026</p>
-                                    </div>
+                                <div className="text-right">
+                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Última Actualización</p>
+                                    <p className="text-[11px] font-black text-[#303a7f] uppercase">12 de Junio 2026</p>
                                 </div>
                             </div>
                         </div>
@@ -14812,7 +14771,7 @@ function App() {
     const [employees, setEmployees] = useState([]);
     const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado' | 'desconectado' | 'sincronizando'
 
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState(() => { try { const saved = sessionStorage.getItem('user'); return saved ? JSON.parse(saved) : null; } catch { return null; } });
     const [catEnabled, setCatEnabled] = useState(() => localStorage.getItem('pixelCatEnabled') === 'true');
     const [isMobile] = useState(() => window.innerWidth < 768 || /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent));
 
@@ -14976,7 +14935,7 @@ function App() {
 
     const handleLogin = (userData) => {
         setUser(userData);
-        syncVariableToDatabase('user', userData, userData);
+        sessionStorage.setItem('user', JSON.stringify(userData));
     };
 
     const SplashLoader = () => (
@@ -16858,7 +16817,6 @@ function App() {
 
     const handleLogout = () => {
         setUser(null);
-        syncVariableToDatabase('user', null);
         sessionStorage.clear(); // Limpiar rastro de navegación
     };
 
@@ -16872,7 +16830,6 @@ function App() {
                 if (updated) {
                     const newUser = { id: updated.id, nombre: updated.nombre, email: updated.email, rol: updated.rol, foto: updated.foto || null };
                     setUser(newUser);
-                    syncVariableToDatabase('user', newUser);
                 }
             }
         } catch (e) { console.error('Error refrescando usuario:', e); }
@@ -17526,7 +17483,6 @@ function App() {
                 const val = item.value || item.valor;
 
                 if (!onlyPresence) {
-                    if (key === 'user' && val) try { setUser(JSON.parse(val)); } catch (e) { }
                     if (key === 'processed_biweeks' && val) try { setProcessedBiweeks(JSON.parse(val)); } catch (e) { }
                     if (key === 'vwh_emails_sent' && val) try { setVwhEmailsSent(JSON.parse(val)); } catch (e) { }
                     if (key === 'pe_emails_sent' && val) try { setPeEmailsSent(JSON.parse(val)); } catch (e) { }

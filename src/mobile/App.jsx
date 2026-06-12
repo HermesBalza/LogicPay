@@ -14155,7 +14155,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
     const [employees, setEmployees] = useState([]);
     const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado' | 'desconectado' | 'sincronizando'
 
-    const [user, setUser] = useState(externalUser || null);
+    const [user, setUser] = useState(() => { if (externalUser) return externalUser; try { const saved = sessionStorage.getItem('user'); return saved ? JSON.parse(saved) : null; } catch { return null; } });
 
     const userCanEdit = user?.rol !== 'Operador de Pagos';
     const userCanAccessSettings = user?.rol === 'Desarrollador';
@@ -14311,7 +14311,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
 
     const handleLogin = (userData) => {
         setUser(userData);
-        syncVariableToDatabase('user', userData, userData);
+        sessionStorage.setItem('user', JSON.stringify(userData));
     };
 
     const SplashLoader = () => (
@@ -16198,7 +16198,6 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
     const handleLogout = () => {
         if (externalOnLogout) { externalOnLogout(); return; }
         setUser(null);
-        syncVariableToDatabase('user', null);
         sessionStorage.clear();
     };
 
@@ -16212,7 +16211,6 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 if (updated) {
                     const newUser = { id: updated.id, nombre: updated.nombre, email: updated.email, rol: updated.rol, foto: updated.foto || null };
                     setUser(newUser);
-                    syncVariableToDatabase('user', newUser);
                 }
             }
         } catch (e) { console.error('Error refrescando usuario:', e); }
@@ -16866,7 +16864,6 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 const val = item.value || item.valor;
 
                 if (!onlyPresence) {
-                    if (key === 'user' && val) try { setUser(JSON.parse(val)); } catch (e) { }
                     if (key === 'processed_biweeks' && val) try { setProcessedBiweeks(JSON.parse(val)); } catch (e) { }
                     if (key === 'vwh_emails_sent' && val) try { setVwhEmailsSent(JSON.parse(val)); } catch (e) { }
                     if (key === 'pe_emails_sent' && val) try { setPeEmailsSent(JSON.parse(val)); } catch (e) { }

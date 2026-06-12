@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 import db from './db.js';
+import './init_db.js';
 import { runBackup, isBackupConfigured, startBackupScheduler, listBackups, getBackupStream } from './backup.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -828,8 +829,8 @@ app.get('/api/audit-log', (req, res) => {
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '..', 'dist');
   app.use(express.static(distPath));
-  app.get('*', (req, res) => {
-    if (req.path.startsWith('/api/')) return;
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/')) return next();
     res.sendFile(path.join(distPath, 'index.html'));
   });
   console.log('[Servidor] Sirviendo frontend desde:', distPath);
@@ -838,7 +839,7 @@ if (process.env.NODE_ENV === 'production') {
 // ---------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor Backend escuchando en el puerto ${PORT}`);
 
   if (isBackupConfigured()) {
