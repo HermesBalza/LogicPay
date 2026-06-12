@@ -5743,11 +5743,10 @@ const VWHTableModal = (props) => {
             });
 
             const imgData = canvas.toDataURL('image/png');
-            const imgWidth = 277; // A4 landscape width approx in mm
+            const imgWidth = 210; // A4 portrait width in mm
             const pageHeight = (canvas.height * imgWidth) / canvas.width;
-            const pdf = new jsPDF('l', 'mm', [imgWidth, pageHeight]);
+            const pdf = new jsPDF('p', 'mm', [imgWidth, pageHeight]);
             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
-
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
             await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
@@ -5811,10 +5810,10 @@ const VWHTableModal = (props) => {
             const imgData = canvas.toDataURL('image/png');
 
             // Calculamos dimensiones para una "sola hoja" de tamaño personalizado
-            const imgWidth = 277; // A4 landscape width approx en mm
+            const imgWidth = 210; // A4 portrait width in mm
             const pageHeight = (canvas.height * imgWidth) / canvas.width;
 
-            const pdf = new jsPDF('l', 'mm', [imgWidth, pageHeight]);
+            const pdf = new jsPDF('p', 'mm', [imgWidth, pageHeight]);
             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
             pdf.save(`VWH_Report_${payrollStore}_${currentStartDate.replace(/\//g, '-')}.pdf`);
         } catch (error) {
