@@ -5362,10 +5362,277 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                 <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-white">
                     <div className="max-w-3xl mx-auto space-y-12">
 
-                        {/* Welcome/Intro (Placeholder for future content) */}
-                        <div className="p-8 bg-blue-50/30 rounded-3xl border-2 border-dashed border-blue-100/50 text-center">
-                            <p className="text-sm font-bold text-[#303a7f] opacity-60 uppercase tracking-widest">Contenido del Manual en Desarrollo</p>
-                            <p className="text-[10px] text-gray-400 mt-2">Esta sección será expandida progresivamente con guías operativas.</p>
+                        {/* SECCIÓN 1: Primeros Pasos */}
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter border-b-2 border-gray-100 pb-4 flex items-center gap-2">
+                                <LayoutDashboard size={20} className="text-[#6bbdb7]" /> Primeros Pasos
+                            </h3>
+                            <p className="text-sm font-bold text-gray-600 leading-relaxed mt-4">
+                                LogicPay es la plataforma integral de gestión de nómina de Logic Group Management, desarrollada por AdWisers LLC. 
+                                Centraliza personal, tiendas, procesamiento de nómina, facturación, servicios especiales y CRM.
+                            </p>
+                            <div className="space-y-3 mt-4">
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo inicio sesión?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Ingresa tu nombre completo y contraseña en la pantalla de inicio. La sesión se mantiene activa mientras no cierres el navegador. Si cierras el navegador o abres una ventana de incógnito, deberás iniciar sesión de nuevo.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo cambio mi contraseña?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Ve a la pestaña <span className="font-black text-[#303a7f]">Ajustes</span> (solo visible para el Desarrollador). En la sección <span className="font-black text-[#6bbdb7]">Usuarios</span>, busca tu nombre y haz clic en el botón de cambio de contraseña. También puedes pedirle al Desarrollador que la cambie por ti.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Por qué al cerrar el navegador debo iniciar sesión de nuevo?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Por seguridad. La sesión se guarda en tu navegador y se elimina automáticamente al cerrarlo. Esto evita que otra persona que use tu computadora acceda a LogicPay sin tu permiso.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN 2: Dashboard */}
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter border-b-2 border-gray-100 pb-4 flex items-center gap-2">
+                                <PieChartIcon size={20} className="text-[#6bbdb7]" /> Dashboard
+                            </h3>
+                            <div className="space-y-3 mt-4">
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Qué significan las 6 tarjetas de KPI?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed"><span className="font-black text-[#303a7f]">Total Facturado KBS:</span> ingresos brutos facturados a KBS y CSG. <span className="font-black text-[#303a7f]">Costo de Nómina LGM:</span> total pagado a empleados. <span className="font-black text-[#303a7f]">Margen de Ganancia:</span> ingresos menos costos. <span className="font-black text-[#303a7f]">Rentabilidad (ROI):</span> porcentaje de ganancia sobre ingresos. <span className="font-black text-[#303a7f]">Cuentas por Cobrar:</span> facturas pendientes de pago. <span className="font-black text-[#303a7f]">Gastos Administrativos:</span> gastos internos de LGM. Haz clic en el ícono <span className="font-black text-[#6bbdb7]">ⓘ</span> de cada tarjeta para ver una explicación detallada.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo filtro los datos del Dashboard?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Usa los 4 selectores superiores: <span className="font-black text-[#303a7f]">rango de fechas</span> (Desde / Hasta), <span className="font-black text-[#303a7f]">Tienda</span>, <span className="font-black text-[#303a7f]">Empleado</span> y <span className="font-black text-[#303a7f]">Supervisor</span>. Todos los gráficos y tarjetas se actualizan automáticamente al cambiar cualquier filtro. Para limpiar los filtros, haz clic en el botón de borrador junto a las fechas.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo cambio entre vista mensual y semanal?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">En la gráfica de <span className="font-black text-[#6bbdb7]">Tendencia Financiera</span>, usa los botones <span className="font-black text-[#303a7f]">Mes</span> y <span className="font-black text-[#303a7f]">Semana</span>. La vista mensual agrupa por mes (ej. "Ene 2026"), la semanal por número de semana (ej. "Sem 14 (2026)").</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo genero un informe financiero con IA?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Selecciona un rango de fechas y haz clic en <span className="font-black text-[#303a7f]">Generar Informe</span>. AdWis AI analiza los datos y redacta un informe ejecutivo con 8 secciones: resumen, P&L, tendencia, rendimiento por tienda, fuerza laboral, proyectos especiales, cuentas por cobrar y recomendaciones. Puedes copiarlo, descargarlo como JPG o PDF.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Qué es el botón Resumen?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Abre una vista anual completa de pérdidas y ganancias mes por mes para cada tienda. Usa las flechas para cambiar de año. Puedes expandir cada mes para ver el desglose por tienda. Incluye botones para exportar a Excel y PDF.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo interpreto el gráfico de barras de tiendas?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Muestra el margen neto de las 8 tiendas principales. Barras verdes indican ganancia, rojas indican pérdida. <span className="font-black text-[#6bbdb7]">Haz clic en cualquier barra</span> para filtrar automáticamente todo el dashboard por esa tienda específica.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo veo las cuentas por cobrar?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">La tarjeta <span className="font-black text-[#303a7f]">Cuentas por Cobrar</span> muestra el total de facturas pendientes de pago. Para ver el detalle, revisa la sección <span className="font-black text-[#6bbdb7]">Facturaciones y WOS</span> que desglosa las facturas en: Reportadas y Pagadas, Reportadas y Pendientes, No Reportadas, y WOS Auditados. También puedes ir a <span className="font-black text-[#303a7f]">Nómina → Historial → Billing</span> para ver cada factura individualmente.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN 3: Tiendas y Personal */}
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter border-b-2 border-gray-100 pb-4 flex items-center gap-2">
+                                <StoreIcon size={20} className="text-[#6bbdb7]" /> Tiendas y Personal
+                            </h3>
+                            <div className="space-y-3 mt-4">
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo agrego una tienda?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Ve a <span className="font-black text-[#303a7f]">Tiendas</span> y haz clic en <span className="font-black text-[#6bbdb7]">+ Agregar Tienda</span>. Completa nombre, código, estado, dirección, supervisores KBS y LGM, tarifas (Janitorial, Utility, Shift Lead) y cliente (KBS o CSG). Haz clic en <span className="font-black text-[#6bbdb7]">Registrar Tienda</span> para guardar.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo edito las tarifas de una tienda?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Haz clic en la tarjeta de la tienda, luego en <span className="font-black text-[#303a7f]">Editar Tienda</span>. Modifica las tarifas en la <span className="font-black text-[#6bbdb7]">Matriz Salarial Dual</span> (Janitorial, Utility, Shift Lead con sus respectivos rates KBS y LGM). Para tiendas CSG, edita los campos <span className="font-black text-[#6bbdb7]">Rate CSG</span> y <span className="font-black text-[#6bbdb7]">Rate LGM</span>. Haz clic en <span className="font-black text-[#6bbdb7]">Guardar Cambios</span>.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo importo tiendas desde Excel?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">En <span className="font-black text-[#303a7f]">Tiendas</span>, haz clic en <span className="font-black text-[#6bbdb7]">Importar Excel</span>. Descarga la plantilla si la necesitas (botón junto a Importar). El archivo debe tener columnas: nombre, codigo, estado, direccion, supervisor_kbs, supervisor_lsg, cliente, tarifas_janitorial_kbs, tarifas_janitorial_lsg, etc. Formatos aceptados: .xlsx, .xls, .csv.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo agrego un empleado?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Ve a <span className="font-black text-[#303a7f]">Personal</span> y haz clic en <span className="font-black text-[#6bbdb7]">+ Agregar Personal</span>. Completa nombre, código de empleado (4 dígitos), cargo, tienda asignada, fechas, cuenta bancaria, rates personales KBS y LGM, foto y datos fiscales 1099. Haz clic en <span className="font-black text-[#6bbdb7]">Registrar Empleado</span>.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo edito los datos fiscales 1099 de un empleado?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Haz clic en la tarjeta del empleado, luego en <span className="font-black text-[#303a7f]">Editar Perfil</span>. Desplázate a la <span className="font-black text-[#6bbdb7]">Sección Fiscal 1099</span>. Allí puedes modificar: Payer Type, TIN Type, Payer TIN, nombres, dirección, ciudad, estado, ZIP, país, email fiscal y Site Code. Haz clic en <span className="font-black text-[#6bbdb7]">Guardar Cambios</span>.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo importo empleados desde Excel?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">En <span className="font-black text-[#303a7f]">Personal</span>, haz clic en <span className="font-black text-[#6bbdb7]">Importar Excel</span>. Descarga la plantilla de formato. El archivo debe incluir: nombre, codigo_empleado, cargo, tienda, cuenta_bancaria, Rate KBS, Rate LGM, y campos fiscales 1099. Formatos aceptados: .xlsx, .xls, .csv.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo contrato un candidato del CRM?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">En el CRM, marca un candidato como <span className="font-black text-[#6bbdb7]">Contratado</span>. Luego ve a <span className="font-black text-[#303a7f]">Personal</span>: verás una insignia roja con el número de candidatos pendientes. Haz clic en el ícono <span className="font-black text-[#303a7f]">UserPlus</span>, selecciona el candidato, elige el cliente (KBS o CSG), y haz clic en <span className="font-black text-[#6bbdb7]">Agregar</span>. El formulario se pre-llenará con los datos del candidato.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo elimino una tienda o empleado?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Abre la tienda o empleado, haz clic en <span className="font-black text-[#ef4444]">Eliminar</span>. Deberás escribir el nombre exacto para confirmar. Esta acción es irreversible y quedará registrada en el historial de auditoría.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN 4: Nómina */}
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter border-b-2 border-gray-100 pb-4 flex items-center gap-2">
+                                <CreditCard size={20} className="text-[#6bbdb7]" /> Motor de Nómina
+                            </h3>
+                            <div className="space-y-3 mt-4">
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo proceso una nómina semanal paso a paso?</h4>
+                                    <div className="text-[10px] font-bold text-gray-600 leading-relaxed space-y-1">
+                                        <p>1. Ve a <span className="font-black text-[#303a7f]">Nómina → Engine</span></p>
+                                        <p>2. Selecciona la <span className="font-black text-[#6bbdb7]">tienda</span> y el rango de fechas (domingo a sábado)</p>
+                                        <p>3. Sube el archivo del supervisor (Reporte Supervisor) y el archivo biométrico (Reporte IVR)</p>
+                                        <p>4. Opcional: Sube fotos de planillas y usa el <span className="font-black text-[#6bbdb7]">Digitalizador IA</span></p>
+                                        <p>5. Haz clic en <span className="font-black text-[#6bbdb7]">Procesar Data</span> para cruzar la información</p>
+                                        <p>6. Revisa las tablas de asistencia, ganancias (LSG) y facturación (VWH)</p>
+                                        <p>7. Aprueba la semana</p>
+                                    </div>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Qué archivos necesito subir para procesar la nómina?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Mínimo uno de estos dos: <span className="font-black text-[#303a7f]">Reporte del Supervisor</span> (Excel con horas diarias por empleado) o <span className="font-black text-[#6bbdb7]">Reporte IVR</span> (archivo biométrico de ponches). Lo ideal es subir ambos para que el sistema cruce los datos y detecte discrepancias automáticamente. También puedes subir fotos de planillas de asistencia para que la IA las digitalice.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo funciona el digitalizador de planillas con IA?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Sube fotos de las planillas de asistencia en papel. La IA de Gemini extrae automáticamente los nombres de empleados y las horas trabajadas. Los datos extraídos se integran a la tabla de asistencia para ser cruzados con el supervisor y el biométrico.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Qué significan las columnas S y B en la tabla de asistencia?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed"><span className="font-black text-[#303a7f]">S</span> = Supervisor (horas del reporte del supervisor). <span className="font-black text-[#6bbdb7]">B</span> = Biométrico (horas del reloj de ponches). Cada celda de día muestra ambos valores. Puedes alternar entre fuente S o B con los botones de cada empleado. Los colores indican la fuente activa: azul para supervisor, teal para biométrico.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Qué es VWH y cómo lo uso?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">VWH significa Vendor Weekly Hours. Es la tabla de facturación que se envía a KBS con las horas trabajadas por empleado, sus rates y el monto a cobrar. Haz clic en el botón <span className="font-black text-[#303a7f]">VWH</span> sobre la tabla de asistencia para abrir el visor de reporte VWH. Desde allí puedes descargarlo como PDF o enviarlo por correo.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo radico una factura?</h4>
+                                    <div className="text-[10px] font-bold text-gray-600 leading-relaxed space-y-1">
+                                        <p>1. Ve a <span className="font-black text-[#303a7f]">Nómina → Historial</span></p>
+                                        <p>2. Selecciona la tienda y localiza la semana procesada</p>
+                                        <p>3. Haz clic en <span className="font-black text-[#6bbdb7]">Billing</span> para abrir la Facturación Radicada</p>
+                                        <p>4. Ingresa la <span className="font-black text-[#303a7f]">Fecha de Radicación</span> y el número de factura</p>
+                                        <p>5. Cuando recibas el pago, registra la <span className="font-black text-[#6bbdb7]">Fecha de Pago</span> y el número <span className="font-black text-[#303a7f]">WOS</span></p>
+                                        <p>6. Marca el Status como <span className="font-black text-[#22c55e]">Pagado</span></p>
+                                    </div>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo registro un pago y un WOS?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">En la tabla de <span className="font-black text-[#303a7f]">Facturación Radicada</span>, haz clic directamente en las celdas de <span className="font-black text-[#6bbdb7]">Pago</span>, <span className="font-black text-[#6bbdb7]">Fecha de Pago</span> y <span className="font-black text-[#6bbdb7]">WOS</span> para editarlas. También puedes usar el botón <span className="font-black text-[#303a7f]">WOS</span> para abrir el módulo de auditoría WOS, donde puedes cargar un PDF de WOS de KBS y cruzar automáticamente los pagos con las facturas.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo proceso la nómina quincenal?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Desde <span className="font-black text-[#303a7f]">Nómina → Historial</span>, selecciona una tienda y haz clic en una semana. Usa el botón de <span className="font-black text-[#6bbdb7]">gestión quincenal</span> para agrupar dos semanas consecutivas. El sistema calcula automáticamente los totales quincenales por empleado y permite enviar recibos de pago unificados.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo envío recibos de pago por correo?</h4>
+                                    <div className="text-[10px] font-bold text-gray-600 leading-relaxed space-y-1">
+                                        <p>1. Procesa la nómina en el Engine</p>
+                                        <p>2. Haz clic en <span className="font-black text-[#303a7f]">Recibos de Pago</span></p>
+                                        <p>3. Selecciona el período quincenal</p>
+                                        <p>4. Revisa la lista de empleados con sus montos</p>
+                                        <p>5. Usa <span className="font-black text-[#6bbdb7]">Enviar Todos</span> para envío masivo o el botón de avión para envío individual</p>
+                                        <p>6. Cada empleado recibe un PDF con su recibo de pago</p>
+                                    </div>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo manejo proyectos especiales?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">En el Engine de nómina, haz clic en <span className="font-black text-[#303a7f]">Proyectos Especiales</span> (ícono de estrella). Agrega un nuevo proyecto con su monto y empleados asignados. Los proyectos especiales se facturan por separado de la nómina regular. El sistema genera automáticamente el número de factura (a partir de 100).</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo audito un WOS?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">En <span className="font-black text-[#303a7f]">Nómina → Historial → WOS</span>, sube el PDF del Work Order Statement de KBS. Haz clic en <span className="font-black text-[#6bbdb7]">Auditar WOS</span>. La IA cruza automáticamente los servicios del WOS contra los registros de facturación. Resultados: verde (coincidencia exacta), rojo (KBS paga menos), amarillo (KBS paga más). Revisa las discrepancias y acepta cada coincidencia.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN 5: CSG y LGM */}
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter border-b-2 border-gray-100 pb-4 flex items-center gap-2">
+                                <Sparkles size={20} className="text-[#6bbdb7]" /> Módulo CSG y Nómina LGM
+                            </h3>
+                            <div className="space-y-3 mt-4">
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo registro un servicio CSG con fotos?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Ve a <span className="font-black text-[#303a7f]">CSG → Registro</span> y haz clic en <span className="font-black text-[#6bbdb7]">Registrar Servicio</span>. Sube hasta 10 fotos del servicio, selecciona la tienda CSG y el empleado, ingresa la cantidad de servicios y notas. El sistema calcula automáticamente el pago al empleado, el cobro a CSG y el margen. La IA detecta la fecha del servicio desde las fotos.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo proceso la nómina CSG?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Ve a <span className="font-black text-[#303a7f]">CSG → Nómina CSG</span>. El sistema agrupa automáticamente los servicios en períodos quincenales. Haz clic en <span className="font-black text-[#6bbdb7]">Ver Detalles</span> para revisar el desglose por empleado. Haz clic en <span className="font-black text-[#6bbdb7]">Confirmar Nómina</span> para aprobar el período.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo envío la nómina CSG por correo?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">En la nómina CSG confirmada, haz clic en <span className="font-black text-[#6bbdb7]">Enviar por Correo</span>. Se abrirá un modal para ingresar el destinatario y mensaje. El sistema genera un PDF con el detalle de servicios y lo envía como adjunto. El estado de envío se marca con un ícono de verificación verde.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo radico la facturación CSG?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Ve a <span className="font-black text-[#303a7f]">CSG → Facturación</span>. Verás una tabla con todas las facturas CSG. Haz clic en las celdas de Pago, Fecha de Pago y WOS para editarlas directamente. Marca el Status como Pagado cuando corresponda. Los KPIs superiores muestran el total facturado, pagado, pendiente y la utilidad.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo proceso la nómina administrativa LGM?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Ve a <span className="font-black text-[#303a7f]">LGM → Pago</span>. Selecciona el período quincenal. La tabla muestra todos los empleados administrativos con su sueldo base. Puedes ajustar montos individualmente. El total se actualiza en tiempo real. Haz clic en <span className="font-black text-[#6bbdb7]">Confirmar Nómina</span> para guardar. El historial queda registrado en LGM → Historial.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo registro gastos misceláneos?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Ve a <span className="font-black text-[#303a7f]">LGM → Gastos</span>. Haz clic en <span className="font-black text-[#6bbdb7]">Nuevo Gasto</span>. Ingresa el concepto, monto, fecha y categoría (publicidad, seguros, servicios, viáticos, tecnología, etc.). Los gastos se reflejan en la tarjeta de Gastos Administrativos del Dashboard.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN 6: 1099-NEC y CRM */}
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter border-b-2 border-gray-100 pb-4 flex items-center gap-2">
+                                <Briefcase size={20} className="text-[#6bbdb7]" /> 1099-NEC y CRM
+                            </h3>
+                            <div className="space-y-3 mt-4">
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo exporto el reporte 1099-NEC a Excel?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Ve a <span className="font-black text-[#303a7f]">1099-NEC</span>, selecciona el año fiscal y haz clic en <span className="font-black text-[#6bbdb7]">Exportar Excel</span>. El archivo incluye todas las compensaciones del año por empleado con datos fiscales completos: nombre, TIN, dirección, cuenta bancaria y el total Box 1. Puedes buscar empleados por nombre o código.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo envío recibos masivos de pago desde 1099-NEC?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Haz clic en <span className="font-black text-[#6bbdb7]">Payroll Advice</span>. Selecciona el período quincenal. El sistema muestra todos los empleados con sus ganancias del período. Usa <span className="font-black text-[#303a7f]">Enviar Todos</span> para enviar recibos masivos por correo, o envía individualmente. Puedes previsualizar cada recibo en PDF antes de enviar.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo agrego un candidato en el CRM?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Ve a <span className="font-black text-[#303a7f]">CRM → Candidatos</span> y haz clic en <span className="font-black text-[#6bbdb7]">Nuevo Candidato</span>. Ingresa nombre, teléfono, email, fuente, fecha de próximo contacto, estado y notas. Para registrar una llamada, haz clic en <span className="font-black text-[#303a7f]">Registrar Llamada</span> y selecciona el resultado. Cuando un candidato sea contratado, cambia su estado a Contratado y aparecerá en Personal como pendiente.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo busco proveedores con Google Places?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">En <span className="font-black text-[#303a7f]">CRM → Proveedores</span>, haz clic en <span className="font-black text-[#6bbdb7]">Explorar</span>. Selecciona el estado, la ciudad y describe el tipo de servicio que necesitas. La IA de Gemini refina tu búsqueda y Google Places devuelve proveedores con nombre, teléfono, dirección y website. Haz clic en <span className="font-black text-[#6bbdb7]">Importar</span> en cualquier resultado para agregarlo a tu lista de proveedores.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo creo un proyecto y sus cotizaciones?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">En <span className="font-black text-[#303a7f]">CRM → Proveedores → Proyectos</span>, haz clic en <span className="font-black text-[#6bbdb7]">Nuevo Proyecto</span>. Ingresa nombre, tienda, cliente, descripción y estado. Luego agrega cotizaciones: selecciona el proveedor, ingresa el monto y adjunta archivos. Puedes tener múltiples cotizaciones por proyecto. Haz clic en <span className="font-black text-[#6bbdb7]">Seleccionar</span> en la mejor cotización para elegir al proveedor ganador.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo selecciono un proveedor para un proyecto?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Dentro del proyecto, en la sección de cotizaciones, haz clic en <span className="font-black text-[#6bbdb7]">Seleccionar</span> junto a la cotización ganadora. El proveedor quedará marcado con un check verde, la cotización se marcará como Aprobada y el proyecto pasará a estado En Ejecución.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN 7: Preguntas Frecuentes Generales */}
+                        <div>
+                            <h3 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter border-b-2 border-gray-100 pb-4 flex items-center gap-2">
+                                <MessageSquare size={20} className="text-[#6bbdb7]" /> Preguntas Frecuentes Generales
+                            </h3>
+                            <div className="space-y-3 mt-4">
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo funciona el chat de soporte AdWis AI?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Haz clic en la pestaña <span className="font-black text-[#fc6410]">Soporte</span> en la esquina inferior derecha. AdWis AI conoce todo el funcionamiento de LogicPay y puede guiarte paso a paso en cualquier tarea. Haz preguntas en español sobre cómo hacer algo en la plataforma. También puedes ver tutoriales en video en el enlace de YouTube.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo uso las notificaciones?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">La campana de notificaciones en la barra superior te alerta sobre candidatos y proveedores del CRM que requieren seguimiento. Haz clic en la campana para ver la lista. Al hacer clic en un candidato o proveedor, serás redirigido automáticamente a la sección CRM con el registro seleccionado.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Para qué sirve el botón de Notas?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">El botón de Notas (ícono de StickyNote) en la barra superior abre el panel de notas compartidas. Todos los asistentes y el desarrollador pueden crear, leer y responder notas. Funciona como un tablón de anuncios interno para dejar mensajes, recordatorios o información importante para el equipo. Las notas no leídas muestran una insignia con el conteo.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo sé quién está conectado?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">El botón de <span className="font-black text-[#303a7f]">Usuarios Online</span> en la barra superior muestra un contador verde con el número de usuarios activos. Haz clic para ver la lista de quiénes están conectados en tiempo real. Cada usuario activo muestra su foto, nombre y rol.</p>
+                                </div>
+                                <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Qué hago si la base de datos aparece como desconectada?</h4>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">El indicador de estado en la esquina inferior izquierda muestra: <span className="font-black text-[#22c55e]">verde (Conectado)</span>, <span className="font-black text-[#ef4444]">rojo (Desconectado)</span> o <span className="font-black text-[#f59e0b]">ámbar (Sincronizando)</span>. Si aparece desconectado, verifica tu conexión a internet y refresca la página. Si el problema persiste, contacta al Desarrollador.</p>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Version Info */}
@@ -5381,7 +5648,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                                 <p className="text-[10px] font-black text-[#303a7f] uppercase leading-relaxed">
                                     Nirvana Márquez y David Torres
                                 </p>
-                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Asistentes Virtuales de AdWisers LLC para Lasting Solutions Group</p>
+                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Asistentes Virtuales de AdWisers LLC para Logic Group Management</p>
                             </div>
 
                             <div className="space-y-2">
