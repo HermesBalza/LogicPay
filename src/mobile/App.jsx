@@ -7341,7 +7341,7 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
     );
 };
 
-const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores, employees }) => {
+const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores, employees, massImportMode = false }) => {
     const [localResults, setLocalResults] = useState([]);
     const [searchingIdx, setSearchingIdx] = useState(null);
     const [manualSearchTerm, setManualSearchTerm] = useState('');
@@ -7624,15 +7624,21 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                     </div>
 
                     <button
-                        disabled={localResults.filter(r => !r.resolvedEmployee && !r.isExcluded).length > 0}
+                        disabled={localResults.filter(r => {
+                            if (massImportMode && r.type === 'new') return false;
+                            return !r.resolvedEmployee && !r.isExcluded;
+                        }).length > 0}
                         onClick={handleFinalize}
-                        className={`px-12 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-3 whitespace-nowrap ${localResults.filter(r => !r.resolvedEmployee && !r.isExcluded).length > 0
+                        className={`px-12 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-3 whitespace-nowrap ${localResults.filter(r => {
+                            if (massImportMode && r.type === 'new') return false;
+                            return !r.resolvedEmployee && !r.isExcluded;
+                        }).length > 0
                             ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                             : 'bg-[#303a7f] text-white shadow-blue-900/20 hover:bg-[#252a5e]'
                             }`}
                     >
                         <Save size={14} />
-                        Sincronizar Personal
+                        {massImportMode ? 'Sincronizar Personal' : 'Sincronizar Personal'}
                     </button>
                 </div>
             </div>
@@ -14335,6 +14341,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
     const [isSheetPreviewOpen, setIsSheetPreviewOpen] = useState(false); // MODAL PREVIEW
     const [isMassImportInfoOpen, setIsMassImportInfoOpen] = useState(false);
     const [isStoreMassImportInfoOpen, setIsStoreMassImportInfoOpen] = useState(false);
+    const [isMassImportMode, setIsMassImportMode] = useState(false);
 
     // Estados para el progreso de Confirmar Nómina (JSON)
     const [isConfirmingPayroll, setIsConfirmingPayroll] = useState(false);
@@ -15138,16 +15145,118 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                         cuenta_bancaria: fullExcelRow?.cuenta_bancaria || fullExcelRow?.['Cuenta Bancaria'] || '',
                         tienda: fullExcelRow?.tienda || fullExcelRow?.Tienda || '',
                         imagen: fullExcelRow?.imagen || '',
-                        locationHistory: fullExcelRow?.locationHistory || '[]'
+                        locationHistory: fullExcelRow?.locationHistory || '[]',
+                        'Rate KBS': fullExcelRow?.['Rate KBS'] || '',
+                        'Rate LGM': fullExcelRow?.['Rate LGM'] || '',
+                        'Rate CSG': fullExcelRow?.['Rate CSG'] || '',
+                        'Cliente': fullExcelRow?.Cliente || fullExcelRow?.cliente || 'KBS',
+                        'Observaciones': fullExcelRow?.Observaciones || fullExcelRow?.observaciones || ''
                     }
                 };
             });
 
             setVerificationResults(enriched);
+            setIsMassImportMode(true);
             setIsVerificationModalOpen(true);
         } catch (error) {
             console.error('[MassImport] Error:', error);
             showError("No se pudo procesar el archivo de importación masiva.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleMassImportEmployees = async (resolutions) => {
+        if (!resolutions || resolutions.length === 0) return;
+        setIsVerificationModalOpen(false);
+        setIsMassImportMode(false);
+        setIsLoading(true);
+        showProcessing("Importando empleados, por favor espere...", "Importando Personal");
+        try {
+            let added = 0;
+            let updated = 0;
+
+            for (const resolution of resolutions) {
+                if (resolution.isExcluded) continue;
+
+                const excel = resolution.excelRow || {};
+
+                if (resolution.type === 'new') {
+                    const payload = {
+                        nombre: excel.nombre || '',
+                        codigo_empleado: (excel.codigo || excel.codigo_empleado || '').toString().replace(/^'/, ''),
+                        fecha_ingreso: excel.fecha_ingreso || '',
+                        fecha_egreso: excel.fecha_egreso || '',
+                        cargo: (excel.cargo || '').trim() || 'SIN CARGO',
+                        tienda: excel.tienda || '',
+                        cuenta_bancaria: (excel.cuenta_bancaria || '').toString().replace(/^'/, ''),
+                        imagen: excel.imagen || '',
+                        locationHistory: excel.locationHistory || '[]',
+                        payer_type: '',
+                        tin_type: '',
+                        tin: '',
+                        first_name: '',
+                        last_name: '',
+                        address_1: '',
+                        city: '',
+                        state: '',
+                        zip: '',
+                        country: '',
+                        email_tax: '',
+                        site_code: '',
+                        'Rate KBS': parseFloat(excel['Rate KBS'] || '0') || 0,
+                        'Rate LGM': parseFloat(excel['Rate LGM'] || '0') || 0,
+                        'Rate CSG': parseFloat(excel['Rate CSG'] || '0') || 0,
+                        'Cliente': excel['Cliente'] || 'KBS',
+                        'Observaciones': excel['Observaciones'] || ''
+                    };
+                    if (payload.locationHistory && typeof payload.locationHistory === 'object') {
+                        payload.locationHistory = JSON.stringify(payload.locationHistory);
+                    }
+                    await syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
+                    added++;
+                } else {
+                    const emp = resolution.resolvedEmployee || resolution.employee;
+                    if (!emp) continue;
+                    const payload = {
+                        ...emp,
+                        codigo_empleado: (emp.codigo_empleado || excel.codigo || '').toString().replace(/^'/, ''),
+                        fecha_ingreso: emp.fecha_ingreso || excel.fecha_ingreso || '',
+                        fecha_egreso: emp.fecha_egreso || excel.fecha_egreso || '',
+                        cargo: (emp.cargo || excel.cargo || '').trim() || 'SIN CARGO',
+                        tienda: emp.tienda || excel.tienda || '',
+                        cuenta_bancaria: (emp.cuenta_bancaria || excel.cuenta_bancaria || '').toString().replace(/^'/, ''),
+                        imagen: emp.imagen || excel.imagen || '',
+                        locationHistory: emp.locationHistory || excel.locationHistory || '[]',
+                        'Rate KBS': parseFloat(emp.rateKBS || emp.rate_kbs || excel['Rate KBS'] || '0') || 0,
+                        'Rate LGM': parseFloat(emp.rateLGM || emp.rate_lgm || excel['Rate LGM'] || '0') || 0,
+                        'Rate CSG': parseFloat(emp.rate_csg || excel['Rate CSG'] || '0') || 0,
+                        'Cliente': emp.cliente || excel['Cliente'] || 'KBS',
+                        'Observaciones': emp.observaciones || excel['Observaciones'] || ''
+                    };
+                    delete payload.rateKBS;
+                    delete payload.rateLGM;
+                    delete payload.rate_kbs;
+                    delete payload.rate_lgm;
+                    delete payload.rate_csg;
+                    delete payload.cliente;
+                    delete payload.observaciones;
+                    delete payload.id;
+                    if (payload.locationHistory && typeof payload.locationHistory === 'object') {
+                        payload.locationHistory = JSON.stringify(payload.locationHistory);
+                    }
+                    await syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
+                    updated++;
+                }
+            }
+
+            await fetchEmployees();
+            setIsStatusModalOpen(false);
+            showSuccess(`Importaci\u00f3n completada: ${added} empleados agregados, ${updated} actualizados.`);
+        } catch (error) {
+            setIsStatusModalOpen(false);
+            console.error('[MassImportEmployees] Error:', error);
+            showError(`Error en la importaci\u00f3n masiva: ${error.message}`);
         } finally {
             setIsLoading(false);
         }
@@ -17539,11 +17648,12 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
 
             <EmployeeVerificationModal
                 isOpen={isVerificationModalOpen}
-                onClose={() => setIsVerificationModalOpen(false)}
+                onClose={() => { setIsVerificationModalOpen(false); setIsMassImportMode(false); }}
                 results={verificationResults}
-                onAddAll={handleAddVerifiedEmployees}
+                onAddAll={isMassImportMode ? handleMassImportEmployees : handleAddVerifiedEmployees}
                 stores={stores}
                 employees={employees}
+                massImportMode={isMassImportMode}
             />
 
             {/* Tabla Supervisor Modal */}
