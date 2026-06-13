@@ -2125,8 +2125,14 @@ const EmployeeCard = ({ employee, onEdit }) => (
         </div>
 
         <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-transparent group-hover:bg-[#303a7f]/5 transition-colors">
-            <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Banco</span>
-            <span className="text-[9px] font-black text-[#303a7f] uppercase">{employee.cuenta_bancaria ? 'Registrado' : 'No Registrado'}</span>
+            <div className="flex items-center gap-2">
+                <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">KBS</span>
+                <span className="text-[9px] font-black text-[#303a7f]">${(employee.rateKBS || 0).toFixed(2)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">LGM</span>
+                <span className="text-[9px] font-black text-[#303a7f]">${(employee.rateLGM || 0).toFixed(2)}</span>
+            </div>
         </div>
     </div>
 );

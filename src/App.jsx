@@ -2315,8 +2315,14 @@ const EmployeeCard = ({ employee, onEdit }) => (
         </div>
 
         <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-transparent group-hover:bg-[#303a7f]/5 transition-colors">
-            <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Banco</span>
-            <span className="text-[9px] font-black text-[#303a7f] uppercase">{employee.cuenta_bancaria ? 'Registrado' : 'No Registrado'}</span>
+            <div className="flex items-center gap-2">
+                <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">KBS</span>
+                <span className="text-[9px] font-black text-[#303a7f]">${(employee.rateKBS || 0).toFixed(2)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">LGM</span>
+                <span className="text-[9px] font-black text-[#303a7f]">${(employee.rateLGM || 0).toFixed(2)}</span>
+            </div>
         </div>
     </div>
 );
@@ -15168,10 +15174,10 @@ function App() {
         const presenceKey = `presence_${(user.nombre || user.name || '').replace(/\s+/g, '_')}`;
 
         // Pulso inicial
-        syncVariableToDatabase(presenceKey, new Date().toISOString());
+        syncVariableToDatabase(presenceKey, JSON.stringify({ lastSeen: new Date().toISOString(), foto: user.foto || '' }));
 
         const interval = setInterval(() => {
-            syncVariableToDatabase(presenceKey, new Date().toISOString());
+            syncVariableToDatabase(presenceKey, JSON.stringify({ lastSeen: new Date().toISOString(), foto: user.foto || '' }));
             fetchVariables(true); // Refrescar solo presencia para optimizar
         }, 60000); // Cada 1 minuto
 
@@ -17765,9 +17771,17 @@ function App() {
                 // Procesar Presencia (Siempre se procesa)
                 if (key.startsWith('presence_')) {
                     const name = key.replace('presence_', '').replace(/_/g, ' ');
-                    const lastSeen = new Date(val);
+                    let lastSeen, foto;
+                    try {
+                        const parsed = JSON.parse(val);
+                        lastSeen = new Date(parsed.lastSeen);
+                        foto = parsed.foto || '';
+                    } catch {
+                        lastSeen = new Date(val);
+                        foto = '';
+                    }
                     if (now - lastSeen < 5 * 60 * 1000) {
-                        currentActiveUsers.push({ name, lastSeen });
+                        currentActiveUsers.push({ name, lastSeen, foto });
                     }
                 }
             });
@@ -19150,8 +19164,12 @@ function App() {
                                         activeUsers.map((u, idx) => (
                                             <div key={idx} className="flex items-center justify-between p-2.5 hover:bg-gray-50 rounded-xl transition-all group/user">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg bg-[#303a7f]/5 flex items-center justify-center text-[#303a7f] font-black text-[10px] border border-[#303a7f]/10">
-                                                        {u.name.charAt(0)}
+                                                    <div className="w-8 h-8 rounded-lg bg-[#303a7f]/5 flex items-center justify-center text-[#303a7f] font-black text-[10px] border border-[#303a7f]/10 overflow-hidden">
+                                                        {u.foto ? (
+                                                            <img src={u.foto} alt={u.name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            u.name.charAt(0)
+                                                        )}
                                                     </div>
                                                     <div>
                                                         <p className="text-[10px] font-black text-[#303a7f] uppercase leading-none mb-1">{u.name}</p>
