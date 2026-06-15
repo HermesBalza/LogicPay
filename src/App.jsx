@@ -16298,6 +16298,19 @@ function App() {
         }
     };
 
+    const convertirHHMMaDecimal = (val) => {
+        if (val == null || val === '' || val === 'X') return 0;
+        if (typeof val === 'number') return Math.round(val * 100) / 100;
+        const str = String(val).trim();
+        if (str.includes(':')) {
+            const [h, m] = str.split(':').map(Number);
+            if (!isNaN(h) && !isNaN(m))
+                return Math.round((h + m / 60) * 100) / 100;
+        }
+        const num = parseFloat(str);
+        return isNaN(num) ? 0 : Math.round(num * 100) / 100;
+    };
+
     // --- Lógica de Procesamiento de Nómina (Impulsado por Gemini AI) ---
     // --- FASE 1: Procesar Solo Datos del Supervisor ---
     const processPayroll = async (comment = '') => {
@@ -16381,14 +16394,14 @@ function App() {
                     nombre: nombreCompleto || 'N/A',
                     codigo: codigo || '',
                     cargo: cargo || 'N/A',
-                    domingo: { sup: getValue(['Domingo', 'DOM']) || 0, bio: 'X', final: String(getValue(['Domingo', 'DOM']) || '0') },
-                    lunes: { sup: getValue(['Lunes', 'LUN']) || 0, bio: 'X', final: String(getValue(['Lunes', 'LUN']) || '0') },
-                    martes: { sup: getValue(['Martes', 'MAR']) || 0, bio: 'X', final: String(getValue(['Martes', 'MAR']) || '0') },
-                    miercoles: { sup: getValue(['miercoles', 'Miércoles', 'Miercoles', 'MIE']) || 0, bio: 'X', final: String(getValue(['miercoles', 'Miércoles', 'Miercoles', 'MIE']) || '0') },
-                    jueves: { sup: getValue(['Jueves', 'JUE']) || 0, bio: 'X', final: String(getValue(['Jueves', 'JUE']) || '0') },
-                    viernes: { sup: getValue(['Viernes', 'VIE']) || 0, bio: 'X', final: String(getValue(['Viernes', 'VIE']) || '0') },
-                    sabado: { sup: getValue(['Sabado', 'Sábado', 'SAB']) || 0, bio: 'X', final: String(getValue(['Sabado', 'Sábado', 'SAB']) || '0') },
-                    total: { sup: getValue(['TOTAL', 'Total', 'Total Horas']) || 0, bio: 'X', final: String(getValue(['TOTAL', 'Total', 'Total Horas']) || '0') },
+                    domingo: { sup: convertirHHMMaDecimal(getValue(['Domingo', 'DOM'])), bio: 'X', final: String(convertirHHMMaDecimal(getValue(['Domingo', 'DOM']))) },
+                    lunes: { sup: convertirHHMMaDecimal(getValue(['Lunes', 'LUN'])), bio: 'X', final: String(convertirHHMMaDecimal(getValue(['Lunes', 'LUN']))) },
+                    martes: { sup: convertirHHMMaDecimal(getValue(['Martes', 'MAR'])), bio: 'X', final: String(convertirHHMMaDecimal(getValue(['Martes', 'MAR']))) },
+                    miercoles: { sup: convertirHHMMaDecimal(getValue(['miercoles', 'Miércoles', 'Miercoles', 'MIE'])), bio: 'X', final: String(convertirHHMMaDecimal(getValue(['miercoles', 'Miércoles', 'Miercoles', 'MIE']))) },
+                    jueves: { sup: convertirHHMMaDecimal(getValue(['Jueves', 'JUE'])), bio: 'X', final: String(convertirHHMMaDecimal(getValue(['Jueves', 'JUE']))) },
+                    viernes: { sup: convertirHHMMaDecimal(getValue(['Viernes', 'VIE'])), bio: 'X', final: String(convertirHHMMaDecimal(getValue(['Viernes', 'VIE']))) },
+                    sabado: { sup: convertirHHMMaDecimal(getValue(['Sabado', 'Sábado', 'SAB'])), bio: 'X', final: String(convertirHHMMaDecimal(getValue(['Sabado', 'Sábado', 'SAB']))) },
+                    total: { sup: convertirHHMMaDecimal(getValue(['TOTAL', 'Total', 'Total Horas'])), bio: 'X', final: String(convertirHHMMaDecimal(getValue(['TOTAL', 'Total', 'Total Horas']))) },
                     auditSource: 'sup' // Por defecto inicia con Supervisor
                 };
             }).filter(r =>
@@ -16984,7 +16997,9 @@ function App() {
                 2. Para cada ID, suma las duraciones exactas por cada día de la semana.
                 3. IMPORTANTE: Un empleado puede marcar varias veces al día (ej: almuerzo, salida anticipada). DEBES sumar todas las duraciones del mismo día.
                 4. El formato de fecha en "Entrada" es YYYY-MM-DD (ISO). Identifica el día de la semana (Lunes, Martes, etc.) según esa fecha.
-                5. FORMATO DE SALIDA: Todas las horas deben estar en formato "HH:MM" (ej: "08:30" o "05:00"). Si un día no tiene horas, pon "0:00".
+                5. FORMATO DE SALIDA: Todas las horas deben estar en formato DECIMAL (ej: "8.5" en lugar de "08:30").
+                   Si la suma da "08:30", conviértelo a 8.5. Si da "07:45", conviértelo a 7.75.
+                   Si un día no tiene horas, pon "0".
                 
                 DATOS DE ENTRADA: ${JSON.stringify(biometricData)}
                 ${comment ? `\nOBSERVACIÓN/COMENTARIO DEL USUARIO A TENER EN CUENTA AL PROCESAR: ${comment}\n` : ''}
@@ -16993,14 +17008,14 @@ function App() {
                   "rows": [
                     { 
                       "nombre": "ID del Empleado (Ej: 1021)", 
-                      "domingo": "HH:MM", 
-                      "lunes": "HH:MM", 
-                      "martes": "HH:MM", 
-                      "miercoles": "HH:MM", 
-                      "jueves": "HH:MM", 
-                      "viernes": "HH:MM", 
-                      "sabado": "HH:MM", 
-                      "total": "HH:MM (Suma total de la semana)" 
+                      "domingo": "8.5", 
+                      "lunes": "0", 
+                      "martes": "7.75", 
+                      "miercoles": "0", 
+                      "jueves": "8.0", 
+                      "viernes": "0", 
+                      "sabado": "8.5", 
+                      "total": "32.75" 
                     }
                   ] 
                 }
@@ -17040,7 +17055,7 @@ function App() {
                     }
                     return aiData.rows.map(aiRow => {
                         const empInfo = employees.find(e => String(e.codigo_empleado).trim() === aiRow.nombre.toString().trim());
-                        const base = (day) => aiRow[day] || '0:00';
+                        const base = (day) => aiRow[day] || '0';
                         return {
                             nombre: empInfo?.nombre || aiRow.nombre,
                             codigo: aiRow.nombre,
@@ -17052,7 +17067,7 @@ function App() {
                             jueves: { sup: 'X', bio: base('jueves'), final: base('jueves') },
                             viernes: { sup: 'X', bio: base('viernes'), final: base('viernes') },
                             sabado: { sup: 'X', bio: base('sabado'), final: base('sabado') },
-                            total: { sup: 'X', bio: aiRow.total || '0:00', final: aiRow.total || '0:00' },
+                            total: { sup: 'X', bio: aiRow.total || '0', final: aiRow.total || '0' },
                             auditSource: 'bio'
                         };
                     });
@@ -17078,7 +17093,7 @@ function App() {
         setSemanaTableData(prev => {
             const updated = [...prev];
             const row = { ...updated[idx], auditSource: 'manual' }; // Marcar como manual al editar individualmente
-            const dayData = { ...row[day], final: value };
+            const dayData = { ...row[day], final: /^\d+:\d{2}$/.test(String(value)) ? convertirHHMMaDecimal(value) : value };
             row[day] = dayData;
 
             // Recalcular total de auditoría para la fila
@@ -17095,9 +17110,8 @@ function App() {
                     }
                 }
             });
-            const h = Math.floor(totalMinutos / 60);
-            const m = Math.round(totalMinutos % 60);
-            row.total = { ...row.total, final: `${h}:${m.toString().padStart(2, '0')}` };
+            const totalHoras = Math.round((totalMinutos / 60) * 100) / 100;
+            row.total = { ...row.total, final: String(totalHoras) };
 
             updated[idx] = row;
             return updated;
@@ -17130,9 +17144,8 @@ function App() {
                     }
                 }
             });
-            const h = Math.floor(totalMinutos / 60);
-            const m = Math.round(totalMinutos % 60);
-            row.total = { ...row.total, final: `${h}:${m.toString().padStart(2, '0')}` };
+            const totalHoras = Math.round((totalMinutos / 60) * 100) / 100;
+            row.total = { ...row.total, final: String(totalHoras) };
 
             updated[idx] = row;
             return updated;
@@ -17161,9 +17174,8 @@ function App() {
                     }
                 }
             });
-            const h = Math.floor(totalMinutos / 60);
-            const m = Math.round(totalMinutos % 60);
-            updatedRow.total = { ...updatedRow.total, final: `${h}:${m.toString().padStart(2, '0')}` };
+            const totalHoras = Math.round((totalMinutos / 60) * 100) / 100;
+            updatedRow.total = { ...updatedRow.total, final: String(totalHoras) };
 
             return updatedRow;
         }));
@@ -19090,7 +19102,7 @@ function App() {
                                                         : r
                                                 ));
                                             } else if (employeeSelectorMode === 'add') {
-                                                const zeroDay = { sup: '0:00', bio: '0:00', final: '0:00' };
+                                                const zeroDay = { sup: '0', bio: '0', final: '0' };
                                                 setSemanaTableData(prev => [...prev, {
                                                     nombre: emp.nombre,
                                                     codigo: emp.codigo_empleado,
@@ -20304,7 +20316,7 @@ function App() {
                                                                                             onChange={(e) => !weekLocked && handleAuditChange(idx, day, e.target.value)}
                                                                                             readOnly={weekLocked}
                                                                                             className={`w-full bg-[#f9f9f9] px-2 py-2 text-center text-[12px] font-black text-[#303a7f] tabular-nums outline-none border-none placeholder-gray-300 ${weekLocked ? 'cursor-not-allowed' : ''}`}
-                                                                                            placeholder={weekLocked ? '' : '0:00'}
+                                                                                            placeholder={weekLocked ? '' : '0'}
                                                                                         />
                                                                                     </div>
                                                                                 );
