@@ -66,3 +66,19 @@ input[type=number] {
   -moz-appearance: textfield;
 }
 
+/* ============================
+   Botón Cerrar/Cancelar/Atrás — Rojo sin luz animada
+   ============================ */
+.btn-close-danger {
+  border: 2px solid #ff4c4c !important;
+  background: rgb(255, 241, 241) !important;
+  color: #ff4c4c !important;
+  font-weight: 700 !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-close-danger:hover {
+  background: #ff4c4c !important;
+  color: white !important;
+}
+

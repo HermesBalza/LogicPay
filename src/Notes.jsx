@@ -265,7 +265,7 @@ export default function Notes({ currentUser }) {
           />
           <div className="notes-form-actions" style={{ marginTop: 8 }}>
             <button className="btn btn-primary" onClick={() => editNote(note.id, editingText)}>Guardar</button>
-            <button className="btn btn-secondary" onClick={() => { setEditingNoteId(null); setEditingText(''); }}>Cancelar</button>
+            <button className="btn btn-close-danger" onClick={() => { setEditingNoteId(null); setEditingText(''); }}>Cancelar</button>
           </div>
         </div>
       ) : (
@@ -313,7 +313,7 @@ export default function Notes({ currentUser }) {
           <div className="notes-content" onClick={e => e.stopPropagation()}>
             <header className="notes-header">
               <h2>Bloc de notas</h2>
-              <button onClick={() => setOpen(false)} className="close-btn">✖️</button>
+              <button onClick={() => setOpen(false)} className="p-2 rounded-xl btn-close-danger"><X size={18} /></button>
             </header>
             <section className="notes-list" ref={notesListRef}>
               {buildTree(notes).map(root => renderNote(root))}
@@ -371,7 +371,7 @@ export default function Notes({ currentUser }) {
               <div className="notes-form-actions">
                 <button type="submit" className="btn btn-primary">Enviar</button>
                 {replyTo && (
-                  <button type="button" onClick={() => setReplyTo(null)} className="btn btn-secondary">
+                  <button type="button" onClick={() => setReplyTo(null)} className="btn btn-close-danger">
                     Cancelar
                   </button>
                 )}
@@ -390,7 +390,7 @@ export default function Notes({ currentUser }) {
               <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-4 relative z-10">¿Eliminar nota?</h3>
               <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-10 uppercase tracking-[0.1em] px-4 relative z-10">Esta acción no se puede deshacer.</p>
               <div className="flex gap-3 w-full relative z-10">
-                <button onClick={() => setConfirmDeleteId(null)} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-gray-200">Cancelar</button>
+                <button onClick={() => setConfirmDeleteId(null)} className="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 btn-close-danger">Cancelar</button>
                 <button onClick={() => deleteNote(confirmDeleteId)} className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-red-900/20 transition-all active:scale-95 hover:bg-red-600">Eliminar</button>
               </div>
             </div>

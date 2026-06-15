@@ -1114,7 +1114,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
           </div>
           <p className="text-sm font-black text-[#303a7f] uppercase tracking-tight mb-6">{deleteConfirm.message}</p>
           <div className="flex gap-3">
-            <button onClick={() => setDeleteConfirm({ show: false, message: '', onConfirm: null })} className="flex-1 py-3.5 bg-gray-50 text-gray-500 rounded-2xl hover:bg-gray-100 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest border-2 border-gray-100">
+            <button onClick={() => setDeleteConfirm({ show: false, message: '', onConfirm: null })} className="flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 btn-close-danger">
               Cancelar
             </button>
             <button onClick={() => { deleteConfirm.onConfirm?.(); setDeleteConfirm({ show: false, message: '', onConfirm: null }); }} className="flex-1 py-3.5 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-900/20 flex items-center justify-center gap-2">

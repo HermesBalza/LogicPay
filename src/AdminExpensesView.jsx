@@ -340,7 +340,7 @@ const AdminExpensesView = ({
                             </h2>
                             <button
                                 onClick={() => { setOpenAdd(false); resetForm(); }}
-                                className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
+                                className="p-2 rounded-xl transition-all btn-close-danger"
                             >
                                 <X size={18} />
                             </button>
@@ -435,7 +435,7 @@ const AdminExpensesView = ({
                         <div className="shrink-0 bg-white rounded-b-[2rem] px-6 py-4 border-t-2 border-gray-50 flex gap-3">
                             <button
                                 onClick={() => { setOpenAdd(false); resetForm(); }}
-                                className="flex-1 h-12 rounded-2xl border-2 border-gray-100 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all"
+                                className="flex-1 h-12 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all btn-close-danger"
                             >
                                 Cancelar
                             </button>

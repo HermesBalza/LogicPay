@@ -748,7 +748,7 @@ ${systemContext || "Contexto cargando..."}
                         </div>
                         <button
                             onClick={() => setIsOpen(false)}
-                            className="text-white/50 hover:text-[#fc6410] transition-colors p-1 bg-white/5 rounded-lg"
+                            className="btn-close-danger transition-colors p-1 rounded-lg"
                         >
                             <X size={20} />
                         </button>
@@ -1803,7 +1803,7 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                             <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter">{infoModal.title}</h3>
                             <button
                                 onClick={() => setInfoModal(null)}
-                                className="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 transition-all"
+                                className="p-2 btn-close-danger rounded-xl transition-all"
                             >
                                 <X size={18} />
                             </button>
@@ -1830,7 +1830,7 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                             </div>
                             <button
                                 onClick={() => setShowReportModal(false)}
-                                className="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 transition-all"
+                                className="p-2 btn-close-danger rounded-xl transition-all"
                             >
                                 <X size={18} />
                             </button>
@@ -1896,7 +1896,7 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                             </div>
                             <button
                                 onClick={() => setReportError(null)}
-                                className="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 transition-all"
+                                className="p-2 btn-close-danger rounded-xl transition-all"
                             >
                                 <X size={18} />
                             </button>
@@ -1943,7 +1943,7 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                         </button>
                         <button
                             onClick={() => setReportHtml(null)}
-                            className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all border border-red-200 active:scale-95"
+                            className="p-2 btn-close-danger rounded-xl transition-all active:scale-95"
                             title="Cerrar informe"
                         >
                             <X size={16} />
@@ -2749,7 +2749,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                 <div className="flex items-center justify-between mb-8">
                     <button
                         onClick={onBack}
-                        className="flex items-center gap-1 px-2.5 py-2 bg-gray-100 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all hover:bg-gray-200 flex-shrink-0"
+                        className="flex items-center gap-1 px-2.5 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all flex-shrink-0 btn-close-danger"
                     >
                         <ArrowLeft size={14} />
                         Atrás
@@ -3433,7 +3433,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
                     <button
                         onClick={onClose}
-                        className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-transparent"
+                        className="p-3 btn-close-danger rounded-xl transition-all active:scale-95 shadow-sm"
                     >
                         <X size={20} />
                     </button>
@@ -3747,7 +3747,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         </div>
                         <button
                             onClick={() => setIsWOSDetailOpen(false)}
-                            className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent"
+                            className="p-4 rounded-2xl transition-all active:scale-95 btn-close-danger"
                         >
                             <ArrowLeft size={24} />
                         </button>
@@ -3825,7 +3825,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                             </div>
                             <button
                                 onClick={() => setSelectedWosGroup(null)}
-                                className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                                className="p-3 btn-close-danger rounded-2xl transition-all active:scale-90"
                             >
                                 <X size={24} />
                             </button>
@@ -3923,7 +3923,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         </div>
                         <button
                             onClick={() => setIsWOSBugOpen(false)}
-                            className="p-4 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                            className="p-4 btn-close-danger rounded-2xl transition-all active:scale-90"
                         >
                             <X size={32} />
                         </button>
@@ -4052,7 +4052,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                             </div>
                             <button
                                 onClick={() => setIsWOSHistoryOpen(false)}
-                                className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                                className="p-3 btn-close-danger rounded-2xl transition-all active:scale-90"
                             >
                                 <X size={24} />
                             </button>
@@ -4679,7 +4679,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                 className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-2xl p-4 outline-none text-center"
                             />
                             <div className="flex gap-3 pt-6 w-full">
-                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-white text-gray-400 font-black py-4 rounded-2xl border-2">Cancelar</button>
+                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 btn-close-danger font-black py-4 rounded-2xl">Cancelar</button>
                                 <button
                                     disabled={confirmName !== employee.nombre}
                                     onClick={() => onDelete(employee.codigo_empleado)}
@@ -4821,7 +4821,7 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
         <div className="fixed inset-0 z-[60] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
             <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-16">
                 <div className="flex items-center justify-between mb-8">
-                    <button onClick={onBack} className="flex items-center gap-1 px-2.5 py-2 bg-gray-100 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all hover:bg-gray-200 flex-shrink-0"><ArrowLeft size={14} /> Atrás</button>
+                    <button onClick={onBack} className="flex items-center gap-1 px-2.5 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all flex-shrink-0 btn-close-danger"><ArrowLeft size={14} /> Atrás</button>
                     <button onClick={handleSave} style={{ backgroundColor: '#6bbdb7' }} className="text-white font-black px-6 py-2.5 shadow-lg shadow-teal-900/20 text-[10px] tracking-widest uppercase rounded-xl active:scale-95 flex items-center gap-1.5 flex-shrink-0"><Plus size={14} /> Registrar</button>
                 </div>
 
@@ -5089,7 +5089,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent active:scale-95"
+                        className="p-3 btn-close-danger rounded-xl transition-all active:scale-95"
                     >
                         <X size={20} />
                     </button>
@@ -5255,7 +5255,7 @@ const VirtualAssistantScheduleModal = ({ isOpen, onClose, vaSchedule = [] }) => 
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent active:scale-95"
+                        className="p-3 btn-close-danger rounded-xl transition-all active:scale-95"
                     >
                         <X size={20} />
                     </button>
@@ -5407,7 +5407,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                             <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                    <button onClick={onClose} className="p-3 btn-close-danger rounded-xl transition-all">
                         <X size={20} />
                     </button>
                 </div>
@@ -5609,7 +5609,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                             <p className="text-[8px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Enviar Correo</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl transition-all active:scale-90">
+                    <button onClick={onClose} className="p-2 btn-close-danger rounded-xl transition-all active:scale-90">
                         <X size={18} />
                     </button>
                 </div>
@@ -6168,7 +6168,7 @@ const VWHTableModal = (props) => {
                     </button>
                     <button
                         onClick={onClose}
-                        className="group p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center shrink-0"
+                        className="group p-2 btn-close-danger rounded-xl transition-all active:scale-95 shadow-sm flex items-center justify-center shrink-0"
                     >
                         <X size={18} className="group-hover:rotate-90 transition-transform duration-500" />
                     </button>
@@ -7107,7 +7107,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                             {filteredPeriods.map(p => <option key={p.range} value={p.range}>{p.label} ({p.range})</option>)}
                         </select>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-white text-gray-400 rounded-xl border-2 border-gray-100 hover:bg-red-50 hover:text-red-500 transition-all"><X size={24} /></button>
+                    <button onClick={onClose} className="p-3 btn-close-danger rounded-xl transition-all"><X size={24} /></button>
                 </div>
             </header>
             <main className="flex-1 overflow-hidden flex flex-col bg-[#fcfdfe]">
@@ -7406,7 +7406,7 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                             <p className="text-[#6bbdb7] text-[8px] font-black uppercase tracking-widest opacity-80 truncate max-w-[200px]">Mapeo Inteligente</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl transition-all active:scale-90">
+                    <button onClick={onClose} className="p-2 btn-close-danger rounded-xl transition-all active:scale-90">
                         <X size={22} />
                     </button>
                 </div>
@@ -7539,7 +7539,7 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                                     </div>
                                     <h4 className="text-base font-black text-[#303a7f] tracking-tighter uppercase">Vincular Registro</h4>
                                 </div>
-                                <button onClick={() => setSearchingIdx(null)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl">
+                                <button onClick={() => setSearchingIdx(null)} className="p-2 btn-close-danger rounded-xl">
                                     <X size={20} />
                                 </button>
                             </div>
@@ -7868,7 +7868,7 @@ const NominaEmailModal = ({ isOpen, onClose, period, onSend, isSending, defaultT
                             <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                    <button onClick={onClose} className="p-3 btn-close-danger rounded-xl transition-all">
                         <X size={20} />
                     </button>
                 </div>
@@ -8025,7 +8025,7 @@ const WOSTicketModal = ({ isOpen, onClose, onSend, isSending }) => {
                             <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                    <button onClick={onClose} className="p-3 btn-close-danger rounded-xl transition-all">
                         <X size={20} />
                     </button>
                 </div>
@@ -8972,7 +8972,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                     <button
                         onClick={onBack}
-                        className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-90 flex-shrink-0"
+                        className="p-2 btn-close-danger rounded-xl transition-all active:scale-90 flex-shrink-0"
                         data-html2canvas-ignore
                     >
                         <X size={18} />
@@ -9315,7 +9315,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     setIsPayStubModalOpen(false);
                                     setSendingProgress({ current: 0, total: 0, status: 'idle', logs: [] });
                                 }}
-                                className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                                className="p-3 btn-close-danger rounded-2xl transition-all active:scale-90"
                             >
                                 <X size={24} />
                             </button>
@@ -9504,7 +9504,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     if (previewPdf.url) URL.revokeObjectURL(previewPdf.url);
                                     setPreviewPdf({ ...previewPdf, isOpen: false });
                                 }}
-                                className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all"
+                                className="p-3 btn-close-danger rounded-2xl transition-all"
                             >
                                 <X size={20} />
                             </button>
@@ -9648,7 +9648,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100"
+                        className="p-4 btn-close-danger rounded-2xl transition-all active:scale-95 shadow-sm"
                     >
                         <X size={28} />
                     </button>
@@ -9838,7 +9838,7 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl transition-all active:scale-90"
+                        className="p-2 btn-close-danger rounded-xl transition-all active:scale-90"
                     >
                         <X size={22} />
                     </button>
@@ -9971,7 +9971,7 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, onRegister
                         {/* Header del modal */}
                         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
                             <h3 className="text-base font-black text-[#303a7f]">Seleccionar Empleado</h3>
-                            <button onClick={() => setIsOpen(false)} className="p-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-all">
+                            <button onClick={() => setIsOpen(false)} className="p-1.5 btn-close-danger rounded-lg transition-all">
                                 <X size={18} />
                             </button>
                         </div>
@@ -10679,7 +10679,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                             <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                    <button onClick={onClose} className="p-3 btn-close-danger rounded-xl transition-all">
                         <X size={20} />
                     </button>
                 </div>
@@ -10971,7 +10971,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                 <div className="px-10 py-8 border-t-2 border-gray-50 bg-white flex justify-end gap-4">
                     <button
                         onClick={onClose}
-                        className="px-10 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent hover:border-red-100"
+                        className="px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] transition-all active:scale-95 btn-close-danger"
                     >
                         Cerrar
                     </button>
@@ -11769,7 +11769,7 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
             <div className="bg-white border-b-2 border-gray-100 px-4 py-4 flex items-center gap-3 shadow-sm flex-shrink-0">
                 <button
                     onClick={onBack}
-                    className="flex items-center gap-1 px-2.5 py-2 bg-gray-100 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all flex-shrink-0"
+                    className="flex items-center gap-1 px-2.5 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all flex-shrink-0 btn-close-danger"
                 >
                     <ArrowLeft size={14} />
                     Atrás
@@ -11925,7 +11925,7 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
                                 className="w-full bg-gray-50 border-2 border-[#303a7f]/20 rounded-2xl p-4 outline-none text-center text-[#333333] font-bold focus:border-red-500/50 focus:bg-white transition-all"
                             />
                             <div className="flex gap-3 pt-6 w-full">
-                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-white text-gray-400 font-black py-4 rounded-2xl border-2 hover:bg-gray-50 transition-all">Cancelar</button>
+                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 btn-close-danger font-black py-4 rounded-2xl transition-all">Cancelar</button>
                                 <button
                                     disabled={confirmName !== newEmp.nombre}
                                     onClick={() => { setShowDeleteModal(false); onDelete(newEmp); }}
@@ -12828,7 +12828,7 @@ const DatabaseExplorer = () => {
                 <div className="mx-6 my-4 p-5 bg-[#f9f9f9] rounded-2xl border border-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between mb-4">
                         <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider">Administrar Columnas</h4>
-                        <button onClick={() => { setShowColumnManager(false); setSelectedColsToDelete([]); }} className="text-gray-400 hover:text-red-500 transition-colors"><X size={16} /></button>
+                        <button onClick={() => { setShowColumnManager(false); setSelectedColsToDelete([]); }} className="btn-close-danger transition-colors"><X size={16} /></button>
                     </div>
                     <div className="grid grid-cols-4 gap-2 mb-4 max-h-[200px] overflow-y-auto">
                         {columnInfo.map(col => (
@@ -12988,7 +12988,7 @@ const DatabaseExplorer = () => {
                         <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-4">¿Eliminar fila?</h3>
                         <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-6 uppercase tracking-[0.1em]">Esta acción no se puede deshacer.</p>
                         <div className="flex gap-3 w-full">
-                            <button onClick={() => setConfirmDeleteRow(null)} disabled={deletingRow} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-gray-200 disabled:opacity-50">Cancelar</button>
+                            <button onClick={() => setConfirmDeleteRow(null)} disabled={deletingRow} className="flex-1 py-4 btn-close-danger rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50">Cancelar</button>
                             <button onClick={() => handleDeleteRow(confirmDeleteRow.row)} disabled={deletingRow} className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-red-900/20 transition-all active:scale-95 hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2">
                                 {deletingRow ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                 {deletingRow ? 'Eliminando...' : 'Eliminar'}
@@ -13298,7 +13298,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                     <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-8 animate-in zoom-in-95 duration-300 border-2 border-white" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-8">
                             <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase">Nuevo Usuario</h3>
-                            <button onClick={() => setShowNewUser(false)} className="text-gray-300 hover:text-red-500 transition-colors"><X size={20} /></button>
+                            <button onClick={() => setShowNewUser(false)} className="btn-close-danger transition-colors"><X size={20} /></button>
                         </div>
                         <div className="flex gap-8">
                             <div className="flex flex-col items-center gap-4 w-48 flex-shrink-0">
@@ -13350,7 +13350,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                             </div>
                         </div>
                         <div className="flex gap-3 mt-8">
-                            <button onClick={() => setShowNewUser(false)} disabled={savingNew} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-gray-200 disabled:opacity-50">Cancelar</button>
+                            <button onClick={() => setShowNewUser(false)} disabled={savingNew} className="flex-1 py-4 btn-close-danger rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50">Cancelar</button>
                             <button onClick={handleSaveNewUser} disabled={savingNew} className="flex-1 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 transition-all active:scale-95 hover:bg-[#252a5e] disabled:opacity-50 flex items-center justify-center gap-2">
                                 {savingNew ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
                                 {savingNew ? 'Creando...' : 'Crear Usuario'}
@@ -13369,7 +13369,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                                 <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase">Cambiar Contraseña</h3>
                                 <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">{showPasswordModal.nombre}</p>
                             </div>
-                            <button onClick={() => setShowPasswordModal(null)} className="text-gray-300 hover:text-red-500 transition-colors"><X size={20} /></button>
+                            <button onClick={() => setShowPasswordModal(null)} className="btn-close-danger transition-colors"><X size={20} /></button>
                         </div>
                         <div className="space-y-4">
                             <div>
@@ -13382,7 +13382,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                             </div>
                         </div>
                         <div className="flex gap-3 mt-8">
-                            <button onClick={() => setShowPasswordModal(null)} disabled={savingPassword} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-gray-200 disabled:opacity-50">Cancelar</button>
+                            <button onClick={() => setShowPasswordModal(null)} disabled={savingPassword} className="flex-1 py-4 btn-close-danger rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50">Cancelar</button>
                             <button onClick={handleChangePassword} disabled={savingPassword} className="flex-1 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 transition-all active:scale-95 hover:bg-[#252a5e] disabled:opacity-50 flex items-center justify-center gap-2">
                                 {savingPassword ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
                                 {savingPassword ? 'Guardando...' : 'Guardar'}
@@ -13400,7 +13400,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                         <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-4">¿Eliminar usuario?</h3>
                         <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-6 uppercase tracking-[0.1em]">Se eliminará permanentemente a <span className="text-[#303a7f]">{confirmDelete.nombre}</span></p>
                         <div className="flex gap-3 w-full">
-                            <button onClick={() => setConfirmDelete(null)} disabled={deleting} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-gray-200 disabled:opacity-50">Cancelar</button>
+                            <button onClick={() => setConfirmDelete(null)} disabled={deleting} className="flex-1 py-4 btn-close-danger rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50">Cancelar</button>
                             <button onClick={handleDeleteUser} disabled={deleting} className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-red-900/20 transition-all active:scale-95 hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2">
                                 {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                 {deleting ? 'Eliminando...' : 'Eliminar'}
@@ -13942,7 +13942,7 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
                     </button>
                     <button
                         onClick={onClose}
-                        className="group p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center"
+                        className="group p-3 btn-close-danger rounded-xl transition-all active:scale-95 shadow-sm flex items-center justify-center"
                     >
                         <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
                     </button>
@@ -14088,7 +14088,7 @@ const UPSConsolidatedEmailModal = ({ isOpen, onClose, onSend, isSending, fechaDe
                             <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                    <button onClick={onClose} className="p-3 btn-close-danger rounded-xl transition-all">
                         <X size={20} />
                     </button>
                 </div>
@@ -14133,7 +14133,7 @@ const UPSConsolidatedEmailModal = ({ isOpen, onClose, onSend, isSending, fechaDe
 
                 {/* Footer Full Screen */}
                 <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
-                    <button onClick={onClose} className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50">Cancelar</button>
+                    <button onClick={onClose} className="w-48 py-4 btn-close-danger rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-sm">Cancelar</button>
                     <button onClick={() => onSend({ to, cc, subject, body })} disabled={isSending} className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}>
                         {isSending ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={18} />}
                         {isSending ? 'Enviando...' : 'Enviar Ahora'}
@@ -17750,7 +17750,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             </div>
                             <button
                                 onClick={() => { setIsBiometricCommentModalOpen(false); setBiometricComment(''); }}
-                                className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-90"
+                                className="p-2 btn-close-danger rounded-xl transition-all active:scale-90"
                             >
                                 <X size={20} />
                             </button>
@@ -17948,7 +17948,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             </div>
                             <button
                                 onClick={() => setIsAttendanceEyeModalOpen(false)}
-                                className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-90 flex items-center justify-center shrink-0"
+                                className="p-2 btn-close-danger rounded-xl transition-all active:scale-90 flex items-center justify-center shrink-0"
                             >
                                 <X size={18} />
                             </button>
@@ -18140,7 +18140,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             <h3 className="text-base font-black text-slate-800 tracking-tight">
                                 {employeeSelectorMode === 'replace' ? 'Reemplazar Empleado' : 'Agregar Empleado'}
                             </h3>
-                            <button onClick={() => setIsEmployeeSelectorOpen(false)} className="p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all">
+                            <button onClick={() => setIsEmployeeSelectorOpen(false)} className="p-2 btn-close-danger rounded-xl transition-all">
                                 <X size={16} />
                             </button>
                         </div>
@@ -18211,7 +18211,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-md relative shadow-2xl border-2 border-white animate-in zoom-in-95 duration-300">
                         <button
                             onClick={() => setIsEmployeeStatsModalOpen(false)}
-                            className="absolute top-6 right-6 w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
+                            className="absolute top-6 right-6 w-10 h-10 rounded-2xl btn-close-danger flex items-center justify-center transition-all"
                         >
                             <X size={20} />
                         </button>
@@ -18265,7 +18265,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-md relative shadow-2xl border-2 border-white animate-in zoom-in-95 duration-300">
                         <button
                             onClick={() => setIsStoreStatsModalOpen(false)}
-                            className="absolute top-6 right-6 w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
+                            className="absolute top-6 right-6 w-10 h-10 rounded-2xl btn-close-danger flex items-center justify-center transition-all"
                         >
                             <X size={20} />
                         </button>
@@ -18539,7 +18539,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                             <p className="text-[10px] font-bold text-gray-400 tracking-tight">{pendingContratados.length} candidato(s) contratado(s) pendiente(s)</p>
                                         </div>
                                     </div>
-                                    <button onClick={() => setShowPendingContratadosModal(false)} className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-all"><X size={16} /></button>
+                                    <button onClick={() => setShowPendingContratadosModal(false)} className="w-10 h-10 btn-close-danger rounded-xl flex items-center justify-center transition-all"><X size={16} /></button>
                                 </div>
                                 <div className="flex-1 overflow-y-auto min-h-0 space-y-2">
                                     {pendingContratados.length === 0 && (
@@ -19459,7 +19459,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             </button>
                             <button
                                 onClick={() => setIsBillingModalOpen(false)}
-                                className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-95 border border-red-200"
+                                className="p-2 btn-close-danger rounded-xl transition-all active:scale-95"
                             >
                                 <X size={16} />
                             </button>
@@ -19690,7 +19690,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             </div>
                             <button
                                 onClick={() => setIsDetailsModalOpen(false)}
-                                className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                                className="p-3 btn-close-danger rounded-2xl transition-all active:scale-90"
                             >
                                 <X size={24} />
                             </button>

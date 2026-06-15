@@ -370,9 +370,9 @@ const ResumenView = ({
                 <div className="flex items-center gap-4">
                     <button
                         onClick={onClose}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200 text-[#303a7f] hover:bg-[#303a7f] hover:text-white transition-all active:scale-95 group"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all active:scale-95 btn-close-danger"
                     >
-                        <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+                        <ArrowLeft size={16} />
                         <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Volver</span>
                     </button>
                     <div className="h-6 w-px bg-gray-200" />

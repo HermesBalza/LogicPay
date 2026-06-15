@@ -403,7 +403,7 @@ const ResumenView = ({
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-90 flex items-center justify-center shrink-0"
+                        className="p-2 rounded-xl transition-all active:scale-90 flex items-center justify-center shrink-0 btn-close-danger"
                     >
                         <X size={18} />
                     </button>

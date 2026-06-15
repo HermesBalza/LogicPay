@@ -128,7 +128,7 @@ const CSGPhotoViewer = ({ isOpen, onClose, fotos = [], title = 'Evidencia Fotogr
                         <h3 className="text-base font-black text-[#303a7f] uppercase tracking-tighter">{title}</h3>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{idx + 1} de {fotos.length} fotos</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl transition-all">
+                    <button onClick={onClose} className="p-2 rounded-xl transition-all btn-close-danger">
                         <X size={20} />
                     </button>
                 </div>
@@ -173,7 +173,7 @@ const CSGReviewModal = ({ isOpen, onClose, onConfirm, payload }) => {
                         </div>
                         <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest opacity-80">Verifica los datos detectados por la IA</p>
                     </div>
-                    <button onClick={onClose} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={20} /></button>
+                    <button onClick={onClose} className="p-2.5 rounded-xl transition-all btn-close-danger"><X size={20} /></button>
                 </div>
 
                 <div className="p-10 space-y-6">
@@ -375,7 +375,7 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                         <h2 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter leading-none">Registrar Servicio CSG</h2>
                         <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest mt-1 opacity-80">Cleaning Services Group</p>
                     </div>
-                    <button onClick={onClose} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={20} /></button>
+                    <button onClick={onClose} className="p-2.5 rounded-xl transition-all btn-close-danger"><X size={20} /></button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-10 space-y-6">
@@ -515,7 +515,7 @@ const CSGServiceForm = ({ csgStores = [], employees = [], onClose, onSave, isSav
                 </div>
 
                 <div className="px-10 py-6 border-t border-gray-100 flex gap-4">
-                    <button onClick={onClose} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95">Cancelar</button>
+                    <button onClick={onClose} className="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 btn-close-danger">Cancelar</button>
                     <button onClick={handleSubmit} disabled={!isValid || isSaving || isAnalyzing} className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 ${isValid && !isSaving && !isAnalyzing ? 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/20 hover:bg-[#252a5e]' : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}>
                         {isSaving || isAnalyzing ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
                         {isAnalyzing ? 'Analizando con IA...' : isSaving ? 'Registrando...' : 'Registrar Servicio'}
@@ -565,7 +565,7 @@ const CSGBiweekEmailModal = ({ isOpen, onClose, biweek, onSend, isSending }) => 
                             <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                    <button onClick={onClose} className="p-3 rounded-xl transition-all btn-close-danger">
                         <X size={20} />
                     </button>
                 </div>
@@ -636,7 +636,7 @@ const CSGBiweekEmailModal = ({ isOpen, onClose, biweek, onSend, isSending }) => 
                 <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
                     <button
                         onClick={onClose}
-                        className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
+                        className="w-48 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-sm btn-close-danger"
                     >
                         Cancelar
                     </button>
@@ -902,7 +902,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, syncToDat
                         <button onClick={handleExportPDF} className="h-14 px-6 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-900/20">
                             <Download size={18} /> Exportar PDF
                         </button>
-                        <button onClick={onClose} className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all">
+                        <button onClick={onClose} className="p-4 rounded-2xl transition-all btn-close-danger">
                             <X size={24} />
                         </button>
                     </div>
@@ -1065,7 +1065,7 @@ const CSGBillingReportModal = ({ isOpen, onClose, onProcess }) => {
                         <h2 className="text-xl font-black text-[#303a7f] uppercase tracking-tighter leading-none">Procesar Reporte CSG</h2>
                         <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest mt-1 opacity-80">Pega aquí el contenido del reporte de facturas</p>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all">
+                    <button onClick={onClose} className="p-3 rounded-xl transition-all btn-close-danger">
                         <X size={20} />
                     </button>
                 </div>
@@ -1390,7 +1390,7 @@ const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wos
 
                     <button
                         onClick={onClose}
-                        className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-transparent"
+                        className="p-3 rounded-xl transition-all active:scale-95 shadow-sm border-2 btn-close-danger"
                     >
                         <X size={20} />
                     </button>
@@ -1641,7 +1641,7 @@ const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wos
                         </div>
                         <button
                             onClick={() => setIsWosDetailOpen(false)}
-                            className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent"
+                            className="p-4 rounded-2xl transition-all active:scale-95 btn-close-danger"
                         >
                             <ArrowLeft size={24} />
                         </button>
@@ -1706,7 +1706,7 @@ const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wos
                                     <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">{selectedWosGroup.storeName} · {selectedWosGroup.serviceDates}</p>
                                 </div>
                             </div>
-                            <button onClick={() => setSelectedWosGroup(null)} className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90">
+                            <button onClick={() => setSelectedWosGroup(null)} className="p-3 rounded-2xl transition-all active:scale-90 btn-close-danger">
                                 <X size={24} />
                             </button>
                         </div>
@@ -1757,7 +1757,7 @@ const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wos
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Detección Automática de Descalces LGM vs CSG</p>
                             </div>
                         </div>
-                        <button onClick={() => setIsWOSBugOpen(false)} className="p-4 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90">
+                        <button onClick={() => setIsWOSBugOpen(false)} className="p-4 rounded-2xl transition-all active:scale-90 btn-close-danger">
                             <X size={32} />
                         </button>
                     </div>
@@ -1847,7 +1847,7 @@ const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wos
                             </div>
                             <button
                                 onClick={() => setIsHistoryOpen(false)}
-                                className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                                className="p-3 rounded-2xl transition-all active:scale-90 btn-close-danger"
                             >
                                 <X size={24} />
                             </button>
@@ -2515,7 +2515,7 @@ const CSGServiceDetailsModal = ({ service, onClose, syncToDatabase }) => {
                             </div>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 hover:bg-red-50 text-gray-300 hover:text-red-500 rounded-2xl transition-all active:scale-95">
+                    <button onClick={onClose} className="p-3 rounded-2xl transition-all active:scale-95 btn-close-danger">
                         <X size={24} />
                     </button>
                 </div>
@@ -2587,7 +2587,7 @@ const CSGServiceDetailsModal = ({ service, onClose, syncToDatabase }) => {
                     </button>
                     <button
                         onClick={onClose}
-                        className="px-8 py-3 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 shadow-lg shadow-blue-900/20"
+                        className="px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg btn-close-danger"
                     >
                         Cerrar Detalles
                     </button>
@@ -2656,7 +2656,7 @@ const CSGServiceEmailModal = ({ isOpen, onClose, service, onSend, isSending }) =
                             <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                    <button onClick={onClose} className="p-3 rounded-xl transition-all btn-close-danger">
                         <X size={20} />
                     </button>
                 </div>
@@ -2732,7 +2732,7 @@ const CSGServiceEmailModal = ({ isOpen, onClose, service, onSend, isSending }) =
                 <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
                     <button
                         onClick={onClose}
-                        className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
+                        className="w-48 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-sm btn-close-danger"
                     >
                         Cancelar
                     </button>
@@ -2883,9 +2883,9 @@ const CSGStoreAddView = ({ onSave, onBack }) => {
                 <div className="flex flex-wrap items-center justify-between mb-8 gap-3">
                     <button
                         onClick={onBack}
-                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-4 bg-white rounded-xl border-2 border-brand-primary/20 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
+                        className="flex items-center gap-2 py-2.5 px-4 rounded-xl transition-all btn-close-danger"
                     >
-                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                        <ArrowLeft size={16} />
                         Cancelar
                     </button>
 
@@ -3100,7 +3100,7 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button onClick={onBack} className="px-4 md:px-8 py-3 md:py-4 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600 transition-all">Cancelar</button>
+                    <button onClick={onBack} className="px-4 md:px-8 py-3 md:py-4 font-black text-[10px] uppercase tracking-widest transition-all btn-close-danger">Cancelar</button>
                     <button onClick={handleSave} className="px-6 md:px-10 py-3 md:py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-xl shadow-blue-900/20 active:scale-95">Registrar</button>
                 </div>
             </div>

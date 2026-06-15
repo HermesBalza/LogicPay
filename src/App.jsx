@@ -2473,7 +2473,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                 <div className="flex items-center justify-between mb-8">
                     <button
                         onClick={onBack}
-                        className={`flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl shadow-sm group font-bold text-[10px] uppercase tracking-widest border-2 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}
+                        className="flex items-center gap-2 transition-all py-2.5 px-5 rounded-xl shadow-sm group font-bold text-[10px] uppercase tracking-widest border-2 btn-close-danger"
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
                         Volver al Inicio
@@ -2981,7 +2981,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                 <div className="flex items-center justify-between mb-8">
                     <button
                         onClick={onBack}
-                        className="flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl border-2 border-brand-primary/20 shadow-sm group font-bold text-[10px] uppercase tracking-widest"
+                        className="flex items-center gap-2 py-2.5 px-5 rounded-xl border-2 shadow-sm group font-bold text-[10px] uppercase tracking-widest btn-close-danger"
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
                         Cancelar
@@ -3665,7 +3665,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
                     <button
                         onClick={onClose}
-                        className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-transparent"
+                        className="p-3 rounded-xl transition-all active:scale-95 shadow-sm btn-close-danger"
                     >
                         <X size={20} />
                     </button>
@@ -3979,7 +3979,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         </div>
                         <button
                             onClick={() => setIsWOSDetailOpen(false)}
-                            className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent"
+                            className="p-4 rounded-2xl transition-all active:scale-95 btn-close-danger"
                         >
                             <ArrowLeft size={24} />
                         </button>
@@ -4284,7 +4284,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                             </div>
                             <button
                                 onClick={() => setIsWOSHistoryOpen(false)}
-                                className="p-3 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90"
+                                className="p-3 rounded-2xl transition-all active:scale-90 btn-close-danger"
                             >
                                 <X size={24} />
                             </button>
@@ -4443,7 +4443,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                 <div className="flex items-center justify-between mb-8">
                     <button
                         onClick={onBack}
-                        className={`flex items-center gap-2 text-gray-500 hover:text-[#303a7f] transition-all py-2.5 px-5 bg-white rounded-xl shadow-sm group font-bold text-[10px] uppercase tracking-widest border-2 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}
+                        className="flex items-center gap-2 transition-all py-2.5 px-5 rounded-xl shadow-sm group font-bold text-[10px] uppercase tracking-widest border-2 btn-close-danger"
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
                         Volver al Listado
@@ -4949,7 +4949,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                 className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-2xl p-4 outline-none text-center"
                             />
                             <div className="flex gap-3 pt-6 w-full">
-                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-white text-gray-400 font-black py-4 rounded-2xl border-2">Cancelar</button>
+                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 font-black py-4 rounded-2xl border-2 btn-close-danger">Cancelar</button>
                                 <button
                                     disabled={confirmName !== employee.nombre}
                                     onClick={() => onDelete(employee.codigo_empleado)}
@@ -5091,7 +5091,7 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
         <div className="fixed inset-0 z-[60] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
             <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-16">
                 <div className="flex items-center justify-between mb-8">
-                    <button onClick={onBack} className="flex items-center gap-2 text-gray-500 font-bold text-[10px] uppercase tracking-widest bg-white py-2.5 px-5 rounded-xl border-2 border-brand-primary/20"><ArrowLeft size={16} /> Cancelar</button>
+                    <button onClick={onBack} className="flex items-center gap-2 font-bold text-[10px] uppercase tracking-widest py-2.5 px-5 rounded-xl border-2 btn-close-danger"><ArrowLeft size={16} /> Cancelar</button>
                     <button onClick={handleSave} style={{ backgroundColor: '#6bbdb7' }} className="text-white font-black px-10 py-4 shadow-2xl rounded-2xl text-xs tracking-widest uppercase flex items-center gap-2"><Plus size={18} /> Registrar Empleado</button>
                 </div>
 
@@ -5285,7 +5285,7 @@ const InvalidCodesModal = ({ isOpen, onClose, invalidEmployees }) => {
 
                 <button
                     onClick={onClose}
-                    className="w-full py-4 bg-[#303a7f] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
+                    className="w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 btn-close-danger"
                 >
                     Volver
                 </button>
@@ -5359,7 +5359,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent active:scale-95"
+                        className="p-3 rounded-xl transition-all border border-transparent active:scale-95 btn-close-danger"
                     >
                         <X size={20} />
                     </button>
@@ -5683,7 +5683,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                 <div className="px-10 py-8 border-t-2 border-gray-50 bg-gray-50/10 flex justify-end shrink-0">
                     <button
                         onClick={onClose}
-                        className="px-12 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
+                        className="px-12 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 btn-close-danger"
                     >
                         Cerrar Manual
                     </button>
@@ -5751,7 +5751,7 @@ const VirtualAssistantScheduleModal = ({ isOpen, onClose, vaSchedule = [] }) => 
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent active:scale-95"
+                        className="p-3 rounded-xl transition-all border border-transparent active:scale-95 btn-close-danger"
                     >
                         <X size={20} />
                     </button>
@@ -5852,7 +5852,7 @@ const VirtualAssistantScheduleModal = ({ isOpen, onClose, vaSchedule = [] }) => 
                     <p className="text-[8px] font-bold text-gray-300 uppercase tracking-widest">Horario sujeto a cambios según disponibilidad</p>
                     <button
                         onClick={onClose}
-                        className="px-10 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
+                        className="px-10 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 btn-close-danger"
                     >
                         Cerrar
                     </button>
@@ -5903,7 +5903,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                             <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                    <button onClick={onClose} className="p-3 rounded-xl transition-all border border-transparent btn-close-danger">
                         <X size={20} />
                     </button>
                 </div>
@@ -6105,7 +6105,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                             <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                    <button onClick={onClose} className="p-3 rounded-xl transition-all border border-transparent btn-close-danger">
                         <X size={20} />
                     </button>
                 </div>
@@ -6679,7 +6679,7 @@ const VWHTableModal = (props) => {
                     </button>
                     <button
                         onClick={onClose}
-                        className="group p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center"
+                        className="group p-3 rounded-xl transition-all active:scale-95 shadow-sm border-2 btn-close-danger flex items-center justify-center"
                     >
                         <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
                     </button>
@@ -6744,7 +6744,7 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
                     </div>
                     <button
                         onClick={onClose}
-                        className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-blue-100 text-[#303a7f] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
+                        className="flex items-center gap-3 px-6 py-3 border-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm btn-close-danger"
                     >
                         <ArrowLeft size={16} />
                         Volver
@@ -7618,7 +7618,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                             {filteredPeriods.map(p => <option key={p.range} value={p.range}>{p.label} ({p.range})</option>)}
                         </select>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-white text-gray-400 rounded-xl border-2 border-gray-100 hover:bg-red-50 hover:text-red-500 transition-all"><X size={24} /></button>
+                    <button onClick={onClose} className="p-3 rounded-xl border-2 transition-all btn-close-danger"><X size={24} /></button>
                 </div>
             </header>
             <main className="flex-1 overflow-hidden flex flex-col bg-[#fcfdfe]">
@@ -7705,7 +7705,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                     <div className="bg-white w-full max-w-4xl h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border">
                         <div className="p-6 border-b flex justify-between items-center">
                             <h4 className="text-sm font-black uppercase text-[#303a7f]">Vista Previa: {previewPdf.name}</h4>
-                            <button onClick={() => setPreviewPdf({ ...previewPdf, isOpen: false })} className="p-2 hover:bg-red-50 rounded-xl"><X /></button>
+                            <button onClick={() => setPreviewPdf({ ...previewPdf, isOpen: false })} className="p-2 rounded-xl btn-close-danger"><X /></button>
                         </div>
                         <iframe src={`${previewPdf.url}#toolbar=0`} className="flex-1 w-full" />
                     </div>
@@ -7793,7 +7793,7 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
                         </button>
                         <button
                             onClick={onClose}
-                            className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-[#6bbdb7]/20 text-[#6bbdb7] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-50 transition-all active:scale-95 shadow-sm"
+                            className="flex items-center gap-3 px-6 py-3 border-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm btn-close-danger"
                         >
                             <ArrowLeft size={16} />
                             Volver
@@ -8390,7 +8390,7 @@ const NominaEmailModal = ({ isOpen, onClose, period, onSend, isSending, defaultT
                             <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                    <button onClick={onClose} className="p-3 rounded-xl transition-all border border-transparent btn-close-danger">
                         <X size={20} />
                     </button>
                 </div>
@@ -8547,7 +8547,7 @@ const WOSTicketModal = ({ isOpen, onClose, onSend, isSending }) => {
                             <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                    <button onClick={onClose} className="p-3 rounded-xl transition-all border border-transparent btn-close-danger">
                         <X size={20} />
                     </button>
                 </div>
@@ -9516,7 +9516,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         </button>
                         <button
                             onClick={onBack}
-                            className="group flex items-center gap-2.5 px-5 py-2.5 bg-white border-2 border-gray-100 text-[#303a7f] rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-blue-900/5 hover:border-[#303a7f] hover:shadow-blue-900/10 transition-all active:scale-95"
+                            className="group flex items-center gap-2.5 px-5 py-2.5 border-2 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-blue-900/5 hover:shadow-blue-900/10 transition-all active:scale-95 btn-close-danger"
                         >
                             <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
                             Volver a Nómina
@@ -10235,7 +10235,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100"
+                        className="p-4 rounded-2xl transition-all active:scale-95 shadow-sm border-2 btn-close-danger"
                     >
                         <X size={28} />
                     </button>
@@ -11217,7 +11217,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                     </div>
                     <button
                         onClick={onClose}
-                        className="flex items-center gap-2 text-[#303a7f] hover:bg-[#6bbdb7] hover:text-white transition-all py-2.5 px-6 bg-white rounded-xl shadow-sm group font-black text-[9px] uppercase tracking-widest border-2 border-[#6bbdb7]/30 hover:border-[#6bbdb7] active:scale-95"
+                        className="flex items-center gap-2 transition-all py-2.5 px-6 rounded-xl shadow-sm group font-black text-[9px] uppercase tracking-widest border-2 active:scale-95 btn-close-danger"
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
                         Volver
@@ -11291,7 +11291,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                             <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                    <button onClick={onClose} className="p-3 rounded-xl transition-all border border-transparent btn-close-danger">
                         <X size={20} />
                     </button>
                 </div>
@@ -11583,7 +11583,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                 <div className="px-10 py-8 border-t-2 border-gray-50 bg-white flex justify-end gap-4">
                     <button
                         onClick={onClose}
-                        className="px-10 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border-2 border-transparent hover:border-red-100"
+                        className="px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] transition-all active:scale-95 btn-close-danger"
                     >
                         Cerrar
                     </button>
@@ -11666,7 +11666,7 @@ const AnularProjectModal = ({ project, onClose, onConfirm }) => {
                 <div className="flex gap-4">
                     <button
                         onClick={onClose}
-                        className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95"
+                        className="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 btn-close-danger"
                     >
                         Cancelar
                     </button>
@@ -12441,7 +12441,7 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
             {/* Header */}
             <div className="bg-white border-b-2 border-gray-100 px-10 py-8 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-6">
-                    <button onClick={onBack} className="p-3 bg-gray-50 text-[#303a7f] rounded-2xl hover:bg-gray-100 transition-all active:scale-90">
+                    <button onClick={onBack} className="p-3 rounded-2xl transition-all active:scale-90 btn-close-danger">
                         <ArrowLeft size={24} />
                     </button>
                     <div>
@@ -12453,7 +12453,7 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
                     {isEdit && onDelete && (
                         <button onClick={() => setShowDeleteModal(true)} className="px-8 py-4 text-red-500 font-black text-[10px] uppercase tracking-widest hover:bg-red-50 transition-all rounded-2xl">Eliminar</button>
                     )}
-                    <button onClick={onBack} className="px-8 py-4 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600 transition-all">Cancelar</button>
+                    <button onClick={onBack} className="px-8 py-4 font-black text-[10px] uppercase tracking-widest transition-all btn-close-danger">Cancelar</button>
                     <button onClick={handleSave} className="px-10 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] transition-all shadow-xl shadow-blue-900/20 active:scale-95">{isEdit ? 'Guardar Cambios' : 'Registrar Colaborador'}</button>
                 </div>
             </div>
@@ -12607,7 +12607,7 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
                                 className="w-full bg-gray-50 border-2 border-[#303a7f]/20 rounded-2xl p-4 outline-none text-center text-[#333333] font-bold focus:border-red-500/50 focus:bg-white transition-all"
                             />
                             <div className="flex gap-3 pt-6 w-full">
-                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-white text-gray-400 font-black py-4 rounded-2xl border-2 hover:bg-gray-50 transition-all">Cancelar</button>
+                                <button onClick={() => setShowDeleteModal(false)} className="flex-1 font-black py-4 rounded-2xl border-2 transition-all btn-close-danger">Cancelar</button>
                                 <button
                                     disabled={confirmName !== newEmp.nombre}
                                     onClick={() => { setShowDeleteModal(false); onDelete(newEmp); }}
@@ -13709,7 +13709,7 @@ const DatabaseExplorer = () => {
                 <div className="mx-6 my-4 p-5 bg-[#f9f9f9] rounded-2xl border border-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between mb-4">
                         <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider">Administrar Columnas</h4>
-                        <button onClick={() => { setShowColumnManager(false); setSelectedColsToDelete([]); }} className="text-gray-400 hover:text-red-500 transition-colors"><X size={16} /></button>
+                        <button onClick={() => { setShowColumnManager(false); setSelectedColsToDelete([]); }} className="btn-close-danger"><X size={16} /></button>
                     </div>
                     <div className="grid grid-cols-4 gap-2 mb-4 max-h-[200px] overflow-y-auto">
                         {columnInfo.map(col => (
@@ -13869,7 +13869,7 @@ const DatabaseExplorer = () => {
                         <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-4">¿Eliminar fila?</h3>
                         <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-6 uppercase tracking-[0.1em]">Esta acción no se puede deshacer.</p>
                         <div className="flex gap-3 w-full">
-                            <button onClick={() => setConfirmDeleteRow(null)} disabled={deletingRow} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-gray-200 disabled:opacity-50">Cancelar</button>
+                            <button onClick={() => setConfirmDeleteRow(null)} disabled={deletingRow} className="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 btn-close-danger">Cancelar</button>
                             <button onClick={() => handleDeleteRow(confirmDeleteRow.row)} disabled={deletingRow} className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-red-900/20 transition-all active:scale-95 hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2">
                                 {deletingRow ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                 {deletingRow ? 'Eliminando...' : 'Eliminar'}
@@ -14179,7 +14179,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                     <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-8 animate-in zoom-in-95 duration-300 border-2 border-white" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-8">
                             <h3 className="text-xl font-black text-[#303a7f] tracking-tighter uppercase">Nuevo Usuario</h3>
-                            <button onClick={() => setShowNewUser(false)} className="text-gray-300 hover:text-red-500 transition-colors"><X size={20} /></button>
+                            <button onClick={() => setShowNewUser(false)} className="btn-close-danger"><X size={20} /></button>
                         </div>
                         <div className="flex gap-8">
                             <div className="flex flex-col items-center gap-4 w-48 flex-shrink-0">
@@ -14231,7 +14231,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                             </div>
                         </div>
                         <div className="flex gap-3 mt-8">
-                            <button onClick={() => setShowNewUser(false)} disabled={savingNew} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-gray-200 disabled:opacity-50">Cancelar</button>
+                            <button onClick={() => setShowNewUser(false)} disabled={savingNew} className="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 btn-close-danger">Cancelar</button>
                             <button onClick={handleSaveNewUser} disabled={savingNew} className="flex-1 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 transition-all active:scale-95 hover:bg-[#252a5e] disabled:opacity-50 flex items-center justify-center gap-2">
                                 {savingNew ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
                                 {savingNew ? 'Creando...' : 'Crear Usuario'}
@@ -14250,7 +14250,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                                 <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase">Cambiar Contraseña</h3>
                                 <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest">{showPasswordModal.nombre}</p>
                             </div>
-                            <button onClick={() => setShowPasswordModal(null)} className="text-gray-300 hover:text-red-500 transition-colors"><X size={20} /></button>
+                            <button onClick={() => setShowPasswordModal(null)} className="btn-close-danger"><X size={20} /></button>
                         </div>
                         <div className="space-y-4">
                             <div>
@@ -14263,7 +14263,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                             </div>
                         </div>
                         <div className="flex gap-3 mt-8">
-                            <button onClick={() => setShowPasswordModal(null)} disabled={savingPassword} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-gray-200 disabled:opacity-50">Cancelar</button>
+                            <button onClick={() => setShowPasswordModal(null)} disabled={savingPassword} className="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 btn-close-danger">Cancelar</button>
                             <button onClick={handleChangePassword} disabled={savingPassword} className="flex-1 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 transition-all active:scale-95 hover:bg-[#252a5e] disabled:opacity-50 flex items-center justify-center gap-2">
                                 {savingPassword ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
                                 {savingPassword ? 'Guardando...' : 'Guardar'}
@@ -14281,7 +14281,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                         <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-4">¿Eliminar usuario?</h3>
                         <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-6 uppercase tracking-[0.1em]">Se eliminará permanentemente a <span className="text-[#303a7f]">{confirmDelete.nombre}</span></p>
                         <div className="flex gap-3 w-full">
-                            <button onClick={() => setConfirmDelete(null)} disabled={deleting} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-gray-200 disabled:opacity-50">Cancelar</button>
+                            <button onClick={() => setConfirmDelete(null)} disabled={deleting} className="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 btn-close-danger">Cancelar</button>
                             <button onClick={handleDeleteUser} disabled={deleting} className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-red-900/20 transition-all active:scale-95 hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2">
                                 {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                 {deleting ? 'Eliminando...' : 'Eliminar'}
@@ -14397,7 +14397,7 @@ const GeneralSettings = ({ currentUser }) => {
                 <div className={`mb-4 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${notification.type === 'success' ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
                     {notification.type === 'success' ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
                     {notification.message}
-                    <button onClick={() => setNotification(null)} className="ml-auto"><X size={12} /></button>
+                    <button onClick={() => setNotification(null)} className="ml-auto btn-close-danger"><X size={12} /></button>
                 </div>
             )}
 
@@ -14826,7 +14826,7 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
                     </button>
                     <button
                         onClick={onClose}
-                        className="group p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center"
+                        className="group p-3 rounded-xl transition-all active:scale-95 shadow-sm border-2 btn-close-danger flex items-center justify-center"
                     >
                         <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
                     </button>
@@ -14972,7 +14972,7 @@ const UPSConsolidatedEmailModal = ({ isOpen, onClose, onSend, isSending, fechaDe
                             <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">Envío de Correo Electrónico</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent">
+                    <button onClick={onClose} className="p-3 rounded-xl transition-all border border-transparent btn-close-danger">
                         <X size={20} />
                     </button>
                 </div>
@@ -15017,7 +15017,7 @@ const UPSConsolidatedEmailModal = ({ isOpen, onClose, onSend, isSending, fechaDe
 
                 {/* Footer Full Screen */}
                 <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
-                    <button onClick={onClose} className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50">Cancelar</button>
+                    <button onClick={onClose} className="w-48 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-sm border-2 btn-close-danger">Cancelar</button>
                     <button onClick={() => onSend({ to, cc, subject, body })} disabled={isSending} className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}>
                         {isSending ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={18} />}
                         {isSending ? 'Enviando...' : 'Enviar Ahora'}
@@ -18667,12 +18667,12 @@ function App() {
                                 autoFocus
                             />
                             <div className="flex items-center gap-3 justify-end">
-                                <button
-                                    onClick={() => { setIsBiometricCommentModalOpen(false); setBiometricComment(''); }}
-                                    className="px-6 py-3 bg-gray-100 text-gray-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95"
-                                >
-                                    Cancelar
-                                </button>
+                    <button
+                        onClick={() => { setIsBiometricCommentModalOpen(false); setBiometricComment(''); }}
+                        className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 btn-close-danger"
+                    >
+                        Cancelar
+                    </button>
                                 <button
                                     onClick={() => {
                                         const comment = biometricComment.trim();
@@ -18852,7 +18852,7 @@ function App() {
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={() => setIsAttendanceEyeModalOpen(false)}
-                                    className="group p-2.5 bg-slate-50 text-slate-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 border border-slate-100 flex items-center justify-center"
+                                    className="group p-2.5 rounded-xl transition-all active:scale-95 border btn-close-danger flex items-center justify-center"
                                 >
                                     <X size={18} />
                                 </button>
@@ -19069,7 +19069,7 @@ function App() {
                             <h3 className="text-base font-black text-slate-800 tracking-tight">
                                 {employeeSelectorMode === 'replace' ? 'Reemplazar Empleado' : 'Agregar Empleado'}
                             </h3>
-                            <button onClick={() => setIsEmployeeSelectorOpen(false)} className="p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all">
+                            <button onClick={() => setIsEmployeeSelectorOpen(false)} className="p-2 rounded-xl transition-all btn-close-danger">
                                 <X size={16} />
                             </button>
                         </div>
@@ -19140,7 +19140,7 @@ function App() {
                     <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-md relative shadow-2xl border-2 border-white animate-in zoom-in-95 duration-300">
                         <button
                             onClick={() => setIsEmployeeStatsModalOpen(false)}
-                            className="absolute top-6 right-6 w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
+                            className="absolute top-6 right-6 w-10 h-10 rounded-2xl flex items-center justify-center transition-all btn-close-danger"
                         >
                             <X size={20} />
                         </button>
@@ -19194,7 +19194,7 @@ function App() {
                     <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-md relative shadow-2xl border-2 border-white animate-in zoom-in-95 duration-300">
                         <button
                             onClick={() => setIsStoreStatsModalOpen(false)}
-                            className="absolute top-6 right-6 w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
+                            className="absolute top-6 right-6 w-10 h-10 rounded-2xl flex items-center justify-center transition-all btn-close-danger"
                         >
                             <X size={20} />
                         </button>
@@ -19715,7 +19715,7 @@ function App() {
                                             <p className="text-[10px] font-bold text-gray-400 tracking-tight">{pendingContratados.length} candidato(s) contratado(s) pendiente(s)</p>
                                         </div>
                                     </div>
-                                    <button onClick={() => setShowPendingContratadosModal(false)} className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-all"><X size={16} /></button>
+                                    <button onClick={() => setShowPendingContratadosModal(false)} className="w-10 h-10 rounded-xl flex items-center justify-center transition-all btn-close-danger"><X size={16} /></button>
                                 </div>
                                 <div className="flex-1 overflow-y-auto min-h-0 space-y-2">
                                     {pendingContratados.length === 0 && (
@@ -19898,9 +19898,9 @@ function App() {
                                         </a>
                                         <button
                                             onClick={() => setPayrollView('history')}
-                                            className="bg-white text-[#303a7f] rounded-xl hover:bg-gray-50 transition-all active:scale-95 border-[3px] border-[#303a7f]/20 shadow-sm flex items-center justify-center gap-1.5 group h-[48px] px-3 flex-1"
+                                            className="rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 group h-[48px] px-3 flex-1 btn-close-danger"
                                         >
-                                            <History size={16} className="group-hover:-rotate-45 transition-transform text-[#303a7f] shrink-0" />
+                                            <History size={16} className="group-hover:-rotate-45 transition-transform shrink-0" />
                                             <span className="text-[9px] font-black uppercase tracking-widest leading-none truncate hidden lg:inline">Volver</span>
                                             <span className="text-[9px] font-black uppercase tracking-widest leading-none truncate lg:hidden">Volver al Historial</span>
                                         </button>
@@ -20700,7 +20700,7 @@ function App() {
                             </button>
                             <button
                                 onClick={() => setIsBillingModalOpen(false)}
-                                className="group p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all active:scale-95 shadow-sm border-2 border-gray-100 flex items-center justify-center"
+                                className="group p-3 rounded-xl transition-all active:scale-95 shadow-sm border-2 btn-close-danger flex items-center justify-center"
                             >
                                 <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
                             </button>

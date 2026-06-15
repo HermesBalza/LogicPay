@@ -159,7 +159,7 @@ export default function NotificationBell({ onSelectCandidato, onSelectProveedor 
               <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
                 <Bell size={20} /> Próximas Llamadas
               </h3>
-              <button onClick={() => setShowModal(false)} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
+              <button onClick={() => setShowModal(false)} className="p-2 rounded-xl transition-all btn-close-danger"><X size={18} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
               {loading ? (
