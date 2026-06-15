@@ -3263,6 +3263,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
         try {
             await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: emailData.attachments || [] });
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Ticket', entidadNombre: `${emailData.subject}` }) }).catch(() => {});
 
             setNotificationModal({
                 isOpen: true,
@@ -6258,6 +6259,7 @@ const VWHTableModal = (props) => {
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
             await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte VWH', entidadNombre: `${payrollStore} - ${currentStartDate} a ${currentEndDate}` }) }).catch(() => {});
 
             const reportKey = normalizeKey(recordId || `${payrollStore}_${currentStartDate}_${currentEndDate}`);
             if (onEmailSent) onEmailSent(reportKey);
@@ -7555,6 +7557,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                 const pdfResult = await generatePayStubPDF(emp.id);
                 if (pdfResult?.error) throw new Error(pdfResult.error);
                 await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`, attachments: [{ name: `Recibo_${emp.nombre.replace(/\s+/g, '_')}.pdf`, type: 'application/pdf', base64: pdfResult }] });
+                fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => {});
                 setSendingProgress(prev => ({ ...prev, logs: [`✅ Enviado a ${email}`, ...prev.logs] }));
 
                 if (onEmailSent) {
@@ -7576,6 +7579,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
         try {
             const pdfBase64 = await generatePayStubPDF(emp.id);
             await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`, attachments: [{ name: `Recibo_${emp.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => {});
             setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
             if (onEmailSent) {
                 const persistentKey = `${selectedPeriod.range.replace(/\s+/g, '')}#${emp.id}`;
@@ -9186,6 +9190,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 };
 
                 await sendEmail('payroll', emailPayload);
+                fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => {});
 
                 setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
                 setSendingProgress(prev => ({ ...prev, logs: [`✅ Enviado con éxito a ${email}`, ...prev.logs] }));
@@ -9235,6 +9240,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             };
 
             await sendEmail('payroll', emailPayload);
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => {});
 
             setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
             setSendingProgress(prev => ({ ...prev, status: 'finished', logs: [`✅ Recibo enviado con éxito a ${email}`, ...prev.logs] }));
@@ -9349,6 +9355,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
             await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Nómina', entidadNombre: emailData.subject }) }).catch(() => {});
 
             setNotificationModal({
                 isOpen: true,
@@ -10072,6 +10079,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                 base64: previewPdf.pdfBase64
                                             }]
                                         });
+                                        fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: previewPdf.name }) }).catch(() => {});
                                         setNotificationModal({ isOpen: true, type: 'success', message: `Recibo enviado con éxito a ${previewPdf.email}` });
                                     } catch (error) {
                                         setNotificationModal({ isOpen: true, type: 'error', message: `Error al enviar: ${error.message}` });
@@ -11414,6 +11422,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
             await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: [{ name: `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Factura Proyecto Especial', entidadNombre: `${project.tienda} - #${project.invoice}` }) }).catch(() => {});
 
             const reportKey = normalizeKey(project.invoice);
             if (onEmailSent) onEmailSent(reportKey);
@@ -14544,6 +14553,7 @@ const HistorialActividad = ({ currentUser }) => {
     const formatDateTime = (isoStr) => {
         if (!isoStr) return { date: '', time: '' };
         const d = new Date(isoStr + (isoStr.endsWith('Z') || isoStr.includes('+') ? '' : 'Z'));
+        d.setHours(d.getHours() + 4);
         const today = new Date();
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
@@ -14767,6 +14777,7 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
             await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte', entidadNombre: emailData.subject }) }).catch(() => {});
             setNotificationModal({ isOpen: true, type: 'success', message: `Reporte enviado con éxito a ${emailData.to}.` });
             setIsEmailModalOpen(false);
         } catch (error) {
@@ -15629,7 +15640,18 @@ function App() {
 
         try {
             showProcessing('Registrando el Proyecto Especial en la base de datos.');
-            await syncToDatabase('upsert', payload, 'Proyectos_Especiales');
+            await syncToDatabase('upsert', payload, 'Proyectos_Especiales', false, [], true);
+            fetch('/api/audit-log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user?.id,
+                    userName: user?.nombre,
+                    accion: 'procesó Proyecto Especial',
+                    entidad: project.tienda || project.nombre,
+                    entidadNombre: `#${project.invoice}`
+                })
+            }).catch(() => {});
             showSuccess('Proyecto Especial guardado en la base de datos.');
             return true;
         } catch (error) {
@@ -15669,9 +15691,19 @@ function App() {
 
         try {
             showProcessing('Anulando Proyecto Especial en la base de datos...');
-            await syncToDatabase('update', payload, 'Proyectos_Especiales', false, ['ID_Consolidacion']);
+            await syncToDatabase('update', payload, 'Proyectos_Especiales', false, ['ID_Consolidacion'], true);
+            fetch('/api/audit-log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user?.id,
+                    userName: user?.nombre,
+                    accion: 'anuló proyecto especial',
+                    entidad: existing.Tienda || existing.tienda || '',
+                    entidadNombre: existing.Correlativo || existing.correlativo || ''
+                })
+            }).catch(() => {});
             showSuccess('Proyecto Especial anulado correctamente.');
-            // Refrescar el historial para que el cambio se refleje en la UI
             fetchSpecialProjectsHistory();
             return true;
         } catch (error) {
@@ -16611,6 +16643,7 @@ function App() {
             }
 
             await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments });
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte de Horas', entidadNombre: payrollStore || emailData.subject }) }).catch(() => {});
 
             setStatusModalTitle("Envío Exitoso");
             setStatusModalMessage(`El reporte de horas ha sido enviado correctamente a ${emailData.to}.`);
@@ -16778,7 +16811,7 @@ function App() {
                     delete updatedEmp.cliente;
                     delete updatedEmp.observaciones;
 
-                    await syncToDatabase('upsert', updatedEmp, 'Personal', true, ['nombre', 'codigo_empleado']);
+                    await syncToDatabase('upsert', updatedEmp, 'Personal', true, ['nombre', 'codigo_empleado'], true);
                 }
                 setSyncProgress(i + 1);
             }
@@ -16875,6 +16908,18 @@ function App() {
             const { [draftKey]: removedDraft, ...remainingDrafts } = payrollDrafts;
             setPayrollDrafts(remainingDrafts);
             syncVariableToDatabase('payroll_drafts', JSON.stringify(remainingDrafts));
+
+            fetch('/api/audit-log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user?.id,
+                    userName: user?.nombre,
+                    accion: 'aprobó Semana de',
+                    entidad: payrollStore,
+                    entidadNombre: `${fechaDesde} - ${fechaHasta}`
+                })
+            }).catch(() => {});
 
             showSuccess("Cálculo Semanal procesado, Guardado en Historial y Personal actualizado exitosamente.");
             fetchEmployees();
@@ -18266,12 +18311,12 @@ function App() {
     }, [semanaTableData, biometricTableData, rawBiometricData, payrollResults, payrollStore, fechaDesde, fechaHasta, variablesLoaded, nominaHistoryData]);
 
     // ─── API: Sincronizar cambios con SQLite ──────────────────────────
-    const syncToDatabase = (action, data, sheetName = 'Tiendas', skipRefresh = false, matchKeys = []) => {
+    const syncToDatabase = (action, data, sheetName = 'Tiendas', skipRefresh = false, matchKeys = [], skipAuditLog = false) => {
         setDbStatus('sincronizando');
         return fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, data, sheetName, matchKeys, userId: user?.id, userName: user?.nombre })
+            body: JSON.stringify({ action, data, sheetName, matchKeys, userId: user?.id, userName: user?.nombre, skipAuditLog })
         })
             .then(async response => {
                 if (!response.ok) {

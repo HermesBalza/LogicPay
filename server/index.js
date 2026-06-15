@@ -108,7 +108,7 @@ app.get('/api/data/:table', (req, res) => {
 app.post('/api/write', (req, res) => {
   try {
     const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { action, sheetName, data: rawData, matchKeys, userId, userName } = payload;
+    const { action, sheetName, data: rawData, matchKeys, userId, userName, skipAuditLog } = payload;
 
     if (action === 'reserveInvoice') {
         const row = db.prepare("SELECT value FROM Variables WHERE key = 'next_invoice'").get();
@@ -164,7 +164,7 @@ app.post('/api/write', (req, res) => {
          db.prepare(`INSERT INTO ${sheetName} (${quotedKeys}) VALUES (${placeholders})`).run(values);
       }
       const accion = wasInsert ? 'Agregó' : 'Actualizó';
-      if (sheetName !== 'Variables') {
+      if (sheetName !== 'Variables' && !skipAuditLog) {
         auditLog(userId, userName, accion, mapEntityName(sheetName), entidadNombre, { table: sheetName, matchKeys });
       }
       return res.json({ success: true });
@@ -820,6 +820,18 @@ app.get('/api/audit-log', (req, res) => {
   } catch (error) {
     console.error('Error fetching audit log:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.post('/api/audit-log', (req, res) => {
+  try {
+    const { userId, userName, accion, entidad, entidadNombre, detalles } = req.body;
+    if (!accion) return res.status(400).json({ success: false, error: 'Falta accion' });
+    auditLog(userId, userName, accion, entidad || null, entidadNombre || null, detalles || null);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error creating audit log:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
