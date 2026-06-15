@@ -16435,6 +16435,8 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                    - Si la planilla es de UN SOLO DÍA, extrae esa fecha y asocia las horas a ese día de la semana.
                    - Si la planilla es SEMANAL o tiene un RANGO de fechas (ej: "02/22 al 02/28"), extrae cada fecha individual y asocia las horas a cada día correspondiente.
                 6. Extrae las horas trabajadas totales para cada fecha identificada.
+                   FORMATO DECIMAL: Las horas deben estar en formato decimal (ej: "8.5" en lugar de "8:30").
+                   Si la planilla muestra "8:30", conviértelo a 8.5. Si muestra "7:45", conviértelo a 7.75.
                 7. El Código de empleado debe quedar vacío "".
                 8. PRIORIDAD DE COMENTARIOS: Si una imagen viene acompañada de un comentario del usuario, PRIORIZA esa información (ej: fechas específicas, nombres a ignorar, cargos correctos).
                 
@@ -16446,7 +16448,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                       "cargo": "Janitorial/Utility/Shift Lead",
                       "es_nuevo": true/false,
                       "asistencias": [
-                        { "fecha": "MM/DD/YYYY", "horas": "HH:MM" }
+                        { "fecha": "MM/DD/YYYY", "horas": "8.5" }
                       ]
                     }
                   ]
@@ -16490,17 +16492,17 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                         "Nombre y Apellidos": emp.nombre,
                         "Código": emp.es_nuevo ? "NO REGISTRADO" : codigoOficial,
                         "Cargo": emp.cargo,
-                        "Domingo": "00:00",
-                        "Lunes": "00:00",
-                        "Martes": "00:00",
-                        "Miercoles": "00:00",
-                        "Jueves": "00:00",
-                        "Viernes": "00:00",
-                        "Sabado": "00:00",
-                        "TOTAL": "00:00"
+                        "Domingo": "0",
+                        "Lunes": "0",
+                        "Martes": "0",
+                        "Miercoles": "0",
+                        "Jueves": "0",
+                        "Viernes": "0",
+                        "Sabado": "0",
+                        "TOTAL": "0"
                     };
 
-                    let totalMinutos = 0;
+                    let totalHoras = 0;
                     emp.asistencias.forEach(asist => {
                         const dateParts = asist.fecha.split('/');
                         let d;
@@ -16520,18 +16522,11 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             const dayKey = dayNames[dayIdx];
                             row[dayKey] = asist.horas;
 
-                            const hoursParts = asist.horas.split(':');
-                            if (hoursParts.length === 2) {
-                                const h = parseInt(hoursParts[0]);
-                                const min = parseInt(hoursParts[1]);
-                                totalMinutos += (h * 60) + (min || 0);
-                            }
+                            totalHoras += parseFloat(asist.horas) || 0;
                         }
                     });
 
-                    const totalH = Math.floor(totalMinutos / 60);
-                    const totalM = Math.round(totalMinutos % 60);
-                    row["TOTAL"] = `${totalH}:${totalM.toString().padStart(2, '0')}`;
+                    row["TOTAL"] = String(Math.round(totalHoras * 100) / 100);
 
                     return [
                         row["Nombre y Apellidos"],
