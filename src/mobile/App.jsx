@@ -3181,6 +3181,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 if (h.Status && h.Status !== 'Due') return false;
                 // Excluir registros semanales WK- de AZPEN (solo se auditan los Q-)
                 if (String(h.nombre).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN' && String(h.codigo || '').startsWith('WK-')) return false;
+                if (!parseFloat(h.Pago_KBS || 0) && !parseFloat(h.Pago_LGM || 0)) return false;
                 
                 // Filtrar por rango de fechas del WOS (traslape de semana)
                 if (hasRange && h.fecha_inicio && h.fecha_fin) {
@@ -3451,6 +3452,26 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
     const wosDiscrepancies = useMemo(() => {
         if (!wosServices.length) return { lgmOrphans: [], wosOrphans: [] };
 
+        // Calcular rango de fechas del WOS desde serviceDates
+        const toNum = (str) => {
+            const p = str.split('/');
+            return parseInt(p[2] + p[0].padStart(2,'0') + p[1].padStart(2,'0'), 10);
+        };
+        let minWOS = Infinity, maxWOS = -Infinity;
+        (wosServices || []).forEach(svc => {
+            (svc.serviceDates || '').split(' - ').forEach(d => {
+                const t = d.trim();
+                if (t && t.includes('/')) {
+                    const n = toNum(t);
+                    if (!isNaN(n)) {
+                        if (n < minWOS) minWOS = n;
+                        if (n > maxWOS) maxWOS = n;
+                    }
+                }
+            });
+        });
+        const hasRange = isFinite(minWOS) && isFinite(maxWOS);
+
         // 1. Huérfanos WOS (Sin Registro)
         const wosOrphans = crossMatchResults.filter(r => r.type === 'Sin Registro');
 
@@ -3464,12 +3485,29 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
         const lgmNominaOrphans = nominaHistoryData.filter(h => {
             const status = String(h['Status'] || h['status'] || 'Due').trim().toLowerCase();
-            return status === 'due' && !matchedNominaSet.has(h);
+            if (status !== 'due') return false;
+            if (String(h.nombre).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN' && String(h.codigo || '').startsWith('WK-')) return false;
+            if (!parseFloat(h.Pago_KBS || 0) && !parseFloat(h.Pago_LGM || 0)) return false;
+            if (hasRange && h.fecha_inicio && h.fecha_fin) {
+                const iniN = toNum(h.fecha_inicio);
+                const finN = toNum(h.fecha_fin);
+                if (!isNaN(iniN) && !isNaN(finN) && (finN < minWOS || iniN > maxWOS)) return false;
+            }
+            return !matchedNominaSet.has(h);
         });
 
         const lgmPEOrphans = specialProjectsHistoryData.filter(h => {
             const status = String(h['Status'] || h['status'] || 'Due').trim().toLowerCase();
-            return status === 'due' && !matchedPESet.has(h);
+            if (status !== 'due') return false;
+            if (hasRange) {
+                const fechaStr = h.periodo || h.fecha || h.timestamp || h.Timestamp || '';
+                const firstDate = fechaStr.split(' - ')[0] || fechaStr;
+                if (firstDate && firstDate.includes('/')) {
+                    const n = toNum(firstDate);
+                    if (!isNaN(n) && (n < minWOS || n > maxWOS)) return false;
+                }
+            }
+            return !matchedPESet.has(h);
         });
 
         return {
@@ -3590,13 +3628,13 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                             <button
                                 onClick={() => setIsWOSBugOpen(true)}
                                 disabled={!wosServices.some(s => 'matchedLgmId' in s)}
-                                className={`px-6 py-2.5 rounded-xl transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest border ${wosServices.some(s => 'matchedLgmId' in s)
-                                    ? 'bg-gray-50 text-gray-400 hover:bg-orange-50 hover:text-orange-500 border-gray-100 shadow-sm'
+                                className={`px-6 py-2.5 rounded-xl transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest border flex items-center gap-2 ${wosServices.some(s => 'matchedLgmId' in s)
+                                    ? 'bg-orange-50 text-orange-600 hover:bg-orange-100 border-orange-200 hover:border-orange-300 shadow-sm'
                                     : 'bg-gray-100 text-gray-300 cursor-not-allowed opacity-50 border-transparent'
                                     }`}
                                 title="Visualizar Discrepancias"
                             >
-                                Discrepancias
+                                <AlertTriangle size={14} /> Discrepancias
                             </button>
 
                             <button
@@ -3827,14 +3865,14 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             {/* Modal de Detalles a Pantalla Completa */}
             {isWOSDetailOpen && (
                 <div className="fixed inset-0 z-[150] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
-                    <header className="px-12 py-6 border-b-2 border-gray-50 flex items-center justify-between sticky top-0 bg-white z-20">
+                    <header className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between sticky top-0 bg-white z-20 shadow-sm">
                         <div className="flex items-center gap-4">
-                            <div className="p-3 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10">
+                            <div className="p-3 bg-gradient-to-br from-[#6bbdb7] to-teal-600 text-white rounded-xl shadow-lg shadow-teal-900/10">
                                 <List size={20} />
                             </div>
                             <div className="flex flex-col">
-                                <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Detalles de WOS</h2>
-                                <p className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-[0.2em]">WOS Number: {wosData.wosNumber || "---"}</p>
+                                <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Detalles de WOS</h2>
+                                <p className="text-[#6bbdb7] font-black uppercase text-[10px] tracking-[0.2em] leading-none">WOS Number: {wosData.wosNumber || "---"}</p>
                             </div>
                         </div>
 
@@ -3855,9 +3893,9 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         </div>
                         <button
                             onClick={() => setIsWOSDetailOpen(false)}
-                            className="p-4 rounded-2xl transition-all active:scale-95 btn-close-danger"
+                            className="p-3 btn-close-danger rounded-xl transition-all active:scale-95 shadow-sm"
                         >
-                            <ArrowLeft size={24} />
+                            <ArrowLeft size={20} />
                         </button>
                     </header>
                     <div className="flex-1 overflow-auto p-12 bg-[#f9fafc]">
@@ -4019,21 +4057,21 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             {isWOSBugOpen && (
                 <div className="fixed inset-0 z-[200] bg-white flex flex-col animate-in slide-in-from-bottom duration-700">
                     {/* Cabecera del Reporte de Errores */}
-                    <div className="px-12 py-6 border-b-4 border-orange-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
-                        <div className="flex items-center gap-6">
-                            <div className="p-4 bg-orange-500 text-white rounded-2xl shadow-xl shadow-orange-200 animate-pulse">
-                                <Bug size={28} />
+                    <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-lg shadow-orange-900/10">
+                                <Bug size={20} />
                             </div>
-                            <div>
-                                <h2 className="text-2xl font-black text-[#303a7f] tracking-tight uppercase leading-tight">Auditoría de Discrepancias</h2>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Detección Automática de Descalces LGM vs KBS</p>
+                            <div className="flex flex-col">
+                                <h2 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Auditoría de Discrepancias</h2>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none">Detección Automática de Descalces LGM vs KBS</p>
                             </div>
                         </div>
                         <button
                             onClick={() => setIsWOSBugOpen(false)}
-                            className="p-4 btn-close-danger rounded-2xl transition-all active:scale-90"
+                            className="p-3 btn-close-danger rounded-xl transition-all active:scale-95 shadow-sm"
                         >
-                            <X size={32} />
+                            <X size={20} />
                         </button>
                     </div>
 
@@ -4069,7 +4107,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                     <span className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-widest">{item.source} · {item.periodo || `${item.fecha_inicio} - ${item.fecha_fin}`}</span>
                                                 </div>
                                                 <div className="text-right">
-                                                    <span className="text-xs font-black text-[#303a7f] tabular-nums block">${(parseFloat(item.nomina_kbs || 0) || parseFloat(item.monto || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                    <span className="text-xs font-black text-[#303a7f] tabular-nums block">${(parseFloat(item.Pago_LGM || 0) || parseFloat(item.monto || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                     <span className="text-[9px] font-bold text-orange-500 uppercase tracking-tighter">Status: {item.Status || item.status}</span>
                                                 </div>
                                             </div>
