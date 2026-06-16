@@ -6311,7 +6311,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
 };
 
 const VWHTableModal = (props) => {
-    const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId, employees = [], isRadicated = false, onOpenUPSConsolidated, historyKbsData = [] } = props;
+    const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId, employees = [], isRadicated = false, onOpenUPSConsolidated, historyKbsData = [], user } = props;
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -11490,7 +11490,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
     );
 };
 
-const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {}, onEmailSent, stores = [], isRadicated = false }) => {
+const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {}, onEmailSent, stores = [], isRadicated = false, user }) => {
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -12426,11 +12426,12 @@ const BillingView = ({
                                             const invNorm = normalizeKey(invRaw);
                                             const invDigits = invRaw.replace(/[^0-9]/g, '');
 
-                                            return (row.radicacion && row.radicacion !== '--/--/--') ? (
+                                            const isSent = (row.radicacion && row.radicacion !== '--/--/--') || peEmailsSent[invNorm];
+                                            return isSent ? (
                                                 <Send
                                                     size={18}
                                                     className="text-[#6bbdb7] drop-shadow-[0_0_15px_rgba(107,189,183,1)] animate-in fade-in zoom-in duration-500"
-                                                    title={`Enviado el ${row.radicacion}`}
+                                                    title={`Enviado el ${row.radicacion || 'recientemente'}`}
                                                 />
                                             ) : null;
                                         })()}
@@ -15385,12 +15386,14 @@ function App() {
     //      No realiza re-lookups: usa los datos del record tal como estaban cuando el usuario presionó Aceptar.
     //   2. Formato legado {id, field, val} → usado por las ediciones manuales en BillingView.
     useEffect(() => {
+        console.log('[PE OBSERVER] useEffect triggered', { queueLength: pePendingSaveRef.current.length, specialProjectsHistoryDataLen: specialProjectsHistoryData.length });
         if (pePendingSaveRef.current.length === 0) return;
 
         if (peSaveTimeoutRef.current) clearTimeout(peSaveTimeoutRef.current);
 
         peSaveTimeoutRef.current = setTimeout(async () => {
             const queue = [...pePendingSaveRef.current];
+            console.log('[PE OBSERVER] Timeout fired, processing queue', { queueLength: queue.length, tasks: queue.map(t => ({ id: t.id, field: t.field, val: t.val, isPrebuilt: !!t.__prebuilt })) });
             if (queue.length === 0) return;
 
             // Limpiamos lo acumulado para empezar a procesar
@@ -15404,11 +15407,15 @@ function App() {
                         // FIX Bug #1 y #4: Payload pre-construido en el click → usar directamente sin re-lookups stale.
                         const { __prebuilt, ...rest } = task;
                         payload = rest;
+                        console.log('[PE OBSERVER] Processing __prebuilt task', { correlativo: payload.Correlativo });
                     } else {
                         // Formato legado {id, field, val} de BillingView → mantener lógica original.
                         const { id, field, val } = task;
+                        console.log('[PE OBSERVER] Looking up existing record', { id, field, val });
                         let sourceData = specialProjectsHistoryData;
+                        console.log('[PE OBSERVER] sourceData from state', { length: sourceData?.length });
                         if (!sourceData || sourceData.length === 0) {
+                            console.log('[PE OBSERVER] sourceData empty, fetching from server');
                             sourceData = await fetchSpecialProjectsHistory();
                         }
 
@@ -15416,14 +15423,20 @@ function App() {
                         let existing = sourceData.find(h =>
                             String(h.correlativo || h.Correlativo || '').replace(/^'+/, '').trim() === String(id).replace(/^'+/, '').trim()
                         );
+                        console.log('[PE OBSERVER] existing found (first attempt)?', { found: !!existing, id, sampleCorrelativos: sourceData.slice(0, 3).map(h => h.correlativo || h.Correlativo) });
 
                         if (!existing) {
+                            console.log('[PE OBSERVER] Not found, second attempt with fresh fetch');
                             sourceData = await fetchSpecialProjectsHistory();
                             existing = sourceData.find(h =>
                                 String(h.correlativo || h.Correlativo || '').replace(/^'+/, '').trim() === String(id).replace(/^'+/, '').trim()
                             );
+                            console.log('[PE OBSERVER] existing found (second attempt)?', { found: !!existing });
                         }
-                        if (!existing) continue;
+                        if (!existing) {
+                            console.warn('[PE OBSERVER] existing NOT FOUND, skipping task', { id, field, val });
+                            continue;
+                        }
 
                         let statusVal = field === 'pagada' ? (val ? 'Pagada' : 'Due') : (existing['Status'] || existing['status'] || 'Due');
 
@@ -15431,7 +15444,10 @@ function App() {
                             .trim()
                             .replace(/^'+/, '')
                             .trim();
-                        if (!correlativoVal) continue;
+                        if (!correlativoVal) {
+                            console.warn('[PE OBSERVER] correlativoVal is empty, skipping');
+                            continue;
+                        }
 
                         payload = {
                             "ID_Consolidacion": existing.id_consolidacion || existing.ID_Consolidacion || '',
@@ -15448,13 +15464,15 @@ function App() {
                         };
                     }
 
-                    await syncToDatabase('update', payload, 'Proyectos_Especiales', false, ['Correlativo']);
-                    console.log('[LogicPay] Sincronización Exitosa P.E (Cola):', payload.Correlativo);
+                    console.log('[PE OBSERVER] About to syncToDatabase', { payload, sheetName: 'Proyectos_Especiales', matchKeys: ['Correlativo'] });
+                    await syncToDatabase('upsert', payload, 'Proyectos_Especiales', false, ['Correlativo']);
+                    console.log('[PE OBSERVER] syncToDatabase completed successfully');
                 }
             } catch (e) {
-                console.error('[LogicPay] Error en Sincronización P.E (Batch):', e);
+                console.error('[PE OBSERVER] Error en Sincronización P.E (Batch):', e);
             } finally {
                 setIsSyncingBilling(false);
+                console.log('[PE OBSERVER] Finished processing queue');
             }
         }, 1500);
 
@@ -15799,7 +15817,7 @@ function App() {
 
         try {
             showProcessing('Anulando Proyecto Especial en la base de datos...');
-            await syncToDatabase('update', payload, 'Proyectos_Especiales', false, ['ID_Consolidacion'], true);
+            await syncToDatabase('upsert', payload, 'Proyectos_Especiales', false, ['ID_Consolidacion'], true);
             fetch('/api/audit-log', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -18802,6 +18820,7 @@ function App() {
             <VWHTableModal
                 isOpen={isVWHModalOpen}
                 onClose={() => setIsVWHModalOpen(false)}
+                user={user}
                 data={(() => {
                     const _ar = nominaHistoryData.find(h => String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === fechaDesde);
                     if (_ar?.data_json) { try { const _p = JSON.parse(_ar.data_json); if (_p.semanaTableData?.length) return _p.semanaTableData; } catch(_e) {} }
@@ -21461,6 +21480,7 @@ function App() {
             <SpecialProjectInvoiceModal
                 isOpen={isSpecialProjectInvoiceOpen}
                 onClose={() => setIsSpecialProjectInvoiceOpen(false)}
+                user={user}
                 project={selectedSpecialProjectInvoice}
                 emailsSent={peEmailsSent}
                 stores={stores}
@@ -21474,15 +21494,18 @@ function App() {
                     return !!(rad && rad !== '--/--/--');
                 })()}
                 onEmailSent={(invoice) => {
+                    console.log('[PE DEBUG] onEmailSent CALLED', { invoice, peEmailsSentKeys: Object.keys(peEmailsSent), hasSelectedProject: !!selectedSpecialProjectInvoice });
                     // 1. Marcar como enviado
                     const updated = { ...peEmailsSent, [invoice]: true };
                     setPeEmailsSent(updated);
                     syncVariableToDatabase('pe_emails_sent', updated);
+                    console.log('[PE DEBUG] peEmailsSent updated', { invoice, newCount: Object.keys(updated).length });
 
                     // 2. Automatización Fecha Rad. (MM/DD/YYYY)
                     if (selectedSpecialProjectInvoice) {
                         const autoDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
                         const correlativo = String(selectedSpecialProjectInvoice.correlativo || selectedSpecialProjectInvoice.Correlativo || '').trim();
+                        console.log('[PE DEBUG] Processing Fecha Rad.', { correlativo, autoDate, pePendingSaveRefBefore: pePendingSaveRef.current.length });
 
                         setSpecialProjectsHistoryData(prev => prev.map(h => {
                             const hId = String(h.correlativo || h.Correlativo || '').trim();
@@ -21496,7 +21519,10 @@ function App() {
                             return h;
                         }));
                         pePendingSaveRef.current.push({ id: correlativo, field: 'fecha rad.', val: autoDate });
+                        console.log('[PE DEBUG] Task pushed to pePendingSaveRef', { queueLength: pePendingSaveRef.current.length, correlativo });
                         setIsSyncingBilling(true);
+                    } else {
+                        console.warn('[PE DEBUG] selectedSpecialProjectInvoice is FALSY, skipping Fecha Rad. update');
                     }
                 }}
             />
