@@ -3460,13 +3460,67 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 return { ...svc, _storeCode: storeCode, _storeName: storeName };
             });
 
+            // Detectar semanas partidas por cierre de mes (misma tienda, fechas consecutivas)
+            const isConsecutiveDays = (endDate, startDate) => {
+                try {
+                    const p = (s) => { const a = s.split('/'); return new Date(parseInt(a[2]), parseInt(a[0]) - 1, parseInt(a[1])); };
+                    const end = p(endDate);
+                    const start = p(startDate);
+                    const next = new Date(end);
+                    next.setDate(next.getDate() + 1);
+                    return next.getTime() === start.getTime();
+                } catch (e) { return false; }
+            };
+            const usedIdx = new Set();
+            const splitCombos = [];
+            for (let i = 0; i < dueNomina.length; i++) {
+                if (usedIdx.has(i)) continue;
+                for (let j = i + 1; j < dueNomina.length; j++) {
+                    if (usedIdx.has(j)) continue;
+                    const a = dueNomina[i], b = dueNomina[j];
+                    if (a.nombre !== b.nombre) continue;
+                    if (!a.fecha_fin || !b.fecha_inicio || !a.fecha_inicio || !b.fecha_fin) continue;
+                    const forward = isConsecutiveDays(a.fecha_fin, b.fecha_inicio);
+                    const backward = isConsecutiveDays(b.fecha_fin, a.fecha_inicio);
+                    if (forward || backward) {
+                        const ordered = forward ? [a, b] : [b, a];
+                        const idxA = nominaHistoryData.indexOf(ordered[0]);
+                        const idxB = nominaHistoryData.indexOf(ordered[1]);
+                        splitCombos.push({
+                            id: 'N-' + idxA + '+' + idxB,
+                            store: ordered[0].nombre,
+                            storeCode: reverseStoreMap[ordered[0].nombre] || '',
+                            start: ordered[0].fecha_inicio,
+                            end: ordered[1].fecha_fin,
+                            expected_kbs_payment: getKBSFromNomina(ordered[0]) + getKBSFromNomina(ordered[1])
+                        });
+                        usedIdx.add(i);
+                        usedIdx.add(j);
+                        break;
+                    }
+                }
+            }
+            console.log('[WOS Filter] splitWeekCombos found:', splitCombos.length);
+
+            const dueNominaItems = [
+                ...dueNomina.map(h => ({
+                    id: 'N-' + nominaHistoryData.indexOf(h),
+                    store: h.nombre,
+                    storeCode: reverseStoreMap[h.nombre] || '',
+                    start: h.fecha_inicio,
+                    end: h.fecha_fin,
+                    expected_kbs_payment: getKBSFromNomina(h)
+                })),
+                ...splitCombos
+            ];
+
             const responseText = await callGemini(`
                 Eres un auditor financiero corporativo experto y humano. Tu tarea excluyente es realizar el cruce entre los servicios facturados en un WOS (Work Order Summary) de KBS 
                 y el historial de facturación "Due" de LogicPay. Quiero que uses tu razonamiento analítico y tu capacidad de interpretación profunda.
 
                 DATOS DE ENTRADA:
                 1. WOS Services (Lo que KBS pagó o reportó): ${JSON.stringify(wosWithStore)}
-                2. LGM Nomina (Due) (Lo que LGM reportó que se debe cobrar): ${JSON.stringify(dueNomina.map((h, i) => ({ id: 'N-' + nominaHistoryData.indexOf(h), store: h.nombre, storeCode: reverseStoreMap[h.nombre] || '', start: h.fecha_inicio, end: h.fecha_fin, expected_kbs_payment: getKBSFromNomina(h) })))}
+                2. LGM Nomina (Due) (Lo que LGM reportó que se debe cobrar): ${JSON.stringify(dueNominaItems)}
                 3. LGM Projects (Due) (Proyectos Especiales): ${JSON.stringify(duePE.map((h, i) => ({ id: 'S-' + specialProjectsHistoryData.indexOf(h), store: h.tienda, period: h.periodo, expected_kbs_payment: getKBSFromPE(h) })))}
 
                 INSTRUCCIONES DE CRUCE (Razonamiento Humano):
@@ -3479,6 +3533,16 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 - Si varios servicios del WOS suman el monto exacto o muy cercano a la factura de LGM, corresponden al mismo ID de LGM. Agrúpalos lógicamente en tu mente.
                 - Devuelve el array original de servicios del WOS añadiendo exactamente la propiedad "matchedLgmId".
                 - matchedLgmId debe ser el ID evaluado (ej. "N-0", "S-2") o null si tras tu interpretación concluyes que está huérfano.
+                - REGLA CRÍTICA — SEMANAS PARTIDAS POR CIERRE DE MES:
+                  En el sistema de LGM, cuando una semana laboral (domingo a sábado) cruza entre dos meses,
+                  el sistema genera DOS facturas separadas para la misma tienda con rangos de fecha adyacentes
+                  (ej. "03/29 - 03/31" y "04/01 - 04/04"). KBS, en cambio, reporta un SOLO pago por la semana
+                  completa (ej. "03/29 - 04/04").
+                  Si identificas múltiples registros de LGM en la misma tienda con fechas consecutivas
+                  (donde el fin de uno + 1 día = inicio del siguiente) y sus montos SUMAN el monto anunciado
+                  por KBS, debes tratarlos como UN solo registro combinado.
+                  En ese caso, devuelve en matchedLgmId los IDs unidos con "+" (ej. "N-0+1").
+                - NOTA: Los IDs compuestos (ej. "N-104+105") ya están incluidos en los DATOS DE ENTRADA#2 como combinaciones de dos registros LGM partidos por cierre de mes. Si el monto del WOS coincide con el expected_kbs_payment del compuesto, usa ese ID combinado.
 
                 FORMATO DE SALIDA (JSON Puro, sin markdown):
                 {
@@ -3496,9 +3560,36 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             const resultData = JSON.parse(cleanResponseText);
 
             if (resultData.matchedServices) {
-                setWosServices(resultData.matchedServices);
-                // AUTO-SAVE: Guardar automáticamente tras el cruce exitoso
-                await handleAutoSaveWOS(wosData, resultData.matchedServices);
+                // Post-procesamiento: auto-combinar split-weeks que la IA no detectó
+                const correctedServices = resultData.matchedServices.map(svc => {
+                    if (!svc.matchedLgmId || svc.matchedLgmId.includes('+')) return svc;
+                    const dashIdx = svc.matchedLgmId.indexOf('-');
+                    if (dashIdx < 0) return svc;
+                    const pfx = svc.matchedLgmId.slice(0, dashIdx);
+                    if (pfx !== 'N') return svc;
+                    const idx = parseInt(svc.matchedLgmId.slice(dashIdx + 1), 10);
+                    if (isNaN(idx)) return svc;
+                    const rec = nominaHistoryData[idx];
+                    if (!rec) return svc;
+                    for (const other of dueNomina) {
+                        if (nominaHistoryData.indexOf(other) === idx) continue;
+                        if (other.nombre !== rec.nombre) continue;
+                        if (!other.fecha_fin || !other.fecha_inicio || !rec.fecha_fin || !rec.fecha_inicio) continue;
+                        const forward = isConsecutiveDays(rec.fecha_fin, other.fecha_inicio);
+                        const backward = isConsecutiveDays(other.fecha_fin, rec.fecha_inicio);
+                        if (!forward && !backward) continue;
+                        const ord = forward ? [rec, other] : [other, rec];
+                        const sum = getKBSFromNomina(ord[0]) + getKBSFromNomina(ord[1]);
+                        if (Math.abs(sum - (parseFloat(svc.amount) || 0)) < 0.01) {
+                            const ia = nominaHistoryData.indexOf(ord[0]);
+                            const ib = nominaHistoryData.indexOf(ord[1]);
+                            return { ...svc, matchedLgmId: 'N-' + ia + '+' + ib };
+                        }
+                    }
+                    return svc;
+                });
+                setWosServices(correctedServices);
+                await handleAutoSaveWOS(wosData, correctedServices);
             }
         } catch (error) {
             console.error('[WOS Cross-Match Error]:', error);
@@ -3528,7 +3619,9 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
         return Object.values(groups).map(group => {
             let matchedNominaRecord = null;
+            let matchedNominaRecords = [];
             let matchedPERecord = null;
+            let matchedPERecords = [];
             let type = 'Sin Registro';
             let lgmBilled = 0;
             let storeCode = group.wosRows[0].locationId || '';
@@ -3536,24 +3629,31 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             let period = group.wosRows[0].serviceDates || '---';
 
             if (group.matchedLgmId) {
-                const [pfx, idxStr] = group.matchedLgmId.split('-');
-                const idx = parseInt(idxStr);
+                const [pfx, ...rest] = group.matchedLgmId.split('-');
+                const idxStr = rest.join('-');
+                const indices = idxStr.includes('+') ? idxStr.split('+').map(Number) : [parseInt(idxStr)];
 
                 if (pfx === 'N') {
-                    matchedNominaRecord = nominaHistoryData[idx];
+                    const records = indices.map(idx => nominaHistoryData[idx]).filter(Boolean);
+                    matchedNominaRecords = records;
+                    matchedNominaRecord = records[0] || null;
                     type = 'VWH';
-                    if (matchedNominaRecord) {
-                        lgmBilled = getKBSFromNomina(matchedNominaRecord);
-                        storeName = matchedNominaRecord.nombre;
-                        period = `${matchedNominaRecord.fecha_inicio} - ${matchedNominaRecord.fecha_fin}`;
+                    if (records.length > 0) {
+                        lgmBilled = records.reduce((sum, r) => sum + getKBSFromNomina(r), 0);
+                        storeName = records[0].nombre;
+                        const startDates = records.map(r => r.fecha_inicio).filter(Boolean).sort();
+                        const endDates = records.map(r => r.fecha_fin).filter(Boolean).sort();
+                        period = `${startDates[0]} - ${endDates[endDates.length - 1]}`;
                     }
                 } else if (pfx === 'S') {
-                    matchedPERecord = specialProjectsHistoryData[idx];
+                    const records = indices.map(idx => specialProjectsHistoryData[idx]).filter(Boolean);
+                    matchedPERecords = records;
+                    matchedPERecord = records[0] || null;
                     type = 'P.E.';
-                    if (matchedPERecord) {
-                        lgmBilled = getKBSFromPE(matchedPERecord);
-                        storeName = matchedPERecord.tienda;
-                        period = matchedPERecord.periodo;
+                    if (records.length > 0) {
+                        lgmBilled = records.reduce((sum, r) => sum + getKBSFromPE(r), 0);
+                        storeName = records[0].tienda;
+                        period = records.map(r => r.periodo).filter(Boolean).join(' | ');
                     }
                 }
             }
@@ -3570,7 +3670,9 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 kbsAnnounced: group.totalPaidByKBS,
                 diff,
                 matchedNominaRecord,
+                matchedNominaRecords,
                 matchedPERecord,
+                matchedPERecords,
                 rawServices: group.wosRows
             };
         });
@@ -3583,8 +3685,12 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
         const wosOrphans = crossMatchResults.filter(r => r.type === 'Sin Registro');
 
         // 2. Huérfanos LGM (Due no en WOS)
-        const matchedNominaSet = new Set(crossMatchResults.map(r => r.matchedNominaRecord).filter(Boolean));
-        const matchedPESet = new Set(crossMatchResults.map(r => r.matchedPERecord).filter(Boolean));
+        const matchedNominaSet = new Set(
+            crossMatchResults.flatMap(r => (r.matchedNominaRecords && r.matchedNominaRecords.length > 0 ? r.matchedNominaRecords : r.matchedNominaRecord ? [r.matchedNominaRecord] : []))
+        );
+        const matchedPESet = new Set(
+            crossMatchResults.flatMap(r => (r.matchedPERecords && r.matchedPERecords.length > 0 ? r.matchedPERecords : r.matchedPERecord ? [r.matchedPERecord] : []))
+        );
 
         const lgmNominaOrphans = nominaHistoryData.filter(h => {
             const status = String(h['Status'] || h['status'] || 'Due').trim().toLowerCase();
