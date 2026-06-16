@@ -3413,7 +3413,6 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 if (h.Status && h.Status !== 'Due') return false;
                 // Excluir registros semanales WK- de AZPEN (solo se auditan los Q-)
                 if (String(h.nombre).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN' && String(h.codigo || '').startsWith('WK-')) return false;
-                if (!parseFloat(h.Pago_KBS || 0) && !parseFloat(h.Pago_LGM || 0)) return false;
                 
                 // Filtrar por rango de fechas del WOS (traslape de semana)
                 if (hasRange && h.fecha_inicio && h.fecha_fin) {
