@@ -19396,6 +19396,12 @@ function App() {
                                 : 'text-white/40 hover:text-white hover:bg-white/5'
                                 }`}
                         >
+                            {activeTab !== item.id && (
+                                <span className="absolute -top-12 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-white text-[#303a7f] text-[10px] font-black uppercase tracking-widest rounded-lg shadow-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-0 -translate-y-1 transition-all duration-300 pointer-events-none whitespace-nowrap">
+                                    {item.label}
+                                    <span className="absolute -bottom-[3px] left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45 rounded-[1px]" />
+                                </span>
+                            )}
                             <item.icon size={18} className={`${activeTab === item.id ? 'scale-110' : 'group-hover:scale-110'} transition-transform`} />
                             {activeTab === item.id && (
                                 <span className="text-[10px] font-black uppercase tracking-widest animate-in fade-in slide-in-from-left-2 duration-300">
