@@ -3486,7 +3486,6 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             const status = String(h['Status'] || h['status'] || 'Due').trim().toLowerCase();
             if (status !== 'due') return false;
             if (String(h.nombre).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN' && String(h.codigo || '').startsWith('WK-')) return false;
-            if (!parseFloat(h.Pago_KBS || 0) && !parseFloat(h.Pago_LGM || 0)) return false;
             if (hasRange && h.fecha_inicio && h.fecha_fin) {
                 const iniN = toNum(h.fecha_inicio);
                 const finN = toNum(h.fecha_fin);
