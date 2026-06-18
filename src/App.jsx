@@ -862,6 +862,7 @@ const DashboardView = ({
         'costo-nomina': 'Total de costos operativos pagados a empleados, incluyendo nómina regular, proyectos especiales y servicios CSG.',
         'margen-ganancia': 'Diferencia entre el total facturado y los costos operativos. Representa la ganancia bruta del periodo.',
         'rentabilidad-roi': 'Porcentaje de margen sobre ingresos totales. Indica la eficiencia del negocio: qué tan rentable es cada dólar facturado.',
+        'total-cobrado': 'Suma de todos los pagos recibidos de clientes. Representa el efectivo que ya ingresó a la empresa por facturas marcadas como "Paid".',
         'cuentas-cobrar': 'Monto total pendiente de cobro a clientes. Representa el efectivo por recuperar.',
         'gastos-admin': 'Total de gastos administrativos de Logic Group Management. Incluye pagos al personal administrativo (nómina LGM) y gastos misceláneos como publicidad, seguros, servicios, viáticos, transporte, honorarios, tecnología y otros gastos operativos no relacionados con tiendas.',
         'crecimiento': 'Variación porcentual de los ingresos totales entre el último periodo con datos y el periodo inmediatamente anterior.',
@@ -1130,10 +1131,12 @@ const DashboardView = ({
     const facturasReportadasPendientes = facturasFiltradas.filter(r => tieneRad(r) && !estaPagada(r)).length;
     const facturasNoReportadas = facturasFiltradas.filter(r => !tieneRad(r)).length;
 
-    const cuentasPorCobrar =
-        filteredNomina.filter(r => !estaPagada(r)).reduce((acc, r) => acc + (parseFloat(r.Pago_KBS) || 0), 0) +
-        filteredPE.filter(r => !estaPagada(r)).reduce((acc, r) => acc + (parseFloat(r.pago_kbs || r.Pago_KBS) || 0), 0) +
-        filteredCSG.filter(r => !estaPagada(r)).reduce((acc, r) => acc + (parseFloat(r.monto_csg) || 0), 0);
+    const totalCobrado =
+        filteredNomina.filter(r => estaPagada(r)).reduce((acc, r) => acc + (parseFloat(r.Pago || r.pago) || 0), 0) +
+        filteredPE.filter(r => estaPagada(r)).reduce((acc, r) => acc + (parseFloat(r.Pago || r.pago) || 0), 0) +
+        filteredCSG.filter(r => estaPagada(r)).reduce((acc, r) => acc + (parseFloat(r.pago) || 0), 0);
+
+    const cuentasPorCobrar = totalIngresos - totalCobrado;
 
     // ─── LÓGICA DE DATOS PARA GRÁFICOS (Recharts Data) ───────────────────────
 
@@ -1573,19 +1576,19 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                 {/* 1. Resumen Financiero Global (KPIs Principales) */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
                     {[
-                        { title: "Total Facturado KBS", val: formatMoney(totalIngresos), subtitle: "Ingresos Brutos", icon: Target, color: "text-blue-500", bg: "bg-blue-50", descKey: 'total-facturado' },
-                        { title: "Costo de Nómina LGM", val: formatMoney(totalCostos), subtitle: "Pagos a Empleados", icon: Users, color: "text-red-500", bg: "bg-red-50", descKey: 'costo-nomina' },
+                        { title: "Total Facturado", val: formatMoney(totalIngresos), subtitle: "Ingresos Brutos", icon: Target, color: "text-blue-500", bg: "bg-blue-50", descKey: 'total-facturado' },
+                        { title: "Costo de Nómina", val: formatMoney(totalCostos), subtitle: "Pagos a Empleados", icon: Users, color: "text-red-500", bg: "bg-red-50", descKey: 'costo-nomina' },
                         { title: "Margen de Ganancia", val: formatMoney(margenBruto), subtitle: "Gross Profit", icon: DollarSign, color: "text-green-500", bg: "bg-green-50", descKey: 'margen-ganancia' },
                         { title: "Rentabilidad (ROI)", val: `${roiPercent}%`, subtitle: "Margen %", icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50", descKey: 'rentabilidad-roi' },
+                        { title: "Total Cobrado", val: formatMoney(totalCobrado), subtitle: "Facturas Pagadas por Clientes", icon: DollarSign, color: "text-green-600", bg: "bg-green-50", descKey: 'total-cobrado' },
                         { title: "Cuentas por Cobrar", val: formatMoney(cuentasPorCobrar), subtitle: "Facturas Pendientes de Pago", icon: Receipt, color: "text-orange-500", bg: "bg-orange-50", descKey: 'cuentas-cobrar' },
-                        { title: "Gastos Administrativos", val: formatMoney(totalGastosAdmin), subtitle: `Personal: ${formatMoney(totalGastosPersonal)} | Misceláneos: ${formatMoney(totalGastosMisc)}`, icon: ShieldCheck, color: "text-purple-500", bg: "bg-purple-50", descKey: 'gastos-admin' },
                     ].map((kpi, idx) => (
                         <div key={idx} className="bg-white rounded-[1.5rem] p-4 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col gap-3 hover:-translate-y-1 transition-transform cursor-default relative group">
                             <div className="flex items-center gap-3">
                                 <div className={`p-2.5 rounded-xl ${kpi.bg} flex-shrink-0`}>
-                                    <kpi.icon size={20} className={kpi.color} />
+                                    <kpi.icon size={14} className={kpi.color} />
                                 </div>
-                                <h3 className="text-xl font-black text-[#333333] tracking-tighter truncate">{kpi.val}</h3>
+                                <h3 className="text-base font-black text-[#333333] tracking-tighter truncate">{kpi.val}</h3>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-widest leading-none">{kpi.title}</p>
