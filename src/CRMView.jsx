@@ -147,6 +147,8 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
   const [searchCandidato, setSearchCandidato] = useState('');
   const [filterEstadoCandidato, setFilterEstadoCandidato] = useState('');
   const [searchProveedor, setSearchProveedor] = useState('');
+  const [filterProveedorEstado, setFilterProveedorEstado] = useState('');
+  const [filterProveedorCiudad, setFilterProveedorCiudad] = useState('');
   const [searchProyecto, setSearchProyecto] = useState('');
 
   // Modal states
@@ -174,7 +176,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
 
   // Form states
   const [formCandidato, setFormCandidato] = useState({ nombre: '', telefono: '', email: '', direccion: '', fecha_contacto: '', estado: 'Nuevo', ultima_llamada: '', proxima_llamada: '', notas: '', fuente: '', creado_por: '' });
-  const [formProveedor, setFormProveedor] = useState({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', ultima_llamada: '', proxima_llamada: '', notas: '', creado_por: '' });
+  const [formProveedor, setFormProveedor] = useState({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', estado: '', ciudad: '', ultima_llamada: '', proxima_llamada: '', notas: '', creado_por: '' });
   const [formProyecto, setFormProyecto] = useState({ nombre: '', tienda: '', cliente: 'KBS', descripcion: '', fecha_solicitud: '', estado: 'Cotizando', notas: '' });
   const [formCotizacion, setFormCotizacion] = useState({ proveedor_id: '', monto: '', fecha_cotizacion: '', estado: 'Recibida', notas: '' });
   const [formBuscarProveedores, setFormBuscarProveedores] = useState({ estado: '', ciudad: '', descripcion: '' });
@@ -368,12 +370,12 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
 
   // ─── PROVIDERS ────────────────────────────────────────
 
-  const resetFormProveedor = () => setFormProveedor({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', ultima_llamada: '', proxima_llamada: '', notas: '', creado_por: '' });
+  const resetFormProveedor = () => setFormProveedor({ nombre: '', contacto: '', telefono: '', email: '', especialidad: '', estado: '', ciudad: '', ultima_llamada: '', proxima_llamada: '', notas: '', creado_por: '' });
 
   const handleNewProveedor = () => { resetFormProveedor(); setShowNewProveedor(true); };
 
   const handleEditProveedor = (p) => {
-    setFormProveedor({ nombre: p.nombre || '', contacto: p.contacto || '', telefono: p.telefono || '', email: p.email || '', especialidad: p.especialidad || '', ultima_llamada: toMMDDYYYY(p.ultima_llamada || ''), proxima_llamada: toMMDDYYYY(p.proxima_llamada || ''), notas: p.notas || '', creado_por: p.creado_por || '' });
+    setFormProveedor({ nombre: p.nombre || '', contacto: p.contacto || '', telefono: p.telefono || '', email: p.email || '', especialidad: p.especialidad || '', estado: p.estado || '', ciudad: p.ciudad || '', ultima_llamada: toMMDDYYYY(p.ultima_llamada || ''), proxima_llamada: toMMDDYYYY(p.proxima_llamada || ''), notas: p.notas || '', creado_por: p.creado_por || '' });
     setSelectedProveedor(p);
   };
 
@@ -398,8 +400,13 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
   };
 
   const filteredProveedores = useMemo(() => {
-    return proveedores.filter(p => !searchProveedor || p.nombre?.toLowerCase().includes(searchProveedor.toLowerCase()) || p.contacto?.toLowerCase().includes(searchProveedor.toLowerCase()) || p.especialidad?.toLowerCase().includes(searchProveedor.toLowerCase()));
-  }, [proveedores, searchProveedor]);
+    return proveedores.filter(p => {
+      const matchSearch = !searchProveedor || p.nombre?.toLowerCase().includes(searchProveedor.toLowerCase()) || p.contacto?.toLowerCase().includes(searchProveedor.toLowerCase()) || p.especialidad?.toLowerCase().includes(searchProveedor.toLowerCase());
+      const matchEstado = !filterProveedorEstado || p.estado === filterProveedorEstado;
+      const matchCiudad = !filterProveedorCiudad || p.ciudad?.toLowerCase().includes(filterProveedorCiudad.toLowerCase());
+      return matchSearch && matchEstado && matchCiudad;
+    });
+  }, [proveedores, searchProveedor, filterProveedorEstado, filterProveedorCiudad]);
 
   // ─── PROJECTS ─────────────────────────────────────────
 
@@ -675,6 +682,8 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
       telefono: proveedor.telefono || '',
       email: '',
       especialidad: proveedor.descripcion || '',
+      estado: proveedor.estado || '',
+      ciudad: proveedor.ciudad || '',
       ultima_llamada: '',
       proxima_llamada: '',
       notas: `Importado desde búsqueda.\nDirección: ${proveedor.direccion || ''}\n${proveedor.estado || ''}, ${proveedor.ciudad || ''}`,
@@ -721,6 +730,22 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                 <div>
                   <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Especialidad</label>
                   <input className={inputCls} placeholder="Ej: Limpieza, Construcción" value={formProveedor.especialidad} onChange={e => setFormProveedor(f => ({ ...f, especialidad: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Estado</label>
+                  <select className={selectCls} value={formProveedor.estado} onChange={e => setFormProveedor(f => ({ ...f, estado: e.target.value, ciudad: '' }))}>
+                    <option value="">Seleccionar...</option>
+                    {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Ciudad</label>
+                  <select className={selectCls} value={formProveedor.ciudad} onChange={e => setFormProveedor(f => ({ ...f, ciudad: e.target.value }))} disabled={!formProveedor.estado}>
+                    <option value="">Seleccionar...</option>
+                    {formProveedor.estado && US_CITIES[formProveedor.estado]?.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
               </div>
               <div>
@@ -1189,6 +1214,14 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
         )}
         {activeTab === 'proveedores' && proveedoresSubTab === 'proveedores' && (
           <div className="flex items-center gap-3">
+            <select className="bg-white border-2 border-gray-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all appearance-none cursor-pointer" value={filterProveedorEstado} onChange={e => { setFilterProveedorEstado(e.target.value); setFilterProveedorCiudad(''); }}>
+              <option value="">Todos los Estados</option>
+              {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select className="bg-white border-2 border-gray-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all appearance-none cursor-pointer" value={filterProveedorCiudad} onChange={e => setFilterProveedorCiudad(e.target.value)} disabled={!filterProveedorEstado}>
+              <option value="">Todas las Ciudades</option>
+              {filterProveedorEstado && US_CITIES[filterProveedorEstado]?.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
             <button onClick={handleBuscarProveedores} className="flex items-center gap-2 px-4 py-2.5 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-900/20"><Globe size={14} /> Explorar</button>
             <button onClick={handleNewProveedor} className="flex items-center gap-2 px-4 py-2.5 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-900/20"><Plus size={14} /> Nuevo Proveedor</button>
           </div>
@@ -1385,13 +1418,15 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                       <th className="px-5 py-4 text-[9px] font-black text-white uppercase tracking-widest hidden md:table-cell">Teléfono</th>
                       <th className="px-5 py-4 text-[9px] font-black text-white uppercase tracking-widest hidden lg:table-cell">Email</th>
                       <th className="px-5 py-4 text-[9px] font-black text-white uppercase tracking-widest hidden lg:table-cell">Especialidad</th>
+                      <th className="px-5 py-4 text-[9px] font-black text-white uppercase tracking-widest hidden lg:table-cell">Estado</th>
+                      <th className="px-5 py-4 text-[9px] font-black text-white uppercase tracking-widest hidden lg:table-cell">Ciudad</th>
                       <th className="px-5 py-4 text-[9px] font-black text-white uppercase tracking-widest">Acción</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {filteredProveedores.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-5 py-16 text-center">
+                        <td colSpan={8} className="px-5 py-16 text-center">
                           <Building2 size={40} className="text-gray-100 mx-auto mb-4" />
                           <p className="text-[11px] font-black text-gray-300 uppercase tracking-wider">No se encontraron proveedores</p>
                         </td>
@@ -1406,6 +1441,8 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                           <td className="px-5 py-4 hidden md:table-cell"><span className="text-[11px] font-bold text-gray-500">{p.telefono || '—'}</span></td>
                           <td className="px-5 py-4 hidden lg:table-cell"><span className="text-[10px] font-bold text-gray-400">{p.email || '—'}</span></td>
                           <td className="px-5 py-4 hidden lg:table-cell"><span className="text-[10px] font-bold text-gray-400">{p.especialidad || '—'}</span></td>
+                          <td className="px-5 py-4 hidden lg:table-cell"><span className="text-[10px] font-bold text-gray-400">{p.estado || '—'}</span></td>
+                          <td className="px-5 py-4 hidden lg:table-cell"><span className="text-[10px] font-bold text-gray-400">{p.ciudad || '—'}</span></td>
                           <td className="px-5 py-4">
                             <button onClick={(e) => { e.stopPropagation(); handleEditProveedor(p); }} className="px-3 py-1.5 text-[8px] font-black bg-gray-50 text-gray-400 rounded-lg hover:bg-[#303a7f]/5 hover:text-[#303a7f] transition-all uppercase tracking-widest border border-gray-100">Editar</button>
                           </td>

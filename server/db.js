@@ -113,6 +113,8 @@ db.exec(`CREATE TABLE IF NOT EXISTS CRM_Proveedores (
 try { db.exec(`ALTER TABLE CRM_Proveedores ADD COLUMN proxima_llamada TEXT`); } catch (e) { }
 try { db.exec(`ALTER TABLE CRM_Proveedores ADD COLUMN creado_por TEXT`); } catch (e) { }
 try { db.exec(`ALTER TABLE CRM_Proveedores ADD COLUMN ultima_llamada TEXT`); } catch (e) { }
+try { db.exec(`ALTER TABLE CRM_Proveedores ADD COLUMN estado TEXT`); } catch (e) { }
+try { db.exec(`ALTER TABLE CRM_Proveedores ADD COLUMN ciudad TEXT`); } catch (e) { }
 
 db.exec(`CREATE TABLE IF NOT EXISTS CRM_Proyectos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
