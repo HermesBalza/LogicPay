@@ -3752,6 +3752,16 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
         };
     }, [crossMatchResults, wosServices, nominaHistoryData, specialProjectsHistoryData]);
 
+    const totalDeficit = crossMatchResults
+        .filter(r => r.type !== 'Sin Registro' && r.diff < 0)
+        .reduce((acc, r) => acc + (r.diff || 0), 0);
+
+    const totalSuperavit = crossMatchResults
+        .filter(r => r.type !== 'Sin Registro' && r.diff > 0)
+        .reduce((acc, r) => acc + (r.diff || 0), 0);
+
+    const balanceCruce = totalSuperavit + totalDeficit;
+
     if (!isOpen) return null;
 
     return (
@@ -3944,9 +3954,36 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                     </p>
                                 </div>
                             </div>
+                            {/* Panel de Balance */}
+                            {crossMatchResults.filter(r => r.type !== 'Sin Registro').length > 0 && (
+                                <div className="flex items-center gap-6">
+                                    <div className="flex flex-col items-end">
+                                        <div className="flex items-center gap-3">
+                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-red-50 text-red-500 border border-red-100">
+                                                <div className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
+                                                Déficit {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', signDisplay: 'always' }).format(totalDeficit)}
+                                            </span>
+                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-yellow-50 text-yellow-600 border border-yellow-100">
+                                                <div className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" />
+                                                Superávit {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', signDisplay: 'always' }).format(totalSuperavit)}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Balance:</span>
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${balanceCruce > 0 ? 'bg-yellow-50 text-yellow-600 border border-yellow-100' : balanceCruce < 0 ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}>
+                                                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${balanceCruce > 0 ? 'bg-yellow-400' : balanceCruce < 0 ? 'bg-red-400' : 'bg-gray-300'}`} />
+                                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', signDisplay: 'always' }).format(balanceCruce)}
+                                            </span>
+                                            <span className={`text-[9px] font-bold ${balanceCruce > 0 ? 'text-yellow-600' : balanceCruce < 0 ? 'text-red-400' : 'text-gray-400'}`}>
+                                                {balanceCruce > 0 ? '(KBS pagó de más)' : balanceCruce < 0 ? '(KBS pagó de menos)' : ''}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             {/* Leyenda de colores */}
                             <div className="flex items-center gap-5">
-                                {[{ color: 'bg-green-400', label: 'Exacto' }, { color: 'bg-red-400', label: 'KBS paga menos' }, { color: 'bg-yellow-400', label: 'KBS paga más' }].map(l => (
+                                {[{ color: 'bg-green-400', label: 'Exacto' }, { color: 'bg-red-400', label: 'Déficit' }, { color: 'bg-yellow-400', label: 'Superávit' }].map(l => (
                                     <div key={l.label} className="flex items-center gap-2">
                                         <div className={`w-2.5 h-2.5 rounded-full ${l.color}`} />
                                         <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{l.label}</span>
