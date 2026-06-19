@@ -12833,6 +12833,11 @@ const AdminPayrollView = ({
     const [isAddingAdminEmployee, setIsAddingAdminEmployee] = useState(false);
     const [editingAdminEmployee, setEditingAdminEmployee] = useState(null);
     const [isAddingExpense, setIsAddingExpense] = useState(false);
+    const [tdcModalOpen, setTdcModalOpen] = useState(false);
+    const [tdcTransactions, setTdcTransactions] = useState([]);
+    const [tdcLoading, setTdcLoading] = useState(false);
+    const [tdcImporting, setTdcImporting] = useState(false);
+    const tdcFileInputRef = useRef(null);
 
     // Cargar empleados automáticamente al cambiar el período
     useEffect(() => {
@@ -12980,6 +12985,157 @@ const AdminPayrollView = ({
     const totalNomina = payrollRows.reduce((acc, r) => acc + (parseFloat(r.total) || 0), 0);
     const isAlreadyConfirmed = adminPayrollHistory.some(record => record.periodo === selectedPeriod);
 
+    const handleTdcFileSelect = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setTdcLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('tdcFile', file);
+
+            const resp = await fetch('/api/parse-tdc', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!resp.ok) {
+                const errData = await resp.json().catch(() => ({}));
+                throw new Error(errData.error || 'Error del servidor');
+            }
+
+            const data = await resp.json();
+
+            const chaseToLgm = {
+                'Travel': 'Viáticos',
+                'Food & Drink': 'Viáticos',
+                'Professional Services': 'Honorarios',
+                'Repair & Maintenance': 'Servicios',
+                'Merchandise & Inventory': 'Suministros',
+                'Bills & Utilities': 'Servicios',
+                'Fees & Adjustments': 'Comisiones Bancarias',
+                'Advertising': 'Publicidad',
+                'Transportation': 'Transporte',
+                'Entertainment': 'Viáticos',
+                'Health & Wellness': 'Seguros',
+                'Office Supplies': 'Suministros',
+                'Technology': 'Tecnología',
+                'Insurance': 'Seguros'
+            };
+
+            const processed = data.map((t, idx) => {
+                const amount = parseFloat(t['Amount']) || 0;
+                const isExpense = amount < 0;
+                const type = t['Type'] || '';
+                return {
+                    _idx: idx,
+                    description: t['Description'] || '',
+                    amount: Math.abs(amount),
+                    fecha: t['Transaction Date'] || '',
+                    categoria: chaseToLgm[t['Category']] || 'Otros',
+                    chaseCategory: t['Category'] || '',
+                    type: type,
+                    isExpense: isExpense,
+                    selected: isExpense && (type === 'Sale' || type === 'Fee'),
+                    card: t['Card'] || '',
+                    memo: t['Memo'] || ''
+                };
+            });
+
+            setTdcTransactions(processed);
+            setTdcModalOpen(true);
+        } catch (err) {
+            console.error('[TDC Import] Error:', err);
+            setNotif({ open: true, type: 'error', msg: err.message || 'Error al procesar el archivo.' });
+            setTimeout(() => setNotif({ open: false, type: 'success', msg: '' }), 3500);
+        } finally {
+            setTdcLoading(false);
+            if (tdcFileInputRef.current) tdcFileInputRef.current.value = '';
+        }
+    };
+
+    const handleTdcImport = async () => {
+        const selected = tdcTransactions.filter(t => t.selected);
+        if (selected.length === 0) {
+            setNotif({ open: true, type: 'error', msg: 'Seleccione al menos una transacción para importar.' });
+            setTimeout(() => setNotif({ open: false, type: 'success', msg: '' }), 3500);
+            return;
+        }
+
+        setTdcImporting(true);
+        let imported = 0;
+        let skipped = 0;
+
+        try {
+            for (const t of selected) {
+                const exists = adminExpenses.some(e =>
+                    e.concepto === t.description &&
+                    e.fecha === t.fecha &&
+                    parseFloat(e.monto) === t.amount
+                );
+
+                if (exists) {
+                    skipped++;
+                    continue;
+                }
+
+                const now = new Date();
+                const timestamp = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+                const newExpense = {
+                    concepto: t.description,
+                    monto: String(t.amount.toFixed(2)),
+                    fecha: t.fecha,
+                    categoria: t.categoria,
+                    created_at: timestamp
+                };
+
+                await syncToDatabase('upsert', newExpense, 'Gastos_Miscelaneos', true);
+                imported++;
+            }
+
+            if (imported > 0 && onRefreshExpenses) await onRefreshExpenses();
+
+            setTdcModalOpen(false);
+            setTdcTransactions([]);
+            setNotif({ open: true, type: 'success', msg: `${imported} gasto(s) importado(s)${skipped > 0 ? `, ${skipped} duplicado(s) omitido(s)` : ''}.` });
+            setTimeout(() => setNotif({ open: false, type: 'success', msg: '' }), 3500);
+        } catch (err) {
+            console.error('[TDC Import] Error al guardar:', err);
+            setNotif({ open: true, type: 'error', msg: 'Error al importar los gastos.' });
+            setTimeout(() => setNotif({ open: false, type: 'success', msg: '' }), 3500);
+        } finally {
+            setTdcImporting(false);
+        }
+    };
+
+    const toggleTdcSelection = (idx) => {
+        setTdcTransactions(prev => prev.map(t =>
+            t._idx === idx ? { ...t, selected: !t.selected } : t
+        ));
+    };
+
+    const updateTdcCategory = (idx, cat) => {
+        setTdcTransactions(prev => prev.map(t =>
+            t._idx === idx ? { ...t, categoria: cat } : t
+        ));
+    };
+
+    const selectAllTdc = () => {
+        setTdcTransactions(prev => prev.map(t => ({ ...t, selected: true })));
+    };
+
+    const deselectAllTdc = () => {
+        setTdcTransactions(prev => prev.map(t => ({ ...t, selected: false })));
+    };
+
+    const selectOnlyExpenses = () => {
+        setTdcTransactions(prev => prev.map(t => ({
+            ...t,
+            selected: t.isExpense && (t.type === 'Sale' || t.type === 'Fee')
+        })));
+    };
+
     return (
         <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
 
@@ -13026,6 +13182,25 @@ const AdminPayrollView = ({
                 )}
                 {activeSection === 'expenses' && (
                 <div className="flex gap-3">
+                    <input
+                        type="file"
+                        ref={tdcFileInputRef}
+                        onChange={handleTdcFileSelect}
+                        accept=".numbers"
+                        className="hidden"
+                    />
+                    <button
+                        onClick={() => tdcFileInputRef.current?.click()}
+                        disabled={tdcLoading}
+                        className="flex items-center justify-center gap-3 px-6 py-3 bg-[#6bbdb7]/10 text-[#6bbdb7] border-2 border-[#6bbdb7]/20 rounded-2xl font-black transition-all active:scale-95 hover:bg-[#6bbdb7]/20 hover:border-[#6bbdb7]/40 group whitespace-nowrap"
+                    >
+                        {tdcLoading ? (
+                            <div className="w-[18px] h-[18px] border-2 border-[#6bbdb7] border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <Upload size={18} />
+                        )}
+                        <span className="tracking-widest uppercase text-[10px]">Importar TDC</span>
+                    </button>
                     <button
                         onClick={() => setIsAddingExpense(true)}
                         className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
@@ -13258,6 +13433,17 @@ const AdminPayrollView = ({
                     onRefresh={onRefreshExpenses}
                     openAdd={isAddingExpense}
                     setOpenAdd={setIsAddingExpense}
+                    tdcModalOpen={tdcModalOpen}
+                    setTdcModalOpen={setTdcModalOpen}
+                    tdcTransactions={tdcTransactions}
+                    setTdcTransactions={setTdcTransactions}
+                    tdcImporting={tdcImporting}
+                    onTdcImport={handleTdcImport}
+                    onToggleTdc={toggleTdcSelection}
+                    onUpdateTdcCat={updateTdcCategory}
+                    onSelectAllTdc={selectAllTdc}
+                    onDeselectAllTdc={deselectAllTdc}
+                    onSelectOnlyExpenses={selectOnlyExpenses}
                 />
             )}
         </div>
@@ -19461,7 +19647,7 @@ function App() {
                             {navItems.find(i => i.id === activeTab)?.icon && React.createElement(navItems.find(i => i.id === activeTab).icon, { size: 14 })}
                         </div>
                         <h2 className="text-xs font-black text-[#303a7f] tracking-tighter uppercase leading-none m-0">
-                            {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : activeTab === 'tax_center' ? 'Centro 1099-NEC' : activeTab === 'billing' ? 'Gestión de Facturación' : activeTab === 'settings' ? 'Configuración' : activeTab === 'csg' ? 'Módulo Cleaning Services Group' : activeTab === 'lgm' ? 'Nómina Administrativa' : activeTab === 'crm' ? 'CRM' : 'Dashboard'}
+                            {activeTab === 'stores' ? 'Unidades Relacionales' : activeTab === 'payroll' ? 'Motor de Nómina' : activeTab === 'employees' ? 'Gestión de Personal' : activeTab === 'tax_center' ? 'Centro 1099-NEC' : activeTab === 'billing' ? 'Gestión de Facturación' : activeTab === 'settings' ? 'Configuración' : activeTab === 'csg' ? 'Módulo Cleaning Services Group' : activeTab === 'lgm' ? 'Gastos Administrativos' : activeTab === 'crm' ? 'CRM' : 'Dashboard'}
                         </h2>
                     </div>
 

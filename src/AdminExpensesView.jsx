@@ -15,23 +15,6 @@ const CATEGORIAS = [
     'Otros'
 ];
 
-const TDC_CATEGORY_MAP = {
-    'Travel': 'Viáticos',
-    'Food & Drink': 'Viáticos',
-    'Professional Services': 'Honorarios',
-    'Repair & Maintenance': 'Servicios',
-    'Merchandise & Inventory': 'Suministros',
-    'Bills & Utilities': 'Servicios',
-    'Fees & Adjustments': 'Comisiones Bancarias',
-    'Advertising': 'Publicidad',
-    'Transportation': 'Transporte',
-    'Entertainment': 'Viáticos',
-    'Health & Wellness': 'Seguros',
-    'Office Supplies': 'Suministros',
-    'Technology': 'Tecnología',
-    'Insurance': 'Seguros'
-};
-
 const AdminExpensesView = ({
     adminExpenses = [],
     setAdminExpenses,
@@ -39,7 +22,18 @@ const AdminExpensesView = ({
     apiUrl,
     onRefresh,
     openAdd = false,
-    setOpenAdd = () => {}
+    setOpenAdd = () => {},
+    tdcModalOpen = false,
+    setTdcModalOpen = () => {},
+    tdcTransactions = [],
+    setTdcTransactions = () => {},
+    tdcImporting = false,
+    onTdcImport = () => {},
+    onToggleTdc = () => {},
+    onUpdateTdcCat = () => {},
+    onSelectAllTdc = () => {},
+    onDeselectAllTdc = () => {},
+    onSelectOnlyExpenses = () => {}
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [notif, setNotif] = useState({ open: false, type: 'success', msg: '' });
@@ -50,12 +44,7 @@ const AdminExpensesView = ({
     const [categoria, setCategoria] = useState('Otros');
     const [isSaving, setIsSaving] = useState(false);
     const [filterCategoria, setFilterCategoria] = useState('');
-    const [tdcModalOpen, setTdcModalOpen] = useState(false);
-    const [tdcTransactions, setTdcTransactions] = useState([]);
-    const [tdcLoading, setTdcLoading] = useState(false);
-    const [tdcImporting, setTdcImporting] = useState(false);
     const dateInputRef = useRef(null);
-    const tdcFileInputRef = useRef(null);
 
     const fmtCurrency = (val) => {
         const n = parseFloat(val) || 0;
@@ -174,140 +163,6 @@ const AdminExpensesView = ({
         setOpenAdd(true);
     };
 
-    const mapTdcCategory = (chaseCategory) => {
-        return TDC_CATEGORY_MAP[chaseCategory] || 'Otros';
-    };
-
-    const handleTdcFileSelect = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        setTdcLoading(true);
-        try {
-            const formData = new FormData();
-            formData.append('tdcFile', file);
-
-            const resp = await fetch('/api/parse-tdc', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!resp.ok) {
-                const errData = await resp.json().catch(() => ({}));
-                throw new Error(errData.error || 'Error del servidor');
-            }
-
-            const data = await resp.json();
-
-            const processed = data.map((t, idx) => {
-                const amount = parseFloat(t['Amount']) || 0;
-                const isExpense = amount < 0;
-                const type = t['Type'] || '';
-                return {
-                    _idx: idx,
-                    description: t['Description'] || '',
-                    amount: Math.abs(amount),
-                    fecha: t['Transaction Date'] || '',
-                    categoria: mapTdcCategory(t['Category'] || ''),
-                    chaseCategory: t['Category'] || '',
-                    type: type,
-                    isExpense: isExpense,
-                    selected: isExpense && (type === 'Sale' || type === 'Fee'),
-                    card: t['Card'] || '',
-                    memo: t['Memo'] || ''
-                };
-            });
-
-            setTdcTransactions(processed);
-            setTdcModalOpen(true);
-        } catch (err) {
-            console.error('[TDC Import] Error:', err);
-            showNotif('error', err.message || 'Error al procesar el archivo.');
-        } finally {
-            setTdcLoading(false);
-            if (tdcFileInputRef.current) tdcFileInputRef.current.value = '';
-        }
-    };
-
-    const toggleTdcSelection = (idx) => {
-        setTdcTransactions(prev => prev.map(t =>
-            t._idx === idx ? { ...t, selected: !t.selected } : t
-        ));
-    };
-
-    const updateTdcCategory = (idx, cat) => {
-        setTdcTransactions(prev => prev.map(t =>
-            t._idx === idx ? { ...t, categoria: cat } : t
-        ));
-    };
-
-    const selectAllTdc = () => {
-        setTdcTransactions(prev => prev.map(t => ({ ...t, selected: true })));
-    };
-
-    const deselectAllTdc = () => {
-        setTdcTransactions(prev => prev.map(t => ({ ...t, selected: false })));
-    };
-
-    const selectOnlyExpenses = () => {
-        setTdcTransactions(prev => prev.map(t => ({
-            ...t,
-            selected: t.isExpense && (t.type === 'Sale' || t.type === 'Fee')
-        })));
-    };
-
-    const handleTdcImport = async () => {
-        const selected = tdcTransactions.filter(t => t.selected);
-        if (selected.length === 0) {
-            showNotif('error', 'Seleccione al menos una transacción para importar.');
-            return;
-        }
-
-        setTdcImporting(true);
-        let imported = 0;
-        let skipped = 0;
-
-        try {
-            for (const t of selected) {
-                const exists = adminExpenses.some(e =>
-                    e.concepto === t.description &&
-                    e.fecha === t.fecha &&
-                    parseFloat(e.monto) === t.amount
-                );
-
-                if (exists) {
-                    skipped++;
-                    continue;
-                }
-
-                const now = new Date();
-                const timestamp = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-                const newExpense = {
-                    concepto: t.description,
-                    monto: String(t.amount.toFixed(2)),
-                    fecha: t.fecha,
-                    categoria: t.categoria,
-                    created_at: timestamp
-                };
-
-                await syncToDatabase('upsert', newExpense, 'Gastos_Miscelaneos', true);
-                imported++;
-            }
-
-            if (imported > 0 && onRefresh) await onRefresh();
-
-            setTdcModalOpen(false);
-            setTdcTransactions([]);
-            showNotif('success', `${imported} gasto(s) importado(s)${skipped > 0 ? `, ${skipped} duplicado(s) omitido(s)` : ''}.`);
-        } catch (err) {
-            console.error('[TDC Import] Error al guardar:', err);
-            showNotif('error', 'Error al importar los gastos.');
-        } finally {
-            setTdcImporting(false);
-        }
-    };
-
     const filteredExpenses = useMemo(() => {
         return adminExpenses
             .filter(e => {
@@ -363,26 +218,6 @@ const AdminExpensesView = ({
                         ))}
                     </>
                 )}
-                <div className="flex-1" />
-                <input
-                    type="file"
-                    ref={tdcFileInputRef}
-                    onChange={handleTdcFileSelect}
-                    accept=".numbers"
-                    className="hidden"
-                />
-                <button
-                    onClick={() => tdcFileInputRef.current?.click()}
-                    disabled={tdcLoading}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all bg-[#6bbdb7]/10 text-[#6bbdb7] border-2 border-[#6bbdb7]/20 hover:bg-[#6bbdb7]/20 hover:border-[#6bbdb7]/40 disabled:opacity-50"
-                >
-                    {tdcLoading ? (
-                        <div className="w-3.5 h-3.5 border-2 border-[#6bbdb7] border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                        <Upload size={13} />
-                    )}
-                    Importar TDC
-                </button>
             </div>
 
             {/* Tabla de Gastos */}
@@ -656,19 +491,19 @@ const AdminExpensesView = ({
 
                         <div className="shrink-0 px-6 py-3 border-b border-gray-50 flex items-center gap-2">
                             <button
-                                onClick={selectOnlyExpenses}
+                                onClick={onSelectOnlyExpenses}
                                 className="px-3 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-wider bg-[#6bbdb7]/10 text-[#6bbdb7] hover:bg-[#6bbdb7]/20 transition-colors"
                             >
                                 Solo Gastos
                             </button>
                             <button
-                                onClick={selectAllTdc}
+                                onClick={onSelectAllTdc}
                                 className="px-3 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-wider bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
                             >
                                 Todos
                             </button>
                             <button
-                                onClick={deselectAllTdc}
+                                onClick={onDeselectAllTdc}
                                 className="px-3 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-wider bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
                             >
                                 Ninguno
@@ -698,7 +533,7 @@ const AdminExpensesView = ({
                                         >
                                             <td className="px-4 py-3 text-center">
                                                 <button
-                                                    onClick={() => toggleTdcSelection(t._idx)}
+                                                    onClick={() => onToggleTdc(t._idx)}
                                                     className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${t.selected ? 'bg-[#6bbdb7] border-[#6bbdb7] text-white' : 'border-gray-200 hover:border-[#6bbdb7]/40'}`}
                                                 >
                                                     {t.selected && (
@@ -730,7 +565,7 @@ const AdminExpensesView = ({
                                             <td className="px-4 py-3">
                                                 <select
                                                     value={t.categoria}
-                                                    onChange={(e) => updateTdcCategory(t._idx, e.target.value)}
+                                                    onChange={(e) => onUpdateTdcCat(t._idx, e.target.value)}
                                                     className="w-full text-[10px] font-bold bg-gray-50 border-2 border-gray-100 rounded-lg px-2 py-1.5 outline-none focus:border-[#303a7f]/30 text-[#303a7f] uppercase tracking-wider"
                                                 >
                                                     {CATEGORIAS.map(cat => (
@@ -752,7 +587,7 @@ const AdminExpensesView = ({
                                 Cancelar
                             </button>
                             <button
-                                onClick={handleTdcImport}
+                                onClick={onTdcImport}
                                 disabled={tdcImporting || tdcTransactions.filter(t => t.selected).length === 0}
                                 className="flex-1 h-12 rounded-2xl bg-[#303a7f] text-white font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
                             >
