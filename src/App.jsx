@@ -839,7 +839,8 @@ const DashboardView = ({
     employees = [],
     adminExpenses = [],
     adminPayrollHistory = [],
-    onShowResumen
+    onShowResumen,
+    user
 }) => {
     const [dateFrom, setDateFrom] = useState(null);
     const [dateTo, setDateTo] = useState(null);
@@ -1937,6 +1938,7 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                 </div>
 
                 {/* 6. Distribución de Pagos */}
+                {user?.nombre !== 'Nirvana Marquez' && user?.nombre !== 'David Torres' && user?.nombre !== 'Samuel Narvaez' && (
                 <div className="flex justify-center mt-8">
                     <button
                         onClick={() => setShowReportModal(true)}
@@ -1947,6 +1949,7 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                         Generar Informe
                     </button>
                 </div>
+                )}
 
             </div>
 
@@ -20985,6 +20988,7 @@ function App() {
                             adminExpenses={adminExpenses}
                             adminPayrollHistory={adminPayrollHistory}
                             onShowResumen={() => setShowResumen(true)}
+                            user={user}
                         />
                     )}
                 </div>
