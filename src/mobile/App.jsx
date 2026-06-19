@@ -1151,8 +1151,8 @@ const DashboardView = ({
 
             if (isNaN(d.getTime())) return;
 
-            // FILTRO NIVEL DIOS: No mostrar nada posterior al día de hoy (13 de Abril de 2026)
-            const today = new Date(2026, 3, 13, 23, 59, 59);
+            // Filtrar datos con fecha posterior al día actual
+            const today = new Date();
             if (d > today) return;
 
             let key;
