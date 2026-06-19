@@ -11,6 +11,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 
+RUN apk add --no-cache python3 py3-pip && \
+    pip install --no-cache-dir --break-system-packages numbers-parser
+
 COPY --from=build /app/dist ./dist
 COPY server ./server
 

@@ -5,6 +5,10 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
+import multer from 'multer';
+import { execFile } from 'child_process';
+import fs from 'fs';
+import os from 'os';
 import db from './db.js';
 import './init_db.js';
 import { runBackup, isBackupConfigured, startBackupScheduler, listBackups, getBackupStream } from './backup.js';
@@ -21,6 +25,8 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.text({ limit: '50mb' })); // Soporte para text/plain que enviaba el frontend a Google Sheets
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Filtra las propiedades del objeto para incluir solo columnas que existen en la tabla
 // y normaliza valores (stringifica objetos, remueve prefijo ' de Google Sheets)
@@ -851,6 +857,48 @@ if (process.env.NODE_ENV === 'production') {
 // ---------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------
+// Endpoint para parsear archivos .numbers de TDC (Chase)
+app.post('/api/parse-tdc', upload.single('tdcFile'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No se recibió ningún archivo.' });
+    }
+
+    const tempDir = os.tmpdir();
+    const tempFile = path.join(tempDir, `tdc_${Date.now()}.numbers`);
+
+    try {
+        fs.writeFileSync(tempFile, req.file.buffer);
+
+        const scriptPath = path.join(__dirname, 'parse_tdc.py');
+
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+
+        execFile(pythonCmd, [scriptPath, tempFile], {
+            timeout: 30000,
+            maxBuffer: 10 * 1024 * 1024
+        }, (error, stdout, stderr) => {
+            fs.unlinkSync(tempFile);
+
+            if (error) {
+                console.error('[parse-tdc] Error ejecutando Python:', error.message);
+                return res.status(500).json({ error: 'Error al procesar el archivo .numbers.' });
+            }
+
+            try {
+                const transactions = JSON.parse(stdout);
+                res.json(transactions);
+            } catch (parseError) {
+                console.error('[parse-tdc] Error parseando JSON:', parseError.message);
+                res.status(500).json({ error: 'Error al interpretar los datos del archivo.' });
+            }
+        });
+    } catch (err) {
+        if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+        console.error('[parse-tdc] Error:', err.message);
+        res.status(500).json({ error: 'Error interno al procesar el archivo.' });
+    }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor Backend escuchando en el puerto ${PORT}`);
 
