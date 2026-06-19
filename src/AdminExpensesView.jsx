@@ -44,6 +44,7 @@ const AdminExpensesView = ({
     const [categoria, setCategoria] = useState('Otros');
     const [isSaving, setIsSaving] = useState(false);
     const [filterCategoria, setFilterCategoria] = useState('');
+    const [confirmDelete, setConfirmDelete] = useState(null);
     const dateInputRef = useRef(null);
 
     const fmtCurrency = (val) => {
@@ -142,8 +143,11 @@ const AdminExpensesView = ({
         }
     };
 
-    const handleDelete = async (expense) => {
-        if (!window.confirm(`¿Eliminar el gasto "${expense.concepto}" por ${fmtCurrency(expense.monto)}?`)) return;
+    const handleDelete = (expense) => {
+        setConfirmDelete(expense);
+    };
+
+    const handleConfirmDelete = async (expense) => {
         try {
             await syncToDatabase('delete', { id: expense.id }, 'Gastos_Miscelaneos', true, ['id']);
             setAdminExpenses(prev => prev.filter(e => e.id !== expense.id));
@@ -151,6 +155,8 @@ const AdminExpensesView = ({
         } catch (e) {
             console.error('[LGM Gastos] Error al eliminar:', e);
             showNotif('error', 'Error al eliminar el gasto.');
+        } finally {
+            setConfirmDelete(null);
         }
     };
 
@@ -599,6 +605,33 @@ const AdminExpensesView = ({
                                         Importar {tdcTransactions.filter(t => t.selected).length} Gastos
                                     </>
                                 )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Confirmar Eliminación */}
+            {confirmDelete && (
+                <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setConfirmDelete(null)}>
+                    <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-sm font-black text-[#303a7f] uppercase tracking-widest mb-3">Confirmar Eliminación</h3>
+                        <p className="text-gray-500 text-xs font-bold leading-relaxed mb-2">
+                            ¿Eliminar el gasto <span className="text-[#303a7f] font-black">"{confirmDelete.concepto}"</span>?
+                        </p>
+                        <p className="text-[#6bbdb7] text-lg font-black mb-6">{fmtCurrency(confirmDelete.monto)}</p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setConfirmDelete(null)}
+                                className="flex-1 h-12 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all btn-close-danger"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => handleConfirmDelete(confirmDelete)}
+                                className="flex-1 h-12 rounded-2xl bg-red-500 text-white font-black text-[10px] uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-900/20"
+                            >
+                                Eliminar
                             </button>
                         </div>
                     </div>
