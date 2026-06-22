@@ -642,8 +642,6 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
   };
 
   const handleBuscarProveedores = () => {
-    setFormBuscarProveedores({ estado: '', ciudad: '', descripcion: '' });
-    setResultadosBusqueda([]);
     setShowBuscarProveedores(true);
   };
 
@@ -691,7 +689,6 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     });
     setShowBuscarProveedores(false);
     setShowNewProveedor(true);
-    setResultadosBusqueda([]);
   };
 
   const renderProveedorModal = () => {
