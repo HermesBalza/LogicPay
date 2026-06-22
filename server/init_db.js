@@ -210,6 +210,23 @@ CREATE TABLE IF NOT EXISTS Gastos_Miscelaneos (
     "categoria" TEXT,
     "created_at" TEXT
 );
+
+-- Tabla Saldos_Pendientes
+CREATE TABLE IF NOT EXISTS Saldos_Pendientes (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "tipo" TEXT NOT NULL,
+    "ref_id" TEXT NOT NULL,
+    "tienda" TEXT NOT NULL,
+    "fecha_rad" TEXT,
+    "semana_facturada" TEXT,
+    "facturacion_kbs" REAL DEFAULT 0,
+    "pago_recibido" REAL DEFAULT 0,
+    "saldo_pendiente" REAL DEFAULT 0,
+    "wos" TEXT,
+    "pagado" INTEGER DEFAULT 0,
+    "created_at" TEXT DEFAULT (datetime('now','localtime')),
+    "updated_at" TEXT DEFAULT (datetime('now','localtime'))
+);
 `;
 
 try {

@@ -154,6 +154,7 @@ const ADMIN_NOMINA_HISTORICO_API_URL = `${LOCAL_API_BASE}/Admin_Nomina_Historico
 const ADMIN_EXPENSES_API_URL = `${LOCAL_API_BASE}/Gastos_Miscelaneos`;
 const VASCHEDULE_API_URL = `${LOCAL_API_BASE}/VASchedule`;
 const CRM_CANDIDATOS_API_URL = `${LOCAL_API_BASE}/CRM_Candidatos`;
+const SALDOS_PENDIENTES_API_URL = `${LOCAL_API_BASE}/Saldos_Pendientes`;
 const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
 
 // Parsea una fila CSV respetando campos entre comillas
@@ -840,7 +841,8 @@ const DashboardView = ({
     adminExpenses = [],
     adminPayrollHistory = [],
     onShowResumen,
-    user
+    user,
+    cobradoSaldos = 0
 }) => {
     const [dateFrom, setDateFrom] = useState(null);
     const [dateTo, setDateTo] = useState(null);
@@ -1581,8 +1583,8 @@ Para cada seccion incluye tanto los datos numericos como un breve analisis inter
                         { title: "Costo de Nómina", val: formatMoney(totalCostos), subtitle: "Pagos a Empleados", icon: Users, color: "text-red-500", bg: "bg-red-50", descKey: 'costo-nomina' },
                         { title: "Margen de Ganancia", val: formatMoney(margenBruto), subtitle: "Gross Profit", icon: DollarSign, color: "text-green-500", bg: "bg-green-50", descKey: 'margen-ganancia' },
                         { title: "Rentabilidad (ROI)", val: `${roiPercent}%`, subtitle: "Margen %", icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50", descKey: 'rentabilidad-roi' },
-                        { title: "Total Cobrado", val: formatMoney(totalCobrado), subtitle: "Facturas Pagadas por Clientes", icon: DollarSign, color: "text-green-600", bg: "bg-green-50", descKey: 'total-cobrado' },
-                        { title: "Cuentas por Cobrar", val: formatMoney(cuentasPorCobrar), subtitle: "Facturas Pendientes de Pago", icon: Receipt, color: "text-orange-500", bg: "bg-orange-50", descKey: 'cuentas-cobrar' },
+                        { title: "Total Cobrado", val: formatMoney(totalCobrado + cobradoSaldos), subtitle: "Facturas Pagadas por Clientes", icon: DollarSign, color: "text-green-600", bg: "bg-green-50", descKey: 'total-cobrado' },
+                        { title: "Cuentas por Cobrar", val: formatMoney(totalIngresos - totalCobrado - cobradoSaldos), subtitle: "Facturas Pendientes de Pago", icon: Receipt, color: "text-orange-500", bg: "bg-orange-50", descKey: 'cuentas-cobrar' },
                     ].map((kpi, idx) => (
                         <div key={idx} className="bg-white rounded-[1.5rem] p-4 shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col gap-3 hover:-translate-y-1 transition-transform cursor-default relative group">
                             <div className="flex items-center gap-3">
@@ -15627,6 +15629,8 @@ function App() {
 
     // Controles de Visibilidad del Modal de Facturación
     const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+    const [showSaldosPendientes, setShowSaldosPendientes] = useState(false);
+    const [saldosPendientesData, setSaldosPendientesData] = useState([]);
     const [billingFilterYear, setBillingFilterYear] = useState(new Date().getFullYear());
     const [isSyncingBilling, setIsSyncingBilling] = useState(false);
     const [isEmployeeSelectorOpen, setIsEmployeeSelectorOpen] = useState(false);
@@ -15732,6 +15736,49 @@ function App() {
                     console.log('[PE OBSERVER] About to syncToDatabase', { payload, sheetName: 'Proyectos_Especiales', matchKeys: ['Correlativo'] });
                     await syncToDatabase('upsert', payload, 'Proyectos_Especiales', false, ['Correlativo']);
                     console.log('[PE OBSERVER] syncToDatabase completed successfully');
+
+                    const wosRawPE = (payload['WOS'] || payload['wos'] || '').toString().trim();
+                    const wosValPE = /^[0-9.]+$/.test(wosRawPE) ? '' : wosRawPE;
+                    const pagoValPE = parseFloat(String(payload['Pago'] || payload['pago'] || '0').replace(/[^0-9.]/g, ''));
+                    if (wosValPE && !isNaN(pagoValPE)) {
+                        let factPE = 0;
+                        try {
+                            const djPE = JSON.parse(payload.Data_JSON || payload.data_json || '{}');
+                            const projects = Array.isArray(djPE) ? djPE : [djPE];
+                            factPE = projects.reduce((total, p) => {
+                                const emps = Array.isArray(p.employees) ? p.employees : [];
+                                return total + emps.reduce((s, e) => s + ((parseFloat(e.hours) || 0) * (parseFloat(e.rateKBS) || 0)), 0);
+                            }, 0);
+                        } catch (e) { }
+                        const fechaRadPE = payload['Fecha Rad.'] || payload['fecha rad.'] || '--/--/--';
+                        const corrPE = payload.Correlativo || payload.correlativo || '';
+                        const tiendaPE = payload.Tienda || payload.tienda || '';
+                        if (factPE > 0 && pagoValPE < factPE) {
+                            await fetch(API_URL, {
+                                method: 'POST',
+                                mode: 'no-cors',
+                                headers: { 'Content-Type': 'text/plain' },
+                                body: JSON.stringify({
+                                    action: 'upsert',
+                                    sheetName: 'Saldos_Pendientes',
+                                    data: { tipo: 'PE', ref_id: corrPE, tienda: tiendaPE, fecha_rad: fechaRadPE, semana_facturada: '', facturacion_kbs: factPE, pago_recibido: pagoValPE, saldo_pendiente: factPE - pagoValPE, wos: wosValPE, updated_at: new Date().toISOString() },
+                                    matchKeys: ['tipo', 'ref_id', 'tienda']
+                                })
+                            });
+                        } else if (factPE > 0) {
+                            await fetch(API_URL, {
+                                method: 'POST',
+                                mode: 'no-cors',
+                                headers: { 'Content-Type': 'text/plain' },
+                                body: JSON.stringify({
+                                    action: 'delete',
+                                    sheetName: 'Saldos_Pendientes',
+                                    data: { tipo: 'PE', ref_id: corrPE, tienda: tiendaPE },
+                                    matchKeys: ['tipo', 'ref_id', 'tienda']
+                                })
+                            });
+                        }
+                    }
                 }
             } catch (e) {
                 console.error('[PE OBSERVER] Error en Sincronización P.E (Batch):', e);
@@ -15835,6 +15882,48 @@ function App() {
                         })
                     });
                     console.log('[LogicPay] Sincronización Exitosa VWH (Cola):', payload.nombre, payload.codigo);
+
+                    const wosRaw = (payload['WOS'] || payload['wos'] || '').toString().trim();
+                    const wosVal = /^[0-9.]+$/.test(wosRaw) ? '' : wosRaw;
+                    const pagoVal = parseFloat(String(payload['Pago'] || payload['pago'] || '0').replace(/[^0-9.]/g, ''));
+                    if (wosVal && !isNaN(pagoVal)) {
+                        let factKBS = 0;
+                        try {
+                            const dj = JSON.parse(payload.data_json || '{}');
+                            if (dj.isQuincenaAZPEN) {
+                                factKBS = dj.expectedPayment || 484.33;
+                            } else if (dj.kbsBillingTableData) {
+                                factKBS = dj.kbsBillingTableData.reduce((s, r) => s + (parseFloat(r.total) || 0), 0);
+                            }
+                        } catch (e) { }
+                        const fechaRad = payload['Fecha Rad.'] || payload['fecha rad.'] || '--/--/--';
+                        const semana = (payload.fecha_inicio && payload.fecha_fin) ? `${payload.fecha_inicio} - ${payload.fecha_fin}` : '';
+                        if (factKBS > 0 && pagoVal < factKBS) {
+                            await fetch(API_URL, {
+                                method: 'POST',
+                                mode: 'no-cors',
+                                headers: { 'Content-Type': 'text/plain' },
+                                body: JSON.stringify({
+                                    action: 'upsert',
+                                    sheetName: 'Saldos_Pendientes',
+                                    data: { tipo: 'VWH', ref_id: payload.codigo, tienda: payload.nombre, fecha_rad: fechaRad, semana_facturada: semana, facturacion_kbs: factKBS, pago_recibido: pagoVal, saldo_pendiente: factKBS - pagoVal, wos: wosVal, updated_at: new Date().toISOString() },
+                                    matchKeys: ['tipo', 'ref_id', 'tienda']
+                                })
+                            });
+                        } else if (factKBS > 0) {
+                            await fetch(API_URL, {
+                                method: 'POST',
+                                mode: 'no-cors',
+                                headers: { 'Content-Type': 'text/plain' },
+                                body: JSON.stringify({
+                                    action: 'delete',
+                                    sheetName: 'Saldos_Pendientes',
+                                    data: { tipo: 'VWH', ref_id: payload.codigo, tienda: payload.nombre },
+                                    matchKeys: ['tipo', 'ref_id', 'tienda']
+                                })
+                            });
+                        }
+                    }
                 }
             } catch (e) {
                 console.error('[LogicPay] Error en Sincronización VWH (Batch):', e);
@@ -15845,6 +15934,23 @@ function App() {
 
         return () => { if (billingSaveTimeoutRef.current) clearTimeout(billingSaveTimeoutRef.current); };
     }, [nominaHistoryData, selectedHistoryStore]);
+
+    useEffect(() => {
+        if (showSaldosPendientes) {
+            (async () => {
+                try {
+                    await fetch('/api/sync-saldos-pendientes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tienda: selectedHistoryStore })
+                    });
+                } catch (e) { /* non-blocking */ }
+                fetchTableData(SALDOS_PENDIENTES_API_URL).then(data => {
+                    setSaldosPendientesData(data || []);
+                }).catch(() => setSaldosPendientesData([]));
+            })();
+        }
+    }, [showSaldosPendientes, selectedHistoryStore]);
 
     // --- OBSERVADOR DE SINCRONIZACIÓN: CSG Servicios (Debounced con Cola) ---
     useEffect(() => {
@@ -18609,6 +18715,7 @@ function App() {
         fetchAdminExpenses();
         fetchVASchedule();
         fetchPendingContratados();
+        fetchTableData(SALDOS_PENDIENTES_API_URL).then(data => setSaldosPendientesData(data || [])).catch(() => {});
     }, []);
 
     useEffect(() => {
@@ -18707,6 +18814,12 @@ function App() {
 
         return () => clearTimeout(timer);
     }, [semanaTableData, biometricTableData, rawBiometricData, payrollResults, payrollStore, fechaDesde, fechaHasta, variablesLoaded, nominaHistoryData]);
+
+    const [cobradoSaldos, setCobradoSaldos] = useState(0);
+    useEffect(() => {
+        const total = (saldosPendientesData || []).filter(r => r.pagado === 1 || r.pagado === true).reduce((acc, r) => acc + (r.saldo_pendiente || 0), 0);
+        setCobradoSaldos(total);
+    }, [saldosPendientesData]);
 
     // ─── API: Sincronizar cambios con SQLite ──────────────────────────
     const syncToDatabase = (action, data, sheetName = 'Tiendas', skipRefresh = false, matchKeys = [], skipAuditLog = false) => {
@@ -20989,6 +21102,7 @@ function App() {
                             adminPayrollHistory={adminPayrollHistory}
                             onShowResumen={() => setShowResumen(true)}
                             user={user}
+                            cobradoSaldos={cobradoSaldos}
                         />
                     )}
                 </div>
@@ -21091,6 +21205,12 @@ function App() {
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => setShowSaldosPendientes(true)}
+                                className="px-5 py-2.5 bg-[#f59e0b] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#d97706] transition-all shadow-lg shadow-amber-900/20 active:scale-95 animate-in fade-in zoom-in duration-700 flex items-center gap-2"
+                            >
+                                <AlertTriangle size={14} /> Saldos Pendientes
+                            </button>
                             <button
                                 onClick={handleExportBillingExcel}
                                 className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 animate-in fade-in zoom-in duration-700"
@@ -21312,6 +21432,166 @@ function App() {
                     </div>
                 </div>
             )}
+
+            {/* SALDOS PENDIENTES */}
+            {showSaldosPendientes && (() => {
+                const storeFilter = String(selectedHistoryStore || '').trim().toLowerCase();
+                const formatNum = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
+
+                const pendientesTienda = (saldosPendientesData || []).filter(r =>
+                    r && String(r.tienda || '').trim().toLowerCase() === storeFilter
+                );
+                const vwhPendientes = pendientesTienda.filter(r => r.tipo === 'VWH');
+                const pePendientes = pendientesTienda.filter(r => r.tipo === 'PE');
+
+                const togglePagado = async (row) => {
+                    const nuevoValor = row.pagado ? 0 : 1;
+                    setSaldosPendientesData(prev => prev.map(r =>
+                        r.id === row.id ? { ...r, pagado: nuevoValor, updated_at: new Date().toISOString() } : r
+                    ));
+                    await fetch(API_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify({
+                            action: 'upsert',
+                            sheetName: 'Saldos_Pendientes',
+                            data: { id: row.id, pagado: nuevoValor, updated_at: new Date().toISOString() },
+                            matchKeys: ['id']
+                        })
+                    });
+                };
+
+                return (
+                    <div className="fixed inset-0 z-[250] bg-white animate-in fade-in duration-300 overflow-hidden flex flex-col">
+                        <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-gradient-to-br from-[#f59e0b] to-[#d97706] text-white rounded-xl shadow-lg shadow-amber-900/20">
+                                    <AlertTriangle size={20} />
+                                </div>
+                                <div className="flex flex-col">
+                                    <h2 className="text-lg font-black text-[#f59e0b] tracking-tighter uppercase leading-none mb-1">Saldos Pendientes</h2>
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-0.5 w-6 bg-amber-400 rounded-full" />
+                                        <p className="text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] opacity-90">{selectedHistoryStore || 'Global Logic Analysis'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                    {vwhPendientes.length + pePendientes.length} factura(s) con saldo pendiente
+                                </p>
+                                <button
+                                    onClick={() => setShowSaldosPendientes(false)}
+                                    className="group p-3 rounded-xl transition-all active:scale-95 shadow-sm border-2 btn-close-danger flex items-center justify-center"
+                                >
+                                    <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-12 bg-[#fcfdfe] custom-scrollbar">
+                            {vwhPendientes.length > 0 && (
+                                <>
+                                    <div className="mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-[#6bbdb7] p-2 rounded-xl shadow-lg shadow-teal-900/10">
+                                                <FileText className="text-white" size={16} />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none">Facturación VWH</h3>
+                                                <p className="text-gray-400 text-[8px] font-black tracking-[0.4em] uppercase opacity-70 mt-1">Saldos Pendientes</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <table className="w-full border-collapse table-auto mb-10">
+                                        <thead className="sticky top-0 z-20">
+                                            <tr className="bg-white border-b border-gray-100 shadow-sm">
+                                                {['Fecha Rad.', 'Semana Facturada', 'Facturación (KBS)', 'Pago Recibido', 'Saldo Pendiente', 'WOS', 'Status'].map((h, i) => (
+                                                    <th key={i} className="px-3 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50">
+                                            {vwhPendientes.map(row => (
+                                                <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
+                                                    <td className="px-3 py-4 text-center"><span className="text-[10px] font-bold uppercase tracking-wider text-[#303a7f]">{row.fecha_rad || '--/--/--'}</span></td>
+                                                    <td className="px-3 py-4 text-center"><span className="text-[10px] font-bold text-[#303a7f]">{row.semana_facturada || '--'}</span></td>
+                                                    <td className="px-3 py-4 text-center text-[10px] font-bold text-red-400">{formatNum(row.facturacion_kbs)}</td>
+                                                    <td className="px-3 py-4 text-center text-[10px] font-bold text-teal-600">{formatNum(row.pago_recibido)}</td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <div className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-lg inline-block">
+                                                            <span className="text-[11px] font-black text-amber-600">{formatNum(row.saldo_pendiente)}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center"><span className="text-[10px] font-black text-orange-500">{row.wos || '---'}</span></td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <input type="checkbox" checked={!!row.pagado} onChange={() => togglePagado(row)} className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all" />
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </>
+                            )}
+
+                            {pePendientes.length > 0 && (
+                                <>
+                                    <div className="mb-4 mt-8">
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-[#f59e0b] p-2 rounded-xl shadow-lg shadow-amber-900/20">
+                                                <FileText className="text-white" size={16} />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none">Proyectos Especiales</h3>
+                                                <p className="text-gray-400 text-[8px] font-black tracking-[0.4em] uppercase opacity-70 mt-1">Saldos Pendientes</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <table className="w-full border-collapse table-auto mb-10">
+                                        <thead className="sticky top-0 z-20">
+                                            <tr className="bg-white border-b border-gray-100 shadow-sm">
+                                                {['Fecha Rad.', 'Proyecto', 'Facturación (KBS)', 'Pago Recibido', 'Saldo Pendiente', 'WOS', 'Status'].map((h, i) => (
+                                                    <th key={i} className="px-3 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50">
+                                            {pePendientes.map(row => (
+                                                <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
+                                                    <td className="px-3 py-4 text-center"><span className="text-[10px] font-bold uppercase tracking-wider text-[#303a7f]">{row.fecha_rad || '--/--/--'}</span></td>
+                                                    <td className="px-3 py-4 text-center"><span className="text-[10px] font-bold text-[#303a7f]">{row.semana_facturada || row.ref_id || 'P.E.'}</span></td>
+                                                    <td className="px-3 py-4 text-center text-[10px] font-bold text-red-400">{formatNum(row.facturacion_kbs)}</td>
+                                                    <td className="px-3 py-4 text-center text-[10px] font-bold text-teal-600">{formatNum(row.pago_recibido)}</td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <div className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-lg inline-block">
+                                                            <span className="text-[11px] font-black text-amber-600">{formatNum(row.saldo_pendiente)}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center"><span className="text-[10px] font-black text-orange-500">{row.wos || '---'}</span></td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <input type="checkbox" checked={!!row.pagado} onChange={() => togglePagado(row)} className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all" />
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </>
+                            )}
+
+                            {vwhPendientes.length === 0 && pePendientes.length === 0 && (
+                                <div className="flex flex-col items-center justify-center py-24 gap-4">
+                                    <div className="p-6 bg-amber-50 rounded-full">
+                                        <AlertTriangle size={48} className="text-amber-300" />
+                                    </div>
+                                    <p className="text-sm font-black text-gray-300 uppercase tracking-widest">No hay saldos pendientes</p>
+                                    <p className="text-[10px] font-bold text-gray-300">Todas las facturaciones han sido pagadas completamente o no tienen pagos registrados.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* FASE 2.5: VENTANA EMERGENTE DE DETALLES BIOMÉTRICOS */}
             {isDetailsModalOpen && (

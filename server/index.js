@@ -89,19 +89,16 @@ function mapEntityName(sheetName) {
 // Endpoint para obtener datos de cualquier tabla en formato JSON
 app.get('/api/data/:table', (req, res) => {
   const table = req.params.table;
-  const allowedTables = [
-    'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle',
-    'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
-    'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
-    'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
-    'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios', 'AuditLog', 'Gastos_Miscelaneos'
-  ];
 
-  if (!allowedTables.includes(table)) {
-    return res.status(404).json({ error: 'Tabla no encontrada o no permitida' });
+  if (table.toLowerCase().startsWith('sqlite_')) {
+    return res.status(404).json({ error: 'Tabla no permitida' });
   }
 
   try {
+    const exists = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table);
+    if (!exists) {
+      return res.status(404).json({ error: 'Tabla no encontrada' });
+    }
     const rows = db.prepare(`SELECT * FROM ${table}`).all();
     res.json(rows);
   } catch (error) {
@@ -802,6 +799,99 @@ app.get('/api/backup/r2/download/:date', async (req, res) => {
       return res.status(404).json({ error: `No existe backup para la fecha ${req.params.date}.` });
     }
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ---------------------------------------------------------------------
+// Sincronizar Saldos Pendientes
+// ---------------------------------------------------------------------
+app.post('/api/sync-saldos-pendientes', (req, res) => {
+  try {
+    const { tienda } = req.body || {};
+    const storeFilter = String(tienda || '').trim();
+
+    // --- VWH: Nomina_Historico ---
+    const nominaRows = storeFilter
+      ? db.prepare(`SELECT * FROM Nomina_Historico WHERE nombre = ?`).all(storeFilter)
+      : db.prepare(`SELECT * FROM Nomina_Historico`).all();
+
+    for (const row of nominaRows) {
+      const wosRaw = (row['WOS'] || row['wos'] || '').toString().trim();
+      const wos = /^[0-9.]+$/.test(wosRaw) ? '' : wosRaw;
+      const pago = parseFloat(String(row['Pago'] || row['pago'] || '0').replace(/[^0-9.]/g, ''));
+      if (!wos || isNaN(pago)) continue;
+
+      let factKBS = 0;
+      try {
+        const dj = JSON.parse(row.data_json || '{}');
+        if (dj.isQuincenaAZPEN) {
+          factKBS = dj.expectedPayment || 484.33;
+        } else if (dj.kbsBillingTableData) {
+          factKBS = dj.kbsBillingTableData.reduce((s, r) => s + (parseFloat(r.total) || 0), 0);
+        }
+      } catch (e) { /* ignore parse error */ }
+
+      const fechaRad = row['Fecha Rad.'] || row['fecha rad.'] || '--/--/--';
+      const semana = (row.fecha_inicio && row.fecha_fin) ? `${row.fecha_inicio} - ${row.fecha_fin}` : '';
+      const nombreStore = row.nombre || '';
+
+      if (factKBS > 0 && pago < factKBS) {
+        const existing = db.prepare('SELECT id FROM Saldos_Pendientes WHERE tipo = ? AND ref_id = ? AND tienda = ?').get('VWH', row.codigo, nombreStore);
+        if (existing) {
+          db.prepare('UPDATE Saldos_Pendientes SET facturacion_kbs = ?, pago_recibido = ?, saldo_pendiente = ?, wos = ?, fecha_rad = ?, semana_facturada = ?, updated_at = ? WHERE id = ?').run(factKBS, pago, factKBS - pago, wos, fechaRad, semana, new Date().toISOString(), existing.id);
+        } else {
+          db.prepare('INSERT INTO Saldos_Pendientes (tipo, ref_id, tienda, fecha_rad, semana_facturada, facturacion_kbs, pago_recibido, saldo_pendiente, wos, pagado, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,0,?,?)').run('VWH', row.codigo, nombreStore, fechaRad, semana, factKBS, pago, factKBS - pago, wos, new Date().toISOString(), new Date().toISOString());
+        }
+      } else if (wos && factKBS > 0) {
+        db.prepare('DELETE FROM Saldos_Pendientes WHERE tipo = ? AND ref_id = ? AND tienda = ?').run('VWH', row.codigo, nombreStore);
+      }
+    }
+
+    // --- P.E.: Proyectos_Especiales ---
+    const peRows = storeFilter
+      ? db.prepare(`SELECT * FROM Proyectos_Especiales WHERE Tienda = ?`).all(storeFilter)
+      : db.prepare(`SELECT * FROM Proyectos_Especiales`).all();
+
+    for (const row of peRows) {
+      const visible = String(row.Visible || row.visible || '').trim().toLowerCase();
+      if (visible === 'anulado') continue;
+
+      const wosRaw = (row['WOS'] || row['wos'] || '').toString().trim();
+      const wos = /^[0-9.]+$/.test(wosRaw) ? '' : wosRaw;
+      const pago = parseFloat(String(row['Pago'] || row['pago'] || '0').replace(/[^0-9.]/g, ''));
+      if (!wos || isNaN(pago)) continue;
+
+      let factKBS = 0;
+      try {
+        const dj = JSON.parse(row.Data_JSON || row.data_json || '{}');
+        const projects = Array.isArray(dj) ? dj : [dj];
+        factKBS = projects.reduce((total, p) => {
+          const emps = Array.isArray(p.employees) ? p.employees : [];
+          return total + emps.reduce((s, e) => s + ((parseFloat(e.hours) || 0) * (parseFloat(e.rateKBS) || 0)), 0);
+        }, 0);
+      } catch (e) { /* ignore parse error */ }
+
+      const fechaRad = row['Fecha Rad.'] || row['fecha rad.'] || '--/--/--';
+      const corr = row.Correlativo || row.correlativo || '';
+      const tiendaPE = row.Tienda || row.tienda || '';
+
+      if (factKBS > 0 && pago < factKBS) {
+        const existing = db.prepare('SELECT id FROM Saldos_Pendientes WHERE tipo = ? AND ref_id = ? AND tienda = ?').get('PE', corr, tiendaPE);
+        if (existing) {
+          db.prepare('UPDATE Saldos_Pendientes SET facturacion_kbs = ?, pago_recibido = ?, saldo_pendiente = ?, wos = ?, fecha_rad = ?, updated_at = ? WHERE id = ?').run(factKBS, pago, factKBS - pago, wos, fechaRad, new Date().toISOString(), existing.id);
+        } else {
+          db.prepare('INSERT INTO Saldos_Pendientes (tipo, ref_id, tienda, fecha_rad, semana_facturada, facturacion_kbs, pago_recibido, saldo_pendiente, wos, pagado, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,0,?,?)').run('PE', corr, tiendaPE, fechaRad, '', factKBS, pago, factKBS - pago, wos, new Date().toISOString(), new Date().toISOString());
+        }
+      } else if (wos && factKBS > 0) {
+        db.prepare('DELETE FROM Saldos_Pendientes WHERE tipo = ? AND ref_id = ? AND tienda = ?').run('PE', corr, tiendaPE);
+      }
+    }
+
+    const saldos = db.prepare('SELECT * FROM Saldos_Pendientes ORDER BY tienda, tipo, ref_id').all();
+    res.json({ success: true, data: saldos });
+  } catch (error) {
+    console.error('[Sync Saldos] Error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
