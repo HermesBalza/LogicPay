@@ -50,6 +50,7 @@ export async function backupDatabase(db) {
   const filename = `backup-${date}.db`;
   const tmpPath = join(tmpDir, filename);
 
+  db.pragma('wal_checkpoint(RESTART)');
   await db.backup(tmpPath, {
     progress({ totalPages, remainingPages }) {
       if (remainingPages % 100 === 0) {

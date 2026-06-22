@@ -11,7 +11,7 @@ import fs from 'fs';
 import os from 'os';
 import db from './db.js';
 import './init_db.js';
-import { runBackup, isBackupConfigured, startBackupScheduler, listBackups, getBackupStream } from './backup.js';
+import { runBackup, backupDatabase, isBackupConfigured, startBackupScheduler, listBackups, getBackupStream } from './backup.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -723,11 +723,15 @@ app.post('/api/buscar-proveedores', async (req, res) => {
 // ---------------------------------------------------------------------
 // Backup endpoint
 // ---------------------------------------------------------------------
-app.get('/api/backup', (req, res) => {
+app.get('/api/backup', async (req, res) => {
   try {
+    const localPath = await backupDatabase(db);
     const date = new Date().toISOString().split('T')[0];
     const filename = `LogicPay_BackUp_${date}.db`;
-    res.download(dbPath, filename);
+    res.download(localPath, filename, (err) => {
+      if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
+      if (err) console.error('Error enviando backup:', err.message);
+    });
   } catch (error) {
     console.error('Error en backup:', error);
     res.status(500).json({ error: 'Error al generar el backup' });
