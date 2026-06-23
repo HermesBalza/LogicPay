@@ -9934,6 +9934,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                                 onChange={(e) => onSelectStore(e.target.value)}
                                 className="w-full bg-gray-50 border-2 border-brand-primary/10 rounded-xl px-3 pr-8 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all cursor-pointer shadow-inner appearance-none h-10"
                             >
+                                <option value="__NOMINA_COMPLETA__">📋 Nómina Completa</option>
                                 <option value="">Selecciona una Tienda</option>
                                 <option value={CONSOLIDATED_STORE} style={{ fontWeight: 'black', color: '#6bbdb7' }}>
                                     ❇️ {CONSOLIDATED_STORE}
