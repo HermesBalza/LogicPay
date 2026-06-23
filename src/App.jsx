@@ -15442,6 +15442,7 @@ function App() {
     const [isMobile] = useState(() => window.innerWidth < 768 || /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent));
 
     const userCanEdit = user?.rol !== 'Operador de Pagos';
+    const userCanEditPersonal = true;
     const userCanAccessSettings = user?.rol === 'Desarrollador';
     // Redirigir si se intenta acceder a Ajustes sin permiso
     if (activeTab === 'settings' && !userCanAccessSettings) {
@@ -17718,7 +17719,7 @@ function App() {
 
     // Re-hidratación de Personal
     useEffect(() => {
-        if (employees.length > 0 && pendingEmployeeId.current && userCanEdit) {
+        if (employees.length > 0 && pendingEmployeeId.current && userCanEditPersonal) {
             const emp = employees.find(e => e.codigo_empleado === pendingEmployeeId.current);
             if (emp) {
                 setEditingEmployee(emp);
@@ -20162,7 +20163,7 @@ function App() {
                                         />
                                     </div>
 
-                                    {userCanEdit && (
+                                    {userCanEditPersonal && (
                                     <button
                                         onClick={() => setIsAddingEmployee(true)}
                                         style={{ backgroundColor: '#303a7f' }}
@@ -20179,7 +20180,7 @@ function App() {
                             {personalViewMode === 'grid' ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                                     {employees.filter(e => e.nombre.toLowerCase().includes(employeeSearchTerm.toLowerCase())).map((employee, i) => (
-                                        <EmployeeCard key={i} employee={employee} onEdit={userCanEdit ? setEditingEmployee : () => {}} />
+                                        <EmployeeCard key={i} employee={employee} onEdit={userCanEditPersonal ? setEditingEmployee : () => {}} />
                                     ))}
 
                                     {employees.length === 0 && (
@@ -20199,7 +20200,7 @@ function App() {
                                     </div>
                                     <div className="divide-y divide-gray-50">
                                         {employees.filter(e => e.nombre.toLowerCase().includes(employeeSearchTerm.toLowerCase())).map((employee, i) => (
-                                            <EmployeeRow key={i} employee={employee} onEdit={userCanEdit ? setEditingEmployee : () => {}} />
+                                            <EmployeeRow key={i} employee={employee} onEdit={userCanEditPersonal ? setEditingEmployee : () => {}} />
                                         ))}
                                     </div>
 
