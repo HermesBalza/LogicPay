@@ -455,7 +455,7 @@ const csvRowToEmployee = (flat) => {
         routing_num: findValue(['routing_num']) || '',
         account_num: findValue(['account_num']) || '',
         payee_name: findValue(['payee_name']) || '',
-        id_number: findValue(['id_number']) || '',
+        id_number: (findValue(['codigo_empleado', 'codigo_emple']) || '').toString().replace(/^'/, ''),
         imagen: findValue(['imagen']) || '',
         // --- Campos 1099 ---
         payer_type: findValue(['payer_type', 'Payer Type']) || 'Individual',
@@ -4647,11 +4647,10 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">ID Number</label>
                                         <input
                                             type="text"
-                                            value={editedEmployee.id_number || ''}
-                                            onChange={(e) => updateField('id_number', e.target.value)}
-                                            readOnly={!isEditing}
-                                            placeholder="Número de Identificación"
-                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs`}
+                                            value={editedEmployee.codigo_empleado || ''}
+                                            readOnly
+                                            placeholder="Automático"
+                                            className="w-full bg-gray-100 text-gray-400 rounded-xl p-3 outline-none font-bold text-xs cursor-not-allowed"
                                         />
                                     </div>
                                 </div>
@@ -5035,6 +5034,9 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
             if (field === 'first_name' || field === 'last_name') {
                 updated.nombre = `${updated.first_name || ''} ${updated.last_name || ''}`.trim();
             }
+            if (field === 'codigo_empleado') {
+                updated.id_number = finalValue;
+            }
             return updated;
         });
     };
@@ -5143,7 +5145,7 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
                                 </div>
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">ID Number</label>
-                                    <input type="text" value={newEmployee.id_number || ''} onChange={(e) => updateField('id_number', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Número de Identificación" />
+                                    <input type="text" value={newEmployee.codigo_empleado || ''} readOnly className="w-full bg-gray-100 text-gray-400 rounded-xl p-3.5 font-bold text-sm cursor-not-allowed" placeholder="Automático" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="group">
@@ -18104,7 +18106,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             routing_num: updatedEmployee.routing_num || '',
             account_num: updatedEmployee.account_num || '',
             payee_name: updatedEmployee.payee_name || '',
-            id_number: updatedEmployee.id_number || '',
+            id_number: updatedEmployee.codigo_empleado || '',
             // Mapeo de llaves (Nombres de Columnas Exactos)
             'Rate KBS': updatedEmployee.rateKBS || 0,
             'Rate LGM': updatedEmployee.rateLGM || 0,
@@ -18156,7 +18158,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             routing_num: newEmp.routing_num || '',
             account_num: newEmp.account_num || '',
             payee_name: newEmp.payee_name || '',
-            id_number: newEmp.id_number || '',
+            id_number: newEmp.codigo_empleado || '',
             'Rate KBS': newEmp.rateKBS || newEmp.rate_kbs || 0,
             'Rate LGM': newEmp.rateLGM || newEmp.rate_lgm || 0,
             'Rate CSG': newEmp.rate_csg || 0,

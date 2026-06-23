@@ -3067,6 +3067,9 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
             if (field === 'first_name' || field === 'last_name') {
                 updated.nombre = `${updated.first_name} ${updated.last_name}`.trim();
             }
+            if (field === 'codigo_empleado') {
+                updated.id_number = value;
+            }
             return updated;
         });
     };
@@ -3258,7 +3261,7 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
                                 </div>
                                 <div>
                                     <label className={labelCls}>ID Number</label>
-                                    <input type="text" placeholder="Número de Identificación" value={newEmp.id_number || ''} onChange={(e) => updateField('id_number', e.target.value)} className={inputCls} />
+                                    <input type="text" placeholder="Automático" value={newEmp.codigo_empleado || ''} readOnly className={inputCls + " bg-gray-100 text-gray-400 cursor-not-allowed"} />
                                 </div>
                             </div>
                         </section>
