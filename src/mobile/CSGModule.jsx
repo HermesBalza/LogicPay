@@ -3038,6 +3038,10 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
         country: 'EE. UU.',
         email_tax: '',
         cuenta_bancaria: '',
+        routing_num: '',
+        account_num: '',
+        payee_name: '',
+        id_number: '',
         imagen: '',
         rate_csg: '',
         rate_lgm: '',
@@ -3225,6 +3229,24 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
                             <div>
                                 <label className={labelCls}>Cuenta Bancaria / Información de Depósito</label>
                                 <textarea rows="3" placeholder="Número de cuenta, Routing, Zelle..." value={newEmp.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className={inputCls + " resize-none"}></textarea>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 mt-4">
+                                <div>
+                                    <label className={labelCls}>Routing Num</label>
+                                    <input type="text" placeholder="Routing Number" value={newEmp.routing_num || ''} onChange={(e) => updateField('routing_num', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Acct Number</label>
+                                    <input type="text" placeholder="Account Number" value={newEmp.account_num || ''} onChange={(e) => updateField('account_num', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Payee Name</label>
+                                    <input type="text" placeholder="Nombre del Beneficiario" value={newEmp.payee_name || ''} onChange={(e) => updateField('payee_name', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>ID Number</label>
+                                    <input type="text" placeholder="Número de Identificación" value={newEmp.id_number || ''} onChange={(e) => updateField('id_number', e.target.value)} className={inputCls} />
+                                </div>
                             </div>
                         </section>
                     </div>

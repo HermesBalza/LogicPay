@@ -37,7 +37,11 @@ CREATE TABLE IF NOT EXISTS Personal (
     "Rate LGM" TEXT,
     "Observaciones" TEXT,
     "Rate CSG" TEXT,
-    "Cliente" TEXT
+    "Cliente" TEXT,
+    "routing_num" TEXT,
+    "account_num" TEXT,
+    "payee_name" TEXT,
+    "id_number" TEXT
 );
 
 -- Tabla Personal_Admin

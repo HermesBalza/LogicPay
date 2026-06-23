@@ -116,6 +116,12 @@ try { db.exec(`ALTER TABLE CRM_Proveedores ADD COLUMN ultima_llamada TEXT`); } c
 try { db.exec(`ALTER TABLE CRM_Proveedores ADD COLUMN estado TEXT`); } catch (e) { }
 try { db.exec(`ALTER TABLE CRM_Proveedores ADD COLUMN ciudad TEXT`); } catch (e) { }
 
+// Migración segura: columnas bancarias de Personal
+try { db.exec(`ALTER TABLE Personal ADD COLUMN routing_num TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE Personal ADD COLUMN account_num TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE Personal ADD COLUMN payee_name TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE Personal ADD COLUMN id_number TEXT`); } catch (_) {}
+
 db.exec(`CREATE TABLE IF NOT EXISTS CRM_Proyectos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,

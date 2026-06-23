@@ -459,6 +459,10 @@ const csvRowToEmployee = (flat) => {
         cargo: findValue(['cargo']) || '',
         tienda: findValue(['tienda']) || '',
         cuenta_bancaria: findValue(['cuenta_bancaria', 'cuenta_banca']) || '',
+        routing_num: findValue(['routing_num']) || '',
+        account_num: findValue(['account_num']) || '',
+        payee_name: findValue(['payee_name']) || '',
+        id_number: findValue(['id_number']) || '',
         imagen: findValue(['imagen']) || '',
         // --- Campos 1099 ---
         payer_type: findValue(['payer_type', 'Payer Type']) || 'Individual',
@@ -4838,6 +4842,59 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                 </div>
                             </div>
 
+                            {/* --- Datos Bancarios para Depósito --- */}
+                            <div className="mt-6 pt-6 border-t-2 border-gray-50">
+                                <h4 className="text-[10px] text-[#303a7f] uppercase font-black tracking-[0.3em] mb-4 flex items-center gap-2">
+                                    <CreditCard size={14} /> Datos Bancarios para Depósito
+                                </h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Routing Num</label>
+                                        <input
+                                            type="text"
+                                            value={editedEmployee.routing_num || ''}
+                                            onChange={(e) => updateField('routing_num', e.target.value)}
+                                            readOnly={!isEditing}
+                                            placeholder="Routing Number"
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs`}
+                                        />
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Acct Number</label>
+                                        <input
+                                            type="text"
+                                            value={editedEmployee.account_num || ''}
+                                            onChange={(e) => updateField('account_num', e.target.value)}
+                                            readOnly={!isEditing}
+                                            placeholder="Account Number"
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs`}
+                                        />
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Payee Name</label>
+                                        <input
+                                            type="text"
+                                            value={editedEmployee.payee_name || ''}
+                                            onChange={(e) => updateField('payee_name', e.target.value)}
+                                            readOnly={!isEditing}
+                                            placeholder="Nombre del Beneficiario"
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs`}
+                                        />
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">ID Number</label>
+                                        <input
+                                            type="text"
+                                            value={editedEmployee.id_number || ''}
+                                            onChange={(e) => updateField('id_number', e.target.value)}
+                                            readOnly={!isEditing}
+                                            placeholder="Número de Identificación"
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs`}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* --- Sección de Tarifas Especiales y Notas --- */}
                             <div className="mt-6 pt-6 border-t-2 border-gray-50 space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
@@ -5211,6 +5268,10 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
             cargo: 'Janitorial',
             tienda: '',
             cuenta_bancaria: '',
+            routing_num: '',
+            account_num: '',
+            payee_name: '',
+            id_number: '',
             imagen: '',
             // --- Campos 1099 ---
             payer_type: 'Individual',
@@ -5337,6 +5398,22 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
                                 <div className="group">
                                     <label className="text-[9px] text-[#303a7f] uppercase font-black tracking-widest block mb-1">Detalles de Pago</label>
                                     <textarea value={newEmployee.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm resize-none" rows="3" placeholder="Zelle, No. Cuenta, Banco..."></textarea>
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Routing Num</label>
+                                    <input type="text" value={newEmployee.routing_num || ''} onChange={(e) => updateField('routing_num', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Routing Number" />
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Acct Number</label>
+                                    <input type="text" value={newEmployee.account_num || ''} onChange={(e) => updateField('account_num', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Account Number" />
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Payee Name</label>
+                                    <input type="text" value={newEmployee.payee_name || ''} onChange={(e) => updateField('payee_name', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Nombre del Beneficiario" />
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">ID Number</label>
+                                    <input type="text" value={newEmployee.id_number || ''} onChange={(e) => updateField('id_number', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Número de Identificación" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="group">
@@ -18915,6 +18992,10 @@ function App() {
             zip: updatedEmployee.zip ? updatedEmployee.zip.toString().replace(/^'/, '') : '',
             site_code: updatedEmployee.site_code ? updatedEmployee.site_code.toString().replace(/^'/, '') : '',
             cuenta_bancaria: updatedEmployee.cuenta_bancaria ? updatedEmployee.cuenta_bancaria.toString().replace(/^'/, '') : '',
+            routing_num: updatedEmployee.routing_num || '',
+            account_num: updatedEmployee.account_num || '',
+            payee_name: updatedEmployee.payee_name || '',
+            id_number: updatedEmployee.id_number || '',
             // Mapeo de llaves (Nombres de Columnas Exactos)
             'Rate KBS': updatedEmployee.rateKBS || 0,
             'Rate LGM': updatedEmployee.rateLGM || 0,
@@ -18963,6 +19044,10 @@ function App() {
             zip: newEmp.zip ? newEmp.zip.toString().replace(/^'/, '') : '',
             site_code: newEmp.site_code ? newEmp.site_code.toString().replace(/^'/, '') : '',
             cuenta_bancaria: newEmp.cuenta_bancaria ? newEmp.cuenta_bancaria.toString().replace(/^'/, '') : '',
+            routing_num: newEmp.routing_num || '',
+            account_num: newEmp.account_num || '',
+            payee_name: newEmp.payee_name || '',
+            id_number: newEmp.id_number || '',
             'Rate KBS': newEmp.rateKBS || newEmp.rate_kbs || 0,
             'Rate LGM': newEmp.rateLGM || newEmp.rate_lgm || 0,
             'Rate CSG': newEmp.rate_csg || 0,
