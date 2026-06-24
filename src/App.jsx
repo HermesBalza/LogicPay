@@ -9537,29 +9537,33 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
     const generateNachaCSV = () => {
         const allEntries = [...biweeklyEmployees, ...addedSupervisors];
+        const pad = (n) => String(n).padStart(2, '0');
         const now = new Date();
-        const fileDate = String(now.getFullYear()).slice(-2) + 
-                         String(now.getMonth()+1).padStart(2,'0') + 
-                         String(now.getDate()).padStart(2,'0');
-        const fileTime = String(now.getHours()).padStart(2,'0') + 
-                         String(now.getMinutes()).padStart(2,'0');
+        const fileDate = pad(now.getMonth()+1) + pad(now.getDate()) + String(now.getFullYear());
+        const fileTime = pad(now.getHours()) + pad(now.getMinutes());
+
         const w2EndRaw = period.w2?.end || '';
         const [endM, endD, endY] = w2EndRaw.split('/');
-        const deliveryDate = String(endY||'').slice(-2) + 
-                             String(endM||'').padStart(2,'0') + 
-                             String(endD||'').padStart(2,'0');
+        const endDateStr = pad(endM||'') + pad(endD||'') + String(endY||'');
+
+        const biweekNum = Math.ceil(period.w1?.weekNumInYear / 2) || '';
 
         const rows = allEntries.map(emp => {
             const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
             const amount = Number(calculatePagoTotal(emp) || 0).toFixed(2);
             const trxnCode = (dbEmp?.account_type !== 'savings') ? '22' : '32';
+            const firstName = dbEmp?.first_name || '';
+            const lastName = dbEmp?.last_name || '';
+            const trxnId = (firstName || lastName) ? `${firstName}_${lastName}_${endDateStr}` : '';
             return {
                 routing: dbEmp?.routing_num || '',
                 account: dbEmp?.account_num || '',
                 amount,
                 idNumber: dbEmp?.id_number || dbEmp?.codigo_empleado || '',
                 payeeName: dbEmp?.payee_name || emp.nombre || '',
-                trxnCode
+                trxnCode,
+                trxnId,
+                addenda: biweekNum ? `Payroll BW${biweekNum}` : ''
             };
         });
 
@@ -9567,12 +9571,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
         const csv = [];
         csv.push('Indicator,File ID (Modifier),File creation date,File creation time,Total trxn,Total ACH credit amount,Total ACH debit amount,Batch Count,,');
-        csv.push(`1,,${fileDate},${fileTime},${rows.length},${totalAmount},0,1,,`);
+        csv.push(`1,A,${fileDate},${fileTime},${rows.length},${totalAmount},0,1,,`);
         csv.push('Indicator,Service class code,Chase Acct,SEC Code,Entry description,Delivery by date,Batch credit amount,Batch debit amount,Batch number,Trxn in Batch');
-        csv.push(`5,200,,PPD,PAYROLL,${deliveryDate},${totalAmount},0,1,${rows.length}`);
+        csv.push(`5,220,,PPD,PAYROLL,${endDateStr},${totalAmount},0,1,${rows.length}`);
         csv.push('Indicator,Trxn Code,Routing Num,Acct number,Trxn amount,ID Number,Payee name,Trxn ID,Addenda,');
         rows.forEach(r => {
-            csv.push(`6,${r.trxnCode},${r.routing},${r.account},${r.amount},${r.idNumber},"${r.payeeName}",,,`);
+            csv.push(`6,${r.trxnCode},${r.routing},${r.account},${r.amount},${r.idNumber},"${r.payeeName}",${r.trxnId},${r.addenda},`);
         });
 
         return csv.join('\n');
@@ -10221,7 +10225,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement('a');
                                     a.href = url;
-                                    a.download = `NACHA_Nomina_Completa_${period.range.replace(/\//g,'-').replace(/\s+/g,'_')}.csv`;
+                                    a.download = `Payroll_ACH_${period.range.replace(/\//g,'-').replace(/\s+/g,'_')}.csv`;
                                     document.body.appendChild(a);
                                     a.click();
                                     document.body.removeChild(a);
