@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS Personal (
     "Cliente" TEXT,
     "routing_num" TEXT,
     "account_num" TEXT,
+    "account_type" TEXT DEFAULT 'checking',
     "payee_name" TEXT,
     "id_number" TEXT
 );

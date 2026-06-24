@@ -119,6 +119,7 @@ try { db.exec(`ALTER TABLE CRM_Proveedores ADD COLUMN ciudad TEXT`); } catch (e)
 // Migración segura: columnas bancarias de Personal
 try { db.exec(`ALTER TABLE Personal ADD COLUMN routing_num TEXT`); } catch (_) {}
 try { db.exec(`ALTER TABLE Personal ADD COLUMN account_num TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE Personal ADD COLUMN account_type TEXT DEFAULT 'checking'`); } catch (_) {}
 try { db.exec(`ALTER TABLE Personal ADD COLUMN payee_name TEXT`); } catch (_) {}
 try { db.exec(`ALTER TABLE Personal ADD COLUMN id_number TEXT`); } catch (_) {}
 

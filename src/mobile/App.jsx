@@ -454,6 +454,7 @@ const csvRowToEmployee = (flat) => {
         cuenta_bancaria: findValue(['cuenta_bancaria', 'cuenta_banca']) || '',
         routing_num: findValue(['routing_num']) || '',
         account_num: findValue(['account_num']) || '',
+        account_type: (findValue(['account_type']) || '').toLowerCase() === 'savings' ? 'savings' : 'checking',
         payee_name: findValue(['payee_name']) || '',
         id_number: (findValue(['codigo_empleado', 'codigo_emple']) || '').toString().replace(/^'/, ''),
         imagen: findValue(['imagen']) || '',
@@ -4633,6 +4634,18 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                         />
                                     </div>
                                     <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Account Type</label>
+                                        <select
+                                            value={editedEmployee.account_type || 'checking'}
+                                            onChange={(e) => updateField('account_type', e.target.value)}
+                                            disabled={!isEditing}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs`}
+                                        >
+                                            <option value="checking">Checking (22)</option>
+                                            <option value="savings">Savings (32)</option>
+                                        </select>
+                                    </div>
+                                    <div className="group">
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Payee Name</label>
                                         <input
                                             type="text"
@@ -4999,6 +5012,7 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
             cuenta_bancaria: '',
             routing_num: '',
             account_num: '',
+            account_type: 'checking',
             payee_name: '',
             id_number: '',
             imagen: '',
@@ -5138,6 +5152,13 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Acct Number</label>
                                     <input type="text" value={newEmployee.account_num || ''} onChange={(e) => updateField('account_num', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Account Number" />
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Account Type</label>
+                                    <select value={newEmployee.account_type || 'checking'} onChange={(e) => updateField('account_type', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm">
+                                        <option value="checking">Checking (22)</option>
+                                        <option value="savings">Savings (32)</option>
+                                    </select>
                                 </div>
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Payee Name</label>
@@ -18208,6 +18229,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             cuenta_bancaria: updatedEmployee.cuenta_bancaria ? updatedEmployee.cuenta_bancaria.toString().replace(/^'/, '') : '',
             routing_num: updatedEmployee.routing_num || '',
             account_num: updatedEmployee.account_num || '',
+            account_type: updatedEmployee.account_type || 'checking',
             payee_name: updatedEmployee.payee_name || '',
             id_number: updatedEmployee.codigo_empleado || '',
             // Mapeo de llaves (Nombres de Columnas Exactos)
@@ -18260,6 +18282,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             cuenta_bancaria: newEmp.cuenta_bancaria ? newEmp.cuenta_bancaria.toString().replace(/^'/, '') : '',
             routing_num: newEmp.routing_num || '',
             account_num: newEmp.account_num || '',
+            account_type: newEmp.account_type || 'checking',
             payee_name: newEmp.payee_name || '',
             id_number: newEmp.codigo_empleado || '',
             'Rate KBS': newEmp.rateKBS || newEmp.rate_kbs || 0,

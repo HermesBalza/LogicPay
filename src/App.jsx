@@ -461,6 +461,7 @@ const csvRowToEmployee = (flat) => {
         cuenta_bancaria: findValue(['cuenta_bancaria', 'cuenta_banca']) || '',
         routing_num: findValue(['routing_num']) || '',
         account_num: findValue(['account_num']) || '',
+        account_type: (findValue(['account_type']) || '').toLowerCase() === 'savings' ? 'savings' : 'checking',
         payee_name: findValue(['payee_name']) || '',
         id_number: (findValue(['codigo_empleado', 'codigo_emple']) || '').toString().replace(/^'/, ''),
         imagen: findValue(['imagen']) || '',
@@ -4871,6 +4872,18 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                         />
                                     </div>
                                     <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Account Type</label>
+                                        <select
+                                            value={editedEmployee.account_type || 'checking'}
+                                            onChange={(e) => updateField('account_type', e.target.value)}
+                                            disabled={!isEditing}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs`}
+                                        >
+                                            <option value="checking">Checking (22)</option>
+                                            <option value="savings">Savings (32)</option>
+                                        </select>
+                                    </div>
+                                    <div className="group">
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Payee Name</label>
                                         <input
                                             type="text"
@@ -5269,6 +5282,7 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
             cuenta_bancaria: '',
             routing_num: '',
             account_num: '',
+            account_type: 'checking',
             payee_name: '',
             id_number: '',
             imagen: '',
@@ -5408,6 +5422,13 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Acct Number</label>
                                     <input type="text" value={newEmployee.account_num || ''} onChange={(e) => updateField('account_num', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Account Number" />
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Account Type</label>
+                                    <select value={newEmployee.account_type || 'checking'} onChange={(e) => updateField('account_type', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm">
+                                        <option value="checking">Checking (22)</option>
+                                        <option value="savings">Savings (32)</option>
+                                    </select>
                                 </div>
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Payee Name</label>
@@ -9514,6 +9535,49 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         String(d.ID_Consolidacion || d.id_consolidacion || '').trim() === `${period.store}_${period.range}`.replace(/\s+/g, '_')
     );
 
+    const generateNachaCSV = () => {
+        const allEntries = [...biweeklyEmployees, ...addedSupervisors];
+        const now = new Date();
+        const fileDate = String(now.getFullYear()).slice(-2) + 
+                         String(now.getMonth()+1).padStart(2,'0') + 
+                         String(now.getDate()).padStart(2,'0');
+        const fileTime = String(now.getHours()).padStart(2,'0') + 
+                         String(now.getMinutes()).padStart(2,'0');
+        const w2EndRaw = period.w2?.end || '';
+        const [endM, endD, endY] = w2EndRaw.split('/');
+        const deliveryDate = String(endY||'').slice(-2) + 
+                             String(endM||'').padStart(2,'0') + 
+                             String(endD||'').padStart(2,'0');
+
+        const rows = allEntries.map(emp => {
+            const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+            const amount = Number(calculatePagoTotal(emp) || 0).toFixed(2);
+            const trxnCode = (dbEmp?.account_type !== 'savings') ? '22' : '32';
+            return {
+                routing: dbEmp?.routing_num || '',
+                account: dbEmp?.account_num || '',
+                amount,
+                idNumber: dbEmp?.id_number || dbEmp?.codigo_empleado || '',
+                payeeName: dbEmp?.payee_name || emp.nombre || '',
+                trxnCode
+            };
+        });
+
+        const totalAmount = rows.reduce((sum, r) => sum + parseFloat(r.amount), 0).toFixed(2);
+
+        const csv = [];
+        csv.push('Indicator,File ID (Modifier),File creation date,File creation time,Total trxn,Total ACH credit amount,Total ACH debit amount,Batch Count,,');
+        csv.push(`1,,${fileDate},${fileTime},${rows.length},${totalAmount},0,1,,`);
+        csv.push('Indicator,Service class code,Chase Acct,SEC Code,Entry description,Delivery by date,Batch credit amount,Batch debit amount,Batch number,Trxn in Batch');
+        csv.push(`5,200,,PPD,PAYROLL,${deliveryDate},${totalAmount},0,1,${rows.length}`);
+        csv.push('Indicator,Trxn Code,Routing Num,Acct number,Trxn amount,ID Number,Payee name,Trxn ID,Addenda,');
+        rows.forEach(r => {
+            csv.push(`6,${r.trxnCode},${r.routing},${r.account},${r.amount},${r.idNumber},"${r.payeeName}",,,`);
+        });
+
+        return csv.join('\n');
+    };
+
     // ─── LÓGICA DE ENVÍO DE RECIBOS DE PAGO (PAY STUBS) ───────────────────
     const handleSendAllPayStubs = async () => {
         const recipients = [...biweeklyEmployees, ...addedSupervisors].filter(emp => {
@@ -10148,6 +10212,27 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             )}
                             {isSaving ? 'Confirmando...' : isAlreadyProcessed ? 'Nómina Confirmada' : 'Confirmar Nómina'}
                         </button>
+
+                        {period.store === '__NOMINA_COMPLETA__' && (
+                            <button
+                                onClick={() => {
+                                    const csv = generateNachaCSV();
+                                    const blob = new Blob([csv], { type: 'text/csv' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `NACHA_Nomina_Completa_${period.range.replace(/\//g,'-').replace(/\s+/g,'_')}.csv`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    document.body.removeChild(a);
+                                    URL.revokeObjectURL(url);
+                                }}
+                                disabled={[...biweeklyEmployees, ...addedSupervisors].length === 0}
+                                className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <Download size={16} /> Descargar .CSV
+                            </button>
+                        )}
 
                         {isConfirmModalOpen && (
                             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#f9f9f9]/80 backdrop-blur-sm p-4 text-left">
@@ -19103,6 +19188,7 @@ function App() {
             cuenta_bancaria: updatedEmployee.cuenta_bancaria ? updatedEmployee.cuenta_bancaria.toString().replace(/^'/, '') : '',
             routing_num: updatedEmployee.routing_num || '',
             account_num: updatedEmployee.account_num || '',
+            account_type: updatedEmployee.account_type || 'checking',
             payee_name: updatedEmployee.payee_name || '',
             id_number: updatedEmployee.codigo_empleado || '',
             // Mapeo de llaves (Nombres de Columnas Exactos)
@@ -19155,6 +19241,7 @@ function App() {
             cuenta_bancaria: newEmp.cuenta_bancaria ? newEmp.cuenta_bancaria.toString().replace(/^'/, '') : '',
             routing_num: newEmp.routing_num || '',
             account_num: newEmp.account_num || '',
+            account_type: newEmp.account_type || 'checking',
             payee_name: newEmp.payee_name || '',
             id_number: newEmp.codigo_empleado || '',
             'Rate KBS': newEmp.rateKBS || newEmp.rate_kbs || 0,

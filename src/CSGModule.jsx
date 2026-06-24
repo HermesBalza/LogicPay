@@ -3053,6 +3053,7 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
         cuenta_bancaria: '',
         routing_num: '',
         account_num: '',
+        account_type: 'checking',
         payee_name: '',
         id_number: '',
         imagen: '',
@@ -3254,6 +3255,13 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
                                 <div>
                                     <label className={labelCls}>Acct Number</label>
                                     <input type="text" placeholder="Account Number" value={newEmp.account_num || ''} onChange={(e) => updateField('account_num', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Account Type</label>
+                                    <select value={newEmp.account_type || 'checking'} onChange={(e) => updateField('account_type', e.target.value)} className={inputCls}>
+                                        <option value="checking">Checking (22)</option>
+                                        <option value="savings">Savings (32)</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label className={labelCls}>Payee Name</label>
