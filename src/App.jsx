@@ -9174,7 +9174,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         cargo: row.cargo,
                         address: fullAddress,
                         comments: row.comments || '',
-                        rowColor: row.cargo === 'Supervisor' ? 'bg-teal-50/40 border-l-4 border-teal-500' : (period.store === CONSOLIDATED_STORE ? 'bg-amber-50/30' : 'bg-white'),
+                        rowColor: row.cargo === 'Supervisor' ? 'bg-teal-50/40 border-l-4 border-teal-500' : (period.store === CONSOLIDATED_STORE || period.store === '__NOMINA_COMPLETA__' ? 'bg-amber-50/30' : 'bg-white'),
                         isMultiSite: false
                     };
                 });
@@ -9203,6 +9203,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         };
 
         const isConsolidatedView = period.store === CONSOLIDATED_STORE;
+        const isNominaCompleta = period.store === '__NOMINA_COMPLETA__';
 
         // 1. Escanear TODO el historial del periodo para detectar duplicados
         const allW1Records = nominaHistoryData.filter(h => normalizeDate(h.fecha_inicio) === normalizeDate(period.w1?.start));
@@ -9295,7 +9296,9 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             const stores = empStoreMap[empId];
             const isMultiSite = stores.size > 1;
 
-            if (isConsolidatedView) {
+            if (isNominaCompleta) {
+                return true;
+            } else if (isConsolidatedView) {
                 return isMultiSite;
             } else {
                 // Vista de tienda regular: Incluir si trabajó aquí Y NO es multi-sitio
@@ -9332,7 +9335,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             const data = empDataMap[id] || { w1: [], w2: [] };
 
             // Si es vista consolidada, sumamos todo. Si es regular, solo lo de esta tienda.
-            const filterStore = isConsolidatedView ? null : period.store;
+            const filterStore = (isConsolidatedView || isNominaCompleta) ? null : period.store;
 
             const w1Entries = filterStore ? data.w1.filter(e => e.store === filterStore) : data.w1;
             const w2Entries = filterStore ? data.w2.filter(e => e.store === filterStore) : data.w2;
@@ -9354,7 +9357,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             (specialProjectsData || []).forEach(project => {
                 if (project.status === 'registered') {
                     // Si no es consolidado, solo incluir si el proyecto es de esta tienda
-                    if (!isConsolidatedView && project.tienda !== period.store) return;
+                    if (!isConsolidatedView && !isNominaCompleta && project.tienda !== period.store) return;
 
                     (project.employees || []).forEach(row => {
                         if (String(row.employeeName).trim().toLowerCase() === empNombreRaw) {
@@ -9367,6 +9370,27 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     });
                 }
             });
+
+            // Para Nómina Completa: extraer PE desde historial confirmado de todas las tiendas
+            if (isNominaCompleta) {
+                (allPEInPeriod || []).forEach(record => {
+                    try {
+                        const parsed = JSON.parse(record.data_json || '{}');
+                        const items = Array.isArray(parsed) ? parsed : [parsed];
+                        items.forEach(item => {
+                            (item.employees || []).forEach(row => {
+                                if (String(row.employeeName || '').trim().toLowerCase() === empNombreRaw) {
+                                    const h = parseFloat(row.hours) || 0;
+                                    const r = parseFloat(row.rateLogic) || 0;
+                                    peTotalHours += h;
+                                    peTotalEarnings += (h * r);
+                                    if (peFirstRate === 0 && h > 0) peFirstRate = r;
+                                }
+                            });
+                        });
+                    } catch (e) {}
+                });
+            }
 
             if (rate === 0 && peFirstRate > 0) rate = peFirstRate;
 
@@ -9386,13 +9410,19 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 rate: rate,
                 cargo: cargo,
                 address: fullAddress,
-                comments: savedCommentsMap[finalNombre.trim().toLowerCase()] || (isConsolidatedView ? Array.from(empStoreMap[id] || []).join('\n').toUpperCase() : ''),
-                rowColor: isConsolidatedView ? 'bg-amber-50/30' : 'bg-white',
+                comments: savedCommentsMap[finalNombre.trim().toLowerCase()] || (isConsolidatedView || isNominaCompleta ? Array.from(empStoreMap[id] || []).join('\n').toUpperCase() : ''),
+                rowColor: isConsolidatedView || (isNominaCompleta && empStoreMap[id]?.size > 1) ? 'bg-amber-50/30' : 'bg-white',
                 isMultiSite: empStoreMap[id].size > 1
             };
         });
 
-        consolidated.sort((a, b) => a.nombre.localeCompare(b.nombre));
+        consolidated.sort((a, b) => {
+            if (isNominaCompleta) {
+                if (a.isMultiSite && !b.isMultiSite) return 1;
+                if (!a.isMultiSite && b.isMultiSite) return -1;
+            }
+            return a.nombre.localeCompare(b.nombre);
+        });
         setBiweeklyEmployees(consolidated);
     }, [period, nominaHistoryData, specialProjectsData, specialProjectsHistoryData, nominaDetailData]);
 
