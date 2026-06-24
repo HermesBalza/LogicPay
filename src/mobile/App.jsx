@@ -8668,6 +8668,71 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             }
         }
 
+        // Nómina Completa: leer directamente desde Nomina_Detalle (datos confirmados)
+        if (period.store === '__NOMINA_COMPLETA__') {
+            const periodRange = period.range.replace(/\s+/g, '_');
+            const relevantRecords = (nominaDetailData || []).filter(d => {
+                const id = String(d.ID_Consolidacion || d.id_consolidacion || '').trim();
+                return id.includes(periodRange);
+            });
+
+            const empMap = {};
+            relevantRecords.forEach(record => {
+                try {
+                    const data = JSON.parse(record.Data_JSON || record.data_json || '[]');
+                    (Array.isArray(data) ? data : []).forEach(row => {
+                        const key = String(row.empleado || '').trim().toLowerCase();
+                        if (!key) return;
+                        if (!empMap[key]) {
+                            const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === key);
+                            empMap[key] = {
+                                id: key + '_' + (row.id || ''),
+                                nombre: row.empleado,
+                                semana1: 0,
+                                semana2: 0,
+                                pe: 0,
+                                peEarnings: 0,
+                                rate: row.rate || 0,
+                                cargo: row.cargo || '',
+                                comments: row.comments || '',
+                                address: dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '',
+                                stores: new Set(),
+                                isMultiSite: false,
+                                sueldoFijo: (row.cargo === 'Supervisor' || row.cargo === 'supervisor') ? (row.total_lgm || 0) : 0
+                            };
+                        }
+                        const e = empMap[key];
+                        e.semana1 += (row.w1 || 0);
+                        e.semana2 += (row.w2 || 0);
+                        e.pe += (row.pe || 0);
+                        e.peEarnings += (row.pe_earnings || 0);
+                        const storeName = record.Tienda || record.tienda || '';
+                        if (storeName) {
+                            if (e.stores.size > 0) e.isMultiSite = true;
+                            e.stores.add(storeName);
+                        }
+                    });
+                } catch (e) {}
+            });
+
+            const unified = Object.values(empMap).map(e => ({
+                ...e,
+                comments: e.comments || (e.isMultiSite && e.stores.size > 0 ? Array.from(e.stores).join('\n').toUpperCase() : ''),
+                rowColor: e.cargo === 'Supervisor' || e.cargo === 'supervisor' ? 'bg-teal-50/40 border-l-4 border-teal-500' : (e.isMultiSite ? 'bg-amber-50/30' : 'bg-white'),
+            }));
+
+            unified.sort((a, b) => {
+                if ((a.cargo === 'Supervisor' || a.cargo === 'supervisor') && (b.cargo !== 'Supervisor' && b.cargo !== 'supervisor')) return 1;
+                if ((a.cargo !== 'Supervisor' && a.cargo !== 'supervisor') && (b.cargo === 'Supervisor' || b.cargo === 'supervisor')) return -1;
+                if (a.isMultiSite && !b.isMultiSite) return 1;
+                if (!a.isMultiSite && b.isMultiSite) return -1;
+                return a.nombre.localeCompare(b.nombre);
+            });
+
+            setBiweeklyEmployees(unified);
+            return;
+        }
+
         if (!nominaHistoryData.length) return;
 
         const parseHours = (val) => {
