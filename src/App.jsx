@@ -9956,7 +9956,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                         <tr key={`sup-${idx}`} className={`group transition-colors ${emp.rowColor} hover:brightness-95`}>
                                             <td className="p-4 border-r-2 border-gray-100 font-black text-[#303a7f] text-xs uppercase tracking-tight flex items-center justify-between">
                                                 <span>{emp.nombre}</span>
-                                                {!isAlreadyProcessed && (
+                                {!isAlreadyProcessed && period.store !== '__NOMINA_COMPLETA__' && (
                                                     <button
                                                         type="button"
                                                         onClick={() => {
@@ -10008,7 +10008,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     );
                                 })}
 
-                                {!isAlreadyProcessed && (
+                                {!isAlreadyProcessed && period.store !== '__NOMINA_COMPLETA__' && (
                                     <tr className="bg-teal-50/10 border-t-2 border-dashed border-teal-500/20">
                                         <td className="p-4" colSpan="6">
                                             <div className="flex items-center gap-4">
