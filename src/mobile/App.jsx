@@ -9809,7 +9809,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
 
     const isWeekProcessed = (fechaInicio) => {
         if (!selectedStore) return false;
-        if (selectedStore === CONSOLIDATED_STORE) {
+        if (selectedStore === CONSOLIDATED_STORE || selectedStore === '__NOMINA_COMPLETA__') {
             return historyData.some(h => normalizeDate(h.fecha_inicio) === normalizeDate(fechaInicio));
         }
         return historyData.some(h =>
@@ -9994,10 +9994,17 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                         {filteredPeriods.map((p) => {
                             const bothProcessed = isWeekProcessed(p.w1.start) && isWeekProcessed(p.w2.start);
-                            const expectedId = `${selectedStore}_${p.w1.start}_-_${p.w2.end}`.replace(/\s+/g, '_');
-                            const isProcessed = (nominaDetailData || []).some(d =>
-                                String(d.ID_Consolidacion || d.id_consolidacion || '').trim() === expectedId
-                            );
+                            const expectedId = selectedStore === '__NOMINA_COMPLETA__'
+                                ? `_${p.w1.start}_-_${p.w2.end}`.replace(/\s+/g, '_')
+                                : `${selectedStore}_${p.w1.start}_-_${p.w2.end}`.replace(/\s+/g, '_');
+                            const isProcessed = selectedStore === '__NOMINA_COMPLETA__'
+                                ? (nominaDetailData || []).some(d => {
+                                    const id = String(d.ID_Consolidacion || d.id_consolidacion || '').trim();
+                                    return id.includes(expectedId);
+                                  })
+                                : (nominaDetailData || []).some(d =>
+                                    String(d.ID_Consolidacion || d.id_consolidacion || '').trim() === expectedId
+                                  );
                             return (
                                 <div
                                     key={p.periodNum}
