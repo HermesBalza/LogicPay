@@ -10563,15 +10563,19 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                 <div className="flex-1 flex items-end justify-end gap-3">
                     <button
                         onClick={onOpenWOS}
-                        className="h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]"
+                        disabled={selectedStore === '__NOMINA_COMPLETA__'}
+                        className={`h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg ${selectedStore !== '__NOMINA_COMPLETA__'
+                            ? 'bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        }`}
                     >
                         <LayoutGrid size={16} />
                         WOS
                     </button>
                     <button
                         onClick={() => onOpenBilling(selectedYear)}
-                        disabled={!selectedStore || selectedStore === CONSOLIDATED_STORE}
-                        className={`h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg ${selectedStore && selectedStore !== CONSOLIDATED_STORE
+                        disabled={!selectedStore || selectedStore === CONSOLIDATED_STORE || selectedStore === '__NOMINA_COMPLETA__'}
+                        className={`h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg ${selectedStore && selectedStore !== CONSOLIDATED_STORE && selectedStore !== '__NOMINA_COMPLETA__'
                             ? 'bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]'
                             : 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-50'
                             }`}
@@ -10628,12 +10632,12 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                                             return (
                                                 <button
                                                     key={idx}
-                                                    onClick={() => selectedStore !== CONSOLIDATED_STORE && onSelectWeek(w.start, w.end)}
-                                                    className={`group/week transition-all duration-300 p-3.5 rounded-2xl border-2 text-left relative overflow-hidden ${selectedStore !== CONSOLIDATED_STORE ? 'active:scale-95' : 'cursor-not-allowed opacity-40 grayscale-[0.5]'} ${processed
+                                                    onClick={() => selectedStore !== CONSOLIDATED_STORE && selectedStore !== '__NOMINA_COMPLETA__' && onSelectWeek(w.start, w.end)}
+                                                    className={`group/week transition-all duration-300 p-3.5 rounded-2xl border-2 text-left relative overflow-hidden ${selectedStore !== CONSOLIDATED_STORE && selectedStore !== '__NOMINA_COMPLETA__' ? 'active:scale-95' : 'cursor-not-allowed opacity-40 grayscale-[0.5]'} ${processed
                                                         ? 'bg-[#6bbdb7] hover:bg-[#59aba5] border-[#59aba5] shadow-lg shadow-teal-900/20'
                                                         : hasDraft
                                                             ? 'bg-gray-50/50 hover:bg-[#303a7f] border-[#6bbdb7] hover:border-[#303a7f]'
-                                                            : selectedStore !== CONSOLIDATED_STORE ? 'bg-gray-50/50 hover:bg-[#303a7f] border-transparent hover:border-[#303a7f]' : 'bg-gray-50/50 border-transparent'
+                                                            : selectedStore !== CONSOLIDATED_STORE && selectedStore !== '__NOMINA_COMPLETA__' ? 'bg-gray-50/50 hover:bg-[#303a7f] border-transparent hover:border-[#303a7f]' : 'bg-gray-50/50 border-transparent'
                                                         }`}
                                                 >
                                                     <div className="relative z-10">
