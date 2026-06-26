@@ -4684,171 +4684,181 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Column 1: Identity */}
-                    <div className="lg:col-span-3">
-                        <section className={`bg-white rounded-[2rem] p-6 text-center shadow-xl shadow-blue-900/5 relative overflow-hidden border-2 transition-all duration-300 h-full flex flex-col items-center justify-center ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
-                            <div className="relative inline-block group mb-4">
-                                <div className={`w-28 h-28 bg-gray-50 rounded-[2rem] border-2 border-dashed flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7] group-hover:shadow-inner relative ${isEditing ? 'border-gray-200' : 'border-transparent'}`}>
-                                    {editedEmployee.imagen ? (
-                                        <img src={editedEmployee.imagen} alt="Employee Profile" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <Users className="text-gray-300 group-hover:text-[#6bbdb7]" size={36} />
+
+                    {/* ── ROW 1: Profile Header Card (full width) ── */}
+                    <div className="lg:col-span-12">
+                        <section className={`bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
+                            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
+
+                                {/* Avatar */}
+                                <div className="relative flex-shrink-0 group">
+                                    <div className={`w-24 h-24 bg-gray-50 rounded-[1.5rem] border-2 border-dashed flex items-center justify-center overflow-hidden transition-all group-hover:border-[#6bbdb7] group-hover:shadow-inner ${isEditing ? 'border-gray-200' : 'border-transparent'}`}>
+                                        {editedEmployee.imagen ? (
+                                            <img src={editedEmployee.imagen} alt="Employee Profile" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <Users className="text-gray-300 group-hover:text-[#6bbdb7]" size={32} />
+                                        )}
+                                    </div>
+                                    {isEditing && (
+                                        <label
+                                            style={{ backgroundColor: '#303a7f' }}
+                                            className="absolute -bottom-1 -right-1 p-2 rounded-xl shadow-xl shadow-blue-900/20 hover:scale-110 transition-all text-white border-2 border-white cursor-pointer"
+                                        >
+                                            <Camera size={12} />
+                                            <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                                        </label>
                                     )}
                                 </div>
-                                {isEditing && (
-                                    <label
-                                        style={{ backgroundColor: '#303a7f' }}
-                                        className="absolute -bottom-1 -right-1 p-2.5 rounded-xl shadow-xl shadow-blue-900/20 hover:scale-110 transition-all text-white border-2 border-white cursor-pointer"
-                                    >
-                                        <Camera size={14} />
-                                        <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
-                                    </label>
-                                )}
-                            </div>
-                            {isEditing ? (
-                                <input
-                                    type="text"
-                                    value={editedEmployee.nombre}
-                                    readOnly
-                                    className="w-full bg-gray-50 border-2 border-brand-primary/10 text-gray-400 font-bold text-lg text-center rounded-xl p-2.5 outline-none transition-all tracking-tighter mb-1 cursor-not-allowed"
-                                    placeholder="Nombre completo (Auto)..."
-                                />
-                            ) : (
-                                <h2 className="text-xl font-black text-[#333333] tracking-tighter mb-1 line-clamp-2 px-2">{editedEmployee.nombre}</h2>
-                            )}
-                            <div className="flex flex-col items-center gap-2">
-                                <span className="bg-[#6bbdb7]/10 px-3 py-1 rounded-full text-[#6bbdb7] text-[9px] font-black uppercase tracking-widest">ID: {editedEmployee.codigo_empleado}</span>
+
+                                {/* Name + ID + badges */}
+                                <div className="flex-1 min-w-0">
+                                    {isEditing ? (
+                                        <input
+                                            type="text"
+                                            value={editedEmployee.nombre}
+                                            readOnly
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/10 text-gray-400 font-bold text-lg rounded-xl p-2.5 outline-none tracking-tighter mb-2 cursor-not-allowed"
+                                            placeholder="Nombre completo (Auto)..."
+                                        />
+                                    ) : (
+                                        <h2 className="text-2xl font-black text-[#333333] tracking-tighter leading-tight mb-2">{editedEmployee.nombre}</h2>
+                                    )}
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="bg-[#6bbdb7]/10 px-3 py-1 rounded-full text-[#6bbdb7] text-[9px] font-black uppercase tracking-widest">ID: {editedEmployee.codigo_empleado}</span>
+                                        {editedEmployee.cargo && (
+                                            <span className="bg-[#303a7f]/8 px-3 py-1 rounded-full text-[#303a7f] text-[9px] font-black uppercase tracking-widest border border-[#303a7f]/10">{editedEmployee.cargo}</span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Divider */}
+                                <div className="hidden lg:block h-16 w-px bg-gray-100 flex-shrink-0" />
+
+                                {/* Core fields: Código, Cargo, Tienda */}
+                                <div className="flex-shrink-0 w-full lg:w-auto grid grid-cols-1 gap-3 lg:min-w-[220px]">
+                                    <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Código Empleado</label>
+                                        <input
+                                            type="text"
+                                            value={editedEmployee.codigo_empleado}
+                                            readOnly
+                                            className="w-full bg-gray-100 text-gray-500 border-transparent rounded-xl p-3 outline-none font-bold text-xs"
+                                        />
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Cargo / Posición</label>
+                                        {isEditing ? (
+                                            <select
+                                                value={editedEmployee.cargo}
+                                                onChange={(e) => updateField('cargo', e.target.value)}
+                                                className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-xs"
+                                            >
+                                                <option value="">Seleccione Cargo</option>
+                                                <option value="Janitorial">Janitorial</option>
+                                                <option value="Utility">Utility</option>
+                                                <option value="Shift Lead">Shift Lead</option>
+                                                <option value="Supervisor">Supervisor</option>
+                                            </select>
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                value={editedEmployee.cargo}
+                                                readOnly
+                                                className="w-full bg-gray-100 text-gray-500 border-transparent rounded-xl p-3 font-bold text-xs"
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Divider */}
+                                <div className="hidden lg:block h-16 w-px bg-gray-100 flex-shrink-0" />
+
+                                {/* Tienda + Fechas */}
+                                <div className="flex-shrink-0 w-full lg:w-auto grid grid-cols-1 gap-3 lg:min-w-[240px]">
+                                    <div className="group">
+                                        <label className="text-[8px] text-[#6bbdb7] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Tienda Asignada</label>
+                                        {isEditing ? (
+                                            <select
+                                                value={editedEmployee.tienda}
+                                                onChange={(e) => updateField('tienda', e.target.value)}
+                                                className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-xs"
+                                            >
+                                                <option value="">Seleccione Tienda</option>
+                                                {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                            </select>
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                value={editedEmployee.tienda}
+                                                readOnly
+                                                className="w-full bg-gray-100 text-gray-500 border-transparent rounded-xl p-3 font-bold text-xs"
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="group">
+                                            <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Fecha de Ingreso</label>
+                                            {isEditing ? (
+                                                <input
+                                                    type="date"
+                                                    value={formatDateForInput(editedEmployee.fecha_ingreso)}
+                                                    onChange={(e) => updateField('fecha_ingreso', e.target.value)}
+                                                    className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
+                                                />
+                                            ) : (
+                                                <div className="w-full bg-gray-100 text-gray-500 rounded-xl p-3 font-bold text-xs">
+                                                    {formatDateForDisplay(editedEmployee.fecha_ingreso)}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="group">
+                                            <label className="text-[8px] text-red-500 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Fecha de Egreso</label>
+                                            {isEditing ? (
+                                                <input
+                                                    type="date"
+                                                    value={formatDateForInput(editedEmployee.fecha_egreso)}
+                                                    onChange={(e) => updateField('fecha_egreso', e.target.value)}
+                                                    className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
+                                                />
+                                            ) : (
+                                                <div className="w-full bg-gray-100 text-gray-500 rounded-xl p-3 font-bold text-xs">
+                                                    {formatDateForDisplay(editedEmployee.fecha_egreso)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
                         </section>
                     </div>
 
-                    {/* Column 2: Core Data */}
-                    <div className="lg:col-span-4">
-                        <section className={`bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 h-full ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
-                            <h3 className="text-[#333333] font-black flex items-center gap-3 mb-5 text-sm uppercase tracking-widest">
-                                <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
-                                    <Settings size={16} className="text-[#303a7f]" />
-                                </div>
-                                Datos del Empleado
-                            </h3>
-                            <div className="space-y-3.5">
-                                <div className="group">
-                                    <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Código Empleado</label>
-                                    <input
-                                        type="text"
-                                        value={editedEmployee.codigo_empleado}
-                                        readOnly
-                                        className="w-full bg-gray-100 text-gray-500 border-transparent rounded-xl p-3 outline-none font-bold text-xs"
-                                    />
-                                </div>
-                                <div className="group">
-                                    <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Cargo / Posición</label>
-                                    {isEditing ? (
-                                        <select
-                                            value={editedEmployee.cargo}
-                                            onChange={(e) => updateField('cargo', e.target.value)}
-                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-xs"
-                                        >
-                                            <option value="">Seleccione Cargo</option>
-                                            <option value="Janitorial">Janitorial</option>
-                                            <option value="Utility">Utility</option>
-                                            <option value="Shift Lead">Shift Lead</option>
-                                            <option value="Supervisor">Supervisor</option>
-                                        </select>
-                                    ) : (
-                                        <input
-                                            type="text"
-                                            value={editedEmployee.cargo}
-                                            readOnly
-                                            className="w-full bg-gray-100 text-gray-500 border-transparent rounded-xl p-3 font-bold text-xs"
-                                        />
-                                    )}
-                                </div>
-                                <div className="group">
-                                    <label className="text-[8px] text-[#6bbdb7] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Tienda Asignada</label>
-                                    {isEditing ? (
-                                        <select
-                                            value={editedEmployee.tienda}
-                                            onChange={(e) => updateField('tienda', e.target.value)}
-                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-xs"
-                                        >
-                                            <option value="">Seleccione Tienda</option>
-                                            {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
-                                        </select>
-                                    ) : (
-                                        <input
-                                            type="text"
-                                            value={editedEmployee.tienda}
-                                            readOnly
-                                            className="w-full bg-gray-100 text-gray-500 border-transparent rounded-xl p-3 font-bold text-xs"
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        </section>
-                    </div>
-
-                    {/* Column 3: Payroll & Dates */}
-                    <div className="lg:col-span-5">
+                    {/* ── ROW 2 LEFT: Nómina, Cuenta Bancaria y Datos Bancarios ── */}
+                    <div className="lg:col-span-7">
                         <section className={`bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 h-full ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
                             <h3 className="text-[#333333] font-black flex items-center gap-3 mb-5 text-sm uppercase tracking-widest">
                                 <div className="bg-[#6bbdb7] p-2 rounded-lg"><Clock size={16} className="text-white" /></div>
                                 Control de Nómina y Fechas
                             </h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-3.5">
-                                    <div className="group">
-                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Fecha de Ingreso</label>
-                                        {isEditing ? (
-                                            <input
-                                                type="date"
-                                                value={formatDateForInput(editedEmployee.fecha_ingreso)}
-                                                onChange={(e) => updateField('fecha_ingreso', e.target.value)}
-                                                className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
-                                            />
-                                        ) : (
-                                            <div className="w-full bg-gray-100 text-gray-500 rounded-xl p-3 font-bold text-xs">
-                                                {formatDateForDisplay(editedEmployee.fecha_ingreso)}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="group">
-                                        <label className="text-[8px] text-red-500 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Fecha de Egreso</label>
-                                        {isEditing ? (
-                                            <input
-                                                type="date"
-                                                value={formatDateForInput(editedEmployee.fecha_egreso)}
-                                                onChange={(e) => updateField('fecha_egreso', e.target.value)}
-                                                className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
-                                            />
-                                        ) : (
-                                            <div className="w-full bg-gray-100 text-gray-500 rounded-xl p-3 font-bold text-xs">
-                                                {formatDateForDisplay(editedEmployee.fecha_egreso)}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="flex flex-col h-full">
-                                    <div className="group flex-1">
-                                        <label className="text-[8px] text-[#303a7f] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Cuenta Bancaria (Zelle / Depósito)</label>
-                                        <textarea
-                                            style={{ height: 'calc(100% - 15px)' }}
-                                            value={editedEmployee.cuenta_bancaria}
-                                            onChange={(e) => updateField('cuenta_bancaria', e.target.value)}
-                                            readOnly={!isEditing}
-                                            placeholder="Detalles de pago..."
-                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs resize-none`}
-                                        />
-                                    </div>
-                                </div>
+
+                            {/* Cuenta Bancaria (Zelle) */}
+                            <div className="group mb-5">
+                                <label className="text-[8px] text-[#303a7f] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Cuenta Bancaria (Zelle / Depósito)</label>
+                                <textarea
+                                    value={editedEmployee.cuenta_bancaria}
+                                    onChange={(e) => updateField('cuenta_bancaria', e.target.value)}
+                                    readOnly={!isEditing}
+                                    placeholder="Detalles de pago..."
+                                    className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs resize-none min-h-[56px]`}
+                                />
                             </div>
 
-                            {/* --- Datos Bancarios para Depósito --- */}
-                            <div className="mt-6 pt-6 border-t-2 border-gray-50">
+                            {/* Datos Bancarios para Depósito */}
+                            <div className="pt-5 border-t-2 border-gray-50">
                                 <h4 className="text-[10px] text-[#303a7f] uppercase font-black tracking-[0.3em] mb-4 flex items-center gap-2">
                                     <CreditCard size={14} /> Datos Bancarios para Depósito
                                 </h4>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-3">
                                     <div className="group">
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Routing Num</label>
                                         <input
@@ -4906,49 +4916,61 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                     </div>
                                 </div>
                             </div>
+                        </section>
+                    </div>
 
-                            {/* --- Sección de Tarifas Especiales y Notas --- */}
-                            <div className="mt-6 pt-6 border-t-2 border-gray-50 space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="group">
-                                        <label className="text-[8px] text-[#303a7f] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Rate Personal KBS ($/hr)</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
-                                            <input
-                                                type="number"
-                                                value={editedEmployee.rateKBS || ''}
-                                                onChange={(e) => updateField('rateKBS', parseFloat(e.target.value) || 0)}
-                                                readOnly={!isEditing}
-                                                className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#303a7f]'} rounded-xl p-3 pl-7 outline-none font-black text-xs transition-all`}
-                                                placeholder="0.00"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="group">
-                                        <label className="text-[8px] text-[#6bbdb7] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Rate Personal LGM ($/hr)</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
-                                            <input
-                                                type="number"
-                                                value={editedEmployee.rateLGM || ''}
-                                                onChange={(e) => updateField('rateLGM', parseFloat(e.target.value) || 0)}
-                                                readOnly={!isEditing}
-                                                className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#6bbdb7]'} rounded-xl p-3 pl-7 outline-none font-black text-xs transition-all`}
-                                                placeholder="0.00"
-                                            />
-                                        </div>
+                    {/* ── ROW 2 RIGHT: Tarifas y Notas ── */}
+                    <div className="lg:col-span-5">
+                        <section className={`bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 h-full flex flex-col gap-5 ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
+                            <h3 className="text-[#333333] font-black flex items-center gap-3 text-sm uppercase tracking-widest">
+                                <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
+                                    <Settings size={16} className="text-[#303a7f]" />
+                                </div>
+                                Tarifas y Notas
+                            </h3>
+
+                            {/* Rates */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="group">
+                                    <label className="text-[8px] text-[#303a7f] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Rate Personal KBS ($/hr)</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
+                                        <input
+                                            type="number"
+                                            value={editedEmployee.rateKBS || ''}
+                                            onChange={(e) => updateField('rateKBS', parseFloat(e.target.value) || 0)}
+                                            readOnly={!isEditing}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#303a7f]'} rounded-xl p-3 pl-7 outline-none font-black text-xs transition-all`}
+                                            placeholder="0.00"
+                                        />
                                     </div>
                                 </div>
                                 <div className="group">
-                                    <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Observaciones / Notas Internas</label>
-                                    <textarea
-                                        value={editedEmployee.observaciones || ''}
-                                        onChange={(e) => updateField('observaciones', e.target.value)}
-                                        readOnly={!isEditing}
-                                        placeholder="Ingrese notas u observaciones sobre el empleado..."
-                                        className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 italic' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-[11px] min-h-[60px] resize-none transition-all`}
-                                    />
+                                    <label className="text-[8px] text-[#6bbdb7] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Rate Personal LGM ($/hr)</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
+                                        <input
+                                            type="number"
+                                            value={editedEmployee.rateLGM || ''}
+                                            onChange={(e) => updateField('rateLGM', parseFloat(e.target.value) || 0)}
+                                            readOnly={!isEditing}
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#6bbdb7]'} rounded-xl p-3 pl-7 outline-none font-black text-xs transition-all`}
+                                            placeholder="0.00"
+                                        />
+                                    </div>
                                 </div>
+                            </div>
+
+                            {/* Observaciones */}
+                            <div className="group flex-1 flex flex-col">
+                                <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Observaciones / Notas Internas</label>
+                                <textarea
+                                    value={editedEmployee.observaciones || ''}
+                                    onChange={(e) => updateField('observaciones', e.target.value)}
+                                    readOnly={!isEditing}
+                                    placeholder="Ingrese notas u observaciones sobre el empleado..."
+                                    className={`flex-1 w-full ${!isEditing ? 'bg-gray-100 text-gray-500 italic' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-[11px] min-h-[120px] resize-none transition-all`}
+                                />
                             </div>
                         </section>
                     </div>
