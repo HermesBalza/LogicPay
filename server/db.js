@@ -123,6 +123,12 @@ try { db.exec(`ALTER TABLE Personal ADD COLUMN account_type TEXT DEFAULT 'checki
 try { db.exec(`ALTER TABLE Personal ADD COLUMN payee_name TEXT`); } catch (_) {}
 try { db.exec(`ALTER TABLE Personal ADD COLUMN id_number TEXT`); } catch (_) {}
 
+// Migración de datos: cuenta_bancaria → account_num
+try { db.exec(`UPDATE Personal SET account_num = cuenta_bancaria WHERE (account_num IS NULL OR account_num = '') AND cuenta_bancaria IS NOT NULL AND cuenta_bancaria != ''`); } catch (_) {}
+
+// Migración de datos: nombre → first_name + last_name
+try { db.exec(`UPDATE Personal SET first_name = TRIM(SUBSTR(nombre, 1, INSTR(nombre || ' ', ' ') - 1)), last_name = TRIM(SUBSTR(nombre, INSTR(nombre || ' ', ' ') + 1)) WHERE (first_name IS NULL OR first_name = '') AND (last_name IS NULL OR last_name = '') AND nombre IS NOT NULL AND nombre != ''`); } catch (_) {}
+
 db.exec(`CREATE TABLE IF NOT EXISTS CRM_Proyectos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
