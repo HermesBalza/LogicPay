@@ -9573,7 +9573,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         csv.push('Indicator,File ID (Modifier),File creation date,File creation time,Total trxn,Total ACH credit amount,Total ACH debit amount,Batch Count,,');
         csv.push(`1,A,${fileDate},${fileTime},${rows.length},${totalAmount},0,1,,`);
         csv.push('Indicator,Service class code,Chase Acct,SEC Code,Entry description,Delivery by date,Batch credit amount,Batch debit amount,Batch number,Trxn in Batch');
-        csv.push(`5,220,,PPD,PAYROLL,${endDateStr},${totalAmount},0,1,${rows.length}`);
+        csv.push(`5,220,826336130,PPD,PAYROLL,${endDateStr},${totalAmount},0,1,${rows.length}`);
         csv.push('Indicator,Trxn Code,Routing Num,Acct number,Trxn amount,ID Number,Payee name,Trxn ID,Addenda,');
         rows.forEach(r => {
             csv.push(`6,${r.trxnCode},${r.routing},${r.account},${r.amount},${r.idNumber},"${r.payeeName}",${r.trxnId},${r.addenda},`);
