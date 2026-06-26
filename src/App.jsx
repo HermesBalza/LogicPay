@@ -9549,7 +9549,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         const biweekNum = Math.ceil(period.w1?.weekNumInYear / 2) || '';
 
         const rows = allEntries.map(emp => {
-            const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+            const empCode = String(emp.id.split('_')[1] || '').trim();
+            const empName = String(emp.nombre || '').trim().toLowerCase();
+            const dbEmp = employees.find(e => {
+                const nombreBD = [e.first_name, e.last_name].filter(Boolean).join(' ').trim().toLowerCase();
+                return nombreBD === empName && String(e.codigo_empleado || '').trim() === empCode;
+            });
             const amount = Number(calculatePagoTotal(emp) || 0).toFixed(2);
             const trxnCode = (dbEmp?.account_type !== 'savings') ? '22' : '32';
             const firstName = dbEmp?.first_name || '';
@@ -9560,7 +9565,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 account: dbEmp?.account_num || '',
                 amount,
                 idNumber: dbEmp?.id_number || dbEmp?.codigo_empleado || '',
-                payeeName: dbEmp?.payee_name || emp.nombre || '',
+                payeeName: dbEmp?.payee_name || '',
                 trxnCode,
                 trxnId,
                 addenda: biweekNum ? `Payroll BW${biweekNum}` : ''
