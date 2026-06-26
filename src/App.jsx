@@ -4833,25 +4833,13 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                         </section>
                     </div>
 
-                    {/* ── ROW 2 LEFT: Nómina, Cuenta Bancaria y Datos Bancarios ── */}
+                    {/* ── ROW 2 LEFT: Nómina y Datos Bancarios ── */}
                     <div className="lg:col-span-7">
                         <section className={`bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border-2 transition-all duration-300 h-full ${isEditing ? 'border-brand-primary/20' : 'border-transparent'}`}>
                             <h3 className="text-[#333333] font-black flex items-center gap-3 mb-5 text-sm uppercase tracking-widest">
                                 <div className="bg-[#6bbdb7] p-2 rounded-lg"><Clock size={16} className="text-white" /></div>
                                 Control de Nómina y Fechas
                             </h3>
-
-                            {/* Cuenta Bancaria (Zelle) */}
-                            <div className="group mb-5">
-                                <label className="text-[8px] text-[#303a7f] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Cuenta Bancaria (Zelle / Depósito)</label>
-                                <textarea
-                                    value={editedEmployee.cuenta_bancaria}
-                                    onChange={(e) => updateField('cuenta_bancaria', e.target.value)}
-                                    readOnly={!isEditing}
-                                    placeholder="Detalles de pago..."
-                                    className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs resize-none min-h-[56px]`}
-                                />
-                            </div>
 
                             {/* Datos Bancarios para Depósito */}
                             <div className="pt-5 border-t-2 border-gray-50">
@@ -5301,7 +5289,6 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
             fecha_egreso: '',
             cargo: 'Janitorial',
             tienda: '',
-            cuenta_bancaria: '',
             routing_num: '',
             account_num: '',
             account_type: 'checking',
@@ -5432,10 +5419,6 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Fecha de Ingreso</label>
                                     <input type="date" value={formatDateForInput(newEmployee.fecha_ingreso)} onChange={(e) => updateField('fecha_ingreso', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" />
-                                </div>
-                                <div className="group">
-                                    <label className="text-[9px] text-[#303a7f] uppercase font-black tracking-widest block mb-1">Detalles de Pago</label>
-                                    <textarea value={newEmployee.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm resize-none" rows="3" placeholder="Zelle, No. Cuenta, Banco..."></textarea>
                                 </div>
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Routing Num</label>

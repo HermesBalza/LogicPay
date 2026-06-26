@@ -4590,19 +4590,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                         )}
                                     </div>
                                 </div>
-                                <div className="flex flex-col h-full">
-                                    <div className="group flex-1">
-                                        <label className="text-[8px] text-[#303a7f] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Cuenta Bancaria (Zelle / Depósito)</label>
-                                        <textarea
-                                            style={{ height: 'calc(100% - 15px)' }}
-                                            value={editedEmployee.cuenta_bancaria}
-                                            onChange={(e) => updateField('cuenta_bancaria', e.target.value)}
-                                            readOnly={!isEditing}
-                                            placeholder="Detalles de pago..."
-                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs resize-none`}
-                                        />
-                                    </div>
-                                </div>
+
                             </div>
 
                             {/* --- Datos Bancarios para Depósito --- */}
@@ -5009,7 +4997,6 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
             fecha_egreso: '',
             cargo: 'Janitorial',
             tienda: '',
-            cuenta_bancaria: '',
             routing_num: '',
             account_num: '',
             account_type: 'checking',
@@ -5140,10 +5127,6 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Fecha de Ingreso</label>
                                     <input type="date" value={formatDateForInput(newEmployee.fecha_ingreso)} onChange={(e) => updateField('fecha_ingreso', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" />
-                                </div>
-                                <div className="group">
-                                    <label className="text-[9px] text-[#303a7f] uppercase font-black tracking-widest block mb-1">Detalles de Pago</label>
-                                    <textarea value={newEmployee.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm resize-none" rows="3" placeholder="Zelle, No. Cuenta, Banco..."></textarea>
                                 </div>
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Routing Num</label>
