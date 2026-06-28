@@ -8601,7 +8601,7 @@ const generatePayStubPDF = async (stubId) => {
     }
 };
 
-const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, onConfirmPayroll, onBack }) => {
+const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, onConfirmPayroll, onBack, user }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [addedSupervisors, setAddedSupervisors] = useState([]);
@@ -9220,6 +9220,58 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         }
     };
 
+    const generateNachaCSV = () => {
+        const allEntries = [...biweeklyEmployees, ...addedSupervisors];
+        const pad = (n) => String(n).padStart(2, '0');
+        const now = new Date();
+        const fileDate = pad(now.getMonth()+1) + pad(now.getDate()) + String(now.getFullYear());
+        const fileTime = pad(now.getHours()) + pad(now.getMinutes());
+
+        const w2EndRaw = period.w2?.end || '';
+        const [endM, endD, endY] = w2EndRaw.split('/');
+        const endDateStr = pad(endM||'') + pad(endD||'') + String(endY||'');
+
+        const biweekNum = Math.ceil(period.w1?.weekNumInYear / 2) || '';
+
+        const rows = allEntries.map(emp => {
+            const empCode = String(emp.id.split('_')[1] || '').trim();
+            const empName = String(emp.nombre || '').trim().toLowerCase();
+            const dbEmp = employees.find(e => {
+                const nombreBD = [e.first_name, e.last_name].filter(Boolean).join(' ').trim().toLowerCase();
+                return nombreBD === empName && String(e.codigo_empleado || '').trim() === empCode;
+            });
+            const amount = Number(calculatePagoTotal(emp) || 0).toFixed(2);
+            const trxnCode = (dbEmp?.account_type !== 'savings') ? '22' : '32';
+            const firstName = dbEmp?.first_name || '';
+            const lastName = dbEmp?.last_name || '';
+            const trxnId = (firstName || lastName) ? `${firstName}_${lastName}_${endDateStr}` : '';
+            return {
+                routing: dbEmp?.routing_num || '',
+                account: dbEmp?.account_num || '',
+                amount,
+                idNumber: dbEmp?.id_number || dbEmp?.codigo_empleado || '',
+                payeeName: dbEmp?.payee_name || '',
+                trxnCode,
+                trxnId,
+                addenda: biweekNum ? `Payroll BW${biweekNum}` : ''
+            };
+        });
+
+        const totalAmount = rows.reduce((sum, r) => sum + parseFloat(r.amount), 0).toFixed(2);
+
+        const csv = [];
+        csv.push('Indicator,File ID (Modifier),File creation date,File creation time,Total trxn,Total ACH credit amount,Total ACH debit amount,Batch Count,,');
+        csv.push(`1,A,${fileDate},${fileTime},${rows.length},${totalAmount},0,1,,`);
+        csv.push('Indicator,Service class code,Chase Acct,SEC Code,Entry description,Delivery by date,Batch credit amount,Batch debit amount,Batch number,Trxn in Batch');
+        csv.push(`5,220,826336130,PPD,PAYROLL,${endDateStr},${totalAmount},0,1,${rows.length}`);
+        csv.push('Indicator,Trxn Code,Routing Num,Acct number,Trxn amount,ID Number,Payee name,Trxn ID,Addenda,');
+        rows.forEach(r => {
+            csv.push(`6,${r.trxnCode},${r.routing},${r.account},${r.amount},${r.idNumber},"${r.payeeName}",${r.trxnId},${r.addenda},`);
+        });
+
+        return csv.join('\n');
+    };
+
     const handleExportPDF = async () => {
         const element = biweeklyReportRef.current;
         if (!element) return;
@@ -9584,6 +9636,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                     {/* Action Bar */}
                     <div data-html2canvas-ignore className="mt-6 flex flex-col items-center gap-2 border-t-2 border-gray-50 pt-4">
+                        {user?.rol !== 'Operador de Pagos' && (
                         <button
                             onClick={() => setIsEmailModalOpen(true)}
                             className="w-full px-6 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-teal-900/10"
@@ -9591,6 +9644,28 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             <Mail size={14} />
                             Enviar Mail
                         </button>
+                        )}
+                        {user?.rol === 'Operador de Pagos' && period.store === '__NOMINA_COMPLETA__' && (
+                        <button
+                            onClick={() => {
+                                    const csv = generateNachaCSV();
+                                    const blob = new Blob([csv], { type: 'text/csv' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `Payroll_ACH_${period.range.replace(/\//g,'-').replace(/\s+/g,'_')}.csv`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    document.body.removeChild(a);
+                                    URL.revokeObjectURL(url);
+                                }}
+                            disabled={[...biweeklyEmployees, ...addedSupervisors].length === 0}
+                            className="w-full px-6 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            <Download size={14} /> Descargar .CSV
+                        </button>
+                        )}
+                        {user?.rol !== 'Operador de Pagos' && (
                         <button
                             onClick={() => setIsConfirmModalOpen(true)}
                             disabled={isSaving || isAlreadyProcessed || [...biweeklyEmployees, ...addedSupervisors].length === 0}
@@ -9608,6 +9683,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             )}
                             {isSaving ? 'Confirmando...' : isAlreadyProcessed ? 'Nómina Confirmada' : 'Confirmar Nómina'}
                         </button>
+                        )}
 
                         {isConfirmModalOpen && (
                             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#f9f9f9]/80 backdrop-blur-sm p-4 text-left">
@@ -14793,7 +14869,9 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
     });
     const [nominaHistoryData, setNominaHistoryData] = useState([]); // FASE 9: Historial Persistente
     const [nominaDetailData, setNominaDetailData] = useState([]); // FASE 9.5: Detalle Consolidado (Comentarios)
-    const [selectedHistoryStore, setSelectedHistoryStore] = useState(sessionStorage.getItem('selectedHistoryStore') || '');
+    const [selectedHistoryStore, setSelectedHistoryStore] = useState(
+        user?.rol === 'Operador de Pagos' ? '__NOMINA_COMPLETA__' : (sessionStorage.getItem('selectedHistoryStore') || '')
+    );
     const [isUPSConsolidatedOpen, setIsUPSConsolidatedOpen] = useState(false);
     const [upsFilterWeek, setUpsFilterWeek] = useState(null); // Para filtrar por semana específica desde VWH
 
@@ -20599,6 +20677,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     setSpecialProjectsData={setSpecialProjectsData}
                     employees={employees}
                     onConfirmPayroll={handleConfirmPayroll}
+                    user={user}
                     onBack={() => {
                         setIsBiweeklyManagementOpen(false);
                         setSelectedBiweeklyPeriod(null);

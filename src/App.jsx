@@ -9145,7 +9145,7 @@ const generatePayStubPDF = async (stubId) => {
     }
 };
 
-const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, onConfirmPayroll, onBack }) => {
+const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, onConfirmPayroll, onBack, user }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [addedSupervisors, setAddedSupervisors] = useState([]);
@@ -9934,6 +9934,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     </div>
 
                     <div className="flex items-center gap-3" data-html2canvas-ignore>
+                        {user?.rol !== 'Operador de Pagos' && (
                         <button
                             onClick={() => setIsEmailModalOpen(true)}
                             className="px-8 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/20"
@@ -9941,6 +9942,27 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             <Mail size={16} />
                             Enviar por Correo
                         </button>
+                        )}
+                        {user?.rol === 'Operador de Pagos' && period.store === '__NOMINA_COMPLETA__' && (
+                        <button
+                            onClick={() => {
+                                    const csv = generateNachaCSV();
+                                    const blob = new Blob([csv], { type: 'text/csv' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `Payroll_ACH_${period.range.replace(/\//g,'-').replace(/\s+/g,'_')}.csv`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    document.body.removeChild(a);
+                                    URL.revokeObjectURL(url);
+                                }}
+                            disabled={[...biweeklyEmployees, ...addedSupervisors].length === 0}
+                            className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            <Download size={16} /> Descargar .CSV
+                        </button>
+                        )}
                         <button
                             onClick={() => setIsPayStubModalOpen(true)}
                             className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/20"
@@ -10209,6 +10231,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                     {/* Action Bar */}
                     <div data-html2canvas-ignore className="mt-12 flex justify-end items-center gap-4 border-t-2 border-gray-50 pt-10">
+                        {user?.rol !== 'Operador de Pagos' && (
                         <button
                             onClick={() => setIsConfirmModalOpen(true)}
                             disabled={isSaving || isAlreadyProcessed || [...biweeklyEmployees, ...addedSupervisors].length === 0}
@@ -10226,8 +10249,9 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             )}
                             {isSaving ? 'Confirmando...' : isAlreadyProcessed ? 'Nómina Confirmada' : 'Confirmar Nómina'}
                         </button>
+                        )}
 
-                        {period.store === '__NOMINA_COMPLETA__' && (
+                        {period.store === '__NOMINA_COMPLETA__' && user?.rol !== 'Operador de Pagos' && (
                             <button
                                 onClick={() => {
                                     const csv = generateNachaCSV();
@@ -15782,7 +15806,9 @@ function App() {
     });
     const [nominaHistoryData, setNominaHistoryData] = useState([]); // FASE 9: Historial Persistente
     const [nominaDetailData, setNominaDetailData] = useState([]); // FASE 9.5: Detalle Consolidado (Comentarios)
-    const [selectedHistoryStore, setSelectedHistoryStore] = useState(sessionStorage.getItem('selectedHistoryStore') || '');
+    const [selectedHistoryStore, setSelectedHistoryStore] = useState(
+        user?.rol === 'Operador de Pagos' ? '__NOMINA_COMPLETA__' : (sessionStorage.getItem('selectedHistoryStore') || '')
+    );
     const [isUPSConsolidatedOpen, setIsUPSConsolidatedOpen] = useState(false);
     const [upsFilterWeek, setUpsFilterWeek] = useState(null); // Para filtrar por semana específica desde VWH
 
@@ -22012,6 +22038,7 @@ function App() {
                     setSpecialProjectsData={setSpecialProjectsData}
                     employees={employees}
                     onConfirmPayroll={handleConfirmPayroll}
+                    user={user}
                     onBack={() => {
                         setIsBiweeklyManagementOpen(false);
                         setSelectedBiweeklyPeriod(null);
