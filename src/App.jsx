@@ -9816,6 +9816,35 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         }
     };
 
+    const handleExportExcel = () => {
+        const allEntries = [...biweeklyEmployees, ...addedSupervisors];
+        const rows = allEntries.map(emp => ({
+            'Name': emp.nombre,
+            'SEMANA 1': emp.semana1 !== null ? Number(emp.semana1) : 0,
+            'SEMANA 2': emp.semana2 !== null ? Number(emp.semana2) : 0,
+            'P.E': emp.pe || 0,
+            'TOTAL': calculateTotalHrs(emp),
+            'RATE': Number(emp.rate).toFixed(2),
+            'PAGO TOTAL': Number(calculatePagoTotal(emp)).toFixed(2),
+            'COMMENTS': emp.comments || ''
+        }));
+        const totalFinal = rows.reduce((sum, r) => sum + parseFloat(r['PAGO TOTAL']), 0);
+        rows.push({
+            'Name': `Total: ${allEntries.length} empleados`,
+            'SEMANA 1': '',
+            'SEMANA 2': '',
+            'P.E': '',
+            'TOTAL': '',
+            'RATE': 'TOTAL NÓMINA:',
+            'PAGO TOTAL': totalFinal.toFixed(2),
+            'COMMENTS': ''
+        });
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Nómina');
+        XLSX.writeFile(wb, `Nomina_${period.store.replace(/\s+/g,'_')}_${period.range.replace(/\//g,'-').replace(/\s+/g,'_')}.xlsx`);
+    };
+
     const handleExportPDF = async () => {
         const element = biweeklyReportRef.current;
         if (!element) return;
@@ -9971,11 +10000,17 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             Recibos de Pago
                         </button>
                         <button
+                            onClick={handleExportExcel}
+                            className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/10"
+                        >
+                            <FileSpreadsheet size={16} /> Excel
+                        </button>
+                        <button
                             onClick={handleExportPDF}
                             className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/10"
                         >
                             <Download size={16} />
-                            Exportar PDF
+                            PDF
                         </button>
                         <button
                             onClick={onBack}
