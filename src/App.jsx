@@ -9989,7 +9989,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             disabled={[...biweeklyEmployees, ...addedSupervisors].length === 0}
                             className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                            <Download size={16} /> Descargar .CSV
+                            <Download size={16} /> CSV
                         </button>
                         )}
                         <button
@@ -10303,7 +10303,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                 disabled={[...biweeklyEmployees, ...addedSupervisors].length === 0}
                                 className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
                             >
-                                <Download size={16} /> Descargar .CSV
+                                <Download size={16} /> CSV
                             </button>
                         )}
 
@@ -10940,7 +10940,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                                             ) : (
                                                 <Cpu size={14} className={`${(user?.rol !== 'Operador de Pagos' && (bothProcessed || forcedBiweeks[p.periodNum])) ? 'text-[#6bbdb7] group-hover:text-white' : 'text-gray-300'} transition-colors`} />
                                             )}
-                                            {isProcessed ? 'Nómina Procesada' : 'Procesar Nómina'}
+                                            {isProcessed ? (user?.rol === 'Operador de Pagos' ? 'Ver Nómina' : 'Nómina Procesada') : 'Procesar Nómina'}
                                         </button>
                                     </div>
                                 </div>

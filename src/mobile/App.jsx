@@ -9662,7 +9662,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             disabled={[...biweeklyEmployees, ...addedSupervisors].length === 0}
                             className="w-full px-6 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                            <Download size={14} /> Descargar .CSV
+                            <Download size={14} /> CSV
                         </button>
                         )}
                         {user?.rol !== 'Operador de Pagos' && (
@@ -10264,7 +10264,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                                             ) : (
                                                 <Cpu size={14} className={`${(user?.rol !== 'Operador de Pagos' && (bothProcessed || forcedBiweeks[p.periodNum])) ? 'text-[#6bbdb7] group-hover:text-white' : 'text-gray-300'} transition-colors`} />
                                             )}
-                                            {isProcessed ? 'Nómina Procesada' : 'Procesar Nómina'}
+                                            {isProcessed ? (user?.rol === 'Operador de Pagos' ? 'Ver Nómina' : 'Nómina Procesada') : 'Procesar Nómina'}
                                         </button>
                                     </div>
                                 </div>
