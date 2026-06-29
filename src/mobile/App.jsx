@@ -3813,7 +3813,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                             }
                                         }
                                         return (
-                                            <tr key={row.key} className={`group transition-colors ${isAccepted ? 'bg-green-50/30' : 'hover:bg-gray-50/40'}`}>
+                                            <tr key={row.key} className={`group transition-colors ${isAccepted ? 'bg-emerald-100/60' : 'hover:bg-gray-50/40'}`}>
                                                 {/* Tienda + Código */}
                                                 <td className="px-5 py-4">
                                                     <div className="flex flex-col">
@@ -3873,9 +3873,19 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                                 <span className="text-[9px] font-black uppercase tracking-widest">Confirmado</span>
                                                             </div>
                                                         ) : (
-                                                            <button
+                                                             <button
                                                                 onClick={() => {
                                                                     setAcceptedKeys(prev => new Set([...prev, row.key]));
+                                                                    const matchedLgmId = row.key;
+                                                                    if (matchedLgmId && (matchedLgmId.startsWith('N-') || matchedLgmId.startsWith('S-'))) {
+                                                                        const currentAudited = wosData.auditedLgmIds || [];
+                                                                        if (!currentAudited.includes(matchedLgmId)) {
+                                                                            const newAudited = [...currentAudited, matchedLgmId];
+                                                                            const newWosData = { ...wosData, auditedLgmIds: newAudited };
+                                                                            setWosData(newWosData);
+                                                                            handleAutoSaveWOS(newWosData, wosServices);
+                                                                        }
+                                                                    }
                                                                     if (onAcceptPayment) onAcceptPayment(row, wosData);
                                                                 }}
                                                                 className="inline-flex items-center gap-1.5 bg-[#6bbdb7] hover:bg-[#59aba5] text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md shadow-teal-900/10 min-w-[100px] justify-center"
@@ -17421,26 +17431,6 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             setIsSyncingPE(true);
         }
 
-        // Persistir la auditoría en la tabla WOS (Data_JSON.metadata.auditedLgmIds)
-        const matchedLgmId = row.key;
-        if (matchedLgmId && (matchedLgmId.startsWith('N-') || matchedLgmId.startsWith('S-'))) {
-            const currentAudited = wosData.auditedLgmIds || [];
-            if (!currentAudited.includes(matchedLgmId)) {
-                const newAudited = [...currentAudited, matchedLgmId];
-                setWosData(prev => ({ ...prev, auditedLgmIds: newAudited }));
-                syncToDatabase('upsert', {
-                    "WOS_Number": wosNumber,
-                    "Subcontractor": wosData.subcontractor || 'Unknown',
-                    "Date": wosData.wosDate || '',
-                    "Data_JSON": JSON.stringify({
-                        metadata: { ...wosData, auditedLgmIds: newAudited },
-                        services: wosServices,
-                        auditDate: new Date().toLocaleString()
-                    })
-                }, 'WOS', false, ['WOS_Number'])
-                .catch(err => console.error('[WOS] Error guardando auditoría:', err));
-            }
-        }
     };
 
     const handleExportBillingExcel = () => {
