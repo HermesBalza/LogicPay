@@ -10925,18 +10925,20 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                                     <div className="mt-5 pt-4 border-t border-gray-50">
                                         <button
                                             onClick={() => onProcessBiweekly(p)}
-                                            disabled={!bothProcessed && !forcedBiweeks[p.periodNum]}
+                                            disabled={user?.rol === 'Operador de Pagos' ? !isProcessed : (!bothProcessed && !forcedBiweeks[p.periodNum])}
                                             className={`w-full py-2.5 rounded-xl font-black text-[9px] uppercase tracking-[0.15em] transition-all duration-300 border-2 active:scale-95 flex items-center justify-center gap-2 group ${isProcessed
                                                 ? 'bg-[#303a7f] text-white border-[#303a7f] shadow-lg shadow-blue-900/10'
-                                                : bothProcessed || forcedBiweeks[p.periodNum]
-                                                    ? 'bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white border-[#303a7f]/5 hover:border-[#303a7f] hover:shadow-lg hover:shadow-blue-900/10'
-                                                    : 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed opacity-60'
+                                                : user?.rol === 'Operador de Pagos'
+                                                    ? 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed opacity-60'
+                                                    : bothProcessed || forcedBiweeks[p.periodNum]
+                                                        ? 'bg-gray-50 hover:bg-[#303a7f] text-[#303a7f] hover:text-white border-[#303a7f]/5 hover:border-[#303a7f] hover:shadow-lg hover:shadow-blue-900/10'
+                                                        : 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed opacity-60'
                                                 }`}
                                         >
                                             {isProcessed ? (
                                                 <CheckCircle size={14} className="text-white" />
                                             ) : (
-                                                <Cpu size={14} className={`${bothProcessed || forcedBiweeks[p.periodNum] ? 'text-[#6bbdb7] group-hover:text-white' : 'text-gray-300'} transition-colors`} />
+                                                <Cpu size={14} className={`${(user?.rol !== 'Operador de Pagos' && (bothProcessed || forcedBiweeks[p.periodNum])) ? 'text-[#6bbdb7] group-hover:text-white' : 'text-gray-300'} transition-colors`} />
                                             )}
                                             {isProcessed ? 'Nómina Procesada' : 'Procesar Nómina'}
                                         </button>
