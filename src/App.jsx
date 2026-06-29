@@ -3656,8 +3656,9 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                     if (records.length > 0) {
                         lgmBilled = records.reduce((sum, r) => sum + getKBSFromNomina(r), 0);
                         storeName = records[0].nombre;
-                        const startDates = records.map(r => r.fecha_inicio).filter(Boolean).sort();
-                        const endDates = records.map(r => r.fecha_fin).filter(Boolean).sort();
+                        const parseDate = (d) => { const p = d.split('/'); return new Date(parseInt(p[2]), parseInt(p[0]) - 1, parseInt(p[1])); };
+                        const startDates = records.map(r => r.fecha_inicio).filter(Boolean).sort((a, b) => parseDate(a) - parseDate(b));
+                        const endDates = records.map(r => r.fecha_fin).filter(Boolean).sort((a, b) => parseDate(a) - parseDate(b));
                         period = `${startDates[0]} - ${endDates[endDates.length - 1]}`;
                     }
                 } else if (pfx === 'S') {
