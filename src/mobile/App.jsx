@@ -4097,6 +4097,83 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                 </table>
                             </div>
 
+                            {/* FACTURA(S) LGM CRUZADA(S) */}
+                            {selectedWosGroup.type !== 'Sin Registro' && (
+                            <div className="mt-8">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <div className="p-2 bg-[#6bbdb7]/10 rounded-lg">
+                                        <FileText size={16} className="text-[#6bbdb7]" />
+                                    </div>
+                                    <h4 className="text-sm font-black text-[#303a7f] uppercase tracking-wider">Factura(s) LGM Cruzada(s)</h4>
+                                </div>
+                                <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm overflow-hidden">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-gray-50 text-gray-400">
+                                                <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Tipo</th>
+                                                <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Tienda</th>
+                                                <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Período</th>
+                                                <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">ID / Código</th>
+                                                <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-right">Monto Facturado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50">
+                                            {selectedWosGroup.type === 'VWH' && (selectedWosGroup.matchedNominaRecords && selectedWosGroup.matchedNominaRecords.length > 0 ? selectedWosGroup.matchedNominaRecords : selectedWosGroup.matchedNominaRecord ? [selectedWosGroup.matchedNominaRecord] : []).map((rec, idx) => (
+                                                <tr key={`vwh-${idx}`} className="hover:bg-gray-50/50 transition-colors">
+                                                    <td className="px-4 py-3">
+                                                        <span className="inline-block px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-blue-50 text-[#303a7f] border border-blue-100">VWH</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-[10px] font-black text-[#303a7f] uppercase">{rec.nombre || '---'}</td>
+                                                    <td className="px-4 py-3 text-[9px] font-bold text-gray-500 whitespace-nowrap">{rec.fecha_inicio || ''} - {rec.fecha_fin || ''}</td>
+                                                    <td className="px-4 py-3 text-[9px] font-bold text-gray-500 font-mono">{rec.codigo || '---'}</td>
+                                                    <td className="px-4 py-3 text-[10px] font-black text-[#6bbdb7] text-right tabular-nums whitespace-nowrap">
+                                                        ${getKBSFromNomina(rec).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {selectedWosGroup.type === 'P.E.' && (selectedWosGroup.matchedPERecords && selectedWosGroup.matchedPERecords.length > 0 ? selectedWosGroup.matchedPERecords : selectedWosGroup.matchedPERecord ? [selectedWosGroup.matchedPERecord] : []).map((rec, idx) => (
+                                                <tr key={`pe-${idx}`} className="hover:bg-gray-50/50 transition-colors">
+                                                    <td className="px-4 py-3">
+                                                        <span className="inline-block px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-orange-50 text-orange-500 border border-orange-100">P.E.</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-[10px] font-black text-[#303a7f] uppercase">{rec.tienda || rec.Tienda || '---'}</td>
+                                                    <td className="px-4 py-3 text-[9px] font-bold text-gray-500 whitespace-nowrap">{rec.periodo || rec.Periodo || '---'}</td>
+                                                    <td className="px-4 py-3 text-[9px] font-bold text-gray-500 font-mono">{rec.correlativo || rec.Correlativo || '---'}</td>
+                                                    <td className="px-4 py-3 text-[10px] font-black text-[#6bbdb7] text-right tabular-nums whitespace-nowrap">
+                                                        ${getKBSFromPE(rec).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot className="bg-gray-50/60 border-t-2 border-gray-100">
+                                            <tr>
+                                                <td colSpan={4} className="px-4 py-3 text-right">
+                                                    <div className="flex flex-col items-end gap-1">
+                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total LGM Facturado</span>
+                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total KBS Anunciado</span>
+                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Diferencia</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="flex flex-col items-end gap-1">
+                                                        <span className="text-[10px] font-black text-[#303a7f] tabular-nums">
+                                                            ${parseFloat(selectedWosGroup.lgmBilled || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </span>
+                                                        <span className="text-[10px] font-black text-[#6bbdb7] tabular-nums">
+                                                            ${parseFloat(selectedWosGroup.kbsAnnounced || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </span>
+                                                        <span className={`text-[10px] font-black tabular-nums ${Math.abs(selectedWosGroup.diff || 0) <= 0.05 ? 'text-green-600' : (selectedWosGroup.diff || 0) < 0 ? 'text-red-500' : 'text-yellow-600'}`}>
+                                                            {(selectedWosGroup.diff || 0) > 0 ? '+' : ''}${parseFloat(Math.abs(selectedWosGroup.diff || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                            )}
+
                             <div className="mt-8 p-6 bg-blue-50/30 rounded-[1.5rem] border border-blue-100/50">
                                 <p className="text-[10px] font-bold text-[#303a7f]/60 uppercase tracking-widest leading-relaxed text-center">
                                     Estos datos representan información exacta extraída del Documento WOS enviado por KBS.
