@@ -10642,7 +10642,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     );
 };
 
-const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [], onOpenBilling = () => { }, onOpenWOS = () => { }, nominaDetailData = [], payrollDrafts = {} }) => {
+const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [], onOpenBilling = () => { }, onOpenWOS = () => { }, nominaDetailData = [], payrollDrafts = {}, user = null }) => {
     const [selectedYear, setSelectedYear] = useState(2026);
     const [forcedBiweeks, setForcedBiweeks] = useState({});
     if (!isOpen) return null;
@@ -10773,14 +10773,20 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                             onChange={(e) => onSelectStore(e.target.value)}
                             className="w-full bg-gray-50 border-2 border-brand-primary/10 rounded-xl px-4 pr-10 py-2.5 text-sm font-bold text-[#303a7f] outline-none focus:border-[#303a7f]/30 transition-all cursor-pointer shadow-inner appearance-none h-[44px]"
                         >
-                            <option value="__NOMINA_COMPLETA__">📋 Nómina Completa</option>
-                            <option value="">Selecciona una Tienda</option>
-                            <option value={CONSOLIDATED_STORE} style={{ fontWeight: 'black', color: '#6bbdb7' }}>
-                                ❇️ {CONSOLIDATED_STORE}
-                            </option>
-                            {stores.filter(s => (s.cliente || 'KBS').toUpperCase() === 'KBS').sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map((s, idx) => (
-                                <option key={s.codigo || `store-${idx}`} value={s.nombre}>{s.nombre}</option>
-                            ))}
+                            {user?.rol === 'Operador de Pagos' ? (
+                                <option value="__NOMINA_COMPLETA__">📋 Nómina Completa</option>
+                            ) : (
+                                <>
+                                    <option value="__NOMINA_COMPLETA__">📋 Nómina Completa</option>
+                                    <option value="">Selecciona una Tienda</option>
+                                    <option value={CONSOLIDATED_STORE} style={{ fontWeight: 'black', color: '#6bbdb7' }}>
+                                        ❇️ {CONSOLIDATED_STORE}
+                                    </option>
+                                    {stores.filter(s => (s.cliente || 'KBS').toUpperCase() === 'KBS').sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map((s, idx) => (
+                                        <option key={s.codigo || `store-${idx}`} value={s.nombre}>{s.nombre}</option>
+                                    ))}
+                                </>
+                            )}
                         </select>
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#303a7f]/50 group-hover:text-[#303a7f] transition-colors">
                             <ChevronDown size={18} strokeWidth={3} />
@@ -20649,6 +20655,7 @@ function App() {
                             <PayrollHistoryModal
                                 isOpen={true}
                                 inline={true}
+                                user={user}
                                 onClose={() => { }}
                                 onProcessBiweekly={(p) => {
                                     const range = `${p.w1.start} - ${p.w2.end}`;
@@ -21482,6 +21489,7 @@ function App() {
             {/* HISTORIAL DE NÓMINA (FASE 7.5: 2026 History) */}
             <PayrollHistoryModal
                 isOpen={isHistoryModalOpen}
+                user={user}
                 onClose={() => setIsHistoryModalOpen(false)}
                 onProcessBiweekly={(p) => {
                     setSelectedBiweeklyPeriod({
