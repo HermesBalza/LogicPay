@@ -17447,35 +17447,52 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
         }
 
         if (row.type === 'VWH') {
-            const record = row.matchedNominaRecord;
-            if (!record) return;
+            const records = (row.matchedNominaRecords && row.matchedNominaRecords.length > 0)
+                ? row.matchedNominaRecords
+                : (row.matchedNominaRecord ? [row.matchedNominaRecord] : []);
+            if (records.length === 0) return;
 
-            // Actualizar estado local para feedback inmediato.
-            // FIX Bug #2: Normalizar apóstrofe en ambos lados para comparación robusta.
-            setNominaHistoryData(prev => prev.map(h =>
-                (String(h.nombre).trim().toLowerCase() === String(record.nombre).trim().toLowerCase() &&
-                    String(h.codigo).replace(/^'+/, '').trim() === String(record.codigo).replace(/^'+/, '').trim())
-                    ? { ...h, "pago": paymentAmount, "fecha de pago": paymentDate, "wos": wosNumber }
-                    : h
-            ));
+            const getKBSAmount = (rec) => {
+                try {
+                    const data = JSON.parse(rec.data_json || '{}');
+                    if (data.isQuincenaAZPEN) return data.expectedPayment || 484.33;
+                    if (Array.isArray(data.kbsBillingTableData)) {
+                        return data.kbsBillingTableData.reduce((acc, r) =>
+                            acc + (parseFloat(String(r.total || '0').replace(/[^0-9.-]/g, '')) || 0), 0);
+                    }
+                } catch (e) { }
+                return 0;
+            };
 
-            // FIX Bug #1 y #4: Construir el payload completo AHORA, en el momento del click,
-            // cuando `record` contiene los datos 100% correctos.
-            // Se usa __prebuilt:true para que el observer lo use directamente sin re-lookups stale.
-            // Un solo objeto en cola elimina las condiciones de carrera de 3 POSTs separados.
-            const codigoVWHClean = String(record.codigo || '').replace(/^'+/, '').trim();
-            billingPendingSaveRef.current.push({
-                __prebuilt: true,
-                nombre: record.nombre,
-                codigo: `'${codigoVWHClean}`,
-                fecha_inicio: record.fecha_inicio || '',
-                fecha_fin: record.fecha_fin || '',
-                data_json: record.data_json || '{}',
-                "Fecha Rad.": record['Fecha Rad.'] || record['fecha rad.'] || '',
-                "Pago": paymentAmount,
-                "Fecha de Pago": paymentDate,
-                "WOS": wosNumber,
-                "Status": record['Status'] || record['status'] || 'Due'
+            let remaining = paymentAmount;
+            records.forEach((record, idx) => {
+                const isLast = idx === records.length - 1;
+                const lgmAmount = getKBSAmount(record);
+                const pago = isLast ? remaining : lgmAmount;
+                remaining -= pago;
+
+                // Actualizar estado local para feedback inmediato.
+                setNominaHistoryData(prev => prev.map(h =>
+                    (String(h.nombre).trim().toLowerCase() === String(record.nombre).trim().toLowerCase() &&
+                        String(h.codigo).replace(/^'+/, '').trim() === String(record.codigo).replace(/^'+/, '').trim())
+                        ? { ...h, "pago": pago, "fecha de pago": paymentDate, "wos": wosNumber }
+                        : h
+                ));
+
+                const codigoVWHClean = String(record.codigo || '').replace(/^'+/, '').trim();
+                billingPendingSaveRef.current.push({
+                    __prebuilt: true,
+                    nombre: record.nombre,
+                    codigo: `'${codigoVWHClean}`,
+                    fecha_inicio: record.fecha_inicio || '',
+                    fecha_fin: record.fecha_fin || '',
+                    data_json: record.data_json || '{}',
+                    "Fecha Rad.": record['Fecha Rad.'] || record['fecha rad.'] || '',
+                    "Pago": pago,
+                    "Fecha de Pago": paymentDate,
+                    "WOS": wosNumber,
+                    "Status": record['Status'] || record['status'] || 'Due'
+                });
             });
 
             setIsSyncingBilling(true);
