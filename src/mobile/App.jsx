@@ -1362,6 +1362,7 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
 
             const html = await callGemini(userPrompt, { systemPrompt });
             setReportHtml(html);
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'generó el', entidad: 'Informe IA', entidadNombre: `${dateFrom || ''} - ${dateTo || ''}` }) }).catch(() => {});
         } catch (err) {
             setReportError(err.message || 'Error desconocido al generar el informe');
         } finally {
