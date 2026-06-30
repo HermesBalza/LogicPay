@@ -547,7 +547,7 @@ app.post('/api/gemini/generate', async (req, res) => {
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(keyRow.value);
     const model = genAI.getGenerativeModel({
-      model: modelName || 'gemini-3-flash-preview',
+      model: modelName || 'gemini-3.5-flash',
       generationConfig: generationConfig || undefined,
     });
 
@@ -615,7 +615,7 @@ async function refinarBusqueda(descripcion) {
     if (!keyRow || !keyRow.value) return descripcion;
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(keyRow.value);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
     const prompt = `Convierte la siguiente descripción de un proyecto en un texto de búsqueda en inglés (máximo 6 palabras, solo keywords relevantes para encontrar proveedores/contratistas). No incluyas comillas ni puntuación extra.\n\nDescripción: "${descripcion}"\n\nKeywords:`; 
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();

@@ -110,7 +110,7 @@ const SEND_EMAIL_API_URL = '/api/send-email';
 // Uso simple: await callGemini("text prompt")
 // Uso multimodal: await callGemini("text", { contents: ["text", { inlineData: { data, mimeType } }] })
 // Uso chat: await callGemini("message", { systemPrompt: "...", history: [...] })
-const callGemini = async (prompt, { model = 'gemini-3-flash-preview', systemPrompt, generationConfig, history, contents } = {}) => {
+const callGemini = async (prompt, { model = 'gemini-3.5-flash', systemPrompt, generationConfig, history, contents } = {}) => {
   const body = { model, systemPrompt, generationConfig, history };
   if (contents) {
     body.contents = contents;

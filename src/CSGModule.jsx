@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 const CSG_GEMINI_API_URL = '/api/gemini/generate';
 const CSG_EMAIL_API_URL = '/api/send-email';
 
-const callGeminiCSG = async (prompt, { model = 'gemini-3-flash-preview', generationConfig, contents } = {}) => {
+const callGeminiCSG = async (prompt, { model = 'gemini-3.5-flash', generationConfig, contents } = {}) => {
   const body = { model, generationConfig };
   if (contents) {
     body.contents = contents;
