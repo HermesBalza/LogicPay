@@ -1256,7 +1256,8 @@ const DashboardView = ({
                     totalCostos: Math.round(totalCostos),
                     margenBruto: Math.round(margenBruto),
                     roiPercent: Number(roiPercent),
-                    crecimiento: Math.round(crecimiento.value),
+                    totalCobrado: Math.round(totalCobrado + cobradoSaldos),
+                    cuentasPorCobrar: Math.round(totalIngresos - totalCobrado - cobradoSaldos),
                 },
                 desglose: {
                     kbsNomina: Math.round(totalKBS_Nomina),
@@ -1346,10 +1347,10 @@ ${dataContext}
 
 ESTRUCTURA DEL INFORME (debes seguir este orden, usa SOLO texto con parrafos y listas):
 0. TITULO PRINCIPAL: "Informe Financiero y Operativo" centrado, color #303a7f, font-weight 900, con el periodo debajo en color #6bbdb7
-1. RESUMEN EJECUTIVO - KPIs principales (Total Facturado, Costos Operativos, Margen Bruto, ROI) presentados en texto con valores en negrita
-2. ESTADO DE RESULTADOS (P&L) - Desglose de ingresos y costos por linea de negocio en lista con viñetas
+1. RESUMEN EJECUTIVO - KPIs principales (Total Facturado, Costo de Nomina, Margen de Ganancia, Rentabilidad ROI, Total Cobrado, Cuentas por Cobrar) presentados en texto con valores en negrita
+2. ESTADO DE RESULTADOS (P&L) - Desglose de ingresos y costos por linea de negocio (Tiendas KBS, Proyectos Especiales, Tiendas CSG) en lista con viñetas
 3. TENDENCIA FINANCIERA - Evolucion mensual descrita en texto con valores clave
-4. RENDIMIENTO POR TIENDA - Top 5 tiendas por margen en lista enumerada
+4. RENDIMIENTO POR TIENDA - Top 5 tiendas por margen con tabla (Nombre, Ingresos, Costos, Margen)
 5. WORKFORCE ANALYTICS - Personal activo/inactivo y top empleados en lista
 6. PROYECTOS ESPECIALES Y VWH - Volumen y margen en texto
 7. CUENTAS POR COBRAR Y FLUJO DE PAGOS - Distribucion en lista

@@ -1274,7 +1274,8 @@ const DashboardView = ({
                     totalCostos: Math.round(totalCostos),
                     margenBruto: Math.round(margenBruto),
                     roiPercent: Number(roiPercent),
-                    crecimiento: Math.round(crecimiento.value),
+                    totalCobrado: Math.round(totalCobrado + cobradoSaldos),
+                    cuentasPorCobrar: Math.round(totalIngresos - totalCobrado - cobradoSaldos),
                 },
                 desglose: {
                     kbsNomina: Math.round(totalKBS_Nomina),
@@ -1364,10 +1365,10 @@ DATOS DEL PERIODO:
 ${dataContext}
 
 ESTRUCTURA DEL INFORME (debes seguir este orden):
-1. RESUMEN EJECUTIVO - KPIs principales en tarjetas (Total Facturado, Costos Operativos, Margen Bruto, ROI)
-2. ESTADO DE RESULTADOS (P&L) - Desglose de ingresos y costos por linea de negocio (KBS Nomina, KBS Proyectos Especiales, CSG), con subtotales y margen
+1. RESUMEN EJECUTIVO - KPIs principales en tarjetas (Total Facturado, Costo de Nomina, Margen de Ganancia, Rentabilidad ROI, Total Cobrado, Cuentas por Cobrar)
+2. ESTADO DE RESULTADOS (P&L) - Desglose de ingresos y costos por linea de negocio (Tiendas KBS, Proyectos Especiales, Tiendas CSG), con subtotales y margen
 3. TENDENCIA FINANCIERA - Evolucion mensual de ingresos vs costos con tabla de datos
-4. RENDIMIENTO POR TIENDA - Top 5 tiendas por margen con tabla (Nombre, Ingresos, Costos, Margen, % Utilizacion). Incluir tiendas que exceden su presupuesto de horas si las hay.
+4. RENDIMIENTO POR TIENDA - Top 5 tiendas por margen con tabla (Nombre, Ingresos, Costos, Margen).
 5. WORKFORCE ANALYTICS - Top empleados por horas, distribucion de personal (activos/inactivos, rotacion), costo promedio por empleado
 6. PROYECTOS ESPECIALES Y VWH - Volumen, margen e incidencias
 7. CUENTAS POR COBRAR Y FLUJO DE PAGOS - Distribucion de pagos: completados, pendientes clientes, pendientes nomina
