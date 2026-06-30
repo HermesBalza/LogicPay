@@ -1314,10 +1314,11 @@ const DashboardView = ({
                         cargo: e.cargo,
                     })),
                 },
-                peVwh: {
-                    volumenPE,
-                    margenPE: Math.round(margenPE),
-                    incidenciaVWH,
+                desgloseFacturaciones: {
+                    facturadasPagadas: facturasReportadasPagadas,
+                    facturadasPendientes: facturasReportadasPendientes,
+                    noFacturadas: facturasNoReportadas,
+                    wosAuditados: incidenciaVWH,
                 },
                 distribucionPagos: [
                     { nombre: 'Pagado', valor: Math.round(totalPaid) },
@@ -1370,11 +1371,12 @@ ESTRUCTURA DEL INFORME (debes seguir este orden):
 3. TENDENCIA FINANCIERA - Evolucion mensual de ingresos vs costos con tabla de datos
 4. RENDIMIENTO POR TIENDA - Top 5 tiendas por margen con tabla (Nombre, Ingresos, Costos, Margen).
 5. WORKFORCE ANALYTICS - Top empleados por horas, distribucion de personal (activos/inactivos, rotacion), costo promedio por empleado
-6. PROYECTOS ESPECIALES Y VWH - Volumen, margen e incidencias
-7. CUENTAS POR COBRAR Y FLUJO DE PAGOS - Distribucion de pagos: completados, pendientes clientes, pendientes nomina
-8. CONCLUSIONES Y RECOMENDACIONES - Breve analisis generado por IA basado en los datos
+6. Desglose de Facturaciones - (Facturadas y Pagadas, Facturadas y Pendientes, No Facturadas, WOS Auditados)
+7. CONCLUSIONES Y RECOMENDACIONES - Breve analisis generado por IA basado en los datos
 
-Para cada seccion incluye tanto los datos numericos como un breve analisis interpretativo.`;
+Para cada seccion incluye tanto los datos numericos como un breve analisis interpretativo.
+
+Al final del informe incluye una linea de firma que diga: "Logicpay by AdWisers LLC ● 2026".`;
 
             const html = await callGemini(userPrompt, { systemPrompt });
             setReportHtml(html);
