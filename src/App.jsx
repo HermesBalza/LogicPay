@@ -1367,16 +1367,16 @@ ${dataContext}
 
 ESTRUCTURA DEL INFORME (debes seguir este orden):
 1. RESUMEN EJECUTIVO - KPIs principales en tarjetas (Total Facturado, Costo de Nomina, Margen de Ganancia, Rentabilidad ROI, Total Cobrado, Cuentas por Cobrar)
-2. ESTADO DE RESULTADOS (P&L) - Desglose de ingresos y costos por linea de negocio (Tiendas KBS, Proyectos Especiales, Tiendas CSG), con subtotales y margen
+2. ESTADO DE RESULTADOS (P&L) - Desglose de ingresos y costos por linea de negocio (Tiendas KBS, Proyectos Especiales, Tiendas CSG), con subtotales y margen. Las filas de la tabla P&L deben llamarse exactamente: "Tiendas KBS", "Proyectos Especiales", "Tiendas CSG".
 3. TENDENCIA FINANCIERA - Evolucion mensual de ingresos vs costos con tabla de datos
 4. RENDIMIENTO POR TIENDA - Top 5 tiendas por margen con tabla (Nombre, Ingresos, Costos, Margen).
 5. WORKFORCE ANALYTICS - Top empleados por horas, distribucion de personal (activos/inactivos, rotacion), costo promedio por empleado
-6. Desglose de Facturaciones - (Facturadas y Pagadas, Facturadas y Pendientes, No Facturadas, WOS Auditados)
+6. Desglose de Facturaciones - (Facturadas y Pagadas, Facturadas y Pendientes, No Facturadas, WOS Auditados). El titulo de esta seccion debe ser exactamente: "Desglose de Facturaciones".
 7. CONCLUSIONES Y RECOMENDACIONES - Breve analisis generado por IA basado en los datos
 
 Para cada seccion incluye tanto los datos numericos como un breve analisis interpretativo.
 
-Al final del informe incluye una linea de firma que diga: "Logicpay by AdWisers LLC ● 2026".`;
+Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers LLC ● ${new Date().getFullYear()}".`;
 
             const html = await callGemini(userPrompt, { systemPrompt });
             setReportHtml(html);

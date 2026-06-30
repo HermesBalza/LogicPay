@@ -1349,16 +1349,16 @@ ${dataContext}
 ESTRUCTURA DEL INFORME (debes seguir este orden, usa SOLO texto con parrafos y listas):
 0. TITULO PRINCIPAL: "Informe Financiero y Operativo" centrado, color #303a7f, font-weight 900, con el periodo debajo en color #6bbdb7
 1. RESUMEN EJECUTIVO - KPIs principales (Total Facturado, Costo de Nomina, Margen de Ganancia, Rentabilidad ROI, Total Cobrado, Cuentas por Cobrar) presentados en texto con valores en negrita
-2. ESTADO DE RESULTADOS (P&L) - Desglose de ingresos y costos por linea de negocio (Tiendas KBS, Proyectos Especiales, Tiendas CSG) en lista con viñetas
+2. ESTADO DE RESULTADOS (P&L) - Desglose de ingresos y costos por linea de negocio (Tiendas KBS, Proyectos Especiales, Tiendas CSG) en lista con viñetas. Las lineas del P&L deben llamarse exactamente: "Tiendas KBS", "Proyectos Especiales", "Tiendas CSG".
 3. TENDENCIA FINANCIERA - Evolucion mensual descrita en texto con valores clave
 4. RENDIMIENTO POR TIENDA - Top 5 tiendas por margen con tabla (Nombre, Ingresos, Costos, Margen)
 5. WORKFORCE ANALYTICS - Personal activo/inactivo y top empleados en lista
-6. Desglose de Facturaciones - (Facturadas y Pagadas, Facturadas y Pendientes, No Facturadas, WOS Auditados)
+6. Desglose de Facturaciones - (Facturadas y Pagadas, Facturadas y Pendientes, No Facturadas, WOS Auditados). El titulo de esta seccion debe ser exactamente: "Desglose de Facturaciones".
 7. CONCLUSIONES Y RECOMENDACIONES - Analisis breve
 
 Para cada seccion incluye tanto los datos numericos como un breve analisis interpretativo en texto. NO uses tablas HTML, solo parrafos y listas.
 
-Al final del informe incluye una linea de firma que diga: "Logicpay by AdWisers LLC ● 2026".`;
+Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers LLC ● ${new Date().getFullYear()}".`;
 
             const html = await callGemini(userPrompt, { systemPrompt });
             setReportHtml(html);
