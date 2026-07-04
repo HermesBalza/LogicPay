@@ -10086,13 +10086,19 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
     };
 
     // Generar semanas del 2026 al 2040 agrupadas en pares con numeración anual reseteada
-    const generateBiweeklyPeriods = () => {
+    const generateBiweeklyPeriods = (weekType = 'sun-sat') => {
         const weeks = [];
         let current = new Date(2026, 0, 1);
 
-        // Ajustar al primer domingo del año 2026 (o el anterior)
-        while (current.getDay() !== 0) {
-            current.setDate(current.getDate() - 1);
+        // Ajustar al primer día de la semana según weekType
+        if (weekType === 'mon-sun') {
+            while (current.getDay() !== 1) {
+                current.setDate(current.getDate() - 1);
+            }
+        } else {
+            while (current.getDay() !== 0) {
+                current.setDate(current.getDate() - 1);
+            }
         }
 
         const endTarget = new Date(2040, 11, 31);
@@ -10104,15 +10110,15 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
             const end = new Date(current);
             end.setDate(end.getDate() + 6);
 
-            const saturdayYear = end.getFullYear();
-            if (!yearWeekCounts[saturdayYear]) yearWeekCounts[saturdayYear] = 0;
-            yearWeekCounts[saturdayYear]++;
+            const weekEndYear = end.getFullYear();
+            if (!yearWeekCounts[weekEndYear]) yearWeekCounts[weekEndYear] = 0;
+            yearWeekCounts[weekEndYear]++;
 
             weeks.push({
                 start: start.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
                 end: end.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
-                weekNumInYear: yearWeekCounts[saturdayYear],
-                weekYear: saturdayYear
+                weekNumInYear: yearWeekCounts[weekEndYear],
+                weekYear: weekEndYear
             });
 
             current.setDate(current.getDate() + 7);
@@ -10123,15 +10129,15 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
             const start = new Date(current);
             const end = new Date(current);
             end.setDate(end.getDate() + 6);
-            const saturdayYear = end.getFullYear();
-            if (!yearWeekCounts[saturdayYear]) yearWeekCounts[saturdayYear] = 0;
-            yearWeekCounts[saturdayYear]++;
+            const weekEndYear = end.getFullYear();
+            if (!yearWeekCounts[weekEndYear]) yearWeekCounts[weekEndYear] = 0;
+            yearWeekCounts[weekEndYear]++;
 
             weeks.push({
                 start: start.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
                 end: end.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
-                weekNumInYear: yearWeekCounts[saturdayYear],
-                weekYear: saturdayYear
+                weekNumInYear: yearWeekCounts[weekEndYear],
+                weekYear: weekEndYear
             });
         }
 
@@ -10163,7 +10169,8 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
         return biweekly;
     };
 
-    const biweeklyPeriods = generateBiweeklyPeriods();
+    const weekType = selectedStore === 'Chewy Houston' ? 'mon-sun' : 'sun-sat';
+    const biweeklyPeriods = generateBiweeklyPeriods(weekType);
     const availableYears = Array.from({ length: 15 }, (_, i) => 2026 + i);
     const filteredPeriods = biweeklyPeriods.filter(p => p.filterYear === selectedYear);
 
