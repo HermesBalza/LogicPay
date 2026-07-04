@@ -19833,7 +19833,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                 <tr className="bg-[#f9f9f9]/80">
                                                     <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
                                                     <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Cargo</th>
-                                                    {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map((day, dIdx) => (
+                                                    {(payrollStore === 'Chewy Houston' ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map((day, dIdx) => (
                                                         <th key={day} className="p-1.5 text-[8px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[70px] bg-gray-50/20">
                                                             <div className="flex flex-col items-center">
                                                                 <span>{day}</span>
@@ -19924,7 +19924,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                             <td className="p-2 border-r-[2px] border-gray-100 italic">
                                                                 <span className="text-[8px] font-extrabold text-gray-500 uppercase leading-tight bg-gray-50 px-1.5 py-0.5 rounded-md">{row.cargo}</span>
                                                             </td>
-                                                            {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => {
+                                                            {(payrollStore === 'Chewy Houston' ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
                                                                 const dayVal = row[day];
                                                                 const isManual = dayVal.final !== dayVal.sup && dayVal.final !== dayVal.bio;
 
@@ -20509,7 +20509,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                 const empId = String(emp.codigo || emp.nombre);
                                                 const existing = consolidatedSemana.find(e => String(e.codigo || e.nombre) === empId);
                                                 if (existing) {
-                                                    ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].forEach(day => {
+                                                    (selectedHistoryStore === 'Chewy Houston' ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).forEach(day => {
                                                         const currentVal = hhmmToDecimal(existing[day]?.final || 0);
                                                         const newVal = hhmmToDecimal(emp[day]?.final || 0);
                                                         if (newVal > 0) {
@@ -21275,7 +21275,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                     <p style={{ fontSize: '12px', fontWeight: '900', color: '#303a7f', margin: 0, textTransform: 'uppercase' }}>{row.nombre}</p>
                                     <p style={{ fontSize: '10px', fontWeight: '700', color: '#6bbdb7', margin: '3px 0 0 0' }}>{row.cargo} | ID: {row.codigo}</p>
                                 </td>
-                                {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
+                                {(payrollStore === 'Chewy Houston' ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => (
                                     <td key={day} style={{ padding: '15px', textAlign: 'center', fontSize: '12px', fontWeight: '900', color: '#4b5563' }}>
                                         {row[day]?.final || '-'}
                                     </td>
