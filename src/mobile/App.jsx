@@ -6573,7 +6573,7 @@ const VWHTableModal = (props) => {
     );
 };
 
-const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedDateForDay }) => {
+const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedDateForDay, payrollStore = '' }) => {
     if (!isOpen) return null;
 
     return (
@@ -6611,7 +6611,7 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
                             <thead>
                                 <tr className="bg-gray-50/50">
                                     <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-100">ID Empleado / Nombre</th>
-                                    {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map((day, idx) => (
+                                    {(payrollStore === 'Chewy Houston' ? ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'] : ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']).map((day, idx) => (
                                         <th key={day} className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-100 bg-gray-50/30">
                                             <div className="flex flex-col items-center">
                                                 <span>{day}</span>
@@ -6632,7 +6632,7 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
                                         <td className="p-6 border-r-[2px] border-gray-50">
                                             <span className="text-sm font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
                                         </td>
-                                        {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => {
+                                        {(payrollStore === 'Chewy Houston' ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
                                             const value = row[day]?.sup;
                                             const isZero = !value || value === 0 || value === '0';
                                             return (
@@ -18600,6 +18600,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 data={semanaTableData}
                 fechaDesde={fechaDesde}
                 getFormattedDateForDay={getFormattedDateForDay}
+                payrollStore={payrollStore}
             />
 
             <InvalidCodesModal
