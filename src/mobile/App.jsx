@@ -7575,9 +7575,13 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
 
     const handleDownloadExcel = () => {
         const wb = XLSX.utils.book_new();
+        const isChewy = payrollStore === 'Chewy Houston';
+        const excelDayHeaders = isChewy
+            ? ["Nombre y Apellidos", "Código", "Cargo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo", "TOTAL"]
+            : ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"];
         const ws = XLSX.utils.aoa_to_sheet([
             [payrollStore || "Nombre de Tienda"],
-            ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"]
+            excelDayHeaders
         ]);
 
         const rowsToInsert = data.map(row => {
@@ -7588,17 +7592,15 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
                 e.tienda === payrollStore
             );
 
+            const dayCols = isChewy
+                ? [row.lunes, row.martes, row.miercoles, row.jueves, row.viernes, row.sabado, row.domingo]
+                : [row.domingo, row.lunes, row.martes, row.miercoles, row.jueves, row.viernes, row.sabado];
+
             return [
                 localMatch ? localMatch.nombre : `Empleado ${empCode}`,
                 empCode,
                 localMatch ? localMatch.cargo : "Janitorial",
-                row.domingo || "0:00",
-                row.lunes || "0:00",
-                row.martes || "0:00",
-                row.miercoles || "0:00",
-                row.jueves || "0:00",
-                row.viernes || "0:00",
-                row.sabado || "0:00",
+                ...dayCols.map(d => d || "0:00"),
                 row.total || "0:00"
             ];
         });
@@ -7661,7 +7663,7 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
                             <thead>
                                 <tr className="bg-gray-50/50">
                                     <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-100">ID Empleado / Nombre</th>
-                                    {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map((day, idx) => (
+                                    {(payrollStore === 'Chewy Houston' ? ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'] : ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']).map((day, idx) => (
                                         <th key={day} className="p-5 text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-teal-50">
                                             <div className="flex flex-col items-center">
                                                 <span>{day}</span>
@@ -7682,7 +7684,7 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
                                         <td className="p-6 border-r-[2px] border-gray-50">
                                             <span className="text-sm font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
                                         </td>
-                                        {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => {
+                                        {(payrollStore === 'Chewy Houston' ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
                                             const value = row[day];
                                             const isZero = !value || value === 0 || value === '0' || value === '0h' || value === '00:00' || value === '0:00';
                                             return (
