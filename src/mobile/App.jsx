@@ -17348,7 +17348,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 // 1. Intentar cargar el template oficial desde /public
                 let wb;
                 try {
-                    const templateResp = await fetch('/Formato_de_Carga_de_Asistencia.xlsx');
+                    const templateResp = await fetch(payrollStore === 'Chewy Houston' ? '/Formato_de_Carga_de_Asistencia_Chewy.xlsx' : '/Formato_de_Carga_de_Asistencia.xlsx');
                     if (!templateResp.ok) throw new Error("Template not found");
                     const templateData = await templateResp.arrayBuffer();
                     wb = XLSX.read(templateData);
@@ -17357,7 +17357,9 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     wb = XLSX.utils.book_new();
                     const ws = XLSX.utils.aoa_to_sheet([
                         ["Nombre de Tienda"],
-                        ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"]
+                        payrollStore === 'Chewy Houston'
+                            ? ["Nombre y Apellidos", "Código", "Cargo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo", "TOTAL"]
+                            : ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"]
                     ]);
                     XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
                 }
@@ -17375,13 +17377,10 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                         "Nombre y Apellidos": emp.nombre,
                         "Código": emp.es_nuevo ? "NO REGISTRADO" : codigoOficial,
                         "Cargo": emp.cargo,
-                        "Domingo": "0",
-                        "Lunes": "0",
-                        "Martes": "0",
-                        "Miercoles": "0",
-                        "Jueves": "0",
-                        "Viernes": "0",
-                        "Sabado": "0",
+                        ...(payrollStore === 'Chewy Houston'
+                            ? { "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0", "Domingo": "0" }
+                            : { "Domingo": "0", "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0" }
+                        ),
                         "TOTAL": "0"
                     };
 

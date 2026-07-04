@@ -18315,7 +18315,7 @@ function App() {
                 // 1. Intentar cargar el template oficial desde /public
                 let wb;
                 try {
-                    const templateResp = await fetch('/Formato_de_Carga_de_Asistencia.xlsx');
+                    const templateResp = await fetch(payrollStore === 'Chewy Houston' ? '/Formato_de_Carga_de_Asistencia_Chewy.xlsx' : '/Formato_de_Carga_de_Asistencia.xlsx');
                     if (!templateResp.ok) throw new Error("Template not found");
                     const templateData = await templateResp.arrayBuffer();
                     wb = XLSX.read(templateData);
@@ -18324,7 +18324,9 @@ function App() {
                     wb = XLSX.utils.book_new();
                     const ws = XLSX.utils.aoa_to_sheet([
                         ["Nombre de Tienda"],
-                        ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"]
+                        payrollStore === 'Chewy Houston'
+                            ? ["Nombre y Apellidos", "Código", "Cargo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo", "TOTAL"]
+                            : ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"]
                     ]);
                     XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
                 }
@@ -18342,13 +18344,10 @@ function App() {
                         "Nombre y Apellidos": emp.nombre,
                         "Código": emp.es_nuevo ? "NO REGISTRADO" : codigoOficial,
                         "Cargo": emp.cargo,
-                        "Domingo": "0",
-                        "Lunes": "0",
-                        "Martes": "0",
-                        "Miercoles": "0",
-                        "Jueves": "0",
-                        "Viernes": "0",
-                        "Sabado": "0",
+                        ...(payrollStore === 'Chewy Houston'
+                            ? { "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0", "Domingo": "0" }
+                            : { "Domingo": "0", "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0" }
+                        ),
                         "TOTAL": "0"
                     };
 
@@ -20860,7 +20859,7 @@ function App() {
 
                                     <div className="md:col-span-2 lg:col-span-2 flex items-end gap-2">
                                         <a
-                                            href="/Formato_de_Carga_de_Asistencia.xlsx"
+                                            href={payrollStore === 'Chewy Houston' ? "/Formato_de_Carga_de_Asistencia_Chewy.xlsx" : "/Formato_de_Carga_de_Asistencia.xlsx"}
                                             download
                                             className="bg-white text-[#6bbdb7] rounded-xl hover:bg-[#6bbdb7]/5 transition-all active:scale-95 border-[3px] border-[#6bbdb7]/30 shadow-sm flex items-center justify-center gap-1.5 group h-[48px] px-3 flex-1"
                                             title="Descargar formato de carga de asistencia para el supervisor"
