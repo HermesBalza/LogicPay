@@ -6761,27 +6761,46 @@ const VWHTableModal = (props) => {
     };
 
     const renderVWHReport = (reportData, start, end, isSplitPart = false) => {
+        const isChewy = payrollStore === 'Chewy Houston';
         const isAZPEN = String(payrollStore).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN';
-        const days = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+        const days = isChewy
+            ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
+            : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
         let currentTotal = 0;
 
-        // Detección dinámica de rango de días basada en las fechas 'start' y 'end'
+        const dayToIndex = {
+            0: isChewy ? 6 : 0,
+            1: isChewy ? 0 : 1,
+            2: isChewy ? 1 : 2,
+            3: isChewy ? 2 : 3,
+            4: isChewy ? 3 : 4,
+            5: isChewy ? 4 : 5,
+            6: isChewy ? 5 : 6,
+        };
+
         const [mS, dS, yS] = start.split('/');
         const [mE, dE, yE] = end.split('/');
         const dateStart = new Date(parseInt(yS), parseInt(mS) - 1, parseInt(dS));
         const dateEnd = new Date(parseInt(yE), parseInt(mE) - 1, parseInt(dE));
 
-        // Determinar si es una Quincena (rango mayor a 7 días)
         const isQuincenaRange = (dateEnd - dateStart) / (1000 * 60 * 60 * 24) > 7;
 
-        const startIndex = isQuincenaRange ? 0 : dateStart.getDay(); // 0-Dom, 6-Sab
-        const endIndex = isQuincenaRange ? 6 : dateEnd.getDay();
+        const startIdx = isQuincenaRange ? 0 : dayToIndex[dateStart.getDay()];
+        const endIdx = isQuincenaRange ? 6 : dayToIndex[dateEnd.getDay()];
 
         const processedData = reportData.map(emp => {
             let empTotalFragment = 0;
-            // Sumamos las horas de las columnas correspondientes
-            for (let i = startIndex; i <= endIndex; i++) {
-                empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+            if (startIdx <= endIdx) {
+                for (let i = startIdx; i <= endIdx; i++) {
+                    empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                }
+            } else {
+                for (let i = startIdx; i < 7; i++) {
+                    empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                }
+                for (let i = 0; i <= endIdx; i++) {
+                    empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                }
             }
             currentTotal += empTotalFragment;
             return { ...emp, fragmentTotal: empTotalFragment };
@@ -22660,7 +22679,7 @@ function App() {
                     <thead>
                         <tr style={{ backgroundColor: '#f9fafb' }}>
                             <th style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>Employee / Position</th>
-                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
+                            {(payrollStore === 'Chewy Houston' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']).map((d, i) => (
                                 <th key={i} style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'center', borderBottom: '2px solid #e5e7eb' }}>{d}</th>
                             ))}
                             <th style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'right', borderBottom: '2px solid #e5e7eb' }}>Total</th>
