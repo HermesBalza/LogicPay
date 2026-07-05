@@ -22,7 +22,7 @@ const totalNH = db.prepare('SELECT COUNT(*) as c FROM Nomina_Historico').get();
 console.log('Nomina_Historico radicadas:', radNH.c, '/', totalNH.c);
 
 // 2. Proyectos_Especiales: extract end date from Periodo
-const peRecords = db.prepare('SELECT id, Periodo FROM Proyectos_Especiales WHERE "Fecha Rad." IS NULL OR "Fecha Rad." = ' + '""').all();
+const peRecords = db.prepare("SELECT id, Periodo FROM Proyectos_Especiales WHERE \"Fecha Rad.\" IS NULL OR \"Fecha Rad.\" = ''").all();
 let peCount = 0;
 peRecords.forEach(r => {
     const parts = String(r.Periodo || '').split(' - ');
