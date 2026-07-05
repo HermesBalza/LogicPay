@@ -9442,6 +9442,28 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         processRecords(allW1Records, 'w1');
         processRecords(allW2Records, 'w2');
 
+        let chewyWkBeforeData = {};
+        if (period._isChewyPayroll) {
+            const [mC, dC, yC] = period.w1.start.split('/').map(Number);
+            const w1Mon = new Date(yC, mC - 1, dC);
+            const wkBefore = new Date(w1Mon);
+            wkBefore.setDate(wkBefore.getDate() - 7);
+            const fmtDate = (dt) => `${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}/${dt.getFullYear()}`;
+            const wkBeforeStart = fmtDate(wkBefore);
+            const allWkBeforeRecords = nominaHistoryData.filter(h =>
+                normalizeDate(h.fecha_inicio) === normalizeDate(wkBeforeStart) && h.nombre === period.store
+            );
+            allWkBeforeRecords.forEach(record => {
+                try {
+                    const data = JSON.parse(record.data_json);
+                    (data.semanaTableData || []).forEach(emp => {
+                        const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
+                        chewyWkBeforeData[empId] = emp;
+                    });
+                } catch(e) {}
+            });
+        }
+
         // También incluir Proyectos Especiales en el mapa de sedes
         // peStoreMap se construye desde el historial COMPLETO de P.E. (no filtrado por tienda)
         // para detectar cuando un empleado tiene P.E. en una tienda diferente a la actual.
@@ -9544,8 +9566,37 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             const w1Entries = filterStore ? data.w1.filter(e => e.store === filterStore) : data.w1;
             const w2Entries = filterStore ? data.w2.filter(e => e.store === filterStore) : data.w2;
 
-            const totalHoursW1 = w1Entries.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0);
-            const totalHoursW2 = w2Entries.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0);
+            let totalHoursW1, totalHoursW2;
+            if (period._isChewyPayroll) {
+                const chewyParseHrs = (dayObj) => {
+                    const val = dayObj?.final;
+                    if (!val || val === 'X' || val === '0:00') return 0;
+                    const s = String(val).trim();
+                    if (s.includes(':')) { const [h, m2] = s.split(':').map(Number); return h + (m2 || 0) / 60; }
+                    return parseFloat(s) || 0;
+                };
+                totalHoursW1 = w1Entries.reduce((sum, e) => {
+                    let hrs = 0;
+                    const wkB = chewyWkBeforeData[id];
+                    if (wkB) hrs += chewyParseHrs(wkB.domingo);
+                    const ed = e.empData;
+                    hrs += chewyParseHrs(ed.lunes) + chewyParseHrs(ed.martes) + chewyParseHrs(ed.miercoles) + chewyParseHrs(ed.jueves) + chewyParseHrs(ed.viernes) + chewyParseHrs(ed.sabado);
+                    return sum + hrs;
+                }, 0);
+                totalHoursW2 = w2Entries.reduce((sum, e) => {
+                    let hrs = 0;
+                    const ed = e.empData;
+                    hrs += chewyParseHrs(ed.lunes) + chewyParseHrs(ed.martes) + chewyParseHrs(ed.miercoles) + chewyParseHrs(ed.jueves) + chewyParseHrs(ed.viernes) + chewyParseHrs(ed.sabado);
+                    return sum + hrs;
+                }, 0);
+                totalHoursW2 += w1Entries.reduce((sum, e) => {
+                    const ed = e.empData;
+                    return sum + chewyParseHrs(ed.domingo);
+                }, 0);
+            } else {
+                totalHoursW1 = w1Entries.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0);
+                totalHoursW2 = w2Entries.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0);
+            }
 
             // Rate: Usamos el primero que encontremos (asumimos rate consistente o el de la tienda principal)
             let rate = 0;
@@ -20777,12 +20828,23 @@ function App() {
                                 user={user}
                                 onClose={() => { }}
                                 onProcessBiweekly={(p) => {
-                                    const range = `${p.w1.start} - ${p.w2.end}`;
+                                    const isChewy = selectedHistoryStore === 'Chewy Houston';
+                                    const range = isChewy
+                                        ? (() => {
+                                            const [m1, d1, y1] = p.w1.start.split('/').map(Number);
+                                            const [m2, d2, y2] = p.w2.end.split('/').map(Number);
+                                            const pStart = new Date(y1, m1 - 1, d1 - 1);
+                                            const pEnd = new Date(y2, m2 - 1, d2 - 1);
+                                            const fmt = (d) => `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
+                                            return `${fmt(pStart)} - ${fmt(pEnd)}`;
+                                        })()
+                                        : `${p.w1.start} - ${p.w2.end}`;
                                     setSelectedBiweeklyPeriod({
                                         store: selectedHistoryStore,
                                         range: range,
                                         w1: p.w1,
-                                        w2: p.w2
+                                        w2: p.w2,
+                                        _isChewyPayroll: isChewy || undefined
                                     });
                                     loadSpecialProjectsForPeriod(selectedHistoryStore, range);
                                     setIsBiweeklyManagementOpen(true);
@@ -21611,11 +21673,23 @@ function App() {
                 user={user}
                 onClose={() => setIsHistoryModalOpen(false)}
                 onProcessBiweekly={(p) => {
+                    const isChewy = selectedHistoryStore === 'Chewy Houston';
+                    const range = isChewy
+                        ? (() => {
+                            const [m1, d1, y1] = p.w1.start.split('/').map(Number);
+                            const [m2, d2, y2] = p.w2.end.split('/').map(Number);
+                            const pStart = new Date(y1, m1 - 1, d1 - 1);
+                            const pEnd = new Date(y2, m2 - 1, d2 - 1);
+                            const fmt = (d) => `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
+                            return `${fmt(pStart)} - ${fmt(pEnd)}`;
+                        })()
+                        : `${p.w1.start} - ${p.w2.end}`;
                     setSelectedBiweeklyPeriod({
                         store: selectedHistoryStore,
-                        range: `${p.w1.start} - ${p.w2.end}`,
+                        range: range,
                         w1: p.w1,
-                        w2: p.w2
+                        w2: p.w2,
+                        _isChewyPayroll: isChewy || undefined
                     });
                     setIsBiweeklyManagementOpen(true);
                     setIsHistoryModalOpen(false);
