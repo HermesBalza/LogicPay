@@ -21177,7 +21177,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             delete payload.cliente;
                             delete payload.observaciones;
 
-                            syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado']);
+syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado'], true);
 
                             return newEmployees;
                         });
