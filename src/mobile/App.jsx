@@ -1115,7 +1115,10 @@ const DashboardView = ({
         return s === 'Paid' || s === 'Pagada';
     };
 
-    const facturasFiltradas = [...filteredNomina, ...filteredPE];
+    const facturasFiltradas = [...filteredNomina, ...filteredPE].filter(r => {
+        const isAZPEN_WK = String(r.nombre || '').toUpperCase().includes('AZPEN') && String(r.codigo || '').startsWith('WK-');
+        return !isAZPEN_WK;
+    });
     const facturasReportadasPagadas = facturasFiltradas.filter(r => tieneRad(r) && estaPagada(r)).length;
     const facturasReportadasPendientes = facturasFiltradas.filter(r => tieneRad(r) && !estaPagada(r)).length;
     const facturasNoReportadas = facturasFiltradas.filter(r => !tieneRad(r)).length;
