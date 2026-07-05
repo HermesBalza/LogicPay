@@ -6762,7 +6762,7 @@ const VWHTableModal = (props) => {
                 rows.push([
                     payrollStore,
                     kbsId,
-                    'Logic Group',
+                    'Logic Group Management',
                     row.nombre,
                     `${start}-${end}`,
                     row.fragmentTotal.toFixed(2),
@@ -6781,13 +6781,16 @@ const VWHTableModal = (props) => {
             const ws = XLSX.utils.aoa_to_sheet(rows);
             XLSX.utils.book_append_sheet(wb, ws, 'REPORTE VWH');
         } else {
-            const rowsA = buildSheet(data, splitInfo.dateAEnd ? fechaDesde : fechaDesde, splitInfo.dateAEnd || fechaDesde);
+            const sheetAStart = splitInfo.dateAEnd ? fechaDesde : fechaDesde;
+            const sheetAEnd = splitInfo.dateAEnd || fechaDesde;
+            const rowsA = buildSheet(data, sheetAStart, sheetAEnd);
             const wsA = XLSX.utils.aoa_to_sheet(rowsA);
-            XLSX.utils.book_append_sheet(wb, wsA, 'Parte A');
+            XLSX.utils.book_append_sheet(wb, wsA, sheetAStart.replace(/\//g, '-') + ' a ' + sheetAEnd.replace(/\//g, '-'));
 
-            const rowsB = buildSheet(data, splitInfo.dateBStart || fechaDesde, fechaHasta);
+            const sheetBStart = splitInfo.dateBStart || fechaDesde;
+            const rowsB = buildSheet(data, sheetBStart, fechaHasta);
             const wsB = XLSX.utils.aoa_to_sheet(rowsB);
-            XLSX.utils.book_append_sheet(wb, wsB, 'Parte B');
+            XLSX.utils.book_append_sheet(wb, wsB, sheetBStart.replace(/\//g, '-') + ' a ' + fechaHasta.replace(/\//g, '-'));
         }
         XLSX.writeFile(wb, `VWH_Report_${payrollStore}_${fechaDesde.replace(/\//g, '-')}.xlsx`);
     };
