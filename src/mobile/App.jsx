@@ -6197,6 +6197,77 @@ const VWHTableModal = (props) => {
         }
     };
 
+    const downloadVWHAsExcel = () => {
+        const isChewy = payrollStore === 'Chewy Houston';
+        const days = isChewy
+            ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
+            : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+        const dayToIndex = {
+            0: isChewy ? 6 : 0, 1: isChewy ? 0 : 1, 2: isChewy ? 1 : 2,
+            3: isChewy ? 2 : 3, 4: isChewy ? 3 : 4, 5: isChewy ? 4 : 5, 6: isChewy ? 5 : 6,
+        };
+
+        const buildSheet = (reportData, start, end) => {
+            const [mS, dS, yS] = start.split('/');
+            const [mE, dE, yE] = end.split('/');
+            const dateStart = new Date(parseInt(yS), parseInt(mS) - 1, parseInt(dS));
+            const dateEnd = new Date(parseInt(yE), parseInt(mE) - 1, parseInt(dE));
+            const isQuincenaRange = (dateEnd - dateStart) / (1000 * 60 * 60 * 24) > 7;
+            const startIdx = isQuincenaRange ? 0 : dayToIndex[dateStart.getDay()];
+            const endIdx = isQuincenaRange ? 6 : dayToIndex[dateEnd.getDay()];
+
+            const processedData = reportData.map(emp => {
+                let empTotalFragment = 0;
+                if (startIdx <= endIdx) {
+                    for (let i = startIdx; i <= endIdx; i++) {
+                        empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                    }
+                } else {
+                    for (let i = startIdx; i < 7; i++) {
+                        empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                    }
+                    for (let i = 0; i <= endIdx; i++) {
+                        empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                    }
+                }
+                return { ...emp, fragmentTotal: empTotalFragment };
+            });
+
+            const rows = [['Site Code', 'KBS ID', 'Vendor Name', 'Employee Identifier', 'Date', 'Hours', 'Job Code', 'KBS Contract Hourly Rate']];
+            processedData.filter(emp => emp.fragmentTotal > 0).forEach(row => {
+                rows.push([
+                    payrollStore,
+                    kbsId,
+                    'Logic Group',
+                    row.nombre,
+                    `${start}-${end}`,
+                    row.fragmentTotal.toFixed(2),
+                    row.cargo,
+                    `$${getKbsRate(row.cargo, row.nombre).toFixed(2)}`
+                ]);
+            });
+            const grandTotal = processedData.reduce((sum, emp) => sum + emp.fragmentTotal, 0);
+            rows.push(['', '', '', '', 'TOTAL', grandTotal.toFixed(2), '', '']);
+            return rows;
+        };
+
+        const wb = XLSX.utils.book_new();
+        if (!showSplit) {
+            const rows = buildSheet(data, fechaDesde, fechaHasta);
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            XLSX.utils.book_append_sheet(wb, ws, 'REPORTE VWH');
+        } else {
+            const rowsA = buildSheet(data, splitInfo.dateAEnd ? fechaDesde : fechaDesde, splitInfo.dateAEnd || fechaDesde);
+            const wsA = XLSX.utils.aoa_to_sheet(rowsA);
+            XLSX.utils.book_append_sheet(wb, wsA, 'Parte A');
+
+            const rowsB = buildSheet(data, splitInfo.dateBStart || fechaDesde, fechaHasta);
+            const wsB = XLSX.utils.aoa_to_sheet(rowsB);
+            XLSX.utils.book_append_sheet(wb, wsB, 'Parte B');
+        }
+        XLSX.writeFile(wb, `VWH_Report_${payrollStore}_${fechaDesde.replace(/\//g, '-')}.xlsx`);
+    };**
+
     const store = stores.find(s => s.nombre === payrollStore);
     const kbsId = store?.codigo || '---';
 
@@ -6548,6 +6619,13 @@ const VWHTableModal = (props) => {
                     >
                         <Mail size={14} />
                         <span className="hidden sm:inline">{isRadicated ? "Correo Enviado" : "Enviar Mail"}</span>
+                    </button>
+                    <button
+                        onClick={downloadVWHAsExcel}
+                        className="px-3 py-2 bg-[#6bbdb7] text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                        <FileSpreadsheet size={14} />
+                        <span className="hidden sm:inline">Excel</span>
                     </button>
                     <button
                         onClick={onClose}
@@ -7664,9 +7742,16 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
                         >
                             <Download size={16} />
                             Descargar Reporte
-                        </button>
-                        <button
-                            onClick={onClose}
+                    </button>
+                    <button
+                        onClick={downloadVWHAsExcel}
+                        className="px-3 py-2 bg-[#6bbdb7] text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                        <FileSpreadsheet size={14} />
+                        <span className="hidden sm:inline">Excel</span>
+                    </button>
+                    <button
+                        onClick={onClose}
                             className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-[#6bbdb7]/20 text-[#6bbdb7] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-50 transition-all active:scale-95 shadow-sm"
                         >
                             <ArrowLeft size={16} />
