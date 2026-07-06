@@ -16285,13 +16285,18 @@ function App() {
             try {
                 for (const task of queue) {
                     let payload;
+                    let auditAccion, auditEntidad;
 
                     if (task.__prebuilt) {
                         // FIX Bug #1 y #4: Payload pre-construido en el click → usar directamente sin re-lookups stale.
-                        const { __prebuilt, auditAccion, auditEntidad, ...rest } = task;
+                        const { __prebuilt: _, auditAccion: aA, auditEntidad: aE, ...rest } = task;
                         payload = rest;
+                        auditAccion = aA;
+                        auditEntidad = aE;
                         console.log('[PE OBSERVER] Processing __prebuilt task', { correlativo: payload.Correlativo, auditAccion, auditEntidad });
                     } else {
+                        auditAccion = null;
+                        auditEntidad = null;
                         // Formato legado {id, field, val} de BillingView → mantener lógica original.
                         const { id, field, val } = task;
                         console.log('[PE OBSERVER] Looking up existing record', { id, field, val });
@@ -16425,13 +16430,17 @@ function App() {
             try {
                 for (const task of queue) {
                     let payload;
+                    let auditAccion, auditEntidad;
 
                     if (task.__prebuilt) {
                         // FIX Bug #1 y #4: Payload pre-construido en el click → usar directamente sin closure stale.
-                        const { __prebuilt, auditAccion, auditEntidad, ...rest } = task;
+                        const { __prebuilt: _, auditAccion: aA, auditEntidad: aE, ...rest } = task;
                         payload = rest;
+                        auditAccion = aA;
+                        auditEntidad = aE;
                     } else {
-                        var auditAccion = null, auditEntidad = null;
+                        auditAccion = null;
+                        auditEntidad = null;
                         // Formato legado {id: week, field, val} de BillingView → mantener lógica original.
                         const { id: week, field, val } = task;
                         // FIX Bug #2: Normalizar apóstrofe antes de comparar para evitar fallos de find().
