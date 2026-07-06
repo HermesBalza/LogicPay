@@ -17520,6 +17520,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             `;
 
             const text = await callGemini(prompt, {
+                model: 'gemini-3.1-pro-preview',
                 contents: [{ text: prompt }, ...imageParts.flat()],
                 generationConfig: { responseMimeType: "application/json" }
             });
