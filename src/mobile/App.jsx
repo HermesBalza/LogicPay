@@ -3383,7 +3383,11 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             }
         } catch (error) {
             console.error('[WOS Cross-Match Error]:', error);
-            alert("Error durante el cruce inteligente con IA.");
+            setNotificationModal({
+                isOpen: true,
+                type: 'error',
+                message: "Error durante el cruce inteligente con IA."
+            });
         } finally {
             setIsCrossing(false);
         }
@@ -3796,8 +3800,8 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                     {crossMatchResults.filter(r => r.type !== 'Sin Registro').length === 0 ? (
                                         <tr>
                                             <td colSpan={7} className="py-16 text-center">
-                                                <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">No se encontraron facturas radicadas que coincidan con este WOS.</p>
-                                                <p className="text-gray-300 font-bold text-[9px] uppercase tracking-widest mt-2">Verifique que los datos de Facturación Radicada estén cargados en el sistema.</p>
+                                                <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">El WOS ha sido cargado al sistema.</p>
+                                                <p className="text-gray-300 font-bold text-[9px] uppercase tracking-widest mt-2">Para auditarlo presiona en el botón "AUDITAR WOS".</p>
                                             </td>
                                         </tr>
                                     ) : crossMatchResults.filter(r => r.type !== 'Sin Registro').map(row => {
