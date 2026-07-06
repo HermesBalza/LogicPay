@@ -111,7 +111,7 @@ app.get('/api/data/:table', (req, res) => {
 app.post('/api/write', (req, res) => {
   try {
     const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { action, sheetName, data: rawData, matchKeys, userId, userName, skipAuditLog } = payload;
+    const { action, sheetName, data: rawData, matchKeys, userId, userName, skipAuditLog, auditAccion, auditEntidad } = payload;
 
     if (action === 'reserveInvoice') {
         const row = db.prepare("SELECT value FROM Variables WHERE key = 'next_invoice'").get();
@@ -166,9 +166,10 @@ app.post('/api/write', (req, res) => {
          const values = keys.map(k => data[k]);
          db.prepare(`INSERT INTO ${sheetName} (${quotedKeys}) VALUES (${placeholders})`).run(values);
       }
-      const accion = wasInsert ? 'Agregó' : 'Actualizó';
+      const accion = auditAccion || (wasInsert ? 'Agregó' : 'Actualizó');
+      const entidad = auditEntidad || mapEntityName(sheetName);
       if (sheetName !== 'Variables' && !skipAuditLog) {
-        auditLog(userId, userName, accion, mapEntityName(sheetName), entidadNombre, { table: sheetName, matchKeys });
+        auditLog(userId, userName, accion, entidad, entidadNombre, { table: sheetName, matchKeys });
       }
       return res.json({ success: true });
     }

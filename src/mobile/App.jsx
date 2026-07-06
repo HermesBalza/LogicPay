@@ -3086,7 +3086,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             };
 
             // Sincronizar con la hoja 'WOS' usando WOS_Number como clave
-            await syncToDatabase('upsert', payload, 'WOS', false, ['WOS_Number']);
+            await syncToDatabase('upsert', payload, 'WOS', false, ['WOS_Number'], false, 'Auditó', `WOS ${currentMetadata.wosNumber || 'S/N'}`);
 
             // Refrescar historial global
             if (onRefreshHistory) onRefreshHistory();
@@ -15323,9 +15323,9 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
 
                     if (task.__prebuilt) {
                         // FIX Bug #1 y #4: Payload pre-construido en el click → usar directamente sin re-lookups stale.
-                        const { __prebuilt, ...rest } = task;
+                        const { __prebuilt, auditAccion, auditEntidad, ...rest } = task;
                         payload = rest;
-                        console.log('[PE OBSERVER] Processing __prebuilt task (mobile)', { correlativo: payload.Correlativo });
+                        console.log('[PE OBSERVER] Processing __prebuilt task (mobile)', { correlativo: payload.Correlativo, auditAccion, auditEntidad });
                     } else {
                         // Formato legado {id, field, val} de BillingView → mantener lógica original.
                         const { id, field, val } = task;
@@ -15383,7 +15383,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     }
 
                     console.log('[PE OBSERVER] About to syncToDatabase (mobile)', { payload, sheetName: 'Proyectos_Especiales', matchKeys: ['Correlativo'] });
-                    await syncToDatabase('upsert', payload, 'Proyectos_Especiales', false, ['Correlativo']);
+                    await syncToDatabase('upsert', payload, 'Proyectos_Especiales', false, ['Correlativo'], false, auditAccion, auditEntidad);
                     console.log('[PE OBSERVER] syncToDatabase completed successfully (mobile)');
 
                     const wosRaw = (payload['WOS'] || payload['wos'] || '').toString().trim();
@@ -15463,9 +15463,10 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
 
                     if (task.__prebuilt) {
                         // FIX Bug #1 y #4: Payload pre-construido en el click → usar directamente sin closure stale.
-                        const { __prebuilt, ...rest } = task;
+                        const { __prebuilt, auditAccion, auditEntidad, ...rest } = task;
                         payload = rest;
                     } else {
+                        var auditAccion = null, auditEntidad = null;
                         // Formato legado {id: week, field, val} de BillingView → mantener lógica original.
                         const { id: week, field, val } = task;
                         // FIX Bug #2: Normalizar apóstrofe antes de comparar para evitar fallos de find().
@@ -15527,7 +15528,11 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             action: 'upsert',
                             sheetName: 'Nomina_Historico',
                             data: payload,
-                            matchKeys: ['nombre', 'codigo']
+                            matchKeys: ['nombre', 'codigo'],
+                            userId: user?.id,
+                            userName: user?.nombre,
+                            auditAccion,
+                            auditEntidad
                         })
                     });
                     console.log('[LogicPay] Sincronización Exitosa VWH (Cola):', payload.nombre, payload.codigo);
@@ -17664,7 +17669,9 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     "Pago": pago,
                     "Fecha de Pago": paymentDate,
                     "WOS": wosNumber,
-                    "Status": record['Status'] || record['status'] || 'Due'
+                    "Status": record['Status'] || record['status'] || 'Due',
+                    auditAccion: 'Auditó',
+                    auditEntidad: `VWH ${record.nombre} ${record.fecha_inicio} - ${record.fecha_fin}`
                 });
             });
 
@@ -17697,7 +17704,9 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 "Pago": paymentAmount,
                 "Fecha de Pago": paymentDate,
                 "WOS": wosNumber,
-                "Status": record['Status'] || record['status'] || 'Due'
+                "Status": record['Status'] || record['status'] || 'Due',
+                auditAccion: 'Auditó',
+                auditEntidad: `P.E. ${record.tienda || record.Tienda || ''} ${record.periodo || record.Periodo || ''}`
             });
 
             setIsSyncingPE(true);
@@ -18466,12 +18475,12 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
     }, [saldosPendientesData]);
 
     // ─── API: Sincronizar cambios con SQLite ──────────────────────────
-    const syncToDatabase = (action, data, sheetName = 'Tiendas', skipRefresh = false, matchKeys = [], skipAuditLog = false) => {
+    const syncToDatabase = (action, data, sheetName = 'Tiendas', skipRefresh = false, matchKeys = [], skipAuditLog = false, auditAccion = null, auditEntidad = null) => {
         setDbStatus('sincronizando');
         return fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, data, sheetName, matchKeys, userId: user?.id, userName: user?.nombre, skipAuditLog })
+            body: JSON.stringify({ action, data, sheetName, matchKeys, userId: user?.id, userName: user?.nombre, skipAuditLog, auditAccion, auditEntidad })
         })
             .then(async response => {
                 if (!response.ok) {
