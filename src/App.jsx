@@ -20003,6 +20003,92 @@ function App() {
                 const _approvedRecord = nominaHistoryData.find(h => String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === fechaDesde);
                 let modalSemanaData = semanaTableData, modalKbsData = kbsBillingTableData, modalEarningsData = earningsTableData;
                 if (_approvedRecord?.data_json) { try { const _p = JSON.parse(_approvedRecord.data_json); if (_p.semanaTableData?.length) modalSemanaData = _p.semanaTableData; if (_p.kbsBillingTableData?.length) modalKbsData = _p.kbsBillingTableData; if (_p.earningsTableData?.length) modalEarningsData = _p.earningsTableData; } catch(_e) {} }
+
+                const downloadAttendanceRatesAsExcel = () => {
+                    try {
+                        const isChewy = payrollStore === 'Chewy Houston';
+                        const dayAbbrs = { domingo: 'Dom', lunes: 'Lun', martes: 'Mar', miercoles: 'Mié', jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb' };
+                        const storeDayOrder = isChewy ? [1, 2, 3, 4, 5, 6, 0] : [0, 1, 2, 3, 4, 5, 6];
+                        const dayNamesBySundayIdx = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                        const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
+
+                        const splitInfo = getSplitInfo(fechaDesde);
+                        const showSplit = splitInfo.hasSplit;
+
+                        let partADayIndices, partBDayIndices;
+                        if (showSplit) {
+                            partADayIndices = [];
+                            partBDayIndices = [];
+                            for (let i = 0; i < 7; i++) {
+                                if (i < splitInfo.splitIdx) partADayIndices.push(i);
+                                else partBDayIndices.push(i);
+                            }
+                        }
+
+                        const buildRowsForPart = (partDayIndices) => {
+                            const sortedIndices = [...partDayIndices].sort((a, b) => storeDayOrder.indexOf(a) - storeDayOrder.indexOf(b));
+
+                            const headers = ['Empleado', 'Código', 'Cargo'];
+                            sortedIndices.forEach(i => {
+                                const dateStr = getFormattedDateForDay(fechaDesde, i);
+                                headers.push(`${dayAbbrs[dayNamesBySundayIdx[i]]} ${dateStr}`);
+                            });
+                            headers.push('Total Hrs', 'Rate LGM', 'Total LGM');
+
+                            const rows = [headers];
+
+                            modalSemanaData.forEach(row => {
+                                const empId = `${String(row.nombre).trim().toLowerCase()}_${String(row.codigo).replace(/^'+/, '').trim()}`;
+                                const lgmRow = (modalEarningsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+                                const employeeInfo = employees.find(e =>
+                                    String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
+                                    String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
+                                );
+
+                                let totalHrs = 0;
+                                const rowData = [row.nombre, row.codigo, row.cargo];
+
+                                sortedIndices.forEach(i => {
+                                    const dayName = dayNamesBySundayIdx[i];
+                                    const hDec = hhmmToDecimal(row[dayName]?.final || 0);
+                                    totalHrs += hDec;
+                                    rowData.push(hDec);
+                                });
+
+                                const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
+                                const lgmTotal = totalHrs * lgmRate;
+
+                                rowData.push(totalHrs, formatCurrency(lgmRate), formatCurrency(lgmTotal));
+                                rows.push(rowData);
+                            });
+
+                            return rows;
+                        };
+
+                        const wb = XLSX.utils.book_new();
+                        const sanitizedName = (payrollStore || 'Tienda').replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_');
+                        const fechaRango = `${(fechaDesde || '').replace(/\//g, '-')}_a_${(fechaHasta || '').replace(/\//g, '-')}`;
+
+                        if (!showSplit) {
+                            const rows = buildRowsForPart([0, 1, 2, 3, 4, 5, 6]);
+                            const ws = XLSX.utils.aoa_to_sheet(rows);
+                            XLSX.utils.book_append_sheet(wb, ws, `${fechaDesde.replace(/\//g, '-')} - ${fechaHasta.replace(/\//g, '-')}`);
+                        } else {
+                            const rowsA = buildRowsForPart(partADayIndices);
+                            const wsA = XLSX.utils.aoa_to_sheet(rowsA);
+                            XLSX.utils.book_append_sheet(wb, wsA, `${fechaDesde.replace(/\//g, '-')} - ${splitInfo.dateAEnd.replace(/\//g, '-')}`);
+
+                            const rowsB = buildRowsForPart(partBDayIndices);
+                            const wsB = XLSX.utils.aoa_to_sheet(rowsB);
+                            XLSX.utils.book_append_sheet(wb, wsB, `${splitInfo.dateBStart.replace(/\//g, '-')} - ${fechaHasta.replace(/\//g, '-')}`);
+                        }
+
+                        XLSX.writeFile(wb, `Semana_${sanitizedName}_${fechaRango}.xlsx`);
+                    } catch (error) {
+                        console.error('[DownloadAttendanceRates] Error:', error);
+                    }
+                };
+
                 return (
                 <div className="fixed inset-0 z-[150] bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
                     <div className="bg-slate-50 w-full h-full max-w-[98vw] max-h-[96vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
@@ -20022,6 +20108,14 @@ function App() {
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
+                                <button
+                                    onClick={downloadAttendanceRatesAsExcel}
+                                    className="group p-2.5 rounded-xl transition-all active:scale-95 border border-[#6bbdb7]/40 bg-white text-[#6bbdb7] hover:bg-[#6bbdb7]/10 flex items-center justify-center gap-1.5"
+                                    title="Descargar Excel"
+                                >
+                                    <Download size={18} />
+                                    <span className="text-[9px] font-black uppercase tracking-widest leading-none hidden sm:inline">Excel</span>
+                                </button>
                                 <button
                                     onClick={() => setIsAttendanceEyeModalOpen(false)}
                                     className="group p-2.5 rounded-xl transition-all active:scale-95 border btn-close-danger flex items-center justify-center"
