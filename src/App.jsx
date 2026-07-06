@@ -17423,6 +17423,34 @@ function App() {
         }
     };
 
+    const handleDownloadFormato = async () => {
+        try {
+            const templatePath = payrollStore === 'Chewy Houston'
+                ? '/Formato_de_Carga_de_Asistencia_Chewy.xlsx'
+                : '/Formato_de_Carga_de_Asistencia.xlsx';
+
+            const templateResp = await fetch(templatePath);
+            if (!templateResp.ok) throw new Error('Template no encontrado');
+            const templateData = await templateResp.arrayBuffer();
+            const wb = XLSX.read(templateData);
+
+            const wsName = wb.SheetNames[0];
+            const ws = wb.Sheets[wsName];
+
+            ws['A1'] = { t: 's', v: `${payrollStore} ${fechaDesde} - ${fechaHasta}` };
+
+            const sanitizedName = (payrollStore || 'Tienda').replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_');
+            const fileName = `Formato_de_Carga_de_Asistencia_${sanitizedName}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        } catch (error) {
+            console.error('[DownloadFormato] Error:', error);
+            const link = document.createElement('a');
+            link.href = '/Formato_de_Carga_de_Asistencia.xlsx';
+            link.download = 'Formato_de_Carga_de_Asistencia.xlsx';
+            link.click();
+        }
+    };
+
     const convertirHHMMaDecimal = (val) => {
         if (val == null || val === '' || val === 'X') return 0;
         if (typeof val === 'number') return Math.round(val * 100) / 100;
@@ -21048,16 +21076,15 @@ function App() {
                                     </div>
 
                                     <div className="md:col-span-2 lg:col-span-2 flex items-end gap-2">
-                                        <a
-                                            href={payrollStore === 'Chewy Houston' ? "/Formato_de_Carga_de_Asistencia_Chewy.xlsx" : "/Formato_de_Carga_de_Asistencia.xlsx"}
-                                            download
+                                        <button
+                                            onClick={handleDownloadFormato}
                                             className="bg-white text-[#6bbdb7] rounded-xl hover:bg-[#6bbdb7]/5 transition-all active:scale-95 border-[3px] border-[#6bbdb7]/30 shadow-sm flex items-center justify-center gap-1.5 group h-[48px] px-3 flex-1"
                                             title="Descargar formato de carga de asistencia para el supervisor"
                                         >
                                             <Download size={14} className="shrink-0" />
                                             <span className="text-[8px] font-black uppercase tracking-widest leading-none truncate hidden xl:inline">Formato</span>
                                             <span className="text-[8px] font-black uppercase tracking-widest leading-none truncate xl:hidden">Formato</span>
-                                        </a>
+                                        </button>
                                         <button
                                             onClick={() => setPayrollView('history')}
                                             className="rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 group h-[48px] px-3 flex-1 btn-close-danger"
