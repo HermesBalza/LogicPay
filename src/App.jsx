@@ -16382,7 +16382,7 @@ function App() {
                         const fechaRadPE = payload['Fecha Rad.'] || payload['fecha rad.'] || '--/--/--';
                         const corrPE = payload.Correlativo || payload.correlativo || '';
                         const tiendaPE = payload.Tienda || payload.tienda || '';
-                        if (factPE > 0 && pagoValPE < factPE) {
+                        if (factPE > 0 && Math.round((factPE - pagoValPE) * 100) > 0) {
                             await fetch(API_URL, {
                                 method: 'POST',
                                 mode: 'no-cors',
@@ -16390,7 +16390,7 @@ function App() {
                                 body: JSON.stringify({
                                     action: 'upsert',
                                     sheetName: 'Saldos_Pendientes',
-                                    data: { tipo: 'PE', ref_id: corrPE, tienda: tiendaPE, fecha_rad: fechaRadPE, semana_facturada: '', facturacion_kbs: factPE, pago_recibido: pagoValPE, saldo_pendiente: factPE - pagoValPE, wos: wosValPE, updated_at: new Date().toISOString() },
+                                    data: { tipo: 'PE', ref_id: corrPE, tienda: tiendaPE, fecha_rad: fechaRadPE, semana_facturada: '', facturacion_kbs: factPE, pago_recibido: pagoValPE, saldo_pendiente: Math.round((factPE - pagoValPE) * 100) / 100, wos: wosValPE, updated_at: new Date().toISOString() },
                                     matchKeys: ['tipo', 'ref_id', 'tienda']
                                 })
                             });
@@ -16536,7 +16536,7 @@ function App() {
                         } catch (e) { }
                         const fechaRad = payload['Fecha Rad.'] || payload['fecha rad.'] || '--/--/--';
                         const semana = (payload.fecha_inicio && payload.fecha_fin) ? `${payload.fecha_inicio} - ${payload.fecha_fin}` : '';
-                        if (factKBS > 0 && pagoVal < factKBS) {
+                        if (factKBS > 0 && Math.round((factKBS - pagoVal) * 100) > 0) {
                             await fetch(API_URL, {
                                 method: 'POST',
                                 mode: 'no-cors',
@@ -16544,7 +16544,7 @@ function App() {
                                 body: JSON.stringify({
                                     action: 'upsert',
                                     sheetName: 'Saldos_Pendientes',
-                                    data: { tipo: 'VWH', ref_id: payload.codigo, tienda: payload.nombre, fecha_rad: fechaRad, semana_facturada: semana, facturacion_kbs: factKBS, pago_recibido: pagoVal, saldo_pendiente: factKBS - pagoVal, wos: wosVal, updated_at: new Date().toISOString() },
+                                    data: { tipo: 'VWH', ref_id: payload.codigo, tienda: payload.nombre, fecha_rad: fechaRad, semana_facturada: semana, facturacion_kbs: factKBS, pago_recibido: pagoVal, saldo_pendiente: Math.round((factKBS - pagoVal) * 100) / 100, wos: wosVal, updated_at: new Date().toISOString() },
                                     matchKeys: ['tipo', 'ref_id', 'tienda']
                                 })
                             });
@@ -22236,7 +22236,7 @@ function App() {
                 const formatNum = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
 
                 const pendientesTienda = (saldosPendientesData || []).filter(r =>
-                    r && String(r.tienda || '').trim().toLowerCase() === storeFilter
+                    r && String(r.tienda || '').trim().toLowerCase() === storeFilter && (r.saldo_pendiente || 0) > 0.009
                 );
                 const vwhPendientes = pendientesTienda.filter(r => r.tipo === 'VWH');
                 const pePendientes = pendientesTienda.filter(r => r.tipo === 'PE');
