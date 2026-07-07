@@ -20014,6 +20014,7 @@ function App() {
                 const _approvedRecord = nominaHistoryData.find(h => String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === fechaDesde);
                 let modalSemanaData = semanaTableData, modalKbsData = kbsBillingTableData, modalEarningsData = earningsTableData;
                 if (_approvedRecord?.data_json) { try { const _p = JSON.parse(_approvedRecord.data_json); if (_p.semanaTableData?.length) modalSemanaData = _p.semanaTableData; if (_p.kbsBillingTableData?.length) modalKbsData = _p.kbsBillingTableData; if (_p.earningsTableData?.length) modalEarningsData = _p.earningsTableData; } catch(_e) {} }
+                const showSplit = getSplitInfo(fechaDesde).hasSplit;
 
                 const downloadAttendanceRatesAsExcel = () => {
                     try {
@@ -20158,9 +20159,9 @@ function App() {
                                     );
 
                                     const kbsRate = kbsRow ? (kbsRow.rate || 0) : (employeeInfo?.rateKBS || 0);
-                                    const kbsTotal = kbsRow ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
+                                    const kbsTotal = (kbsRow && !showSplit) ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
                                     const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
-                                    const lgmTotal = lgmRow ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
+                                    const lgmTotal = (lgmRow && !showSplit) ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
 
                                     totalKBS += kbsTotal;
                                     totalLGM += lgmTotal;
@@ -20281,9 +20282,9 @@ function App() {
 
                                                     const hDec = hhmmToDecimal(row.total.final);
                                                     const kbsRate = kbsRow ? (kbsRow.rate || 0) : (employeeInfo?.rateKBS || 0);
-                                                    const kbsTotal = kbsRow ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
+                                                    const kbsTotal = (kbsRow && !showSplit) ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
                                                     const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
-                                                    const lgmTotal = lgmRow ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
+                                                    const lgmTotal = (lgmRow && !showSplit) ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
 
                                                     const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
 
