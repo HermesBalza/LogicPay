@@ -12083,8 +12083,18 @@ const BillingView = ({
                         }
 
                         data.semanaTableData.forEach(emp => {
-                            for (let i = sIdx; i <= eIdx; i++) {
-                                stats.horas += helperHhmmToDecimal(emp[daysMapping[i]]?.final || 0);
+                            const isChewyHouston = storeName === 'Chewy Houston';
+                            if (isChewyHouston && sIdx > eIdx) {
+                                for (let i = sIdx; i <= 6; i++) {
+                                    stats.horas += helperHhmmToDecimal(emp[daysMapping[i]]?.final || 0);
+                                }
+                                for (let i = 0; i <= eIdx; i++) {
+                                    stats.horas += helperHhmmToDecimal(emp[daysMapping[i]]?.final || 0);
+                                }
+                            } else {
+                                for (let i = sIdx; i <= eIdx; i++) {
+                                    stats.horas += helperHhmmToDecimal(emp[daysMapping[i]]?.final || 0);
+                                }
                             }
                         });
                     } else if (data.kbsBillingTableData) {
