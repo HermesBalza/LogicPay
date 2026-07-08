@@ -5386,7 +5386,7 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
             codigo_empleado: '',
             fecha_ingreso: `${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getDate()).padStart(2, '0')}/${new Date().getFullYear()}`,
             fecha_egreso: '',
-            cargo: 'Janitorial',
+            cargo: '',
             tienda: '',
             routing_num: '',
             account_num: '',
@@ -5408,7 +5408,8 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
             email_tax: '',
             site_code: '',
             rateKBS: 0,
-            rateLGM: 0
+            rateLGM: 0,
+            observaciones: ''
         };
         return initialData ? { ...defaults, ...initialData } : defaults;
     });
@@ -5425,9 +5426,6 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
             const updated = { ...prev, [field]: finalValue };
             if (field === 'first_name' || field === 'last_name') {
                 updated.nombre = `${updated.first_name || ''} ${updated.last_name || ''}`.trim();
-            }
-            if (field === 'codigo_empleado') {
-                updated.id_number = finalValue;
             }
             return updated;
         });
@@ -5454,6 +5452,26 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
             if (onError) onError("El Código de Empleado debe ser exactamente 4 dígitos numéricos.");
             return;
         }
+        if (!newEmployee.rateKBS || newEmployee.rateKBS <= 0 || !newEmployee.rateLGM || newEmployee.rateLGM <= 0) {
+            if (onError) onError("Rate Personal KBS y LGM son obligatorios.");
+            return;
+        }
+        if (newEmployee.rateKBS <= newEmployee.rateLGM) {
+            if (onError) onError("Rate Personal KBS debe ser mayor que Rate Personal LGM.");
+            return;
+        }
+        if (!newEmployee.cargo || !newEmployee.cargo.trim()) {
+            if (onError) onError("Cargo / Posición es obligatorio.");
+            return;
+        }
+        if (!newEmployee.first_name || !newEmployee.first_name.trim()) {
+            if (onError) onError("P First Name es obligatorio.");
+            return;
+        }
+        if (!newEmployee.last_name || !newEmployee.last_name.trim()) {
+            if (onError) onError("P Last Name / Business Name es obligatorio.");
+            return;
+        }
         const formattedEmployee = {
             ...newEmployee,
             cargo: newEmployee.cargo.charAt(0).toUpperCase() + newEmployee.cargo.slice(1).toLowerCase()
@@ -5465,125 +5483,283 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
         <div className="fixed inset-0 z-[60] bg-[#f4f7f9] overflow-y-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
             <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-16">
                 <div className="flex items-center justify-between mb-8">
-                    <button onClick={onBack} className="flex items-center gap-2 font-bold text-[10px] uppercase tracking-widest py-2.5 px-5 rounded-xl border-2 btn-close-danger"><ArrowLeft size={16} /> Cancelar</button>
-                    <button onClick={handleSave} style={{ backgroundColor: '#6bbdb7' }} className="text-white font-black px-10 py-4 shadow-2xl rounded-2xl text-xs tracking-widest uppercase flex items-center gap-2"><Plus size={18} /> Registrar Empleado</button>
+                    <button
+                        onClick={onBack}
+                        className="flex items-center gap-2 transition-all py-2.5 px-5 rounded-xl shadow-sm group font-bold text-[10px] uppercase tracking-widest border-2 btn-close-danger"
+                    >
+                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        style={{ backgroundColor: '#6bbdb7' }}
+                        className="text-white font-black px-10 py-4 shadow-2xl rounded-2xl text-xs tracking-widest uppercase flex items-center gap-2"
+                    >
+                        <Plus size={18} /> Registrar Empleado
+                    </button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    <div className="lg:col-span-4 space-y-6">
-                        <section className="bg-white rounded-[2rem] p-8 text-center shadow-xl border-2 border-brand-primary/20">
-                            <div className="relative inline-block mb-6">
-                                <div className="w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
-                                    {newEmployee.imagen ? <img src={newEmployee.imagen} className="w-full h-full object-cover" /> : <Camera className="text-gray-300" size={40} />}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                    {/* ── ROW 1: Profile Header Card (full width) ── */}
+                    <div className="lg:col-span-12">
+                        <section className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
+                            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
+
+                                {/* Avatar */}
+                                <div className="relative flex-shrink-0 group">
+                                    <div className="w-24 h-24 bg-gray-50 rounded-[1.5rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
+                                        {newEmployee.imagen ? (
+                                            <img src={newEmployee.imagen} alt="Profile" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <Users className="text-gray-300 group-hover:text-[#6bbdb7]" size={32} />
+                                        )}
+                                    </div>
+                                    <label
+                                        style={{ backgroundColor: '#303a7f' }}
+                                        className="absolute -bottom-1 -right-1 p-2 rounded-xl shadow-xl shadow-blue-900/20 hover:scale-110 transition-all text-white border-2 border-white cursor-pointer"
+                                    >
+                                        <Camera size={12} />
+                                        <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                                    </label>
                                 </div>
-                                <label style={{ backgroundColor: '#303a7f' }} className="absolute -bottom-2 -right-2 p-3 rounded-xl shadow-xl text-white border-2 border-white cursor-pointer">
-                                    <Plus size={16} /><input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
-                                </label>
+
+                                {/* Name + ID + badges */}
+                                <div className="flex-1 min-w-0">
+                                    <input
+                                        type="text"
+                                        value={newEmployee.nombre}
+                                        readOnly
+                                        className="w-full bg-gray-50 border-2 border-brand-primary/10 text-gray-400 font-bold text-lg rounded-xl p-2.5 outline-none tracking-tighter mb-2 cursor-not-allowed"
+                                        placeholder="Nombre completo (Auto)..."
+                                    />
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {newEmployee.codigo_empleado && (
+                                            <span className="bg-[#6bbdb7]/10 px-3 py-1 rounded-full text-[#6bbdb7] text-[9px] font-black uppercase tracking-widest">ID: {newEmployee.codigo_empleado}</span>
+                                        )}
+                                        {newEmployee.cargo && (
+                                            <span className="bg-[#303a7f]/8 px-3 py-1 rounded-full text-[#303a7f] text-[9px] font-black uppercase tracking-widest border border-[#303a7f]/10">{newEmployee.cargo}</span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Divider */}
+                                <div className="hidden lg:block h-16 w-px bg-gray-100 flex-shrink-0" />
+
+                                {/* Core fields: Código, Cargo */}
+                                <div className="flex-shrink-0 w-full lg:w-auto grid grid-cols-1 gap-3 lg:min-w-[220px]">
+                                    <div className="group">
+                                        <label className="text-[8px] text-red-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Código Empleado *</label>
+                                        <input
+                                            type="text"
+                                            value={newEmployee.codigo_empleado}
+                                            onChange={(e) => updateField('codigo_empleado', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
+                                            placeholder="Ej: 0123"
+                                            maxLength={4}
+                                            inputMode="numeric"
+                                        />
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[8px] text-red-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Cargo / Posición *</label>
+                                        <select
+                                            value={newEmployee.cargo}
+                                            onChange={(e) => updateField('cargo', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
+                                        >
+                                            <option value="">Seleccione Cargo</option>
+                                            <option value="Janitorial">Janitorial</option>
+                                            <option value="Utility">Utility</option>
+                                            <option value="Shift Lead">Shift Lead</option>
+                                            <option value="Supervisor">Supervisor</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Divider */}
+                                <div className="hidden lg:block h-16 w-px bg-gray-100 flex-shrink-0" />
+
+                                {/* Tienda + Fechas */}
+                                <div className="flex-shrink-0 w-full lg:w-auto grid grid-cols-1 gap-3 lg:min-w-[240px]">
+                                    <div className="group">
+                                        <label className="text-[8px] text-[#6bbdb7] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Tienda Asignada</label>
+                                        <select
+                                            value={newEmployee.tienda}
+                                            onChange={(e) => updateField('tienda', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
+                                        >
+                                            <option value="">Seleccione Tienda</option>
+                                            {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Fecha de Ingreso</label>
+                                        <input
+                                            type="date"
+                                            value={formatDateForInput(newEmployee.fecha_ingreso)}
+                                            onChange={(e) => updateField('fecha_ingreso', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
+                                        />
+                                    </div>
+                                </div>
+
                             </div>
-                            <div className="space-y-4 text-left">
-                                <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Nombre Completo</label>
-                                    <input type="text" value={newEmployee.nombre} readOnly className="w-full bg-gray-50 border-2 border-brand-primary/10 rounded-xl p-3.5 font-bold text-sm text-gray-400 cursor-not-allowed" placeholder="Nombre (Composición Automática)" />
-                                </div>
-                                <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Código de Empleado</label>
-                                    <input type="text" value={newEmployee.codigo_empleado} onChange={(e) => updateField('codigo_empleado', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Ej: 0123" maxLength={4} pattern="\d{4}" inputMode="numeric" />
+                        </section>
+                    </div>
+
+                    {/* ── ROW 2 LEFT: Nómina y Datos Bancarios ── */}
+                    <div className="lg:col-span-7">
+                        <section className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20 h-full">
+                            <h3 className="text-[#333333] font-black flex items-center gap-3 mb-5 text-sm uppercase tracking-widest">
+                                <div className="bg-[#6bbdb7] p-2 rounded-lg"><Clock size={16} className="text-white" /></div>
+                                Control de Nómina y Fechas
+                            </h3>
+
+                            <div className="pt-5 border-t-2 border-gray-50">
+                                <h4 className="text-[10px] text-[#303a7f] uppercase font-black tracking-[0.3em] mb-4 flex items-center gap-2">
+                                    <CreditCard size={14} /> Datos Bancarios para Depósito
+                                </h4>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Routing Num</label>
+                                        <input
+                                            type="text"
+                                            value={newEmployee.routing_num || ''}
+                                            onChange={(e) => updateField('routing_num', e.target.value)}
+                                            placeholder="Routing Number"
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
+                                        />
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Acct Number</label>
+                                        <input
+                                            type="text"
+                                            value={newEmployee.account_num || ''}
+                                            onChange={(e) => updateField('account_num', e.target.value)}
+                                            placeholder="Account Number"
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
+                                        />
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Account Type</label>
+                                        <select
+                                            value={newEmployee.account_type || 'checking'}
+                                            onChange={(e) => updateField('account_type', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
+                                        >
+                                            <option value="checking">Checking (22)</option>
+                                            <option value="savings">Savings (32)</option>
+                                        </select>
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Payee Name</label>
+                                        <input
+                                            type="text"
+                                            value={newEmployee.payee_name || ''}
+                                            onChange={(e) => updateField('payee_name', e.target.value)}
+                                            placeholder="Nombre del Beneficiario"
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
+                                        />
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">ID Number</label>
+                                        <input
+                                            type="text"
+                                            value={newEmployee.id_number || ''}
+                                            onChange={(e) => updateField('id_number', e.target.value)}
+                                            placeholder="Ej: 5688"
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </section>
                     </div>
 
-                    <div className="lg:col-span-8 space-y-6">
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl border-2 border-brand-primary/20">
-                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
-                                <div className="bg-[#303a7f] p-2 rounded-lg"><Settings className="text-white" size={18} /></div> Asignación Laboral
+                    {/* ── ROW 2 RIGHT: Tarifas y Notas ── */}
+                    <div className="lg:col-span-5">
+                        <section className="bg-white rounded-[2rem] p-6 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20 h-full flex flex-col gap-5">
+                            <h3 className="text-[#333333] font-black flex items-center gap-3 text-sm uppercase tracking-widest">
+                                <div className="bg-[#303a7f]/10 p-1.5 rounded-lg">
+                                    <Settings size={16} className="text-[#303a7f]" />
+                                </div>
+                                Tarifas y Notas
                             </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                            <div className="grid grid-cols-2 gap-3">
                                 <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Cargo</label>
-                                    <select value={newEmployee.cargo} onChange={(e) => updateField('cargo', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm">
-                                        <option value="Janitorial">Janitorial</option>
-                                        <option value="Utility">Utility</option>
-                                        <option value="Shift Lead">Shift Lead</option>
-                                        <option value="Supervisor">Supervisor</option>
-                                    </select>
-                                </div>
-                                <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Tienda Asignada</label>
-                                    <select value={newEmployee.tienda} onChange={(e) => updateField('tienda', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm">
-                                        <option value="">Seleccione Tienda</option>
-                                        {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
-                                    </select>
-                                </div>
-                                <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Fecha de Ingreso</label>
-                                    <input type="date" value={formatDateForInput(newEmployee.fecha_ingreso)} onChange={(e) => updateField('fecha_ingreso', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" />
-                                </div>
-                                <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Routing Num</label>
-                                    <input type="text" value={newEmployee.routing_num || ''} onChange={(e) => updateField('routing_num', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Routing Number" />
-                                </div>
-                                <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Acct Number</label>
-                                    <input type="text" value={newEmployee.account_num || ''} onChange={(e) => updateField('account_num', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Account Number" />
-                                </div>
-                                <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Account Type</label>
-                                    <select value={newEmployee.account_type || 'checking'} onChange={(e) => updateField('account_type', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm">
-                                        <option value="checking">Checking (22)</option>
-                                        <option value="savings">Savings (32)</option>
-                                    </select>
-                                </div>
-                                <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Payee Name</label>
-                                    <input type="text" value={newEmployee.payee_name || ''} onChange={(e) => updateField('payee_name', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm" placeholder="Nombre del Beneficiario" />
-                                </div>
-                                <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">ID Number</label>
-                                    <input type="text" value={newEmployee.codigo_empleado || ''} readOnly className="w-full bg-gray-100 text-gray-400 rounded-xl p-3.5 font-bold text-sm cursor-not-allowed" placeholder="Automático" />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="group">
-                                        <label className="text-[9px] text-[#303a7f] uppercase font-black tracking-widest block mb-1">Rate KBS ($/hr)</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
-                                            <input type="number" value={newEmployee.rateKBS || ''} onChange={(e) => updateField('rateKBS', parseFloat(e.target.value) || 0)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 pl-7 font-black text-sm text-[#303a7f]" placeholder="0.00" />
-                                        </div>
-                                    </div>
-                                    <div className="group">
-                                        <label className="text-[9px] text-[#6bbdb7] uppercase font-black tracking-widest block mb-1">Rate LGM ($/hr)</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
-                                            <input type="number" value={newEmployee.rateLGM || ''} onChange={(e) => updateField('rateLGM', parseFloat(e.target.value) || 0)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 pl-7 font-black text-sm text-[#6bbdb7]" placeholder="0.00" />
-                                        </div>
+                                    <label className="text-[8px] text-red-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Rate Personal KBS ($/hr) *</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
+                                        <input
+                                            type="number"
+                                            value={newEmployee.rateKBS || ''}
+                                            onChange={(e) => updateField('rateKBS', parseFloat(e.target.value) || 0)}
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#303a7f] rounded-xl p-3 pl-7 outline-none font-black text-xs transition-all"
+                                            placeholder="0.00"
+                                        />
                                     </div>
                                 </div>
+                                <div className="group">
+                                    <label className="text-[8px] text-red-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Rate Personal LGM ($/hr) *</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
+                                        <input
+                                            type="number"
+                                            value={newEmployee.rateLGM || ''}
+                                            onChange={(e) => updateField('rateLGM', parseFloat(e.target.value) || 0)}
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#6bbdb7] rounded-xl p-3 pl-7 outline-none font-black text-xs transition-all"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="group flex-1 flex flex-col">
+                                <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Observaciones / Notas Internas</label>
+                                <textarea
+                                    value={newEmployee.observaciones || ''}
+                                    onChange={(e) => updateField('observaciones', e.target.value)}
+                                    placeholder="Ingrese notas u observaciones sobre el empleado..."
+                                    className="flex-1 w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-[11px] min-h-[120px] resize-none transition-all"
+                                />
                             </div>
                         </section>
                     </div>
 
                     {/* Información Fiscal y 1099 */}
                     <div className="lg:col-span-12">
-                        <section className="bg-white rounded-[2rem] p-8 shadow-xl border-2 border-brand-primary/20">
-                            <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
-                                <div className="bg-[#6bbdb7] p-2 rounded-lg shadow-lg shadow-teal-900/10">
-                                    <Receipt size={18} className="text-white" />
-                                </div>
-                                Información Fiscal y 1099
-                            </h3>
+                        <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-blue-900/5 border-2 border-brand-primary/20">
+                            <div className="flex items-center justify-between mb-8">
+                                <h3 className="text-[#333333] font-black flex items-center gap-3 text-base uppercase tracking-widest">
+                                    <div className="bg-[#6bbdb7] p-2 rounded-lg shadow-lg shadow-teal-900/10">
+                                        <Receipt size={18} className="text-white" />
+                                    </div>
+                                    Información Fiscal y 1099
+                                </h3>
+                                <span className="text-[10px] font-black text-teal-600 bg-teal-50 px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Modo Edición Fiscal Activo</span>
+                            </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 <div className="space-y-4">
                                     <div>
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">Payer Type</label>
-                                        <select value={newEmployee.payer_type} onChange={(e) => updateField('payer_type', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all">
+                                        <select
+                                            value={newEmployee.payer_type || 'Individual'}
+                                            onChange={(e) => updateField('payer_type', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all"
+                                        >
                                             <option value="Individual">Individual</option>
                                             <option value="Business">Business</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">TIN Type</label>
-                                        <select value={newEmployee.tin_type} onChange={(e) => updateField('tin_type', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all">
+                                        <select
+                                            value={newEmployee.tin_type || 'SSN'}
+                                            onChange={(e) => updateField('tin_type', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all"
+                                        >
                                             <option value="SSN">SSN</option>
                                             <option value="EIN">EIN</option>
                                             <option value="ITIN">ITIN</option>
@@ -5591,52 +5767,115 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
                                     </div>
                                     <div>
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">Payer TIN</label>
-                                        <input type="text" value={newEmployee.tin} onChange={(e) => updateField('tin', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="000-00-0000" />
+                                        <input
+                                            type="text"
+                                            value={newEmployee.tin || ''}
+                                            onChange={(e) => updateField('tin', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all"
+                                            placeholder="000-00-0000"
+                                        />
                                     </div>
                                 </div>
+
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P First Name</label>
-                                        <input type="text" value={newEmployee.first_name} onChange={(e) => updateField('first_name', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="First Name" />
+                                        <label className="text-[8px] text-red-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P First Name *</label>
+                                        <input
+                                            type="text"
+                                            value={newEmployee.first_name || ''}
+                                            onChange={(e) => updateField('first_name', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all"
+                                            placeholder="First Name"
+                                        />
                                     </div>
                                     <div>
-                                        <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Last Name / Business Name</label>
-                                        <input type="text" value={newEmployee.last_name} onChange={(e) => updateField('last_name', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="Last Name" />
+                                        <label className="text-[8px] text-red-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Last Name *</label>
+                                        <input
+                                            type="text"
+                                            value={newEmployee.last_name || ''}
+                                            onChange={(e) => updateField('last_name', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all"
+                                            placeholder="Last Name"
+                                        />
                                     </div>
                                     <div>
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">Site Code</label>
-                                        <input type="text" value={newEmployee.site_code} onChange={(e) => updateField('site_code', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="123456" />
+                                        <input
+                                            type="text"
+                                            value={newEmployee.site_code || ''}
+                                            onChange={(e) => updateField('site_code', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all"
+                                            placeholder="123456"
+                                        />
                                     </div>
                                 </div>
+
                                 <div className="space-y-4 md:col-span-2 lg:col-span-2 grid grid-cols-2 gap-4">
                                     <div className="col-span-2">
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Address 1</label>
-                                        <input type="text" value={newEmployee.address_1} onChange={(e) => updateField('address_1', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="Street Address" />
+                                        <input
+                                            type="text"
+                                            value={newEmployee.address_1 || ''}
+                                            onChange={(e) => updateField('address_1', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all"
+                                            placeholder="Street Address"
+                                        />
                                     </div>
                                     <div>
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P City</label>
-                                        <input type="text" value={newEmployee.city} onChange={(e) => updateField('city', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="City" />
+                                        <input
+                                            type="text"
+                                            value={newEmployee.city || ''}
+                                            onChange={(e) => updateField('city', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all"
+                                            placeholder="City"
+                                        />
                                     </div>
                                     <div>
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P State</label>
-                                        <input type="text" value={newEmployee.state} onChange={(e) => updateField('state', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="State" />
+                                        <input
+                                            type="text"
+                                            value={newEmployee.state || ''}
+                                            onChange={(e) => updateField('state', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all"
+                                            placeholder="State"
+                                        />
                                     </div>
                                     <div>
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P ZIP Code</label>
-                                        <input type="text" value={newEmployee.zip} onChange={(e) => updateField('zip', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="ZIP" />
+                                        <input
+                                            type="text"
+                                            value={newEmployee.zip || ''}
+                                            onChange={(e) => updateField('zip', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all"
+                                            placeholder="ZIP"
+                                        />
                                     </div>
                                     <div>
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Country</label>
-                                        <input type="text" value={newEmployee.country} onChange={(e) => updateField('country', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="Country" />
+                                        <input
+                                            type="text"
+                                            value={newEmployee.country || 'EE. UU.'}
+                                            onChange={(e) => updateField('country', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all"
+                                            placeholder="Country"
+                                        />
                                     </div>
                                     <div className="col-span-2">
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Email Tax (optional)</label>
-                                        <input type="email" value={newEmployee.email_tax} onChange={(e) => updateField('email_tax', e.target.value)} className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all" placeholder="email@example.com" />
+                                        <input
+                                            type="email"
+                                            value={newEmployee.email_tax || ''}
+                                            onChange={(e) => updateField('email_tax', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] rounded-xl p-3 text-xs font-bold focus:border-[#6bbdb7]/40 outline-none transition-all"
+                                            placeholder="email@example.com"
+                                        />
                                     </div>
                                 </div>
                             </div>
                         </section>
                     </div>
+
                 </div>
             </div>
         </div>
