@@ -51,25 +51,14 @@ export async function backupDatabase(db) {
   const filename = `backup-${date}.db`;
   const tmpPath = join(tmpDir, filename);
 
-  console.log('[Backup] Forzando checkpoint WAL (TRUNCATE)...');
-  db.pragma('wal_checkpoint(TRUNCATE)');
-
-  await db.backup(tmpPath, {
-    progress({ totalPages, remainingPages }) {
-      if (remainingPages % 100 === 0) {
-        const pct = Math.round((1 - remainingPages / totalPages) * 100);
-        console.log(`[Backup] Progreso: ${pct}%`);
-      }
-    },
-  });
+  console.log('[Backup] Creando backup con VACUUM INTO (snapshot completa DB + WAL)...');
+  const escapedPath = tmpPath.replace(/\\/g, '\\\\');
+  db.exec(`VACUUM INTO '${escapedPath}'`);
 
   console.log(`[Backup] Backup local creado: ${tmpPath}`);
 
-  const backupDb = new Database(tmpPath, { readonly: false });
+  const backupDb = new Database(tmpPath, { readonly: true });
   try {
-    backupDb.pragma('journal_mode = DELETE');
-    backupDb.pragma('wal_checkpoint(TRUNCATE)');
-
     const integrity = backupDb.pragma('integrity_check');
     if (integrity && integrity.length > 0 && integrity[0].integrity_check !== 'ok') {
       throw new Error(`Backup corrupto - integrity_check falló: ${JSON.stringify(integrity)}`);
