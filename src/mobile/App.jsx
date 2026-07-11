@@ -149,6 +149,7 @@ const VASCHEDULE_API_URL = `${LOCAL_API_BASE}/VASchedule`;
 const CRM_CANDIDATOS_API_URL = `${LOCAL_API_BASE}/CRM_Candidatos`;
 const SALDOS_PENDIENTES_API_URL = `${LOCAL_API_BASE}/Saldos_Pendientes`;
 const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
+const isChewyStore = (name) => String(name).includes('Chewy');
 
 // Parsea una fila CSV respetando campos entre comillas
 const parseCSVRow = (row) => {
@@ -6222,7 +6223,7 @@ const VWHTableModal = (props) => {
     };
 
     const downloadVWHAsExcel = () => {
-        const isChewy = payrollStore === 'Chewy Houston';
+        const isChewy = isChewyStore(payrollStore);
         const days = isChewy
             ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
             : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
@@ -6335,7 +6336,7 @@ const VWHTableModal = (props) => {
     };
 
     const renderVWHReport = (reportData, start, end, isSplitPart = false) => {
-        const isChewy = payrollStore === 'Chewy Houston';
+        const isChewy = isChewyStore(payrollStore);
         const isAZPEN = String(payrollStore).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN';
         const days = isChewy
             ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
@@ -6735,7 +6736,7 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
                             <thead>
                                 <tr className="bg-gray-50/50">
                                     <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-100">ID Empleado / Nombre</th>
-                                    {(payrollStore === 'Chewy Houston' ? ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'] : ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']).map((day, idx) => (
+                                    {(isChewyStore(payrollStore) ? ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'] : ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']).map((day, idx) => (
                                         <th key={day} className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-100 bg-gray-50/30">
                                             <div className="flex flex-col items-center">
                                                 <span>{day}</span>
@@ -6756,7 +6757,7 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
                                         <td className="p-6 border-r-[2px] border-gray-50">
                                             <span className="text-sm font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
                                         </td>
-                                        {(payrollStore === 'Chewy Houston' ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
+                                        {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
                                             const value = row[day]?.sup;
                                             const isZero = !value || value === 0 || value === '0';
                                             return (
@@ -7699,7 +7700,7 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
 
     const handleDownloadExcel = () => {
         const wb = XLSX.utils.book_new();
-        const isChewy = payrollStore === 'Chewy Houston';
+        const isChewy = isChewyStore(payrollStore);
         const excelDayHeaders = isChewy
             ? ["Nombre y Apellidos", "Código", "Cargo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo", "TOTAL"]
             : ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"];
@@ -7794,7 +7795,7 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
                             <thead>
                                 <tr className="bg-gray-50/50">
                                     <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-100">ID Empleado / Nombre</th>
-                                    {(payrollStore === 'Chewy Houston' ? ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'] : ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']).map((day, idx) => (
+                                    {(isChewyStore(payrollStore) ? ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'] : ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']).map((day, idx) => (
                                         <th key={day} className="p-5 text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-teal-50">
                                             <div className="flex flex-col items-center">
                                                 <span>{day}</span>
@@ -7815,7 +7816,7 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
                                         <td className="p-6 border-r-[2px] border-gray-50">
                                             <span className="text-sm font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
                                         </td>
-                                        {(payrollStore === 'Chewy Houston' ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
+                                        {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
                                             const value = row[day];
                                             const isZero = !value || value === 0 || value === '0' || value === '0h' || value === '00:00' || value === '0:00';
                                             return (
@@ -10353,7 +10354,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
         return biweekly;
     };
 
-    const weekType = selectedStore === 'Chewy Houston' ? 'mon-sun' : 'sun-sat';
+    const weekType = isChewyStore(selectedStore) ? 'mon-sun' : 'sun-sat';
     const biweeklyPeriods = generateBiweeklyPeriods(weekType);
     const availableYears = Array.from({ length: 15 }, (_, i) => 2026 + i);
     const filteredPeriods = biweeklyPeriods.filter(p => p.filterYear === selectedYear);
@@ -12100,7 +12101,7 @@ const BillingView = ({
                         }
 
                         data.semanaTableData.forEach(emp => {
-                            const isChewyHouston = storeName === 'Chewy Houston';
+                            const isChewyHouston = isChewyStore(storeName);
                             if (isChewyHouston && sIdx > eIdx) {
                                 for (let i = sIdx; i <= 6; i++) {
                                     stats.horas += helperHhmmToDecimal(emp[daysMapping[i]]?.final || 0);
@@ -17557,7 +17558,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 // 1. Intentar cargar el template oficial desde /public
                 let wb;
                 try {
-                    const templateResp = await fetch(payrollStore === 'Chewy Houston' ? '/Formato_de_Carga_de_Asistencia_Chewy.xlsx' : '/Formato_de_Carga_de_Asistencia.xlsx');
+                    const templateResp = await fetch(isChewyStore(payrollStore) ? '/Formato_de_Carga_de_Asistencia_Chewy.xlsx' : '/Formato_de_Carga_de_Asistencia.xlsx');
                     if (!templateResp.ok) throw new Error("Template not found");
                     const templateData = await templateResp.arrayBuffer();
                     wb = XLSX.read(templateData);
@@ -17566,7 +17567,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     wb = XLSX.utils.book_new();
                     const ws = XLSX.utils.aoa_to_sheet([
                         ["Nombre de Tienda"],
-                        payrollStore === 'Chewy Houston'
+                        isChewyStore(payrollStore)
                             ? ["Nombre y Apellidos", "Código", "Cargo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo", "TOTAL"]
                             : ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"]
                     ]);
@@ -17586,7 +17587,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                         "Nombre y Apellidos": emp.nombre,
                         "Código": emp.es_nuevo ? "NO REGISTRADO" : codigoOficial,
                         "Cargo": emp.cargo,
-                        ...(payrollStore === 'Chewy Houston'
+                        ...(isChewyStore(payrollStore)
                             ? { "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0", "Domingo": "0" }
                             : { "Domingo": "0", "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0" }
                         ),
@@ -19031,7 +19032,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
 
                 const downloadAttendanceRatesAsExcel = () => {
                     try {
-                        const isChewy = payrollStore === 'Chewy Houston';
+                        const isChewy = isChewyStore(payrollStore);
                         const dayAbbrs = { domingo: 'Dom', lunes: 'Lun', martes: 'Mar', miercoles: 'Mié', jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb' };
                         const storeDayOrder = isChewy ? [1, 2, 3, 4, 5, 6, 0] : [0, 1, 2, 3, 4, 5, 6];
                         const dayNamesBySundayIdx = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
@@ -19804,7 +19805,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                 user={user}
                                 onClose={() => { }}
                                 onProcessBiweekly={(p) => {
-                                    const isChewy = selectedHistoryStore === 'Chewy Houston';
+                                    const isChewy = isChewyStore(selectedHistoryStore);
                                     const range = isChewy
                                         ? (() => {
                                             const [m1, d1, y1] = p.w1.start.split('/').map(Number);
@@ -20154,7 +20155,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                 <tr className="bg-[#f9f9f9]/80">
                                                     <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
                                                     <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Cargo</th>
-                                                    {(payrollStore === 'Chewy Houston' ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map((day, dIdx) => (
+                                                    {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map((day, dIdx) => (
                                                         <th key={day} className="p-1.5 text-[8px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[70px] bg-gray-50/20">
                                                             <div className="flex flex-col items-center">
                                                                 <span>{day}</span>
@@ -20245,7 +20246,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                             <td className="p-2 border-r-[2px] border-gray-100 italic">
                                                                 <span className="text-[8px] font-extrabold text-gray-500 uppercase leading-tight bg-gray-50 px-1.5 py-0.5 rounded-md">{row.cargo}</span>
                                                             </td>
-                                                            {(payrollStore === 'Chewy Houston' ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
+                                                            {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
                                                                 const dayVal = row[day];
                                                                 const isManual = dayVal.final !== dayVal.sup && dayVal.final !== dayVal.bio;
 
@@ -20587,7 +20588,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 user={user}
                 onClose={() => setIsHistoryModalOpen(false)}
                 onProcessBiweekly={(p) => {
-                    const isChewy = selectedHistoryStore === 'Chewy Houston';
+                    const isChewy = isChewyStore(selectedHistoryStore);
                     const range = isChewy
                         ? (() => {
                             const [m1, d1, y1] = p.w1.start.split('/').map(Number);
@@ -20842,7 +20843,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                 const empId = String(emp.codigo || emp.nombre);
                                                 const existing = consolidatedSemana.find(e => String(e.codigo || e.nombre) === empId);
                                                 if (existing) {
-                                                    (selectedHistoryStore === 'Chewy Houston' ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).forEach(day => {
+                                                    (isChewyStore(selectedHistoryStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).forEach(day => {
                                                         const currentVal = hhmmToDecimal(existing[day]?.final || 0);
                                                         const newVal = hhmmToDecimal(emp[day]?.final || 0);
                                                         if (newVal > 0) {
@@ -21595,7 +21596,7 @@ syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado
                     <thead>
                         <tr style={{ backgroundColor: '#f9fafb' }}>
                             <th style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>Employee / Position</th>
-                            {(payrollStore === 'Chewy Houston' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']).map((d, i) => (
+                            {(isChewyStore(payrollStore) ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']).map((d, i) => (
                                 <th key={i} style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'center', borderBottom: '2px solid #e5e7eb' }}>{d}</th>
                             ))}
                             <th style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'right', borderBottom: '2px solid #e5e7eb' }}>Total</th>
@@ -21608,7 +21609,7 @@ syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado
                                     <p style={{ fontSize: '12px', fontWeight: '900', color: '#303a7f', margin: 0, textTransform: 'uppercase' }}>{row.nombre}</p>
                                     <p style={{ fontSize: '10px', fontWeight: '700', color: '#6bbdb7', margin: '3px 0 0 0' }}>{row.cargo} | ID: {row.codigo}</p>
                                 </td>
-                                {(payrollStore === 'Chewy Houston' ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => (
+                                {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => (
                                     <td key={day} style={{ padding: '15px', textAlign: 'center', fontSize: '12px', fontWeight: '900', color: '#4b5563' }}>
                                         {row[day]?.final || '-'}
                                     </td>
