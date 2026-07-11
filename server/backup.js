@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import Database from 'better-sqlite3';
 import { tmpdir } from 'os';
 import { join, basename } from 'path';
 import { unlinkSync, existsSync, mkdirSync, readFileSync } from 'fs';
@@ -50,7 +51,9 @@ export async function backupDatabase(db) {
   const filename = `backup-${date}.db`;
   const tmpPath = join(tmpDir, filename);
 
-  db.pragma('wal_checkpoint(RESTART)');
+  console.log('[Backup] Forzando checkpoint WAL (TRUNCATE)...');
+  db.pragma('wal_checkpoint(TRUNCATE)');
+
   await db.backup(tmpPath, {
     progress({ totalPages, remainingPages }) {
       if (remainingPages % 100 === 0) {
@@ -61,6 +64,21 @@ export async function backupDatabase(db) {
   });
 
   console.log(`[Backup] Backup local creado: ${tmpPath}`);
+
+  const backupDb = new Database(tmpPath, { readonly: false });
+  try {
+    backupDb.pragma('journal_mode = DELETE');
+    backupDb.pragma('wal_checkpoint(TRUNCATE)');
+
+    const integrity = backupDb.pragma('integrity_check');
+    if (integrity && integrity.length > 0 && integrity[0].integrity_check !== 'ok') {
+      throw new Error(`Backup corrupto - integrity_check falló: ${JSON.stringify(integrity)}`);
+    }
+    console.log('[Backup] Verificación de integridad: OK');
+  } finally {
+    backupDb.close();
+  }
+
   return tmpPath;
 }
 
