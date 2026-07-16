@@ -3025,7 +3025,7 @@ const CSGEmployeeAddView = ({ onSave, onBack }) => {
         first_name: '',
         last_name: '',
         codigo_empleado: '',
-        fecha_ingreso: new Date().toISOString().split('T')[0],
+        fecha_ingreso: '',
         cargo: 'Cleaner',
         cliente: 'CSG',
         payer_type: 'Individual',

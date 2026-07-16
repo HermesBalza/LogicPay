@@ -5093,7 +5093,7 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
         const defaults = {
             nombre: '',
             codigo_empleado: '',
-            fecha_ingreso: `${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getDate()).padStart(2, '0')}/${new Date().getFullYear()}`,
+            fecha_ingreso: '',
             fecha_egreso: '',
             cargo: '',
             tienda: '',
@@ -12470,7 +12470,7 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
         metodo_pago: 'Direct Deposit',
         cuenta_bancaria: '',
         email: '',
-        fecha_ingreso: new Date().toISOString().split('T')[0],
+        fecha_ingreso: '',
         tin: '',
         tin_type: 'SSN',
         address_1: '',
