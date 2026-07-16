@@ -688,6 +688,51 @@ async function placesDetalle(apiKey, placeId) {
   }
 }
 
+// GET /api/places/autocomplete — autocompletar ciudades via Google Places API
+app.get('/api/places/autocomplete', async (req, res) => {
+  try {
+    const { input, state } = req.query;
+    if (!input || input.length < 2) return res.json([]);
+
+    const keyRow = db.prepare("SELECT value FROM Variables WHERE key = 'places_api_key'").get();
+    const apiKey = keyRow?.value || process.env.VITE_PLACES_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'API key no configurada' });
+
+    const query = state ? `${input} ${state}` : `${input} USA`;
+
+    const resp = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': 'suggestions.placePrediction.structuredFormat.mainText.text,suggestions.placePrediction.text.text'
+      },
+      body: JSON.stringify({
+        input: query,
+        includedRegionCodes: ['US'],
+        includedPrimaryTypes: ['locality']
+      })
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('Places Autocomplete error:', errText);
+      return res.json([]);
+    }
+
+    const data = await resp.json();
+    const cities = (data.suggestions || [])
+      .map(s => s.placePrediction?.structuredFormat?.mainText?.text || s.placePrediction?.text?.text || '')
+      .filter(c => c)
+      .sort((a, b) => a.localeCompare(b));
+
+    res.json([...new Set(cities)]);
+  } catch (e) {
+    console.error('Error en places/autocomplete:', e);
+    res.json([]);
+  }
+});
+
 // POST /api/buscar-proveedores — busca proveedores usando Places API con refinamiento de Gemini
 app.post('/api/buscar-proveedores', async (req, res) => {
   try {

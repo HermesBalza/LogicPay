@@ -132,6 +132,76 @@ const ModalOverlay = ({ children, onClose, className = '' }) => (
   </div>
 );
 
+const CityAutocomplete = ({ value, onChange, state, disabled, placeholder }) => {
+  const [suggestions, setSuggestions] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value || '');
+  const debounceRef = useRef(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => { setInputValue(value || ''); }, [value]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const fetchSuggestions = async (query) => {
+    if (!state || query.length < 2) { setSuggestions([]); setIsOpen(false); return; }
+    try {
+      const resp = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(query)}&state=${encodeURIComponent(state)}`);
+      const data = await resp.json();
+      setSuggestions(Array.isArray(data) ? data : []);
+      setIsOpen(data.length > 0);
+    } catch (e) { /* ignorar */ }
+  };
+
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setInputValue(val);
+    onChange(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchSuggestions(val), 300);
+  };
+
+  const handleSelect = (city) => {
+    setInputValue(city);
+    onChange(city);
+    setIsOpen(false);
+  };
+
+  const handleBlur = () => { setTimeout(() => setIsOpen(false), 150); };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        type="text"
+        value={inputValue}
+        onChange={handleInputChange}
+        onFocus={() => { if (suggestions.length > 0) setIsOpen(true); }}
+        onBlur={handleBlur}
+        placeholder={placeholder || 'Ciudad'}
+        disabled={disabled}
+        className={inputCls}
+        autoComplete="off"
+      />
+      {isOpen && suggestions.length > 0 && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-2xl shadow-xl max-h-48 overflow-y-auto">
+          {suggestions.map((city, idx) => (
+            <button key={idx} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleSelect(city)}
+              className="w-full text-left px-5 py-2.5 text-sm font-bold text-[#303a7f] hover:bg-[#6bbdb7]/10 transition-colors first:rounded-t-2xl last:rounded-b-2xl">
+              {city}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function CRMView({ currentUser, pendingCandidatoId, onClearPendingCandidato, pendingProveedorId, onClearPendingProveedor, onCandidatoContratado }) {
   const [activeTab, setActiveTab] = useState('candidatos');
   const [proveedoresSubTab, setProveedoresSubTab] = useState('proyectos');
@@ -739,10 +809,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
                 </div>
                 <div>
                   <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Ciudad</label>
-                  <select className={selectCls} value={formProveedor.ciudad} onChange={e => setFormProveedor(f => ({ ...f, ciudad: e.target.value }))} disabled={!formProveedor.estado}>
-                    <option value="">Seleccionar...</option>
-                    {formProveedor.estado && US_CITIES[formProveedor.estado]?.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  <CityAutocomplete value={formProveedor.ciudad} onChange={(v) => setFormProveedor(f => ({ ...f, ciudad: v }))} state={formProveedor.estado} disabled={!formProveedor.estado} />
                 </div>
               </div>
               <div>
@@ -798,10 +865,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
               </div>
               <div>
                 <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Ciudad</label>
-                <select className={selectCls} value={formBuscarProveedores.ciudad} onChange={e => setFormBuscarProveedores(f => ({ ...f, ciudad: e.target.value }))} disabled={!formBuscarProveedores.estado}>
-                  <option value="">{formBuscarProveedores.estado ? 'Seleccionar ciudad...' : 'Primero seleccione un estado'}</option>
-                  {(US_CITIES[formBuscarProveedores.estado] || []).map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <CityAutocomplete value={formBuscarProveedores.ciudad} onChange={(v) => setFormBuscarProveedores(f => ({ ...f, ciudad: v }))} state={formBuscarProveedores.estado} disabled={!formBuscarProveedores.estado} placeholder={formBuscarProveedores.estado ? 'Seleccionar ciudad...' : 'Primero seleccione un estado'} />
               </div>
               <div>
                 <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest block mb-0.5 pl-1">Descripción del Proyecto</label>
@@ -1215,10 +1279,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
               <option value="">Todos los Estados</option>
               {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select className="bg-white border-2 border-gray-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all appearance-none cursor-pointer" value={filterProveedorCiudad} onChange={e => setFilterProveedorCiudad(e.target.value)} disabled={!filterProveedorEstado}>
-              <option value="">Todas las Ciudades</option>
-              {filterProveedorEstado && US_CITIES[filterProveedorEstado]?.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <CityAutocomplete value={filterProveedorCiudad} onChange={(v) => setFilterProveedorCiudad(v)} state={filterProveedorEstado} disabled={!filterProveedorEstado} placeholder="Todas las Ciudades" />
             <button onClick={handleBuscarProveedores} className="flex items-center gap-2 px-4 py-2.5 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-900/20"><Globe size={14} /> Explorar</button>
             <button onClick={handleNewProveedor} className="flex items-center gap-2 px-4 py-2.5 bg-[#303a7f] text-white rounded-xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-900/20"><Plus size={14} /> Nuevo Proveedor</button>
           </div>
