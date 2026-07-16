@@ -1004,6 +1004,54 @@ app.listen(PORT, '0.0.0.0', () => {
   }
 });
 
+// Endpoint para calcular fechas de ingreso desde Nomina_Historico
+app.post('/api/employees/first-dates', (req, res) => {
+  try {
+    const employees = req.body;
+    if (!Array.isArray(employees) || employees.length === 0) {
+      return res.json({});
+    }
+    const result = {};
+    const allHistory = db.prepare('SELECT * FROM Nomina_Historico WHERE data_json IS NOT NULL AND data_json != ?').all('');
+
+    for (const emp of employees) {
+      const nombreEmp = String(emp.nombre || '').trim().toLowerCase();
+      const codigoEmp = String(emp.codigo_empleado || '').trim();
+      let fechas = [];
+
+      for (const row of allHistory) {
+        try {
+          const payload = JSON.parse(row.data_json);
+          const semanaData = payload.semanaTableData || [];
+          const encontrado = semanaData.some(e =>
+            String(e.nombre || '').trim().toLowerCase() === nombreEmp &&
+            String(e.codigo || '').replace(/^'+/, '').trim() === codigoEmp
+          );
+          if (encontrado && row.fecha_inicio) {
+            fechas.push(row.fecha_inicio);
+          }
+        } catch (e) { /* ignorar registros con JSON inválido */ }
+      }
+
+      if (fechas.length > 0) {
+        fechas.sort((a, b) => {
+          const pa = a.split('/');
+          const pb = b.split('/');
+          if (pa.length === 3 && pb.length === 3) {
+            return new Date(pa[2], pa[0] - 1, pa[1]) - new Date(pb[2], pb[0] - 1, pb[1]);
+          }
+          return 0;
+        });
+        result[codigoEmp] = fechas[0];
+      }
+    }
+    res.json(result);
+  } catch (error) {
+    console.error('Error calculando fechas de ingreso:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Endpoint para obtener la lista de tablas automáticamente desde sqlite_master
 app.get('/api/tables', (req, res) => {
     try {

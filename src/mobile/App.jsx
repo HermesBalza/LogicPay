@@ -15236,6 +15236,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
     const activeWorkbookRef = useRef(null);
     const activeSheetNameRef = useRef(null);
     const mainContentRef = useRef(null);
+    const firstDatesCheckedRef = useRef(false);
 
     // --- LÓGICA DE PRESENCIA (Heartbeat) ---
     useEffect(() => {
@@ -15275,6 +15276,50 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             mainContentRef.current.scrollTo({ top: 0, behavior: 'auto' });
         }
     }, [activeTab, payrollView]);
+
+    useEffect(() => {
+        if (!isEmployeeStatsModalOpen) {
+            firstDatesCheckedRef.current = false;
+            return;
+        }
+        if (firstDatesCheckedRef.current || employees.length === 0) return;
+        firstDatesCheckedRef.current = true;
+        const scanFirstDates = async () => {
+            const withoutDate = employees
+                .filter(emp => !emp.fecha_ingreso)
+                .map(emp => ({ nombre: emp.nombre, codigo_empleado: emp.codigo_empleado }));
+            if (withoutDate.length === 0) return;
+            try {
+                const resp = await fetch('/api/employees/first-dates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(withoutDate)
+                });
+                const map = await resp.json();
+                for (const emp of employees) {
+                    const codigo = emp.codigo_empleado.toString().trim();
+                    if (map[codigo] && !emp.fecha_ingreso) {
+                        const updated = { ...emp, fecha_ingreso: map[codigo] };
+                        updated['Rate KBS'] = emp.rateKBS || 0;
+                        updated['Rate LGM'] = emp.rateLGM || 0;
+                        updated['Rate CSG'] = emp.rate_csg || 0;
+                        updated['Cliente'] = emp.cliente || 'KBS';
+                        updated['Observaciones'] = emp.observaciones || '';
+                        delete updated.rateKBS;
+                        delete updated.rateLGM;
+                        delete updated.rate_csg;
+                        delete updated.cliente;
+                        delete updated.observaciones;
+                        await syncToDatabase('upsert', updated, 'Personal', true, ['nombre', 'codigo_empleado'], true);
+                    }
+                }
+                fetchEmployees();
+            } catch (e) {
+                console.error('Error escaneando fechas de ingreso:', e);
+            }
+        };
+        scanFirstDates();
+    }, [isEmployeeStatsModalOpen, employees]);
 
     const handleLogin = (userData) => {
         setUser(userData);
@@ -16933,9 +16978,32 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             setSyncProgress(0);
             setSyncTotal(semanaTableData.length);
 
+            let firstDatesMap = {};
+            const employeesWithoutDate = [];
+            semanaTableData.forEach(empRow => {
+                const emp = employees.find(e =>
+                    e.codigo_empleado.toString().trim() === empRow.codigo.toString().trim() &&
+                    e.nombre.toString().trim().toLowerCase() === empRow.nombre.toString().trim().toLowerCase()
+                );
+                if (emp && !emp.fecha_ingreso) {
+                    employeesWithoutDate.push({ nombre: emp.nombre, codigo_empleado: emp.codigo_empleado });
+                }
+            });
+            if (employeesWithoutDate.length > 0) {
+                try {
+                    const resp = await fetch('/api/employees/first-dates', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(employeesWithoutDate)
+                    });
+                    firstDatesMap = await resp.json();
+                } catch (e) {
+                    console.error('Error obteniendo fechas de ingreso:', e);
+                }
+            }
+
             for (let i = 0; i < semanaTableData.length; i++) {
                 const empRow = semanaTableData[i];
-                // Búsqueda por llave compuesta (Nombre + Código) según reglas de identidad y unicidad
                 const employee = employees.find(e =>
                     e.codigo_empleado.toString().trim() === empRow.codigo.toString().trim() &&
                     e.nombre.toString().trim().toLowerCase() === empRow.nombre.toString().trim().toLowerCase()
@@ -16997,6 +17065,22 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     updatedEmp.tienda = payrollStore;
                     updatedEmp.codigo_empleado = employee.codigo_empleado;
                     updatedEmp.locationHistory = JSON.stringify(merged);
+
+                    if (!employee.fecha_ingreso) {
+                        const codigo = employee.codigo_empleado.toString().trim();
+                        if (firstDatesMap[codigo]) {
+                            updatedEmp.fecha_ingreso = firstDatesMap[codigo];
+                        } else {
+                            const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                            for (let d = 0; d < diasSemana.length; d++) {
+                                if (hhmmToDecimal(empRow[diasSemana[d]]?.final) > 0) {
+                                    updatedEmp.fecha_ingreso = getFullDateForDay(fechaDesde, d);
+                                    break;
+                                }
+                            }
+                            if (!updatedEmp.fecha_ingreso) updatedEmp.fecha_ingreso = fechaDesde;
+                        }
+                    }
 
                     // Asegurar nombres exactos de columnas (Case Sensitive)
                     updatedEmp['Rate KBS'] = employee.rateKBS || 0;
