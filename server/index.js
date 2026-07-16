@@ -1052,6 +1052,65 @@ app.post('/api/employees/first-dates', (req, res) => {
   }
 });
 
+// Endpoint para calcular ultimo dia trabajado desde Nomina_Historico
+app.post('/api/employees/last-dates', (req, res) => {
+  try {
+    const employees = req.body;
+    if (!Array.isArray(employees) || employees.length === 0) {
+      return res.json({});
+    }
+    const result = {};
+    const allHistory = db.prepare('SELECT * FROM Nomina_Historico WHERE data_json IS NOT NULL AND data_json != ?').all('');
+
+    for (const emp of employees) {
+      const nombreEmp = String(emp.nombre || '').trim().toLowerCase();
+      const codigoEmp = String(emp.codigo_empleado || '').trim();
+      let latestRow = null;
+      let latestEmpData = null;
+      let latestRowDate = null;
+
+      for (const row of allHistory) {
+        try {
+          const payload = JSON.parse(row.data_json);
+          const semanaData = payload.semanaTableData || [];
+          const empData = semanaData.find(e =>
+            String(e.nombre || '').trim().toLowerCase() === nombreEmp &&
+            String(e.codigo || '').replace(/^'+/, '').trim() === codigoEmp
+          );
+          if (empData && row.fecha_inicio) {
+            const parts = row.fecha_inicio.split('/');
+            if (parts.length === 3) {
+              const rowDate = new Date(parts[2], parts[0] - 1, parts[1]);
+              if (!latestRowDate || rowDate > latestRowDate) {
+                latestRow = row;
+                latestEmpData = empData;
+                latestRowDate = rowDate;
+              }
+            }
+          }
+        } catch (e) { /* ignorar registros con JSON invalido */ }
+      }
+
+      if (latestRow && latestEmpData) {
+        const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+        for (let d = diasSemana.length - 1; d >= 0; d--) {
+          if (parseFloat(latestEmpData[diasSemana[d]]?.final || 0) > 0) {
+            const parts = latestRow.fecha_inicio.split('/');
+            const fechaBase = new Date(parts[2], parts[0] - 1, parts[1]);
+            fechaBase.setDate(fechaBase.getDate() + d);
+            result[codigoEmp] = `${String(fechaBase.getMonth() + 1).padStart(2, '0')}/${String(fechaBase.getDate()).padStart(2, '0')}/${fechaBase.getFullYear()}`;
+            break;
+          }
+        }
+      }
+    }
+    res.json(result);
+  } catch (error) {
+    console.error('Error calculando ultimas fechas:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Endpoint para obtener la lista de tablas automáticamente desde sqlite_master
 app.get('/api/tables', (req, res) => {
     try {

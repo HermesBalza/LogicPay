@@ -16475,7 +16475,7 @@ function App() {
             const withoutDate = employees
                 .filter(emp => !emp.fecha_ingreso)
                 .map(emp => ({ nombre: emp.nombre, codigo_empleado: emp.codigo_empleado }));
-            if (withoutDate.length === 0) return;
+            if (withoutDate.length > 0) {
             try {
                 const resp = await fetch('/api/employees/first-dates', {
                     method: 'POST',
@@ -16503,6 +16503,48 @@ function App() {
                 fetchEmployees();
             } catch (e) {
                 console.error('Error escaneando fechas de ingreso:', e);
+            }
+            }
+
+            try {
+                const sinEgreso = employees
+                    .filter(emp => !emp.fecha_egreso)
+                    .map(emp => ({ nombre: emp.nombre, codigo_empleado: emp.codigo_empleado }));
+                if (sinEgreso.length > 0) {
+                    const resp = await fetch('/api/employees/last-dates', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(sinEgreso)
+                    });
+                    const lastDatesMap = await resp.json();
+                    const hoy = new Date();
+                    for (const emp of employees) {
+                        const codigo = emp.codigo_empleado.toString().trim();
+                        const lastDate = lastDatesMap[codigo];
+                        if (lastDate && !emp.fecha_egreso) {
+                            const lastParts = lastDate.split('/');
+                            const lastWorked = new Date(lastParts[2], lastParts[0] - 1, lastParts[1]);
+                            const diffDays = Math.floor((hoy - lastWorked) / (1000 * 60 * 60 * 24));
+                            if (diffDays >= 7) {
+                                const updated = { ...emp, fecha_egreso: lastDate };
+                                updated['Rate KBS'] = emp.rateKBS || 0;
+                                updated['Rate LGM'] = emp.rateLGM || 0;
+                                updated['Rate CSG'] = emp.rate_csg || 0;
+                                updated['Cliente'] = emp.cliente || 'KBS';
+                                updated['Observaciones'] = emp.observaciones || '';
+                                delete updated.rateKBS;
+                                delete updated.rateLGM;
+                                delete updated.rate_csg;
+                                delete updated.cliente;
+                                delete updated.observaciones;
+                                await syncToDatabase('upsert', updated, 'Personal', true, ['nombre', 'codigo_empleado'], true);
+                            }
+                        }
+                    }
+                    fetchEmployees();
+                }
+            } catch (e) {
+                console.error('Error escaneando egresos:', e);
             }
         };
         scanFirstDates();
@@ -18297,6 +18339,10 @@ function App() {
                         }
                     }
 
+                    if (employee.fecha_egreso) {
+                        updatedEmp.fecha_egreso = '';
+                    }
+
                     // Asegurar nombres exactos de columnas (Case Sensitive)
                     updatedEmp['Rate KBS'] = employee.rateKBS || 0;
                     updatedEmp['Rate LGM'] = employee.rateLGM || 0;
@@ -18314,6 +18360,53 @@ function App() {
                     await syncToDatabase('upsert', updatedEmp, 'Personal', true, ['nombre', 'codigo_empleado'], true);
                 }
                 setSyncProgress(i + 1);
+            }
+
+            const fechaDesdeParts = fechaDesde.split('/');
+            const fechaDesdeDate = new Date(fechaDesdeParts[2], fechaDesdeParts[0] - 1, fechaDesdeParts[1]);
+            const empleadosTiendaSinSemana = employees.filter(e =>
+                String(e.tienda || '').trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                !e.fecha_egreso &&
+                !semanaTableData.some(row =>
+                    String(row.codigo || '').toString().trim() === String(e.codigo_empleado || '').toString().trim() &&
+                    String(row.nombre || '').toString().trim().toLowerCase() === String(e.nombre || '').toString().trim().toLowerCase()
+                )
+            );
+
+            if (empleadosTiendaSinSemana.length > 0) {
+                try {
+                    const resp = await fetch('/api/employees/last-dates', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(empleadosTiendaSinSemana.map(e => ({ nombre: e.nombre, codigo_empleado: e.codigo_empleado })))
+                    });
+                    const lastDatesMap = await resp.json();
+                    for (const emp of empleadosTiendaSinSemana) {
+                        const codigo = emp.codigo_empleado.toString().trim();
+                        const lastDate = lastDatesMap[codigo];
+                        if (lastDate) {
+                            const lastParts = lastDate.split('/');
+                            const lastWorkedDate = new Date(lastParts[2], lastParts[0] - 1, lastParts[1]);
+                            const diffDays = Math.floor((fechaDesdeDate - lastWorkedDate) / (1000 * 60 * 60 * 24));
+                            if (diffDays >= 7) {
+                                const updated = { ...emp, fecha_egreso: lastDate };
+                                updated['Rate KBS'] = emp.rateKBS || 0;
+                                updated['Rate LGM'] = emp.rateLGM || 0;
+                                updated['Rate CSG'] = emp.rate_csg || 0;
+                                updated['Cliente'] = emp.cliente || 'KBS';
+                                updated['Observaciones'] = emp.observaciones || '';
+                                delete updated.rateKBS;
+                                delete updated.rateLGM;
+                                delete updated.rate_csg;
+                                delete updated.cliente;
+                                delete updated.observaciones;
+                                await syncToDatabase('upsert', updated, 'Personal', true, ['nombre', 'codigo_empleado'], true);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error detectando egresos:', e);
+                }
             }
 
             // FASE 9: Guardar Historial de Nómina en Sheet 'Nomina_Historico'
