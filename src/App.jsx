@@ -4126,7 +4126,13 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                                         const currentAudited = wosData.auditedLgmIds || [];
                                                                         if (!currentAudited.includes(matchedLgmId)) {
                                                                             const newAudited = [...currentAudited, matchedLgmId];
-                                                                            const newWosData = { ...wosData, auditedLgmIds: newAudited };
+                                                                            const updatedAcceptedKeys = new Set([...acceptedKeys, row.key]);
+                                                                            const allAccepted = crossMatchResults.every(r => {
+                                                                                const already = (r.type === 'VWH' && (r.matchedNominaRecord?.wos || r.matchedNominaRecord?.WOS)) ||
+                                                                                    (r.type === 'P.E.' && (r.matchedPERecord?.wos || r.matchedPERecord?.WOS));
+                                                                                return updatedAcceptedKeys.has(r.key) || already;
+                                                                            });
+                                                                            const newWosData = { ...wosData, auditedLgmIds: newAudited, totalAuditLines: crossMatchResults.length, allLinesAccepted: allAccepted };
                                                                             setWosData(newWosData);
                                                                             handleAutoSaveWOS(newWosData, wosServices);
                                                                         }
@@ -4608,13 +4614,17 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                         const wosNum = record.WOS_Number || record.wos_number || record.wosnumber || 'S/N';
                                         const subName = record.Subcontractor || record.subcontractor || 'Unknown Sub';
                                         const dateVal = record.Date || record.date || '--/--/--';
+                                        const isFullyAudited = details.metadata?.allLinesAccepted === true;
 
                                         return (
                                             <div key={idx} className="bg-white border-2 border-gray-50 rounded-2xl p-5 hover:border-[#6bbdb7]/30 transition-all shadow-sm group hover:shadow-xl hover:shadow-blue-900/5 flex items-center gap-6 justify-between">
                                                 <div className="flex-1 flex flex-col md:flex-row md:items-center gap-6">
                                                     <div className="w-32 flex flex-col">
                                                         <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-0.5">Cód WOS</span>
-                                                        <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider">{wosNum}</span>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider">{wosNum}</span>
+                                                            {isFullyAudited && <CheckCircle size={14} className="text-emerald-500 flex-shrink-0" />}
+                                                        </div>
                                                     </div>
 
                                                     <div className="flex-1 min-w-0">
@@ -9771,6 +9781,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         processRecords(allW2Records, 'w2');
 
         let chewyWkBeforeData = {};
+        let chewyWkBeforeEarnings = {};
         if (period._isChewyPayroll) {
             const [mC, dC, yC] = period.w1.start.split('/').map(Number);
             const w1Mon = new Date(yC, mC - 1, dC);
@@ -9787,8 +9798,22 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     (data.semanaTableData || []).forEach(emp => {
                         const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
                         chewyWkBeforeData[empId] = emp;
+                        const earningsEntry = (data.earningsTableData || []).find(e =>
+                            `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId
+                        );
+                        if (earningsEntry) chewyWkBeforeEarnings[empId] = earningsEntry;
                     });
                 } catch(e) {}
+            });
+            Object.keys(chewyWkBeforeData).forEach(empId => {
+                if (!empStoreMap[empId]) {
+                    const domFinal = chewyWkBeforeData[empId]?.domingo?.final;
+                    const hasDomingoHours = domFinal && domFinal !== 'X' && !isNaN(parseFloat(String(domFinal))) && parseFloat(String(domFinal)) > 0;
+                    if (hasDomingoHours) {
+                        empStoreMap[empId] = new Set([period.store]);
+                        if (!empDataMap[empId]) empDataMap[empId] = { w1: [], w2: [] };
+                    }
+                }
             });
         }
 
@@ -9911,6 +9936,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     hrs += chewyParseHrs(ed.lunes) + chewyParseHrs(ed.martes) + chewyParseHrs(ed.miercoles) + chewyParseHrs(ed.jueves) + chewyParseHrs(ed.viernes) + chewyParseHrs(ed.sabado);
                     return sum + hrs;
                 }, 0);
+                if (w1Entries.length === 0 && totalHoursW1 === 0) {
+                    const wkB = chewyWkBeforeData[id];
+                    if (wkB) totalHoursW1 = chewyParseHrs(wkB.domingo);
+                }
                 totalHoursW2 = w2Entries.reduce((sum, e) => {
                     let hrs = 0;
                     const ed = e.empData;
@@ -9930,6 +9959,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             let rate = 0;
             const firstEntry = [...w1Entries, ...w2Entries][0];
             if (firstEntry && firstEntry.earnings) rate = Number(firstEntry.earnings.rate || 0);
+            else if (period._isChewyPayroll && chewyWkBeforeEarnings[id]) rate = Number(chewyWkBeforeEarnings[id].rate || 0);
 
             // Proyectos Especiales
             const empNombreRaw = id.split('_')[0].trim().toLowerCase();
@@ -9977,8 +10007,17 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
             if (rate === 0 && peFirstRate > 0) rate = peFirstRate;
 
-            const finalNombre = (firstEntry?.empData?.nombre) || (id.split('_')[0].toUpperCase());
-            const cargo = (firstEntry?.empData?.cargo) || 'Externo/PE';
+            let finalNombre, cargo;
+            if (firstEntry) {
+                finalNombre = firstEntry.empData.nombre;
+                cargo = firstEntry.empData.cargo || 'Externo/PE';
+            } else if (period._isChewyPayroll && chewyWkBeforeData[id]) {
+                finalNombre = chewyWkBeforeData[id].nombre;
+                cargo = chewyWkBeforeData[id].cargo || 'Externo/PE';
+            } else {
+                finalNombre = id.split('_')[0].toUpperCase();
+                cargo = 'Externo/PE';
+            }
 
             const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === finalNombre.trim().toLowerCase());
             const fullAddress = dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '';
