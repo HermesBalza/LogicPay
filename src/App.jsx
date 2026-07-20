@@ -80,7 +80,8 @@ import {
     PawPrint,
     Youtube,
     Cloud,
-    RefreshCw
+    RefreshCw,
+    Link
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -3272,6 +3273,11 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
     const [isWOSHistoryOpen, setIsWOSHistoryOpen] = useState(false);
     const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
     const [isSendingTicket, setIsSendingTicket] = useState(false);
+    const [isManualMatchModalOpen, setIsManualMatchModalOpen] = useState(false);
+    const [manualMatchTarget, setManualMatchTarget] = useState(null);
+    const [manualMatchStoreFilter, setManualMatchStoreFilter] = useState('');
+    const [manualMatchMulti, setManualMatchMulti] = useState(false);
+    const [manualMatchSelectedIds, setManualMatchSelectedIds] = useState(new Set());
 
     // --- Lógica de Envío de Ticket (Reclamos) ---
     const handleSendTicketEmail = async (emailData) => {
@@ -3328,6 +3334,193 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
         } catch (error) {
             console.error("[WOS] Error en auto-guardado:", error);
         }
+    };
+
+    const handleManualMatch = (record, wosService) => {
+        if (!wosService) return;
+
+        let idx = -1;
+        if (record.source === 'VWH') {
+            idx = nominaHistoryData.findIndex(h =>
+                String(h.nombre || '').trim().toLowerCase() === String(record.nombre || '').trim().toLowerCase() &&
+                String(h.codigo || '').replace(/^'+/, '').trim() === String(record.codigo || '').replace(/^'+/, '').trim()
+            );
+        } else {
+            const correlativo = String(record.Correlativo || record.correlativo || '').replace(/^'+/, '').trim();
+            idx = specialProjectsHistoryData.findIndex(h =>
+                String(h.Correlativo || h.correlativo || '').replace(/^'+/, '').trim() === correlativo
+            );
+        }
+
+        if (idx < 0) return;
+
+        const prefix = record.source === 'VWH' ? 'N' : 'S';
+        const newMatchId = `${prefix}-${idx}`;
+
+        const updatedServices = wosServices.map(s =>
+            s === wosService ? { ...s, matchedLgmId: newMatchId } : s
+        );
+        setWosServices(updatedServices);
+
+        const newAuditedIds = [...(wosData.auditedLgmIds || []), newMatchId];
+        const newWosData = { ...wosData, auditedLgmIds: newAuditedIds };
+        setWosData(newWosData);
+
+        handleAutoSaveWOS(newWosData, updatedServices);
+
+        const originalRecord = record.source === 'VWH'
+            ? nominaHistoryData[idx]
+            : specialProjectsHistoryData[idx];
+
+        const wosAmount = parseFloat(wosService.amount) || 0;
+        const row = {
+            key: newMatchId,
+            type: record.source === 'VWH' ? 'VWH' : 'P.E.',
+            storeName: record.source === 'VWH' ? record.nombre : (record.tienda || record.Tienda),
+            kbsAnnounced: wosAmount,
+            matchedNominaRecord: record.source === 'VWH' ? originalRecord : null,
+            matchedNominaRecords: record.source === 'VWH' ? [originalRecord] : [],
+            matchedPERecord: record.source === 'P.E.' ? originalRecord : null,
+            matchedPERecords: record.source === 'P.E.' ? [originalRecord] : [],
+            rawServices: [wosService],
+            descriptions: [wosService.serviceDescription || ''],
+            lgmBilled: record.Pago_KBS || record.kbsTotal || 0,
+            diff: wosAmount - (record.Pago_KBS || record.kbsTotal || 0),
+            storeCode: '',
+            serviceDates: record.source === 'VWH' ? `${record.fecha_inicio || ''} - ${record.fecha_fin || ''}` : (record.periodo || record.Periodo || '')
+        };
+
+        onAcceptPayment(row, wosData);
+        setIsManualMatchModalOpen(false);
+        setManualMatchTarget(null);
+        setManualMatchMulti(false);
+        setManualMatchSelectedIds(new Set());
+    };
+
+    const handleManualMatchAdd = (record, wosService) => {
+        if (!wosService) return;
+
+        let idx = -1;
+        if (record.source === 'VWH') {
+            idx = nominaHistoryData.findIndex(h =>
+                String(h.nombre || '').trim().toLowerCase() === String(record.nombre || '').trim().toLowerCase() &&
+                String(h.codigo || '').replace(/^'+/, '').trim() === String(record.codigo || '').replace(/^'+/, '').trim()
+            );
+        } else {
+            const correlativo = String(record.Correlativo || record.correlativo || '').replace(/^'+/, '').trim();
+            idx = specialProjectsHistoryData.findIndex(h =>
+                String(h.Correlativo || h.correlativo || '').replace(/^'+/, '').trim() === correlativo
+            );
+        }
+
+        if (idx < 0) return;
+
+        const prefix = record.source === 'VWH' ? 'N' : 'S';
+        const newMatchId = `${prefix}-${idx}`;
+
+        const updatedServices = wosServices.map(s =>
+            s === wosService ? { ...s, matchedLgmId: newMatchId } : s
+        );
+        setWosServices(updatedServices);
+
+        const newAuditedIds = [...(wosData.auditedLgmIds || []), newMatchId];
+        const newWosData = { ...wosData, auditedLgmIds: newAuditedIds };
+        setWosData(newWosData);
+
+        handleAutoSaveWOS(newWosData, updatedServices);
+
+        const existingServices = updatedServices.filter(s => s.matchedLgmId === newMatchId);
+        const combinedAmount = existingServices.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
+
+        const originalRecord = record.source === 'VWH'
+            ? nominaHistoryData[idx]
+            : specialProjectsHistoryData[idx];
+
+        const row = {
+            key: newMatchId,
+            type: record.source === 'VWH' ? 'VWH' : 'P.E.',
+            storeName: record.source === 'VWH' ? record.nombre : (record.tienda || record.Tienda),
+            kbsAnnounced: combinedAmount,
+            matchedNominaRecord: record.source === 'VWH' ? originalRecord : null,
+            matchedNominaRecords: record.source === 'VWH' ? [originalRecord] : [],
+            matchedPERecord: record.source === 'P.E.' ? originalRecord : null,
+            matchedPERecords: record.source === 'P.E.' ? [originalRecord] : [],
+            rawServices: existingServices,
+            descriptions: existingServices.map(s => s.serviceDescription || ''),
+            lgmBilled: record.Pago_KBS || record.kbsTotal || 0,
+            diff: combinedAmount - (record.Pago_KBS || record.kbsTotal || 0),
+            storeCode: '',
+            serviceDates: record.source === 'VWH' ? `${record.fecha_inicio || ''} - ${record.fecha_fin || ''}` : (record.periodo || record.Periodo || '')
+        };
+
+        onAcceptPayment(row, wosData);
+        setIsManualMatchModalOpen(false);
+        setManualMatchTarget(null);
+        setManualMatchMulti(false);
+        setManualMatchSelectedIds(new Set());
+    };
+
+    const handleManualMatchMulti = (wosService) => {
+        if (!wosService || manualMatchSelectedIds.size < 2) return;
+
+        const selectedEntries = Array.from(manualMatchSelectedIds)
+            .map(id => availableForManualMatch[id])
+            .filter(Boolean);
+
+        const vwhEntries = selectedEntries.filter(e => e.source === 'VWH');
+        const peEntries = selectedEntries.filter(e => e.source === 'P.E.');
+
+        if (vwhEntries.length >= 2 && peEntries.length === 0) {
+            const sorted = vwhEntries.sort((a, b) => {
+                const da = nominaHistoryData.indexOf(a) < 0 ? 9999 : nominaHistoryData.indexOf(a);
+                const db = nominaHistoryData.indexOf(b) < 0 ? 9999 : nominaHistoryData.indexOf(b);
+                return da - db;
+            });
+            const idxs = sorted.map(e => nominaHistoryData.findIndex(h =>
+                String(h.nombre || '').trim().toLowerCase() === String(e.nombre || '').trim().toLowerCase() &&
+                String(h.codigo || '').replace(/^'+/, '').trim() === String(e.codigo || '').replace(/^'+/, '').trim()
+            )).filter(i => i >= 0);
+
+            if (idxs.length < 2) return;
+
+            const newMatchId = 'N-' + idxs.join('+');
+
+            const updatedServices = wosServices.map(s =>
+                s === wosService ? { ...s, matchedLgmId: newMatchId } : s
+            );
+            setWosServices(updatedServices);
+
+            const newAuditedIds = [...(wosData.auditedLgmIds || []), newMatchId];
+            const newWosData = { ...wosData, auditedLgmIds: newAuditedIds };
+            setWosData(newWosData);
+
+            handleAutoSaveWOS(newWosData, updatedServices);
+
+            const originalRecords = idxs.map(i => nominaHistoryData[i]).filter(Boolean);
+            const wosAmount = parseFloat(wosService.amount) || 0;
+
+            const row = {
+                key: newMatchId,
+                type: 'VWH',
+                storeName: originalRecords[0].nombre,
+                kbsAnnounced: wosAmount,
+                matchedNominaRecord: originalRecords[0],
+                matchedNominaRecords: originalRecords,
+                rawServices: [wosService],
+                descriptions: [wosService.serviceDescription || ''],
+                lgmBilled: originalRecords.reduce((sum, r) => sum + (r.Pago_KBS || 0), 0),
+                diff: wosAmount - originalRecords.reduce((sum, r) => sum + (r.Pago_KBS || 0), 0),
+                storeCode: '',
+                serviceDates: originalRecords.map(r => `${r.fecha_inicio || ''} - ${r.fecha_fin || ''}`).join(' + ')
+            };
+
+            onAcceptPayment(row, wosData);
+        }
+
+        setIsManualMatchModalOpen(false);
+        setManualMatchTarget(null);
+        setManualMatchMulti(false);
+        setManualMatchSelectedIds(new Set());
     };
 
     const convertToBase64 = (file) => {
@@ -3774,6 +3967,45 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             wosOrphans
         };
     }, [crossMatchResults, wosServices, nominaHistoryData, specialProjectsHistoryData]);
+
+    const availableForManualMatch = useMemo(() => {
+        const nominaEntries = nominaHistoryData
+            .filter(h => h.Status !== 'Paid')
+            .map(h => {
+                const data = JSON.parse(h.data_json || '{}');
+                let horasTotal = 0;
+                const tableData = data.semanaTableData || data.earningsTableData || [];
+                if (Array.isArray(tableData)) {
+                    const days = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+                    horasTotal = tableData.reduce((acc, r) =>
+                        acc + days.reduce((a, d) => a + (parseFloat(r[d]?.final || r[d]?.sup || 0) || 0), 0), 0);
+                }
+                return { ...h, source: 'VWH', horasTotal };
+            });
+
+        const peEntries = specialProjectsHistoryData
+            .filter(h => h.Status !== 'Paid')
+            .map(h => {
+                let horasTotal = 0;
+                try {
+                    const raw = JSON.parse(h.data_json || h.Data_JSON || '{}');
+                    const items = Array.isArray(raw) ? raw : [raw];
+                    horasTotal = items.reduce((acc, item) => {
+                        if (!item) return acc;
+                        const emps = Array.isArray(item.employees) ? item.employees : [];
+                        return acc + emps.reduce((a, emp) => a + (parseFloat(emp.hours) || 0), 0);
+                    }, 0);
+                } catch(e) {}
+                return { ...h, source: 'P.E.', horasTotal };
+            });
+
+        return [...nominaEntries, ...peEntries]
+            .sort((a, b) => {
+                const nameA = (a.nombre || a.tienda || a.Tienda || '').toString().toLowerCase();
+                const nameB = (b.nombre || b.tienda || b.Tienda || '').toString().toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+    }, [nominaHistoryData, specialProjectsHistoryData]);
 
     const totalDeficit = crossMatchResults
         .filter(r => r.type !== 'Sin Registro' && r.diff < 0)
@@ -4222,6 +4454,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                         <th className="w-[110px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Credit Reason</th>
                                         <th className="w-[120px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Description</th>
                                         <th className="w-[180px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap text-right">Amount</th>
+                                        <th className="w-[80px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap text-center">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -4245,13 +4478,27 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                             <td className="px-4 py-4 text-[11px] font-black text-[#303a7f] text-right tabular-nums">
                                                 ${parseFloat(service.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </td>
+                                            <td className="px-4 py-4 text-center">
+                                                {!svcAccepted && parseFloat(service.amount) !== 0 && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setManualMatchTarget(service);
+                                                            setIsManualMatchModalOpen(true);
+                                                        }}
+                                                        className="px-3 py-1.5 bg-[#6bbdb7] text-white text-[9px] font-black uppercase rounded-lg hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-1 mx-auto shadow-sm"
+                                                        title="Match Manual"
+                                                    >
+                                                        <Link size={11} /> Match
+                                                    </button>
+                                                )}
+                                            </td>
                                         </tr>
                                     );
                                 })}
                                 </tbody>
                                 <tfoot>
                                     <tr className="bg-gray-50/80">
-                                        <td colSpan="9" className="px-4 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Total del Documento</td>
+                                        <td colSpan="10" className="px-4 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Total del Documento</td>
                                         <td className="px-4 py-5 text-lg font-black text-[#303a7f] text-right tabular-nums">
                                             ${wosServices.reduce((acc, s) => acc + (parseFloat(s.amount) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </td>
@@ -4550,6 +4797,21 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                 <div className="text-[8px] text-gray-300 italic truncate italic">
                                                     {item.descriptions.join(' | ')}
                                                 </div>
+                                                <div className="flex justify-end pt-2">
+                                                    <button
+                                                        onClick={() => {
+                                                            const targetSvc = item.rawServices?.[0];
+                                                            if (targetSvc) {
+                                                                setManualMatchTarget(targetSvc);
+                                                                setIsManualMatchModalOpen(true);
+                                                            }
+                                                        }}
+                                                        className="px-3 py-1.5 bg-blue-500 text-white text-[9px] font-black uppercase rounded-lg hover:bg-blue-600 transition-all active:scale-95 flex items-center gap-1 shadow-sm"
+                                                        title="Asignar manualmente"
+                                                    >
+                                                        <Link size={11} /> Match Manual
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     ))
@@ -4563,6 +4825,183 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         <span>AdWisers - LogicPay</span>
                         <span className="text-orange-500 animate-pulse">● Discrepancias en WOS</span>
                         <span>{new Date().toLocaleString()}</span>
+                    </div>
+                </div>
+            )}
+
+            {/* VENTANA EMERGENTE: MATCH MANUAL */}
+            {isManualMatchModalOpen && manualMatchTarget && (
+                <div className="fixed inset-0 z-[250] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
+                    <header className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between sticky top-0 bg-white z-20 shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-gradient-to-br from-[#6bbdb7] to-teal-600 text-white rounded-xl shadow-lg shadow-teal-900/10">
+                                <Link size={20} />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter leading-none">Match Manual</h2>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{manualMatchTarget.customer} · {manualMatchTarget.locationId}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-8">
+                            <div className="text-right">
+                                <span className="text-[9px] font-bold text-gray-400 block tracking-wider">Monto KBS</span>
+                                <span className="text-sm font-black text-[#303a7f] tabular-nums">${parseFloat(manualMatchTarget.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-[9px] font-bold text-gray-400 block tracking-wider">Período</span>
+                                <span className="text-[10px] font-black text-[#6bbdb7] uppercase">{manualMatchTarget.serviceDates}</span>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-[9px] font-bold text-gray-400 block tracking-wider">Descripción</span>
+                                <span className="text-[10px] font-black text-[#303a7f] uppercase">{manualMatchTarget.serviceDescription || '---'}</span>
+                            </div>
+                            <button
+                                onClick={() => { setIsManualMatchModalOpen(false); setManualMatchTarget(null); setManualMatchMulti(false); setManualMatchSelectedIds(new Set()); }}
+                                className="p-3 btn-close-danger rounded-xl transition-all active:scale-95 shadow-sm"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                    </header>
+
+                    <div className="px-12 py-4 bg-gray-50 border-b border-gray-100 flex items-center gap-4">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Filtrar Tienda:</span>
+                        <select
+                            value={manualMatchStoreFilter}
+                            onChange={(e) => setManualMatchStoreFilter(e.target.value)}
+                            className="px-4 py-2 bg-white border-2 border-gray-200 rounded-xl text-[11px] font-bold text-[#303a7f] uppercase min-w-[220px] focus:border-[#6bbdb7] outline-none transition-colors"
+                        >
+                            <option value="">Todas las tiendas</option>
+                            {[...new Set(availableForManualMatch.map(e => e.nombre || e.tienda || e.Tienda || ''))]
+                                .filter(Boolean).sort().map(s => (
+                                    <option key={s} value={s}>{s}</option>
+                                ))
+                            }
+                        </select>
+                        <div className="h-6 w-px bg-gray-200" />
+                        <button
+                            onClick={() => { setManualMatchMulti(!manualMatchMulti); setManualMatchSelectedIds(new Set()); }}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 ${manualMatchMulti ? 'bg-[#303a7f] text-white shadow-md' : 'bg-white border-2 border-gray-200 text-gray-400 hover:border-[#303a7f]/30 hover:text-[#303a7f]'}`}
+                        >
+                            {manualMatchMulti ? <CheckCircle size={14} /> : <Layers size={14} />}
+                            Match Múltiple
+                        </button>
+                        <span className="ml-auto text-[10px] font-bold text-gray-400 tracking-wider">
+                            {availableForManualMatch.filter(e => {
+                                if (!manualMatchStoreFilter) return true;
+                                return (e.nombre || e.tienda || e.Tienda || '') === manualMatchStoreFilter;
+                            }).length} facturas disponibles
+                        </span>
+                    </div>
+
+                    <div className="flex-1 overflow-auto p-8 bg-[#f9fafc]">
+                        <div className="mx-auto bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 overflow-hidden border border-gray-100">
+                            <table className="w-full border-collapse table-auto">
+                                <thead className="sticky top-0 z-20">
+                                    <tr className="bg-white border-b border-gray-100 shadow-sm">
+                                        {['Fecha Rad.', 'Período', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Seleccionar'].map((h, i) => (
+                                            <th key={i} className="px-2 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {availableForManualMatch
+                                        .filter(e => !manualMatchStoreFilter || (e.nombre || e.tienda || e.Tienda || '') === manualMatchStoreFilter)
+                                        .map((entry, idx) => {
+                                            const entryName = entry.nombre || entry.tienda || entry.Tienda || '';
+                                            const fechaRad = entry.radicacion || entry['Fecha Rad.'] || '';
+                                            const periodo = entry.Periodo || `${entry.fecha_inicio || ''} - ${entry.fecha_fin || ''}`;
+                                            const horas = entry.horasTotal || 0;
+                                            const factKBS = entry.Pago_KBS || 0;
+                                            const costosLGM = entry.Pago_LGM || 0;
+                                            const utilidad = factKBS - costosLGM;
+                                            const pago = entry.Pago || 0;
+                                            const fechaPago = entry['Fecha de Pago'] || '';
+                                            const wos = entry.wos || entry.WOS || '';
+                                            const wosAmount = parseFloat(manualMatchTarget.amount) || 0;
+                                            const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+                                            const formatCurrencyInput = (value) => {
+                                                if (value === null || value === undefined) return '';
+                                                const clean = String(value).replace(/[^0-9.]/g, '');
+                                                const parts = clean.split('.');
+                                                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                                                return parts.length > 1 ? parts[0] + '.' + parts[1].slice(0, 2) : parts[0];
+                                            };
+                                            return (
+                                                <tr key={idx} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
+                                                    <td className="px-3 py-4 text-center">
+                                                        <div className="inline-block w-24">
+                                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${fechaRad ? 'text-[#303a7f]' : 'text-gray-300'}`}>
+                                                                {fechaRad || '--/--/--'}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <span className="text-[#303a7f] text-[10px] font-bold transition-all whitespace-nowrap">{periodo}</span>
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{horas.toFixed(1)} <span className="text-[8px] text-gray-300 font-bold ml-0.5">H</span></td>
+                                                    <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{formatCurrency(factKBS)}</td>
+                                                    <td className="px-3 py-4 text-center text-[10px] font-bold text-red-400">{formatCurrency(costosLGM)}</td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        <div className={`px-2 py-0.5 rounded-md inline-block ${utilidad >= 0 ? 'bg-teal-50' : 'bg-red-50'}`}>
+                                                            <span className={`text-[10px] font-black ${utilidad >= 0 ? 'text-teal-600' : 'text-red-500'}`}>{formatCurrency(utilidad)}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-2 py-4 text-center">
+                                                        <span className="text-[10px] font-black text-[#303a7f] whitespace-nowrap">{formatCurrencyInput(pago) || '$0.00'}</span>
+                                                    </td>
+                                                    <td className="px-2 py-4 text-center">
+                                                        <span className="text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">{fechaPago || '--/--/--'}</span>
+                                                    </td>
+                                                    <td className="px-2 py-4 text-center">
+                                                        <span className={`text-[10px] font-black ${wos ? 'text-orange-500' : 'text-gray-300'}`}>{wos || '---'}</span>
+                                                    </td>
+                                                    <td className="px-3 py-4 text-center">
+                                                        {manualMatchMulti ? (
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={manualMatchSelectedIds.has(idx)}
+                                                                onChange={(e) => {
+                                                                    const next = new Set(manualMatchSelectedIds);
+                                                                    e.target.checked ? next.add(idx) : next.delete(idx);
+                                                                    setManualMatchSelectedIds(next);
+                                                                }}
+                                                                className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all"
+                                                            />
+                                                        ) : (wos) ? (
+                                                            <button
+                                                                onClick={() => handleManualMatchAdd(entry, manualMatchTarget)}
+                                                                className="px-3 py-1.5 bg-orange-400 text-white text-[9px] font-black uppercase rounded-lg hover:bg-orange-500 transition-all active:scale-95 shadow-sm"
+                                                            >
+                                                                + Añadir
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => handleManualMatch(entry, manualMatchTarget)}
+                                                                className="px-4 py-2 bg-[#303a7f] text-white text-[9px] font-black uppercase rounded-xl hover:bg-[#1e2560] transition-all active:scale-95 shadow-sm"
+                                                            >
+                                                                Seleccionar
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    }
+                                    {availableForManualMatch.filter(e => !manualMatchStoreFilter || (e.nombre || e.tienda || e.Tienda || '') === manualMatchStoreFilter).length === 0 && (
+                                        <tr>
+                                            <td colSpan={10} className="px-6 py-20 text-center">
+                                                <div className="flex flex-col items-center">
+                                                    <Search size={48} className="text-gray-200 mb-4" />
+                                                    <p className="text-[12px] font-black text-gray-300 uppercase tracking-widest">Sin facturas disponibles</p>
+                                                    <p className="text-[10px] font-medium text-gray-300 mt-2">Ajusta el filtro de tienda o verifica las facturaciones radicadas</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}
@@ -8012,10 +8451,38 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
                                 })
                             )}
                         </tbody>
-                    </table>
+                            </table>
+                        </div>
+                    </div>
+
+                    {manualMatchMulti && manualMatchSelectedIds.size >= 2 && (
+                        <div className="px-12 py-4 border-t-2 border-[#6bbdb7]/30 bg-gradient-to-r from-[#f0faf9] to-white flex items-center justify-between animate-in slide-in-from-bottom duration-300">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 bg-[#6bbdb7] text-white rounded-xl flex items-center justify-center">
+                                    <CheckCircle size={20} />
+                                </div>
+                                <div>
+                                    <span className="text-[11px] font-black text-[#303a7f] uppercase">{manualMatchSelectedIds.size} facturas seleccionadas</span>
+                                    <p className="text-[9px] font-bold text-gray-400">Monto total WOS: ${parseFloat(manualMatchTarget.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => { setManualMatchMulti(false); setManualMatchSelectedIds(new Set()); }}
+                                    className="px-4 py-2 bg-gray-100 text-gray-500 text-[10px] font-black uppercase rounded-xl hover:bg-gray-200 transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => handleManualMatchMulti(manualMatchTarget)}
+                                    className="px-5 py-2.5 bg-[#6bbdb7] text-white text-[10px] font-black uppercase rounded-xl hover:bg-[#59aba5] transition-all active:scale-95 shadow-lg shadow-teal-900/20"
+                                >
+                                    Confirmar Match Múltiple
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
-            </div>
-        </div>
     );
 };
 
