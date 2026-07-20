@@ -4440,21 +4440,21 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         </button>
                     </header>
                     <div className="flex-1 overflow-auto p-12 bg-[#f9fafc]">
-                        <div className="w-[1300px] mx-auto bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 overflow-hidden border border-gray-100">
+                        <div className="w-full mx-auto bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 overflow-hidden border border-gray-100">
                             <table className="w-full text-left border-collapse table-fixed">
                                 <thead>
                                     <tr className="bg-[#303a7f] text-white">
-                                        <th className="w-[160px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Customer / KBS ID</th>
-                                        <th className="w-[110px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Location ID</th>
-                                        <th className="w-[110px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Sales Order</th>
-                                        <th className="w-[110px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Purchase Order</th>
-                                        <th className="w-[130px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Reference #</th>
-                                        <th className="w-[140px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Service Dates</th>
-                                        <th className="w-[130px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">City, State</th>
-                                        <th className="w-[110px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Credit Reason</th>
-                                        <th className="w-[120px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Description</th>
-                                        <th className="w-[180px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap text-right">Amount</th>
-                                        <th className="w-[80px] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap text-center">Acción</th>
+                                        <th className="w-[12%] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Customer / KBS ID</th>
+                                        <th className="w-[8%] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Location ID</th>
+                                        <th className="w-[9%] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Sales Order</th>
+                                        <th className="w-[9%] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Purchase Order</th>
+                                        <th className="w-[9%] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Reference #</th>
+                                        <th className="w-[10%] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Service Dates</th>
+                                        <th className="w-[10%] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">City, State</th>
+                                        <th className="w-[8%] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Credit Reason</th>
+                                        <th className="w-[10%] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Description</th>
+                                        <th className="w-[8%] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap text-right">Amount</th>
+                                        <th className="w-[7%] px-4 py-5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap text-center">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
