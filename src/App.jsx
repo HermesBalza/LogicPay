@@ -3250,8 +3250,11 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             return items.reduce((acc, item) => {
                 if (!item) return acc;
                 const emps = Array.isArray(item.employees) ? item.employees : [];
-                return acc + emps.reduce((a, emp) =>
+                const provs = Array.isArray(item.providers) ? item.providers : [];
+                const empTotal = emps.reduce((a, emp) =>
                     a + (parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0), 0);
+                const provTotal = provs.reduce((a, p) => a + (parseFloat(p.rateKBS) || 0), 0);
+                return acc + empTotal + provTotal;
             }, 0);
         } catch (e) { }
         return 0;
@@ -12283,6 +12286,200 @@ const SearchableEmployeeInput = ({ value, onChange, onSelectEmployee, onRegister
     );
 };
 
+const SearchableProviderInput = ({ value, onChange, onSelectProvider, proveedores, readOnly = false }) => {
+    const [searchTerm, setSearchTerm] = useState(value || '');
+    const [isOpen, setIsOpen] = useState(false);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+    const [registerForm, setRegisterForm] = useState(null);
+    const wrapperRef = useRef(null);
+    const inputRef = useRef(null);
+
+    const results = (proveedores || []).filter(p => {
+        const term = searchTerm.toLowerCase().trim();
+        if (!term) return false;
+        return (
+            String(p.nombre || '').toLowerCase().includes(term) ||
+            String(p.contacto || '').toLowerCase().includes(term) ||
+            String(p.especialidad || '').toLowerCase().includes(term)
+        );
+    }).slice(0, 8);
+
+    const computePos = () => {
+        if (inputRef.current) {
+            const rect = inputRef.current.getBoundingClientRect();
+            setDropdownPos({ top: rect.bottom + 6, left: rect.left, width: rect.width });
+        }
+    };
+
+    useEffect(() => { setSearchTerm(value || ''); }, [value]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsOpen(false);
+                setRegisterForm(null);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const openRegisterForm = () => {
+        setIsOpen(false);
+        setRegisterForm({
+            nombre: searchTerm.trim(),
+            contacto: '',
+            telefono: '',
+            email: '',
+            especialidad: ''
+        });
+    };
+
+    const handleRegisterSave = async () => {
+        if (!registerForm.nombre.trim()) return;
+        const payload = {
+            nombre: registerForm.nombre.trim(),
+            contacto: registerForm.contacto.trim(),
+            telefono: registerForm.telefono.trim(),
+            email: registerForm.email.trim(),
+            especialidad: registerForm.especialidad.trim()
+        };
+        try {
+            const res = await fetch('/api/write', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'upsert', sheetName: 'CRM_Proveedores', data: payload, matchKeys: ['nombre'] })
+            });
+            if (!res.ok) throw new Error('Error al guardar proveedor');
+            const newProv = { ...payload, id: Date.now() };
+            if (onSelectProvider) onSelectProvider(newProv);
+            onChange(newProv.nombre);
+            setSearchTerm(newProv.nombre);
+        } catch (e) {
+            console.error('Error registrando proveedor:', e);
+        }
+        setRegisterForm(null);
+    };
+
+    const showDropdown = isOpen && searchTerm.trim().length > 0;
+    const showRegisterOption = showDropdown && results.length === 0;
+    const inputCls = "w-full bg-[#f8f8f8] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all";
+    const labelCls = "block text-[9px] font-black text-gray-400 uppercase tracking-[0.18em] mb-1";
+
+    return (
+        <div className="relative w-full" ref={wrapperRef}>
+            <input
+                ref={inputRef}
+                type="text"
+                value={searchTerm}
+                readOnly={readOnly}
+                onChange={(e) => {
+                    if (readOnly) return;
+                    setSearchTerm(e.target.value);
+                    computePos();
+                    setIsOpen(true);
+                    setRegisterForm(null);
+                    if (e.target.value === '') onChange('');
+                }}
+                onFocus={() => { if (!readOnly) { computePos(); setIsOpen(true); } }}
+                placeholder="Buscar proveedor..."
+                className={`w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
+            />
+
+            {showDropdown && results.length > 0 && (
+                <div
+                    style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
+                    className="bg-white border-2 border-gray-100 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                >
+                    {results.map((p, idx) => (
+                        <div
+                            key={p.id || idx}
+                            onClick={() => {
+                                if (onSelectProvider) onSelectProvider(p);
+                                onChange(p.nombre);
+                                setSearchTerm(p.nombre);
+                                setIsOpen(false);
+                            }}
+                            className="p-3 hover:bg-purple-50 cursor-pointer border-b last:border-none border-gray-50 transition-colors group"
+                        >
+                            <div className="font-black text-[#303a7f] text-xs group-hover:text-purple-600 transition-colors">{p.nombre}</div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                {p.contacto && <span className="text-[9px] font-bold text-gray-400">{p.contacto}</span>}
+                                {p.especialidad && <span className="text-[9px] font-bold text-purple-400 uppercase bg-purple-50 px-1.5 py-0.5 rounded">{p.especialidad}</span>}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {showRegisterOption && (
+                <div
+                    style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
+                    className="bg-white border-2 border-gray-100 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                >
+                    <div
+                        onClick={openRegisterForm}
+                        className="p-3 hover:bg-purple-50 cursor-pointer transition-colors flex items-center gap-2 group"
+                    >
+                        <div className="bg-purple-100 text-purple-500 rounded-lg p-1 flex-shrink-0">
+                            <Plus size={12} />
+                        </div>
+                        <div>
+                            <div className="font-black text-purple-500 text-xs">Registrar como nuevo proveedor</div>
+                            <div className="text-[9px] text-gray-400 font-bold">"{searchTerm.trim()}"</div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {registerForm && (
+                <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(48,58,127,0.18)', backdropFilter: 'blur(3px)' }}
+                    onMouseDown={(e) => { if (e.target === e.currentTarget) setRegisterForm(null); }}
+                >
+                    <div
+                        style={{ width: 360 }}
+                        className="bg-white border-2 border-purple-200 shadow-2xl rounded-2xl p-5 animate-in fade-in zoom-in-95 duration-200"
+                    >
+                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
+                            <div className="bg-purple-100 text-purple-500 rounded-lg p-1">
+                                <Plus size={12} />
+                            </div>
+                            <span className="text-[10px] font-black text-purple-500 uppercase tracking-widest">Nuevo Proveedor</span>
+                        </div>
+                        <div className="space-y-2.5">
+                            <div>
+                                <label className={labelCls}>Nombre / Empresa *</label>
+                                <input type="text" value={registerForm.nombre} onChange={(e) => setRegisterForm(f => ({ ...f, nombre: e.target.value }))} className={inputCls} autoFocus />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Contacto</label>
+                                <input type="text" value={registerForm.contacto} onChange={(e) => setRegisterForm(f => ({ ...f, contacto: e.target.value }))} className={inputCls} />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Teléfono</label>
+                                <input type="text" value={registerForm.telefono} onChange={(e) => setRegisterForm(f => ({ ...f, telefono: e.target.value }))} className={inputCls} />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Email</label>
+                                <input type="text" value={registerForm.email} onChange={(e) => setRegisterForm(f => ({ ...f, email: e.target.value }))} className={inputCls} />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Especialidad</label>
+                                <input type="text" value={registerForm.especialidad} onChange={(e) => setRegisterForm(f => ({ ...f, especialidad: e.target.value }))} className={inputCls} placeholder="Ej: Limpieza, Construcción..." />
+                            </div>
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                            <button onClick={() => setRegisterForm(null)} className="flex-1 py-2 text-gray-400 font-black text-[9px] uppercase tracking-widest border-2 border-gray-100 rounded-xl hover:border-gray-200 transition-all">Cancelar</button>
+                            <button onClick={handleRegisterSave} className="flex-1 py-2 bg-purple-500 hover:bg-purple-600 text-white font-black text-[9px] uppercase tracking-widest rounded-xl transition-all active:scale-95">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 // ─── Componente de Celda Editable con Estado Local (Optimización de Lag) ──────
 const EditableCell = ({ value, onChange, type = "text", className, readOnly = false }) => {
@@ -12302,7 +12499,7 @@ const EditableCell = ({ value, onChange, type = "text", className, readOnly = fa
 };
 
 // ─── Componente de Proyecto Individual dentro de P.E ──────────────────────────
-const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdateProject, onRemoveProject, onAnulateProject, onRegisterEmployee, onRegisterProject, minDate, maxDate }) => {
+const SpecialProjectCard = React.memo(({ project, employees, stores, proveedores, onUpdateProject, onRemoveProject, onAnulateProject, onRegisterEmployee, onRegisterProject, minDate, maxDate }) => {
     const isRegistered = project.status === 'registered';
 
     // Estados locales para evitar re-renders globales en cada tecla
@@ -12340,6 +12537,31 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
         onUpdateProject(project.id, { employees: project.employees.filter(r => r.id !== rowId) });
     };
 
+    // Agregar un proveedor a este proyecto
+    const addProvider = () => {
+        onUpdateProject(project.id, {
+            providers: [...(project.providers || []), { id: Date.now(), providerName: '', providerId: null, rateKBS: 0, rateLogic: 0 }]
+        });
+    };
+
+    // Actualiza una fila de proveedor
+    const updateProviderRow = (rowId, updates) => {
+        onUpdateProject(project.id, {
+            providers: (project.providers || []).map(r => r.id === rowId ? { ...r, ...updates } : r)
+        });
+    };
+
+    // Eliminar un proveedor
+    const removeProvider = (rowId) => {
+        if (isRegistered) return;
+        onUpdateProject(project.id, { providers: (project.providers || []).filter(r => r.id !== rowId) });
+    };
+
+    // Auto-rellenar al seleccionar un proveedor
+    const handleSelectProvider = (rowId, prov) => {
+        updateProviderRow(rowId, { providerName: prov.nombre, providerId: prov.id });
+    };
+
     // Auto-rellenar Rate KBS y LGM al seleccionar un empleado
     const handleSelectEmployee = (rowId, emp) => {
         const updates = { employeeName: emp.nombre };
@@ -12350,9 +12572,14 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
     };
 
     // Cálculos de totales del proyecto
-    const totalHrs = project.employees.reduce((acc, r) => acc + (parseFloat(r.hours) || 0), 0);
-    const totalKBS = project.employees.reduce((acc, r) => acc + ((parseFloat(r.hours) || 0) * (parseFloat(r.rateKBS) || 0)), 0);
-    const totalLGM = project.employees.reduce((acc, r) => acc + ((parseFloat(r.hours) || 0) * (parseFloat(r.rateLogic) || 0)), 0);
+    const empTotalHrs = project.employees.reduce((acc, r) => acc + (parseFloat(r.hours) || 0), 0);
+    const empTotalKBS = project.employees.reduce((acc, r) => acc + ((parseFloat(r.hours) || 0) * (parseFloat(r.rateKBS) || 0)), 0);
+    const empTotalLGM = project.employees.reduce((acc, r) => acc + ((parseFloat(r.hours) || 0) * (parseFloat(r.rateLogic) || 0)), 0);
+    const provTotalKBS = (project.providers || []).reduce((acc, r) => acc + (parseFloat(r.rateKBS) || 0), 0);
+    const provTotalLGM = (project.providers || []).reduce((acc, r) => acc + (parseFloat(r.rateLogic) || 0), 0);
+    const totalHrs = empTotalHrs;
+    const totalKBS = empTotalKBS + provTotalKBS;
+    const totalLGM = empTotalLGM + provTotalLGM;
 
     const inputCls = "w-full bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7] transition-all";
     const labelCls = "block text-[9px] font-black text-gray-400 uppercase tracking-[0.18em] mb-1.5";
@@ -12586,20 +12813,132 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                 </table>
             </div>
 
-            {/* Botón agregar empleado / Registrar */}
+            {/* Tabla de proveedores */}
+            <div className="overflow-x-auto border-t-2 border-dashed border-purple-200">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="bg-purple-50/40">
+                            <th className="p-3 text-[9px] font-black text-purple-600 uppercase tracking-widest border-b border-purple-100">Proveedor</th>
+                            <th className="p-3 text-[9px] font-black text-purple-600 uppercase tracking-widest border-b border-purple-100 text-center">Rate KBS ($)</th>
+                            <th className="p-3 text-[9px] font-black text-purple-600 uppercase tracking-widest border-b border-purple-100 text-center">Rate LGM ($)</th>
+                            <th className="p-3 text-[9px] font-black text-purple-600 uppercase tracking-widest border-b border-purple-100 text-center">Profit</th>
+                            <th className="p-3 text-[9px] font-black text-purple-600 uppercase tracking-widest border-b border-purple-100 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                        {(project.providers || []).length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="p-8 text-center text-gray-400 font-bold italic text-xs opacity-60">
+                                    Sin proveedores. Presiona "+ Agregar Proveedor" para comenzar.
+                                </td>
+                            </tr>
+                        ) : (
+                            (project.providers || []).map((row) => {
+                                const profit = (parseFloat(row.rateKBS) || 0) - (parseFloat(row.rateLogic) || 0);
+                                return (
+                                <tr key={row.id} className="hover:bg-purple-50/20 transition-colors group">
+                                    <td className="p-3">
+                                        <SearchableProviderInput
+                                            value={row.providerName}
+                                            proveedores={proveedores || []}
+                                            readOnly={isRegistered}
+                                            onChange={(name) => updateProviderRow(row.id, { providerName: name })}
+                                            onSelectProvider={(prov) => handleSelectProvider(row.id, prov)}
+                                        />
+                                    </td>
+                                    <td className="p-3">
+                                        <div className="flex items-center justify-center gap-1">
+                                            <span className="text-gray-400 text-[10px] font-black">$</span>
+                                            <EditableCell
+                                                value={row.rateKBS}
+                                                type="number"
+                                                readOnly={isRegistered}
+                                                onChange={(val) => updateProviderRow(row.id, { rateKBS: val })}
+                                                className="w-24 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-purple-400 transition-all text-center"
+                                            />
+                                        </div>
+                                    </td>
+                                    <td className="p-3">
+                                        <div className="flex items-center justify-center gap-1">
+                                            <span className="text-gray-400 text-[10px] font-black">$</span>
+                                            <EditableCell
+                                                value={row.rateLogic}
+                                                type="number"
+                                                readOnly={isRegistered}
+                                                onChange={(val) => updateProviderRow(row.id, { rateLogic: val })}
+                                                className="w-24 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-purple-400 transition-all text-center"
+                                            />
+                                        </div>
+                                    </td>
+                                    <td className="p-3 text-center">
+                                        <span className={`text-xs font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                            ${profit.toFixed(2)}
+                                        </span>
+                                    </td>
+                                    <td className="p-3 text-center">
+                                        {!isRegistered && (
+                                            <button
+                                                onClick={() => removeProvider(row.id)}
+                                                className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
+                                    </td>
+                                </tr>
+                                );
+                            })
+                        )}
+                    </tbody>
+                    {(project.providers || []).length > 0 && (
+                        <tfoot className="border-t border-purple-100 bg-purple-50/30">
+                            <tr className="font-black text-[10px]">
+                                <td className="p-3 text-right text-gray-500 uppercase tracking-wider">Totales Proveedores</td>
+                                <td className="p-3 text-center">
+                                    <span className="bg-purple-50 text-purple-600 px-3 py-1 rounded-xl border border-purple-100">
+                                        ${provTotalKBS.toFixed(2)}
+                                    </span>
+                                </td>
+                                <td className="p-3 text-center">
+                                    <span className="bg-purple-50 text-purple-600 px-3 py-1 rounded-xl border border-purple-100">
+                                        ${provTotalLGM.toFixed(2)}
+                                    </span>
+                                </td>
+                                <td className="p-3 text-center">
+                                    <span className={`px-3 py-1 rounded-xl border ${(provTotalKBS - provTotalLGM) >= 0 ? 'text-green-600 bg-green-50 border-green-100' : 'text-red-600 bg-red-50 border-red-100'}`}>
+                                        ${(provTotalKBS - provTotalLGM).toFixed(2)}
+                                    </span>
+                                </td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    )}
+                </table>
+            </div>
+
+            {/* Botón agregar empleado / Proveedor / Registrar */}
             <div className="p-4 border-t border-gray-50 flex gap-3">
                 {!isRegistered && (
-                    <button
-                        onClick={addEmp}
-                        className="flex items-center gap-2 bg-[#f8f8f8] hover:bg-gray-100 text-[#303a7f] font-black text-[9px] uppercase tracking-widest transition-all py-3 px-4 rounded-xl border-2 border-dashed border-gray-200 w-1/3 justify-center active:scale-95"
-                    >
-                        <Plus size={14} />
-                        Agregar Empleado
-                    </button>
+                    <>
+                        <button
+                            onClick={addEmp}
+                            className="flex items-center gap-2 bg-[#f8f8f8] hover:bg-gray-100 text-[#303a7f] font-black text-[9px] uppercase tracking-widest transition-all py-3 px-4 rounded-xl border-2 border-dashed border-gray-400 flex-1 justify-center active:scale-95"
+                        >
+                            <Plus size={14} />
+                            Agregar Empleado
+                        </button>
+                        <button
+                            onClick={addProvider}
+                            className="flex items-center gap-2 bg-[#f8f8f8] hover:bg-purple-50 text-purple-600 font-black text-[9px] uppercase tracking-widest transition-all py-3 px-4 rounded-xl border-2 border-dashed border-purple-400 flex-1 justify-center active:scale-95"
+                        >
+                            <Plus size={14} />
+                            Agregar Proveedor
+                        </button>
+                    </>
                 )}
                 <button
                     onClick={() => onRegisterProject(project)}
-                    disabled={isRegistered || project.employees.length === 0}
+                    disabled={isRegistered || (project.employees.length === 0 && (project.providers || []).length === 0)}
                     className={`flex items-center gap-2 font-black text-[9px] uppercase tracking-widest transition-all py-3 px-4 rounded-xl flex-1 justify-center shadow-lg active:scale-95 ${isRegistered
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : 'bg-[#6bbdb7] hover:bg-[#59aba5] text-white shadow-teal-900/10'
@@ -12614,7 +12953,7 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
 });
 
 // ─── Vista Principal de Proyectos Especiales ─────────────────────────────────
-const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterProject, onAnulateProjectSheet, onRegisterEmployee, onUpdateLocationHistory, onSyncCorrelativo, onReserveInvoice }) => {
+const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, proveedores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterProject, onAnulateProjectSheet, onRegisterEmployee, onUpdateLocationHistory, onSyncCorrelativo, onReserveInvoice }) => {
     const [anulatingProject, setAnulatingProject] = useState(null);
 
     // Convertir el rango de fechas MM/DD/YYYY a YYYY-MM-DD para los inputs tipo date
@@ -12787,6 +13126,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                                 project={project}
                                 employees={employees}
                                 stores={stores}
+                                proveedores={proveedores}
                                 onUpdateProject={updateProject}
                                 onRemoveProject={removeProject}
                                 onAnulateProject={(p) => setAnulatingProject(p)}
@@ -13016,7 +13356,9 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
         }
     };
 
-    const totalKBS = (project.employees || []).reduce((acc, row) => acc + (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0), 0);
+    const empTotalKBS = (project.employees || []).reduce((acc, row) => acc + (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0), 0);
+    const provTotalKBS = (project.providers || []).reduce((acc, row) => acc + (parseFloat(row.rateKBS) || 0), 0);
+    const totalKBS = empTotalKBS + provTotalKBS;
 
     return (
         <div className="fixed inset-0 z-[500] bg-[#303a7f]/20 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300 font-sans">
@@ -13086,6 +13428,16 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                                             <td className="p-5 text-center font-bold text-[#303a7f] text-sm tabular-nums">{parseFloat(emp.hours).toFixed(2)}</td>
                                             <td className="p-5 text-center font-bold text-[#6bbdb7] text-sm tabular-nums">${parseFloat(emp.rateKBS).toFixed(2)}</td>
                                             <td className="p-5 text-right font-black text-[#303a7f] text-sm tabular-nums">${(parseFloat(emp.hours) * parseFloat(emp.rateKBS)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                        </tr>
+                                    ))}
+                                    {(project.providers || []).map((p, i) => (
+                                        <tr key={`prov-${i}`}>
+                                            <td className="p-5">
+                                                <div className="font-bold text-[#303a7f] text-xs uppercase">{project.proyecto || project.nombre}</div>
+                                            </td>
+                                            <td className="p-5 text-center font-bold text-[#303a7f] text-sm tabular-nums">1</td>
+                                            <td className="p-5 text-center font-bold text-[#6bbdb7] text-sm tabular-nums">${parseFloat(p.rateKBS).toFixed(2)}</td>
+                                            <td className="p-5 text-right font-black text-[#303a7f] text-sm tabular-nums">${parseFloat(p.rateKBS).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                                         </tr>
                                     ))}
                                     {/* Fill empty rows */}
@@ -13637,13 +13989,18 @@ const BillingView = ({
                 }
 
                 const employees = Array.isArray(p.employees) ? p.employees : [];
+                const providers = Array.isArray(p.providers) ? p.providers : [];
                 const hoursFromEmployees = employees.reduce((acc, emp) => acc + (parseFloat(emp.hours) || 0), 0);
                 const facturacionFromEmployees = employees.reduce((acc, emp) => acc + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0)), 0);
                 const costosFromEmployees = employees.reduce((acc, emp) => acc + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateLogic) || 0)), 0);
+                const facturacionFromProviders = providers.reduce((acc, prov) => acc + (parseFloat(prov.rateKBS) || 0), 0);
+                const costosFromProviders = providers.reduce((acc, prov) => acc + (parseFloat(prov.rateLogic) || 0), 0);
 
                 peTableDataMap[key].horas += parseFloat(p.horas) || hoursFromEmployees || 0;
                 peTableDataMap[key].facturacion += parseFloat(p.total_kbs) || facturacionFromEmployees || 0;
+                peTableDataMap[key].facturacion += facturacionFromProviders;
                 peTableDataMap[key].costos += parseFloat(p.total_logic) || costosFromEmployees || 0;
+                peTableDataMap[key].costos += costosFromProviders;
             });
         } catch (e) {
             console.error("[LogicPay] Error parsing PE history json", e);
@@ -16824,6 +17181,7 @@ function App() {
     );
     const [stores, setStores] = useState([]);
     const [employees, setEmployees] = useState([]);
+    const [providersList, setProvidersList] = useState([]);
     const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado' | 'desconectado' | 'sincronizando'
 
     const [user, setUser] = useState(() => { try { const saved = sessionStorage.getItem('user'); return saved ? JSON.parse(saved) : null; } catch { return null; } });
@@ -17231,7 +17589,10 @@ function App() {
                             const projects = Array.isArray(djPE) ? djPE : [djPE];
                             factPE = projects.reduce((total, p) => {
                                 const emps = Array.isArray(p.employees) ? p.employees : [];
-                                return total + emps.reduce((s, e) => s + ((parseFloat(e.hours) || 0) * (parseFloat(e.rateKBS) || 0)), 0);
+                                const provs = Array.isArray(p.providers) ? p.providers : [];
+                                const empTotal = emps.reduce((s, e) => s + ((parseFloat(e.hours) || 0) * (parseFloat(e.rateKBS) || 0)), 0);
+                                const provTotal = provs.reduce((s, pr) => s + (parseFloat(pr.rateKBS) || 0), 0);
+                                return total + empTotal + provTotal;
                             }, 0);
                         } catch (e) { }
                         const fechaRadPE = payload['Fecha Rad.'] || payload['fecha rad.'] || '--/--/--';
@@ -17622,7 +17983,8 @@ function App() {
                 proyecto: project.nombre,
                 descripcion: project.descripcion,
                 comentarios: project.comentarios,
-                employees: project.employees || []
+                employees: project.employees || [],
+                providers: project.providers || []
             }),
             Fecha_Confirmacion: currentTimestamp,
             Correlativo: project.invoice
@@ -17643,6 +18005,7 @@ function App() {
                 })
             }).catch(() => {});
             showSuccess('Proyecto Especial guardado en la base de datos.');
+            fetchSpecialProjectsHistory();
             return true;
         } catch (error) {
             console.error('[SpecialProjects] Error guardando en SQLite:', error);
@@ -17762,6 +18125,7 @@ function App() {
                         descripcion: item.descripcion || '',
                         comentarios: item.comentarios || '',
                         employees: Array.isArray(item.employees) ? item.employees : [],
+                        providers: Array.isArray(item.providers) ? item.providers : [],
                         visible: record.visible || record.Visible || '',
                         status: 'registered'
                     }));
@@ -19948,11 +20312,17 @@ function App() {
                         const projects = Array.isArray(parsed) ? parsed : [parsed];
                         obj.Pago_KBS = projects.reduce((total, project) => {
                             const emps = Array.isArray(project.employees) ? project.employees : [];
-                            return total + emps.reduce((sum, emp) => sum + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0)), 0);
+                            const provs = Array.isArray(project.providers) ? project.providers : [];
+                            const empTotal = emps.reduce((sum, emp) => sum + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0)), 0);
+                            const provTotal = provs.reduce((sum, p) => sum + (parseFloat(p.rateKBS) || 0), 0);
+                            return total + empTotal + provTotal;
                         }, 0);
                         obj.Pago_LGM = projects.reduce((total, project) => {
                             const emps = Array.isArray(project.employees) ? project.employees : [];
-                            return total + emps.reduce((sum, emp) => sum + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateLogic) || 0)), 0);
+                            const provs = Array.isArray(project.providers) ? project.providers : [];
+                            const empTotal = emps.reduce((sum, emp) => sum + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateLogic) || 0)), 0);
+                            const provTotal = provs.reduce((sum, p) => sum + (parseFloat(p.rateLogic) || 0), 0);
+                            return total + empTotal + provTotal;
                         }, 0);
                         obj.Tienda = obj.Tienda || obj.tienda || obj.nombre;
                         obj.Timestamp = obj.Fecha_Confirmacion || obj.fecha_confirmacion || obj['Fecha Confirmacion'] || obj['Fecha_Confirmacion'] || obj['Fecha Rad.'] || obj['Fecha Rad'] || obj.fecha;
@@ -20328,6 +20698,7 @@ function App() {
         fetchVASchedule();
         fetchPendingContratados();
         fetchTableData(SALDOS_PENDIENTES_API_URL).then(data => setSaldosPendientesData(data || [])).catch(() => {});
+        fetchTableData('/api/data/CRM_Proveedores').then(data => setProvidersList(data || [])).catch(() => {});
     }, []);
 
     useEffect(() => {
@@ -23673,6 +24044,7 @@ function App() {
                     onClose={() => setIsPEModalOpen(false)}
                     employees={employees}
                     stores={stores}
+                    proveedores={providersList}
                     specialProjectsData={specialProjectsData}
                     setSpecialProjectsData={setSpecialProjectsData}
                     nextInvoice={nextInvoice}
