@@ -15259,6 +15259,7 @@ const DatabaseExplorer = () => {
     const [deletingCol, setDeletingCol] = useState(false);
     const [notification, setNotification] = useState({ show: false, message: '', type: '' });
     const [availableTables, setAvailableTables] = useState([]);
+    const [storeFilter, setStoreFilter] = useState('');
 
     const showNotif = (message, type = 'success') => {
         setNotification({ show: true, message, type });
@@ -15310,6 +15311,7 @@ const DatabaseExplorer = () => {
 
     useEffect(() => {
         fetchTableData(selectedTable);
+        setStoreFilter('');
     }, [selectedTable]);
 
     const getMatchKeys = () => {
@@ -15447,6 +15449,25 @@ const DatabaseExplorer = () => {
                 </div>
             </div>
 
+            {(selectedTable === 'Nomina_Historico' || selectedTable === 'Nomina_Detalle') && rows.length > 0 && (
+                <div className="px-8 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-3">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Filtrar Tienda:</span>
+                    <select
+                        value={storeFilter}
+                        onChange={(e) => setStoreFilter(e.target.value)}
+                        className="px-4 py-2 bg-white border-2 border-gray-200 rounded-xl text-[11px] font-bold text-[#303a7f] uppercase min-w-[220px] outline-none focus:border-[#6bbdb7] transition-colors"
+                    >
+                        <option value="">Todas las tiendas</option>
+                        {[...new Set(rows.map(r => r.nombre || r.Tienda || ''))].filter(Boolean).sort().map(s => (
+                            <option key={s} value={s}>{s}</option>
+                        ))}
+                    </select>
+                    <span className="text-[10px] font-bold text-gray-400 ml-auto">
+                        {storeFilter ? rows.filter(r => (r.nombre || r.Tienda || '') === storeFilter).length : rows.length} registros
+                    </span>
+                </div>
+            )}
+
             {showColumnManager && columnInfo.length > 0 && (
                 <div className="mx-6 my-4 p-5 bg-[#f9f9f9] rounded-2xl border border-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between mb-4">
@@ -15521,6 +15542,7 @@ const DatabaseExplorer = () => {
                             <thead>
                                 <tr className="bg-[#303a7f] sticky top-0 z-10">
                                     <th className="px-3 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r border-white/10 w-8">#</th>
+                                    <th className="px-3 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] w-12">Acción</th>
                                     {columns.map(col => (
                                         <th key={col} className="px-3 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] border-r last:border-r-0 border-white/10 whitespace-nowrap min-w-[100px]">
                                             <div className="flex items-center gap-1">
@@ -15529,14 +15551,24 @@ const DatabaseExplorer = () => {
                                             </div>
                                         </th>
                                     ))}
-                                    <th className="px-3 py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] w-12">Acción</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {rows.map((row, idx) => (
-                                    <tr key={idx} className="hover:bg-[#303a7f]/5 transition-colors border-b border-gray-50 group">
+                                {rows
+                                    .filter(row => !storeFilter || (row.nombre || row.Tienda || '') === storeFilter)
+                                    .map((row, idx) => (
+                                    <tr key={row.id || idx} className="hover:bg-[#303a7f]/5 transition-colors border-b border-gray-50 group">
                                         <td className="px-3 py-2.5 text-[9px] font-black text-gray-400 border-r border-gray-50 text-center">
                                             {idx + 1}
+                                        </td>
+                                        <td className="px-3 py-2.5 border-r border-gray-50 text-center">
+                                            <button
+                                                onClick={() => setConfirmDeleteRow({ row, idx })}
+                                                className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                title="Eliminar fila"
+                                            >
+                                                <Trash2 size={13} />
+                                            </button>
                                         </td>
                                         {columns.map(col => (
                                             <td key={col} className="px-3 py-2.5 text-[11px] font-bold text-[#333333] border-r last:border-r-0 border-gray-50 max-w-[250px] relative">
@@ -15573,15 +15605,6 @@ const DatabaseExplorer = () => {
                                                 )}
                                             </td>
                                         ))}
-                                        <td className="px-3 py-2.5 border-l border-gray-50 text-center">
-                                            <button
-                                                onClick={() => setConfirmDeleteRow({ row, idx })}
-                                                className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                title="Eliminar fila"
-                                            >
-                                                <Trash2 size={13} />
-                                            </button>
-                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
