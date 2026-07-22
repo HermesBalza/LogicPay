@@ -8457,34 +8457,6 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
                             </table>
                         </div>
                     </div>
-
-                    {manualMatchMulti && manualMatchSelectedIds.size >= 2 && (
-                        <div className="px-12 py-4 border-t-2 border-[#6bbdb7]/30 bg-gradient-to-r from-[#f0faf9] to-white flex items-center justify-between animate-in slide-in-from-bottom duration-300">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 bg-[#6bbdb7] text-white rounded-xl flex items-center justify-center">
-                                    <CheckCircle size={20} />
-                                </div>
-                                <div>
-                                    <span className="text-[11px] font-black text-[#303a7f] uppercase">{manualMatchSelectedIds.size} facturas seleccionadas</span>
-                                    <p className="text-[9px] font-bold text-gray-400">Monto total WOS: ${parseFloat(manualMatchTarget.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => { setManualMatchMulti(false); setManualMatchSelectedIds(new Set()); }}
-                                    className="px-4 py-2 bg-gray-100 text-gray-500 text-[10px] font-black uppercase rounded-xl hover:bg-gray-200 transition-all"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={() => handleManualMatchMulti(manualMatchTarget)}
-                                    className="px-5 py-2.5 bg-[#6bbdb7] text-white text-[10px] font-black uppercase rounded-xl hover:bg-[#59aba5] transition-all active:scale-95 shadow-lg shadow-teal-900/20"
-                                >
-                                    Confirmar Match Múltiple
-                                </button>
-                            </div>
-                        </div>
-                    )}
                 </div>
     );
 };
