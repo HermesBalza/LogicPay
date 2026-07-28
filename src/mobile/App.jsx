@@ -150,6 +150,7 @@ const CRM_CANDIDATOS_API_URL = `${LOCAL_API_BASE}/CRM_Candidatos`;
 const SALDOS_PENDIENTES_API_URL = `${LOCAL_API_BASE}/Saldos_Pendientes`;
 const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
 const isChewyStore = (name) => String(name).includes('Chewy');
+const isWalgreensDallas = (name) => String(name).trim().toLowerCase() === 'walgreens dallas';
 
 // Parsea una fila CSV respetando campos entre comillas
 const parseCSVRow = (row) => {
@@ -6251,21 +6252,65 @@ const VWHTableModal = (props) => {
             const startIdx = isQuincenaRange ? 0 : dayToIndex[dateStart.getDay()];
             const endIdx = isQuincenaRange ? 6 : dayToIndex[dateEnd.getDay()];
 
-            const processedData = reportData.map(emp => {
-                let empTotalFragment = 0;
-                if (startIdx <= endIdx) {
-                    for (let i = startIdx; i <= endIdx; i++) {
-                        empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
-                    }
+            const processedData = [];
+            reportData.forEach(emp => {
+                const hasCargoMixtoVWH = isWalgreensDallas(payrollStore) && emp.cargo_por_dia && Object.values(emp.cargo_por_dia).some(d => d.cargo !== emp.cargo);
+                if (hasCargoMixtoVWH) {
+                    const employeeInfo = employees.find(e =>
+                        String(e.codigo_empleado).trim() === String(emp.codigo).replace(/^'+/, '').trim() &&
+                        String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()
+                    );
+                    const cargosUnicosVWH = [...new Set(Object.values(emp.cargo_por_dia).map(d => d.cargo))];
+                    cargosUnicosVWH.forEach(cargoName => {
+                        let cargoTotal = 0;
+                        if (startIdx <= endIdx) {
+                            for (let i = startIdx; i <= endIdx; i++) {
+                                const dayCargo = emp.cargo_por_dia[days[i]]?.cargo;
+                                if (dayCargo === cargoName) {
+                                    cargoTotal += hhmmToDecimal(emp[days[i]]?.final || 0);
+                                }
+                            }
+                        } else {
+                            for (let i = startIdx; i < 7; i++) {
+                                const dayCargo = emp.cargo_por_dia[days[i]]?.cargo;
+                                if (dayCargo === cargoName) {
+                                    cargoTotal += hhmmToDecimal(emp[days[i]]?.final || 0);
+                                }
+                            }
+                            for (let i = 0; i <= endIdx; i++) {
+                                const dayCargo = emp.cargo_por_dia[days[i]]?.cargo;
+                                if (dayCargo === cargoName) {
+                                    cargoTotal += hhmmToDecimal(emp[days[i]]?.final || 0);
+                                }
+                            }
+                        }
+                        if (cargoTotal > 0) {
+                            const isDefaultCargo = cargoName === emp.cargo;
+                            const cargoRateEntry = Object.values(emp.cargo_por_dia).find(d => d.cargo === cargoName);
+                            const rateKBS = isDefaultCargo ? (employeeInfo?.rateKBS || 0) : (cargoRateEntry?.rateKBS || 0);
+                            processedData.push({ ...emp, cargo: cargoName, fragmentTotal: cargoTotal, rateKBS });
+                        }
+                    });
                 } else {
-                    for (let i = startIdx; i < 7; i++) {
-                        empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                    let empTotalFragment = 0;
+                    if (startIdx <= endIdx) {
+                        for (let i = startIdx; i <= endIdx; i++) {
+                            empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                        }
+                    } else {
+                        for (let i = startIdx; i < 7; i++) {
+                            empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                        }
+                        for (let i = 0; i <= endIdx; i++) {
+                            empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                        }
                     }
-                    for (let i = 0; i <= endIdx; i++) {
-                        empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
-                    }
+                    const employeeInfo = employees.find(e =>
+                        String(e.codigo_empleado).trim() === String(emp.codigo).replace(/^'+/, '').trim() &&
+                        String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()
+                    );
+                    processedData.push({ ...emp, fragmentTotal: empTotalFragment, rateKBS: employeeInfo?.rateKBS || 0 });
                 }
-                return { ...emp, fragmentTotal: empTotalFragment };
             });
 
             const rows = [['Site Code', 'KBS ID', 'Vendor Name', 'Employee Identifier', 'Date', 'Hours', 'Job Code', 'KBS Contract Hourly Rate']];
@@ -6278,7 +6323,7 @@ const VWHTableModal = (props) => {
                     `${start}-${end}`,
                     row.fragmentTotal.toFixed(2),
                     row.cargo,
-                    `$${getKbsRate(row.cargo, row.nombre).toFixed(2)}`
+                    `$${(row.rateKBS || 0).toFixed(2)}`
                 ]);
             });
             const grandTotal = processedData.reduce((sum, emp) => sum + emp.fragmentTotal, 0);
@@ -6373,22 +6418,67 @@ const VWHTableModal = (props) => {
         const startIdx = isQuincenaRange ? 0 : dayToIndex[dateStart.getDay()];
         const endIdx = isQuincenaRange ? 6 : dayToIndex[dateEnd.getDay()];
 
-        const processedData = reportData.map(emp => {
-            let empTotalFragment = 0;
-            if (startIdx <= endIdx) {
-                for (let i = startIdx; i <= endIdx; i++) {
-                    empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
-                }
+        const processedData = [];
+        reportData.forEach(emp => {
+            const hasCargoMixtoVWH = isWalgreensDallas(payrollStore) && emp.cargo_por_dia && Object.values(emp.cargo_por_dia).some(d => d.cargo !== emp.cargo);
+            if (hasCargoMixtoVWH) {
+                const employeeInfo = employees.find(e =>
+                    String(e.codigo_empleado).trim() === String(emp.codigo).replace(/^'+/, '').trim() &&
+                    String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()
+                );
+                const cargosUnicosVWH = [...new Set(Object.values(emp.cargo_por_dia).map(d => d.cargo))];
+                cargosUnicosVWH.forEach(cargoName => {
+                    let cargoTotal = 0;
+                    if (startIdx <= endIdx) {
+                        for (let i = startIdx; i <= endIdx; i++) {
+                            const dayCargo = emp.cargo_por_dia[days[i]]?.cargo;
+                            if (dayCargo === cargoName) {
+                                cargoTotal += hhmmToDecimal(emp[days[i]]?.final || 0);
+                            }
+                        }
+                    } else {
+                        for (let i = startIdx; i < 7; i++) {
+                            const dayCargo = emp.cargo_por_dia[days[i]]?.cargo;
+                            if (dayCargo === cargoName) {
+                                cargoTotal += hhmmToDecimal(emp[days[i]]?.final || 0);
+                            }
+                        }
+                        for (let i = 0; i <= endIdx; i++) {
+                            const dayCargo = emp.cargo_por_dia[days[i]]?.cargo;
+                            if (dayCargo === cargoName) {
+                                cargoTotal += hhmmToDecimal(emp[days[i]]?.final || 0);
+                            }
+                        }
+                    }
+                    if (cargoTotal > 0) {
+                        const isDefaultCargo = cargoName === emp.cargo;
+                        const cargoRateEntry = Object.values(emp.cargo_por_dia).find(d => d.cargo === cargoName);
+                        const rateKBS = isDefaultCargo ? (employeeInfo?.rateKBS || 0) : (cargoRateEntry?.rateKBS || 0);
+                        currentTotal += cargoTotal;
+                        processedData.push({ ...emp, cargo: cargoName, fragmentTotal: cargoTotal, rateKBS });
+                    }
+                });
             } else {
-                for (let i = startIdx; i < 7; i++) {
-                    empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                let empTotalFragment = 0;
+                if (startIdx <= endIdx) {
+                    for (let i = startIdx; i <= endIdx; i++) {
+                        empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                    }
+                } else {
+                    for (let i = startIdx; i < 7; i++) {
+                        empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                    }
+                    for (let i = 0; i <= endIdx; i++) {
+                        empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
+                    }
                 }
-                for (let i = 0; i <= endIdx; i++) {
-                    empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
-                }
+                currentTotal += empTotalFragment;
+                const employeeInfo = employees.find(e =>
+                    String(e.codigo_empleado).trim() === String(emp.codigo).replace(/^'+/, '').trim() &&
+                    String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()
+                );
+                processedData.push({ ...emp, fragmentTotal: empTotalFragment, rateKBS: employeeInfo?.rateKBS || 0 });
             }
-            currentTotal += empTotalFragment;
-            return { ...emp, fragmentTotal: empTotalFragment };
         });
 
         if (isAZPEN) {
@@ -6559,7 +6649,7 @@ const VWHTableModal = (props) => {
                                             <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded-md truncate block max-w-[80px]">{row.cargo}</span>
                                         </td>
                                         <td className="p-1.5 text-right px-3 bg-[#303a7f]/[0.02]">
-                                            <span className="text-[10px] font-black text-[#303a7f] tabular-nums">${getKbsRate(row.cargo, row.nombre).toFixed(2)}</span>
+                                            <span className="text-[10px] font-black text-[#303a7f] tabular-nums">${(row.rateKBS || 0).toFixed(2)}</span>
                                         </td>
                                     </tr>
                                 ))}
@@ -16245,22 +16335,56 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             setConfirmPayrollProgress(30);
             setConfirmPayrollStep("Estructurando archivos JSON optimizados...");
 
-            const employeesData = nominaDetalleRows.map(row => ({
-                empleado: row.Empleado,
-                id: row.ID_Empleado,
-                cargo: row.Cargo,
-                w1: row.Horas_W1,
-                w2: row.Horas_W2,
-                pe: row.Horas_PE,
-                total_hrs: row.Total_Horas,
-                total_lgm: row.Total_LGM,
-                total_kbs: row.Total_KBS,
-                margen: row.Margen,
-                comments: row.Comentarios,
-                rate: row.Rate_LGM,
-                rate_kbs: row.Rate_KBS,
-                pe_earnings: row.PE_Earnings
-            }));
+            const employeesData = nominaDetalleRows.map(row => {
+                const entry = {
+                    empleado: row.Empleado,
+                    id: row.ID_Empleado,
+                    cargo: row.Cargo,
+                    w1: row.Horas_W1,
+                    w2: row.Horas_W2,
+                    pe: row.Horas_PE,
+                    total_hrs: row.Total_Horas,
+                    total_lgm: row.Total_LGM,
+                    total_kbs: row.Total_KBS,
+                    margen: row.Margen,
+                    comments: row.Comentarios,
+                    rate: row.Rate_LGM,
+                    rate_kbs: row.Rate_KBS,
+                    pe_earnings: row.PE_Earnings
+                };
+
+                if (isWalgreensDallas(selectedBiweeklyPeriod.store)) {
+                    const storeHistory = (nominaHistoryData || []).filter(h =>
+                        String(h.nombre).trim().toLowerCase() === String(selectedBiweeklyPeriod.store).trim().toLowerCase()
+                    );
+                    let horasPorCargo = {};
+                    storeHistory.forEach(h => {
+                        try {
+                            const payload = JSON.parse(h.data_json || '{}');
+                            const empRow = (payload.semanaTableData || []).find(e =>
+                                String(e.nombre).trim().toLowerCase() === String(row.Empleado).trim().toLowerCase()
+                            );
+                            if (empRow && empRow.cargo_por_dia) {
+                                const daysList3 = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                                daysList3.forEach(day => {
+                                    if (empRow.cargo_por_dia[day]) {
+                                        const cargo = empRow.cargo_por_dia[day].cargo;
+                                        const hrs = hhmmToDecimal(empRow[day]?.final || 0);
+                                        if (hrs > 0) {
+                                            horasPorCargo[cargo] = (horasPorCargo[cargo] || 0) + hrs;
+                                        }
+                                    }
+                                });
+                            }
+                        } catch (e) {}
+                    });
+                    if (Object.keys(horasPorCargo).length > 0) {
+                        entry.horas_por_cargo = horasPorCargo;
+                    }
+                }
+
+                return entry;
+            });
 
             const currentTimestamp = new Date().toLocaleString();
             const consolidationId = `${selectedBiweeklyPeriod.store}_${selectedBiweeklyPeriod.range}`.replace(/\s+/g, '_');
@@ -16725,14 +16849,183 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             );
 
             console.log('[Payroll] Filas finales procesadas:', semanaRows.length);
-            setSemanaTableData(semanaRows);
+
+            // FUSIÓN DE CARGOS PARA WALGREENS DALLAS: agrupar filas con mismo código de empleado
+            let finalSemanaRows = semanaRows;
+            if (isWalgreensDallas(payrollStore)) {
+                console.log('[WD FUSION] payrollStore:', JSON.stringify(payrollStore));
+                console.log('[WD FUSION] isWalgreensDallas:', true);
+                console.log('[WD FUSION] semanaRows count:', semanaRows.length);
+                console.log('[WD FUSION] codigos:', semanaRows.map(r => ({ 
+                    nombre: r.nombre, 
+                    codigo_raw: JSON.stringify(r.codigo), 
+                    cargo: r.cargo 
+                })));
+                
+                const grouped = {};
+                const daysList = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                semanaRows.forEach(row => {
+                    const rawCodigo = String(row.codigo || '').replace(/^'+/, '').trim();
+                    const rawNombre = String(row.nombre).trim().toLowerCase();
+                    let key = rawCodigo !== '' ? (rawCodigo + '||' + rawNombre) : ('__nombre__' + rawNombre);
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(row);
+                });
+
+                console.log('[WD FUSION] grouped keys:', Object.keys(grouped));
+                console.log('[WD FUSION] groups with >1:', Object.values(grouped).filter(g => g.length > 1).map(g => ({
+                    nombre: g[0].nombre,
+                    rawCodigo: String(g[0].codigo || '').replace(/^'+/, '').trim(),
+                    count: g.length,
+                    cargos: g.map(r => r.cargo)
+                })));
+
+                finalSemanaRows = Object.values(grouped).map(group => {
+                    if (group.length === 1) return group[0];
+                    const cargosUnicos = [...new Set(group.map(r => r.cargo))];
+                    const defaultCargo = group[0].cargo;
+                    const rawCodigo = String(group[0].codigo || '').replace(/^'+/, '').trim();
+                    const merged = {
+                        ...group[0],
+                        codigo: rawCodigo,
+                        cargo: defaultCargo,
+                        cargo_por_dia: {}
+                    };
+                    daysList.forEach(day => {
+                        merged[day] = { sup: 0, bio: 'X', final: '0' };
+                    });
+                    let totalMinutos = 0;
+                    group.forEach(subRow => {
+                        const subCargo = subRow.cargo;
+                        daysList.forEach(day => {
+                            const hrs = hhmmToDecimal(subRow[day]?.final || 0);
+                            if (hrs > 0) {
+                                merged[day] = {
+                                    sup: (parseFloat(String(merged[day].sup || 0)) + parseFloat(String(subRow[day]?.sup || 0))) || 0,
+                                    bio: 'X',
+                                    final: String((parseFloat(String(merged[day].final || 0)) + parseFloat(String(subRow[day]?.final || 0))) || 0)
+                                };
+                                const employeeInfo = employees.find(e =>
+                                    String(e.codigo_empleado).replace(/^'+/, '').trim() === rawCodigo &&
+                                    String(e.nombre).trim().toLowerCase() === String(merged.nombre).trim().toLowerCase()
+                                );
+                                if (!merged.cargo_por_dia[day]) {
+                                    const isDefaultCargo = subCargo === defaultCargo;
+                                    merged.cargo_por_dia[day] = {
+                                        cargo: subCargo,
+                                        rateKBS: isDefaultCargo ? (employeeInfo?.rateKBS || 0) : 0,
+                                        rateLGM: isDefaultCargo ? (employeeInfo?.rateLGM || 0) : 0
+                                    };
+                                }
+                            }
+                        });
+                    });
+                    daysList.forEach(day => {
+                        const val = String(merged[day].final || '0');
+                        if (val && val !== 'X') {
+                            if (val.includes(':')) {
+                                const [h, m] = val.split(':').map(Number);
+                                totalMinutos += (h * 60) + (m || 0);
+                            } else {
+                                totalMinutos += parseFloat(val) * 60;
+                            }
+                        }
+                    });
+                    merged.total = { ...merged.total, final: String(Math.round((totalMinutos / 60) * 100) / 100) };
+                    if (cargosUnicos.length <= 1) delete merged.cargo_por_dia;
+                    return merged;
+                });
+
+                const nameGroups = {};
+                finalSemanaRows.forEach(row => {
+                    const nameKey = String(row.nombre).trim().toLowerCase();
+                    if (!nameGroups[nameKey]) nameGroups[nameKey] = [];
+                    nameGroups[nameKey].push(row);
+                });
+                const nameDuplicates = Object.entries(nameGroups).filter(([, rows]) => rows.length > 1);
+                if (nameDuplicates.length > 0) {
+                    console.log('[WD FUSION] nameDuplicates found:', nameDuplicates.map(([name, rows]) => ({
+                        nombre: rows[0].nombre,
+                        count: rows.length,
+                        cargos: rows.map(r => r.cargo)
+                    })));
+                    const mergedByName = [];
+                    const mergedNames = new Set();
+                    nameDuplicates.forEach(([, rows]) => {
+                        const cargosUnicos = [...new Set(rows.map(r => r.cargo))];
+                        const defaultCargo = rows[0].cargo;
+                        const rawCodigo = String(rows[0].codigo || '').replace(/^'+/, '').trim();
+                        const merged = {
+                            ...rows[0],
+                            codigo: rawCodigo,
+                            cargo: defaultCargo,
+                            cargo_por_dia: {}
+                        };
+                        daysList.forEach(day => {
+                            merged[day] = { sup: 0, bio: 'X', final: '0' };
+                        });
+                        let totalMinutos = 0;
+                        rows.forEach(subRow => {
+                            const subCargo = subRow.cargo;
+                            daysList.forEach(day => {
+                                const hrs = hhmmToDecimal(subRow[day]?.final || 0);
+                                if (hrs > 0) {
+                                    merged[day] = {
+                                        sup: (parseFloat(String(merged[day].sup || 0)) + parseFloat(String(subRow[day]?.sup || 0))) || 0,
+                                        bio: 'X',
+                                        final: String((parseFloat(String(merged[day].final || 0)) + parseFloat(String(subRow[day]?.final || 0))) || 0)
+                                    };
+                                    const employeeInfo = employees.find(e =>
+                                        String(e.codigo_empleado).replace(/^'+/, '').trim() === rawCodigo &&
+                                        String(e.nombre).trim().toLowerCase() === String(merged.nombre).trim().toLowerCase()
+                                    );
+                                    if (!merged.cargo_por_dia[day]) {
+                                        const isDefaultCargo = subCargo === defaultCargo;
+                                        merged.cargo_por_dia[day] = {
+                                            cargo: subCargo,
+                                            rateKBS: isDefaultCargo ? (employeeInfo?.rateKBS || 0) : 0,
+                                            rateLGM: isDefaultCargo ? (employeeInfo?.rateLGM || 0) : 0
+                                        };
+                                    }
+                                }
+                            });
+                        });
+                        daysList.forEach(day => {
+                            const val = String(merged[day].final || '0');
+                            if (val && val !== 'X') {
+                                if (val.includes(':')) {
+                                    const [h, m] = val.split(':').map(Number);
+                                    totalMinutos += (h * 60) + (m || 0);
+                                } else {
+                                    totalMinutos += parseFloat(val) * 60;
+                                }
+                            }
+                        });
+                        merged.total = { ...merged.total, final: String(Math.round((totalMinutos / 60) * 100) / 100) };
+                        if (cargosUnicos.length <= 1) delete merged.cargo_por_dia;
+                        mergedByName.push(merged);
+                        mergedNames.add(rows[0].nombre.trim().toLowerCase());
+                    });
+                    finalSemanaRows = finalSemanaRows.filter(r => !mergedNames.has(String(r.nombre).trim().toLowerCase()));
+                    finalSemanaRows.push(...mergedByName);
+                }
+
+                console.log('[WD FUSION] finalSemanaRows count:', finalSemanaRows.length);
+                console.log('[WD FUSION] rows with cargo_por_dia:', finalSemanaRows.filter(r => r.cargo_por_dia).map(r => ({
+                    nombre: r.nombre,
+                    codigo: r.codigo,
+                    cargo: r.cargo,
+                    cargo_por_dia: r.cargo_por_dia
+                })));
+            }
+            setSemanaTableData(finalSemanaRows);
             setPayrollResults([]);
             setPayrollProgress(supervisorJson.length);
 
             // Guardar borrador inicial (Data del Supervisor)
             const draftKey = `${payrollStore}_${fechaDesde}_${fechaHasta}`.replace(/\s+/g, '_');
             const newDraft = {
-                semanaTableData: semanaRows,
+                semanaTableData: finalSemanaRows,
                 biometricTableData: [],
                 rawBiometricData: [],
                 payrollResults: []
@@ -17003,20 +17296,24 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 const cargoKey = cargoLower.includes('shift') ? 'shift_lead' :
                     cargoLower.includes('utility') ? 'utility' : 'janitorial';
 
-                // Buscar información personal del empleado para obtener rates personalizados
                 const employeeInfo = employees.find(e =>
                     e.codigo_empleado.toString().trim() === emp.codigo.toString().trim() &&
                     e.nombre.toString().trim().toLowerCase() === emp.nombre.toString().trim().toLowerCase()
                 );
 
-                // Fuente única de verdad: Rates Personales del Empleado
                 const rateLSG = employeeInfo?.rateLGM || 0;
                 const rateKBS = employeeInfo?.rateKBS || 0;
 
-                const calcDay = (val, rate) => hhmmToDecimal(val) * rate;
+                const getRateForDay = (day, rateType) => {
+                    if (emp.cargo_por_dia && emp.cargo_por_dia[day] && emp.cargo_por_dia[day].cargo !== emp.cargo) {
+                        return rateType === 'kbs' ? (emp.cargo_por_dia[day].rateKBS || 0) : (emp.cargo_por_dia[day].rateLGM || 0);
+                    }
+                    return rateType === 'kbs' ? rateKBS : rateLSG;
+                };
+
                 const days = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-                const sumDaysTotal = (empRow, rate) => {
-                    return days.reduce((acc, day) => acc + (hhmmToDecimal(empRow[day]?.final) * rate), 0);
+                const sumDaysTotal = (empRow, rateType) => {
+                    return days.reduce((acc, day) => acc + (hhmmToDecimal(empRow[day]?.final) * getRateForDay(day, rateType)), 0);
                 };
 
                 return {
@@ -17024,29 +17321,31 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                         nombre: emp.nombre,
                         codigo: emp.codigo,
                         cargo: emp.cargo,
+                        cargo_por_dia: emp.cargo_por_dia || undefined,
                         rate: rateLSG,
-                        domingo: calcDay(emp.domingo.final, rateLSG),
-                        lunes: calcDay(emp.lunes.final, rateLSG),
-                        martes: calcDay(emp.martes.final, rateLSG),
-                        miercoles: calcDay(emp.miercoles.final, rateLSG),
-                        jueves: calcDay(emp.jueves.final, rateLSG),
-                        viernes: calcDay(emp.viernes.final, rateLSG),
-                        sabado: calcDay(emp.sabado.final, rateLSG),
-                        total: sumDaysTotal(emp, rateLSG)
+                        domingo: hhmmToDecimal(emp.domingo.final) * getRateForDay('domingo', 'lgm'),
+                        lunes: hhmmToDecimal(emp.lunes.final) * getRateForDay('lunes', 'lgm'),
+                        martes: hhmmToDecimal(emp.martes.final) * getRateForDay('martes', 'lgm'),
+                        miercoles: hhmmToDecimal(emp.miercoles.final) * getRateForDay('miercoles', 'lgm'),
+                        jueves: hhmmToDecimal(emp.jueves.final) * getRateForDay('jueves', 'lgm'),
+                        viernes: hhmmToDecimal(emp.viernes.final) * getRateForDay('viernes', 'lgm'),
+                        sabado: hhmmToDecimal(emp.sabado.final) * getRateForDay('sabado', 'lgm'),
+                        total: sumDaysTotal(emp, 'lgm')
                     },
                     kbs: {
                         nombre: emp.nombre,
                         codigo: emp.codigo,
                         cargo: emp.cargo,
+                        cargo_por_dia: emp.cargo_por_dia || undefined,
                         rate: rateKBS,
-                        domingo: calcDay(emp.domingo.final, rateKBS),
-                        lunes: calcDay(emp.lunes.final, rateKBS),
-                        martes: calcDay(emp.martes.final, rateKBS),
-                        miercoles: calcDay(emp.miercoles.final, rateKBS),
-                        jueves: calcDay(emp.jueves.final, rateKBS),
-                        viernes: calcDay(emp.viernes.final, rateKBS),
-                        sabado: calcDay(emp.sabado.final, rateKBS),
-                        total: sumDaysTotal(emp, rateKBS)
+                        domingo: hhmmToDecimal(emp.domingo.final) * getRateForDay('domingo', 'kbs'),
+                        lunes: hhmmToDecimal(emp.lunes.final) * getRateForDay('lunes', 'kbs'),
+                        martes: hhmmToDecimal(emp.martes.final) * getRateForDay('martes', 'kbs'),
+                        miercoles: hhmmToDecimal(emp.miercoles.final) * getRateForDay('miercoles', 'kbs'),
+                        jueves: hhmmToDecimal(emp.jueves.final) * getRateForDay('jueves', 'kbs'),
+                        viernes: hhmmToDecimal(emp.viernes.final) * getRateForDay('viernes', 'kbs'),
+                        sabado: hhmmToDecimal(emp.sabado.final) * getRateForDay('sabado', 'kbs'),
+                        total: sumDaysTotal(emp, 'kbs')
                     }
                 };
             });
@@ -17246,26 +17545,38 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     const cargoKey = cargoLower.includes('shift') ? 'shift_lead' :
                         cargoLower.includes('utility') ? 'utility' : 'janitorial';
 
-                    // Buscar información personal del empleado para obtener rates personalizados
                     const employeeInfo = employees.find(e =>
                         e.codigo_empleado.toString().trim() === emp.codigo.toString().trim() &&
                         e.nombre.toString().trim().toLowerCase() === emp.nombre.toString().trim().toLowerCase()
                     );
 
-                    // Fuente única de verdad: Rates Personales del Empleado
                     const rateLSG = employeeInfo?.rateLGM || 0;
                     const rateKBS = employeeInfo?.rateKBS || 0;
 
+                    const getRateForDay = (day, rateType) => {
+                        if (emp.cargo_por_dia && emp.cargo_por_dia[day] && emp.cargo_por_dia[day].cargo !== emp.cargo) {
+                            return rateType === 'kbs' ? (emp.cargo_por_dia[day].rateKBS || 0) : (emp.cargo_por_dia[day].rateLGM || 0);
+                        }
+                        return rateType === 'kbs' ? rateKBS : rateLSG;
+                    };
+
                     let totalLSG = 0;
                     let totalKBS = 0;
+                    const lsgDays = {};
+                    const kbsDays = {};
                     for (let i = startIndex; i <= endIndex; i++) {
-                        const hrs = hhmmToDecimal(emp[days[i]]?.final || 0);
-                        totalLSG += hrs * rateLSG;
-                        totalKBS += hrs * rateKBS;
+                        const day = days[i];
+                        const hrs = hhmmToDecimal(emp[day]?.final || 0);
+                        const lgmRate = getRateForDay(day, 'lgm');
+                        const kbsRate = getRateForDay(day, 'kbs');
+                        totalLSG += hrs * lgmRate;
+                        totalKBS += hrs * kbsRate;
+                        lsgDays[day] = hrs * lgmRate;
+                        kbsDays[day] = hrs * kbsRate;
                     }
                     return {
-                        lsg: { ...emp, total: totalLSG, rate: rateLSG },
-                        kbs: { ...emp, total: totalKBS, rate: rateKBS }
+                        lsg: { ...emp, ...lsgDays, total: totalLSG, rate: rateLSG },
+                        kbs: { ...emp, ...kbsDays, total: totalKBS, rate: rateKBS }
                     };
                 });
 
@@ -17589,6 +17900,25 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
         }));
     };
 
+    const handleCargoRateChange = (idx, day, rateType, value) => {
+        setSemanaTableData(prev => {
+            const updated = [...prev];
+            const row = { ...updated[idx] };
+            if (row.cargo_por_dia && row.cargo_por_dia[day]) {
+                const numVal = value === '' || value === null ? 0 : (parseFloat(value) || 0);
+                row.cargo_por_dia = {
+                    ...row.cargo_por_dia,
+                    [day]: {
+                        ...row.cargo_por_dia[day],
+                        [rateType]: numVal
+                    }
+                };
+            }
+            updated[idx] = row;
+            return updated;
+        });
+    };
+
     // --- FASE 8: Digitalizador de Planillas (IA vision) ---
 
 
@@ -17727,7 +18057,47 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 .map(e => `- ${e.nombre} (Cargo suggerido: ${e.cargo})`)
                 .join('\n');
 
-            const prompt = `
+            const prompt = isWalgreensDallas(payrollStore) ? `
+                Analiza estas fotos de planillas de asistencia escritas a mano. 
+                
+                REFERENCIA DE PERSONAL AUTORIZADO (Usa esta lista para corregir nombres mal escritos):
+                ${storeEmployees || "No hay personal previo registrado para esta tienda."}
+                
+                TAREA:
+                1. Extrae el nombre de los empleados. 
+                   IMPORTANTE: Compara el nombre escrito con la LISTA DE REFERENCIA. Si hay una coincidencia cercana (ej: "Walding" -> "Waldina"), USA EL NOMBRE DE LA LISTA.
+                2. EXCLUSIÓN CRÍTICA: Revisa la columna 'Company'. Si un empleado pertenece a "KBS", IGNÓRALO COMPLETAMENTE Y NO LO INCLUYAS EN EL RESULTADO.
+                3. Solo incluye empleados de "LGM" o aquellos que no tengan compañía especificada (asúmelos como LGM).
+                4. LOCALIZACIÓN DE FECHA AGNOSTICA: Escanea toda la planilla buscando cualquier fecha escrita a mano (formato MM/DD o MM/DD/YY). No te limites a una esquina ni busques la palabra "Date"; concéntrate en el patrón de fecha.
+                5. TIPO DE PLANILLA:
+                   - Si la planilla es de UN SOLO DÍA, extrae esa fecha y asocia las horas a ese día de la semana.
+                   - Si la planilla es SEMANAL o tiene un RANGO de fechas (ej: "02/22 al 02/28"), extrae cada fecha individual y asocia las horas a cada día correspondiente.
+                6. Extrae las horas trabajadas totales para cada fecha identificada.
+                   FORMATO DECIMAL: Las horas deben estar en formato decimal (ej: "8.5" en lugar de "8:30").
+                   Si la planilla muestra "8:30", conviértelo a 8.5. Si muestra "7:45", conviértelo a 7.75.
+                7. El Código de empleado debe quedar vacío "".
+                8. PRIORIDAD DE COMENTARIOS: Si una imagen viene acompañada de un comentario del usuario, PRIORIZA esa información (ej: fechas específicas, nombres a ignorar, cargos correctos).
+                9. CAMBIO DE CARGO DURANTE LA SEMANA (CRÍTICO): El cargo de un empleado puede CAMBIAR durante la semana.
+                   Escanea CADA DÍA de la planilla y determina el cargo específico para ese día.
+                   - Si el empleado tuvo el MISMO cargo TODA la semana: usa solo el campo "cargo_default", NO incluyas "cargo" en cada asistencia.
+                   - Si el empleado tuvo DIFERENTES cargos en distintos días: incluye el campo "cargo" en CADA asistencia indicando el cargo de ese día específico.
+                   Los cargos válidos son: "Janitorial", "Utility", "Shift Lead".
+                
+                RETORNA UN JSON CON ESTA ESTRUCTURA EXACTA:
+                {
+                  "employees": [
+                    {
+                      "nombre": "Nombre del Empleado (Corregido según lista o extraído si es nuevo)",
+                      "cargo_default": "Janitorial/Utility/Shift Lead",
+                      "es_nuevo": true/false,
+                      "asistencias": [
+                        { "fecha": "MM/DD/YYYY", "horas": "8.5", "cargo": "Utility" }
+                      ]
+                    }
+                  ]
+                }
+                NOTA: El campo "cargo" en cada asistencia es OPCIONAL. Solo inclúyelo si el cargo de ese día es DIFERENTE al "cargo_default".
+            ` : `
                 Analiza estas fotos de planillas de asistencia escritas a mano. 
                 
                 REFERENCIA DE PERSONAL AUTORIZADO (Usa esta lista para corregir nombres mal escritos):
@@ -17794,61 +18164,109 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 const ws = wb.Sheets[wsName];
 
                 // 2. Procesar datos con lógica de fecha en JS para precisión total
-                const rowsToInsert = aiData.employees.map(emp => {
-                    // Match con la base de datos local para extraer el código oficial
+                const rowsToInsert = [];
+                aiData.employees.forEach(emp => {
                     const localMatch = employees.find(e => e.nombre.toLowerCase() === emp.nombre.toLowerCase() && e.tienda === payrollStore);
                     const codigoOficial = localMatch ? localMatch.codigo_empleado : "";
+                    const defaultCargo = emp.cargo_default || emp.cargo || 'N/A';
+                    const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
 
-                    const row = {
-                        "Nombre y Apellidos": emp.nombre,
-                        "Código": emp.es_nuevo ? "NO REGISTRADO" : codigoOficial,
-                        "Cargo": emp.cargo,
-                        ...(isChewyStore(payrollStore)
-                            ? { "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0", "Domingo": "0" }
-                            : { "Domingo": "0", "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0" }
-                        ),
-                        "TOTAL": "0"
-                    };
+                    if (isWalgreensDallas(payrollStore)) {
+                        const cargoMap = {};
+                        emp.asistencias.forEach(asist => {
+                            const dateParts = asist.fecha.split('/');
+                            let d;
+                            if (dateParts.length === 3) {
+                                const m = parseInt(dateParts[0]) - 1;
+                                const dDay = parseInt(dateParts[1]);
+                                let y = parseInt(dateParts[2]);
+                                if (y < 100) y += 2000;
+                                d = new Date(y, m, dDay);
+                            } else {
+                                d = new Date(asist.fecha);
+                            }
+                            if (!isNaN(d.getTime())) {
+                                const dayIdx = d.getDay();
+                                const dayKey = dayNames[dayIdx];
+                                const cargoDia = asist.cargo || defaultCargo;
+                                if (!cargoMap[cargoDia]) {
+                                    cargoMap[cargoDia] = {
+                                        cargo: cargoDia,
+                                        dias: { "Domingo": "0", "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0" },
+                                        totalHoras: 0
+                                    };
+                                }
+                                const horas = String(parseFloat(asist.horas) || 0);
+                                cargoMap[cargoDia].dias[dayKey] = horas;
+                                cargoMap[cargoDia].totalHoras += parseFloat(asist.horas) || 0;
+                            }
+                        });
 
-                    let totalHoras = 0;
-                    emp.asistencias.forEach(asist => {
-                        const dateParts = asist.fecha.split('/');
-                        let d;
-                        if (dateParts.length === 3) {
-                            const m = parseInt(dateParts[0]) - 1;
-                            const dDay = parseInt(dateParts[1]);
-                            let y = parseInt(dateParts[2]);
-                            if (y < 100) y += 2000;
-                            d = new Date(y, m, dDay);
+                        const cargosUnicos = Object.keys(cargoMap);
+                        if (cargosUnicos.length <= 1) {
+                            const entry = cargoMap[defaultCargo] || { cargo: defaultCargo, dias: { "Domingo": "0", "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0" }, totalHoras: 0 };
+                            rowsToInsert.push([
+                                emp.nombre,
+                                emp.es_nuevo ? "NO REGISTRADO" : codigoOficial,
+                                entry.cargo,
+                                entry.dias["Domingo"], entry.dias["Lunes"], entry.dias["Martes"], entry.dias["Miercoles"],
+                                entry.dias["Jueves"], entry.dias["Viernes"], entry.dias["Sabado"],
+                                String(Math.round(entry.totalHoras * 100) / 100)
+                            ]);
                         } else {
-                            d = new Date(asist.fecha);
+                            cargosUnicos.forEach(cargoKey => {
+                                const entry = cargoMap[cargoKey];
+                                rowsToInsert.push([
+                                    emp.nombre,
+                                    emp.es_nuevo ? "NO REGISTRADO" : codigoOficial,
+                                    entry.cargo,
+                                    entry.dias["Domingo"], entry.dias["Lunes"], entry.dias["Martes"], entry.dias["Miercoles"],
+                                    entry.dias["Jueves"], entry.dias["Viernes"], entry.dias["Sabado"],
+                                    String(Math.round(entry.totalHoras * 100) / 100)
+                                ]);
+                            });
                         }
-
-                        if (!isNaN(d.getTime())) {
-                            const dayIdx = d.getDay(); // 0=Dom, 1=Lun, ..., 6=Sab
-                            const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
-                            const dayKey = dayNames[dayIdx];
-                            row[dayKey] = asist.horas;
-
-                            totalHoras += parseFloat(asist.horas) || 0;
-                        }
-                    });
-
-                    row["TOTAL"] = String(Math.round(totalHoras * 100) / 100);
-
-                    return [
-                        row["Nombre y Apellidos"],
-                        row["Código"],
-                        row["Cargo"],
-                        row["Domingo"],
-                        row["Lunes"],
-                        row["Martes"],
-                        row["Miercoles"],
-                        row["Jueves"],
-                        row["Viernes"],
-                        row["Sabado"],
-                        row["TOTAL"]
-                    ];
+                    } else {
+                        const row = {
+                            "Nombre y Apellidos": emp.nombre,
+                            "Código": emp.es_nuevo ? "NO REGISTRADO" : codigoOficial,
+                            "Cargo": emp.cargo,
+                            ...(isChewyStore(payrollStore)
+                                ? { "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0", "Domingo": "0" }
+                                : { "Domingo": "0", "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0" }
+                            ),
+                            "TOTAL": "0"
+                        };
+                        let totalHoras = 0;
+                        emp.asistencias.forEach(asist => {
+                            const dateParts = asist.fecha.split('/');
+                            let d;
+                            if (dateParts.length === 3) {
+                                const m = parseInt(dateParts[0]) - 1;
+                                const dDay = parseInt(dateParts[1]);
+                                let y = parseInt(dateParts[2]);
+                                if (y < 100) y += 2000;
+                                d = new Date(y, m, dDay);
+                            } else {
+                                d = new Date(asist.fecha);
+                            }
+                            if (!isNaN(d.getTime())) {
+                                const dayIdx = d.getDay();
+                                const dayKey = dayNames[dayIdx];
+                                row[dayKey] = asist.horas;
+                                totalHoras += parseFloat(asist.horas) || 0;
+                            }
+                        });
+                        row["TOTAL"] = String(Math.round(totalHoras * 100) / 100);
+                        rowsToInsert.push([
+                            row["Nombre y Apellidos"],
+                            row["Código"],
+                            row["Cargo"],
+                            row["Domingo"], row["Lunes"], row["Martes"], row["Miercoles"],
+                            row["Jueves"], row["Viernes"], row["Sabado"],
+                            row["TOTAL"]
+                        ]);
+                    }
                 });
 
                 XLSX.utils.sheet_add_aoa(ws, rowsToInsert, { origin: 2 });
@@ -19287,21 +19705,52 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                     String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
                                 );
 
+                                const hasCargoMixtoExcel = row.cargo_por_dia && Object.values(row.cargo_por_dia).some(d => d.cargo !== row.cargo);
+
                                 let totalHrs = 0;
-                                const rowData = [row.nombre, row.codigo, row.cargo];
+                                let lgmTotalCalc = 0;
+                                const rowData = [row.nombre, row.codigo, hasCargoMixtoExcel ? [...new Set(Object.values(row.cargo_por_dia).map(d => d.cargo))].join(' / ') : row.cargo];
 
                                 sortedIndices.forEach(i => {
                                     const dayName = dayNamesBySundayIdx[i];
                                     const hDec = hhmmToDecimal(row[dayName]?.final || 0);
                                     totalHrs += hDec;
                                     rowData.push(hDec);
+                                    if (hasCargoMixtoExcel && row.cargo_por_dia[dayName]) {
+                                        const dayLgmRate = row.cargo_por_dia[dayName].cargo !== row.cargo ? (row.cargo_por_dia[dayName].rateLGM || 0) : (employeeInfo?.rateLGM || 0);
+                                        lgmTotalCalc += hDec * dayLgmRate;
+                                    }
                                 });
 
-                                const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
-                                const lgmTotal = totalHrs * lgmRate;
-
-                                rowData.push(totalHrs, formatCurrency(lgmRate), formatCurrency(lgmTotal));
+                                if (!hasCargoMixtoExcel) {
+                                    const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
+                                    lgmTotalCalc = totalHrs * lgmRate;
+                                    rowData.push(totalHrs, formatCurrency(lgmRate), formatCurrency(lgmTotalCalc));
+                                } else {
+                                    rowData.push(totalHrs, 'Variable', formatCurrency(lgmTotalCalc));
+                                }
                                 rows.push(rowData);
+
+                                if (hasCargoMixtoExcel) {
+                                    const cargosUnicos = [...new Set(Object.values(row.cargo_por_dia).map(d => d.cargo))];
+                                    cargosUnicos.forEach(cargoName => {
+                                        let cargoHrs = 0;
+                                        const subRow = [row.nombre, row.codigo, cargoName];
+                                        sortedIndices.forEach(i => {
+                                            const dayName = dayNamesBySundayIdx[i];
+                                            if (row.cargo_por_dia[dayName] && row.cargo_por_dia[dayName].cargo === cargoName) {
+                                                const hDec = hhmmToDecimal(row[dayName]?.final || 0);
+                                                cargoHrs += hDec;
+                                                subRow.push(hDec);
+                                            } else {
+                                                subRow.push(0);
+                                            }
+                                        });
+                                        const cargoLgmRate = cargoName === row.cargo ? (employeeInfo?.rateLGM || 0) : (Object.values(row.cargo_por_dia).find(d => d.cargo === cargoName)?.rateLGM || 0);
+                                        subRow.push(cargoHrs, formatCurrency(cargoLgmRate), formatCurrency(cargoHrs * cargoLgmRate));
+                                        rows.push(subRow);
+                                    });
+                                }
                             });
 
                             return rows;
@@ -19388,10 +19837,29 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                         String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
                                     );
 
-                                    const kbsRate = kbsRow ? (kbsRow.rate || 0) : (employeeInfo?.rateKBS || 0);
-                                    const kbsTotal = (kbsRow && !showSplit) ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
-                                    const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
-                                    const lgmTotal = (lgmRow && !showSplit) ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
+                                    let kbsTotal, lgmTotal;
+                                    if (row.cargo_por_dia) {
+                                        const getRateForDay = (day, rateType) => {
+                                            if (row.cargo_por_dia[day] && row.cargo_por_dia[day].cargo !== row.cargo) {
+                                                return rateType === 'kbs' ? (row.cargo_por_dia[day].rateKBS || 0) : (row.cargo_por_dia[day].rateLGM || 0);
+                                            }
+                                            const empRate = rateType === 'kbs' ? (employeeInfo?.rateKBS || 0) : (employeeInfo?.rateLGM || 0);
+                                            return empRate;
+                                        };
+                                        kbsTotal = 0;
+                                        lgmTotal = 0;
+                                        const daysList = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                                        daysList.forEach(day => {
+                                            const hrs = hhmmToDecimal(row[day]?.final || 0);
+                                            kbsTotal += hrs * getRateForDay(day, 'kbs');
+                                            lgmTotal += hrs * getRateForDay(day, 'lgm');
+                                        });
+                                    } else {
+                                        const kbsRate = kbsRow ? (kbsRow.rate || 0) : (employeeInfo?.rateKBS || 0);
+                                        kbsTotal = (kbsRow && !showSplit) ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
+                                        const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
+                                        lgmTotal = (lgmRow && !showSplit) ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
+                                    }
 
                                     totalKBS += kbsTotal;
                                     totalLGM += lgmTotal;
@@ -19476,62 +19944,128 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                modalSemanaData.map((row, idx) => {
-                                                    const empId = `${String(row.nombre).trim().toLowerCase()}_${String(row.codigo).replace(/^'+/, '').trim()}`;
-                                                    const kbsRow = (modalKbsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
-                                                    const lgmRow = (modalEarningsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+                                                (() => {
+                                                    const displayRows = [];
+                                                    const daysList3 = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                                                    modalSemanaData.forEach((row, origIdx) => {
+                                                        const employeeInfo = employees.find(e =>
+                                                            String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
+                                                            String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
+                                                        );
+                                                        const hasCargoMixtoRow = row.cargo_por_dia && Object.values(row.cargo_por_dia).some(d => d.cargo !== row.cargo);
 
-                                                    const employeeInfo = employees.find(e =>
-                                                        String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
-                                                        String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
-                                                    );
+                                                        if (hasCargoMixtoRow) {
+                                                            const cargosUnicosRow = [...new Set(Object.values(row.cargo_por_dia).map(d => d.cargo))];
+                                                            cargosUnicosRow.forEach(cargoName => {
+                                                                let cargoHrs = 0;
+                                                                daysList3.forEach(day => {
+                                                                    if (row.cargo_por_dia[day] && row.cargo_por_dia[day].cargo === cargoName) {
+                                                                        cargoHrs += hhmmToDecimal(row[day]?.final || 0);
+                                                                    }
+                                                                });
+                                                                const isDefaultCargo = cargoName === row.cargo;
+                                                                const cargoRateEntry = Object.values(row.cargo_por_dia).find(d => d.cargo === cargoName);
+                                                                const kbsRate = isDefaultCargo ? (employeeInfo?.rateKBS || 0) : (cargoRateEntry?.rateKBS || 0);
+                                                                const lgmRate = isDefaultCargo ? (employeeInfo?.rateLGM || 0) : (cargoRateEntry?.rateLGM || 0);
+                                                                displayRows.push({
+                                                                    nombre: row.nombre,
+                                                                    codigo: row.codigo,
+                                                                    cargo: cargoName,
+                                                                    isSubRow: true,
+                                                                    origIdx,
+                                                                    cargoHrs,
+                                                                    kbsRate,
+                                                                    lgmRate,
+                                                                    kbsTotal: cargoHrs * kbsRate,
+                                                                    lgmTotal: cargoHrs * lgmRate,
+                                                                    sourceRow: row,
+                                                                    employeeInfo
+                                                                });
+                                                            });
+                                                        } else {
+                                                            const empId = `${String(row.nombre).trim().toLowerCase()}_${String(row.codigo).replace(/^'+/, '').trim()}`;
+                                                            const kbsRow = (modalKbsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+                                                            const lgmRow = (modalEarningsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+                                                            const hDec = hhmmToDecimal(row.total.final);
+                                                            const kbsRate = kbsRow ? (kbsRow.rate || 0) : (employeeInfo?.rateKBS || 0);
+                                                            const kbsTotal = (kbsRow && !showSplit) ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
+                                                            const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
+                                                            const lgmTotal = (lgmRow && !showSplit) ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
+                                                            displayRows.push({
+                                                                nombre: row.nombre,
+                                                                codigo: row.codigo,
+                                                                cargo: row.cargo,
+                                                                isSubRow: false,
+                                                                origIdx,
+                                                                cargoHrs: hDec,
+                                                                kbsRate,
+                                                                lgmRate,
+                                                                kbsTotal,
+                                                                lgmTotal,
+                                                                sourceRow: row,
+                                                                employeeInfo
+                                                            });
+                                                        }
+                                                    });
 
-                                                    const hDec = hhmmToDecimal(row.total.final);
-                                                    const kbsRate = kbsRow ? (kbsRow.rate || 0) : (employeeInfo?.rateKBS || 0);
-                                                    const kbsTotal = (kbsRow && !showSplit) ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
-                                                    const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
-                                                    const lgmTotal = (lgmRow && !showSplit) ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
+                                                    return displayRows.map((item, idx) => {
+                                                        const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
+                                                        const row = item.sourceRow;
 
-                                                    const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
-
-                                                    return (
-                                                        <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
-                                                            <td className="px-1.5 py-1.5 border-r border-slate-50 overflow-hidden">
-                                                                <div className="flex flex-col overflow-hidden">
-                                                                    <span className="text-[8px] font-black text-slate-700 uppercase leading-none truncate max-w-[80px]" title={row.nombre}>{row.nombre}</span>
-                                                                    <span className="text-[6.5px] font-black text-slate-400 tabular-nums mt-0.5">ID:{row.codigo || '----'}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-1 py-1.5 border-r border-slate-50 overflow-hidden">
-                                                                <span className="text-[7px] font-extrabold text-slate-500 uppercase bg-slate-100 px-1 py-0.5 rounded truncate block max-w-[60px]" title={row.cargo}>{row.cargo}</span>
-                                                            </td>
-                                                            {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => (
-                                                                <td key={day} className="px-0.5 py-1.5 text-center border-l border-slate-50">
-                                                                    <span className="text-[8px] font-black text-slate-600 tabular-nums">
-                                                                        {formatDecimal(row[day]?.final)}
+                                                        return (
+                                                            <tr key={`${item.origIdx}_${item.cargo}_${idx}`} className={`group hover:bg-slate-50/50 transition-colors ${item.isSubRow ? 'bg-slate-50/30' : ''}`}>
+                                                                <td className="px-1.5 py-1.5 border-r border-slate-50 overflow-hidden">
+                                                                    {item.isSubRow ? (
+                                                                        <div className="flex flex-col overflow-hidden">
+                                                                            <span className="text-[7px] font-black text-slate-700 uppercase leading-none truncate max-w-[80px] ml-1">└ {item.nombre}</span>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex flex-col overflow-hidden">
+                                                                            <span className="text-[8px] font-black text-slate-700 uppercase leading-none truncate max-w-[80px]" title={row.nombre}>{row.nombre}</span>
+                                                                            <span className="text-[6.5px] font-black text-slate-400 tabular-nums mt-0.5">ID:{row.codigo || '----'}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-1 py-1.5 border-r border-slate-50 overflow-hidden">
+                                                                    {item.isSubRow ? (
+                                                                        <span className="text-[7px] font-extrabold text-amber-700 uppercase bg-amber-50 px-1 py-0.5 rounded truncate block max-w-[60px]">{item.cargo}</span>
+                                                                    ) : row.cargo_por_dia && Object.values(row.cargo_por_dia).some(d => d.cargo !== row.cargo) ? (
+                                                                        <span className="text-[7px] font-extrabold text-amber-700 uppercase bg-amber-50 px-1 py-0.5 rounded truncate block max-w-[60px]">Resumen</span>
+                                                                    ) : (
+                                                                        <span className="text-[7px] font-extrabold text-slate-500 uppercase bg-slate-100 px-1 py-0.5 rounded truncate block max-w-[60px]" title={row.cargo}>{row.cargo}</span>
+                                                                    )}
+                                                                </td>
+                                                                {['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].map(day => {
+                                                                    const belongsToThisCargo = !item.isSubRow || (row.cargo_por_dia && row.cargo_por_dia[day] && row.cargo_por_dia[day].cargo === item.cargo);
+                                                                    return (
+                                                                        <td key={day} className="px-0.5 py-1.5 text-center border-l border-slate-50">
+                                                                            <span className={`text-[8px] font-black tabular-nums ${belongsToThisCargo ? 'text-slate-600' : 'text-slate-300'}`}>
+                                                                                {belongsToThisCargo ? formatDecimal(row[day]?.final) : '0'}
+                                                                            </span>
+                                                                        </td>
+                                                                    );
+                                                                })}
+                                                                <td className="px-1 py-1.5 text-center border-l border-slate-50 bg-blue-50/10">
+                                                                    <span className="text-[8px] font-black text-slate-700 tabular-nums">
+                                                                        {item.cargoHrs}h
                                                                     </span>
                                                                 </td>
-                                                            ))}
-                                                            <td className="px-1 py-1.5 text-center border-l border-slate-50 bg-blue-50/10">
-                                                                <span className="text-[8px] font-black text-slate-700 tabular-nums">
-                                                                    {formatDecimal(row.total.final)}h
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-1 py-1.5 text-right border-l border-slate-50 bg-purple-50/10 font-bold text-slate-600 tabular-nums text-[8px]">
-                                                                {formatCurrency(kbsRate)}
-                                                            </td>
-                                                            <td className="px-1 py-1.5 text-right border-l border-slate-50 bg-purple-50/20 font-black text-purple-700 tabular-nums text-[8px]">
-                                                                {formatCurrency(kbsTotal)}
-                                                            </td>
-                                                            <td className="px-1 py-1.5 text-right border-l border-slate-50 bg-rose-50/10 font-bold text-slate-600 tabular-nums text-[8px]">
-                                                                {formatCurrency(lgmRate)}
-                                                            </td>
-                                                            <td className="px-1 py-1.5 text-right border-l border-slate-50 bg-rose-50/20 font-black text-rose-600 tabular-nums text-[8px]">
-                                                                {formatCurrency(lgmTotal)}
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })
+                                                                <td className="px-1 py-1.5 text-right border-l border-slate-50 bg-purple-50/10 font-bold text-slate-600 tabular-nums text-[8px]">
+                                                                    {formatCurrency(item.kbsRate)}
+                                                                </td>
+                                                                <td className="px-1 py-1.5 text-right border-l border-slate-50 bg-purple-50/20 font-black text-purple-700 tabular-nums text-[8px]">
+                                                                    {formatCurrency(item.kbsTotal)}
+                                                                </td>
+                                                                <td className="px-1 py-1.5 text-right border-l border-slate-50 bg-rose-50/10 font-bold text-slate-600 tabular-nums text-[8px]">
+                                                                    {formatCurrency(item.lgmRate)}
+                                                                </td>
+                                                                <td className="px-1 py-1.5 text-right border-l border-slate-50 bg-rose-50/20 font-black text-rose-600 tabular-nums text-[8px]">
+                                                                    {formatCurrency(item.lgmTotal)}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    });
+                                                })()
                                             )}
                                         </tbody>
                                     </table>
@@ -20460,11 +20994,21 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                                 </div>
                                                             </td>
                                                             <td className="p-2 border-r-[2px] border-gray-100 italic">
-                                                                <span className="text-[8px] font-extrabold text-gray-500 uppercase leading-tight bg-gray-50 px-1.5 py-0.5 rounded-md">{row.cargo}</span>
+                                                                {row.cargo_por_dia ? (
+                                                                    <span className="text-[8px] font-extrabold text-amber-700 uppercase leading-tight bg-amber-50 px-1.5 py-0.5 rounded-md">
+                                                                        {[...new Set(Object.values(row.cargo_por_dia).map(d => d.cargo))].join(' / ')}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-[8px] font-extrabold text-gray-500 uppercase leading-tight bg-gray-50 px-1.5 py-0.5 rounded-md">{row.cargo}</span>
+                                                                )}
                                                             </td>
                                                             {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
                                                                 const dayVal = row[day];
                                                                 const isManual = dayVal.final !== dayVal.sup && dayVal.final !== dayVal.bio;
+                                                                const weekLocked = (nominaHistoryData || []).some(h =>
+                                                                    String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                                                                    h.fecha_inicio === fechaDesde
+                                                                );
 
                                                                 return (
                                                                     <td key={day} className="p-1.5 text-center border-l-[3px] border-gray-200">
@@ -20491,10 +21035,6 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                                                 )}
                                                                             {/* Input de Auditoría — bloqueado en solo lectura si la semana fue aprobada */}
                                                                             {(() => {
-                                                                                const weekLocked = (nominaHistoryData || []).some(h =>
-                                                                                    String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
-                                                                                    h.fecha_inicio === fechaDesde
-                                                                                );
                                                                                 return (
                                                                                     <div className={`relative rounded-lg overflow-hidden shadow-sm transition-all duration-300 border-[2px] ${isManual ? 'border-[#6bbdb7] shadow-[0_0_15px_rgba(107,189,183,0.2)]' : 'border-[#303a7f]'}`}>
                                                                                         <input
@@ -20507,11 +21047,38 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                                                         />
                                                                                     </div>
                                                                                 );
-                                                                            })()}
-                                                                        </div>
-                                                                    </td>
-                                                                );
-                                                            })}
+                                                                             })()}
+                                                                             {row.cargo_por_dia && row.cargo_por_dia[day] && (
+                                                                                 <div className="flex flex-col gap-1 mt-1">
+                                                                                     <span className={`text-[7px] font-extrabold uppercase px-1.5 py-0.5 rounded leading-none ${row.cargo_por_dia[day].cargo === row.cargo ? 'bg-gray-100 text-gray-500' : 'bg-amber-100 text-amber-700'}`}>
+                                                                                         {row.cargo_por_dia[day].cargo}
+                                                                                     </span>
+                                                                                     {row.cargo_por_dia[day].cargo !== row.cargo && (
+                                                                                         <div className="flex flex-col gap-0.5">
+                                                                                             <input
+                                                                                                 type="text"
+                                                                                                 value={row.cargo_por_dia[day].rateKBS || ''}
+                                                                                                 onChange={(e) => handleCargoRateChange(idx, day, 'rateKBS', e.target.value)}
+                                                                                                 readOnly={weekLocked}
+                                                                                                 placeholder="KBS"
+                                                                                                 className={`w-full bg-white text-[7px] font-bold text-purple-600 text-center px-1 py-0.5 rounded border border-purple-200 outline-none placeholder-purple-300 ${weekLocked ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                                                             />
+                                                                                             <input
+                                                                                                 type="text"
+                                                                                                 value={row.cargo_por_dia[day].rateLGM || ''}
+                                                                                                 onChange={(e) => handleCargoRateChange(idx, day, 'rateLGM', e.target.value)}
+                                                                                                 readOnly={weekLocked}
+                                                                                                 placeholder="LGM"
+                                                                                                 className={`w-full bg-white text-[7px] font-bold text-rose-600 text-center px-1 py-0.5 rounded border border-rose-200 outline-none placeholder-rose-300 ${weekLocked ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                                                             />
+                                                                                         </div>
+                                                                                     )}
+                                                                                 </div>
+                                                                             )}
+                                                                         </div>
+                                                                     </td>
+                                                                 );
+                                                             })}
                                                             <td className="p-2 text-right bg-gray-100/30 border-l-[3px] border-gray-200">
                                                                 <div className="flex flex-col items-end gap-1.5">
                                                                     <div className="flex gap-3 opacity-40 text-[7px] font-black uppercase">
