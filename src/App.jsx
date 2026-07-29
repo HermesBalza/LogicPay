@@ -112,31 +112,31 @@ const SEND_EMAIL_API_URL = '/api/send-email';
 // Uso multimodal: await callGemini("text", { contents: ["text", { inlineData: { data, mimeType } }] })
 // Uso chat: await callGemini("message", { systemPrompt: "...", history: [...] })
 const callGemini = async (prompt, { model = 'gemini-3-flash-preview', systemPrompt, generationConfig, history, contents } = {}) => {
-  const body = { model, systemPrompt, generationConfig, history };
-  if (contents) {
-    body.contents = contents;
-  } else {
-    body.prompt = prompt;
-  }
-  const res = await fetch(GEMINI_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!data.success) throw new Error(data.error || 'Error al llamar a Gemini');
-  return data.text;
+    const body = { model, systemPrompt, generationConfig, history };
+    if (contents) {
+        body.contents = contents;
+    } else {
+        body.prompt = prompt;
+    }
+    const res = await fetch(GEMINI_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al llamar a Gemini');
+    return data.text;
 };
 
 // Helper: envía email a través del backend (la URL del webhook nunca sale del servidor)
 const sendEmail = async (purpose, { to, cc, subject, body, attachments } = {}) => {
-  const res = await fetch(SEND_EMAIL_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ purpose, to, cc, subject, body, attachments }),
-  });
-  const data = await res.json();
-  if (!data.success) throw new Error(data.error || 'Error al enviar email');
+    const res = await fetch(SEND_EMAIL_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ purpose, to, cc, subject, body, attachments }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al enviar email');
 };
 
 // ─── BASE DE DATOS: SQLite Local (Lectura) ───────────────
@@ -211,9 +211,9 @@ const createCSVRowObject = (headers, values) => {
 
 // Helper: fetch a la API local y devuelve JSON directamente
 const fetchTableData = async (url) => {
-  const response = await fetch(url, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return await response.json();
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
 };
 
 const normalizeInvoice = (value) => {
@@ -1386,7 +1386,7 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
 
             const html = await callGemini(userPrompt, { systemPrompt });
             setReportHtml(html);
-            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'generó el', entidad: 'Informe IA', entidadNombre: `${dateFrom || ''} - ${dateTo || ''}` }) }).catch(() => {});
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'generó el', entidad: 'Informe IA', entidadNombre: `${dateFrom || ''} - ${dateTo || ''}` }) }).catch(() => { });
         } catch (err) {
             setReportError(err.message || 'Error desconocido al generar el informe');
         } finally {
@@ -1956,16 +1956,16 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
 
                 {/* 6. Distribución de Pagos */}
                 {user?.nombre !== 'Nirvana Marquez' && user?.nombre !== 'David Torres' && user?.nombre !== 'Samuel Narvaez' && (
-                <div className="flex justify-center mt-8">
-                    <button
-                        onClick={() => setShowReportModal(true)}
-                        disabled={!dateFrom || !dateTo}
-                        className={`flex items-center gap-3 px-8 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${(!dateFrom || !dateTo) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#252a5e] active:scale-95 shadow-xl shadow-blue-900/20'}`}
-                    >
-                        <Cpu size={20} />
-                        Generar Informe
-                    </button>
-                </div>
+                    <div className="flex justify-center mt-8">
+                        <button
+                            onClick={() => setShowReportModal(true)}
+                            disabled={!dateFrom || !dateTo}
+                            className={`flex items-center gap-3 px-8 py-4 bg-[#303a7f] text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${(!dateFrom || !dateTo) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#252a5e] active:scale-95 shadow-xl shadow-blue-900/20'}`}
+                        >
+                            <Cpu size={20} />
+                            Generar Informe
+                        </button>
+                    </div>
                 )}
 
             </div>
@@ -2467,7 +2467,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(ev) {
+        reader.onload = function (ev) {
             const dataUrl = ev.target.result;
             updateField('imagen', dataUrl);
         };
@@ -2969,9 +2969,9 @@ const StoreAddView = ({ onSave, onBack }) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(ev) {
+        reader.onload = function (ev) {
             const dataUrl = ev.target.result;
-            setNewStore(function(prev) { return { ...prev, imagen: dataUrl }; });
+            setNewStore(function (prev) { return { ...prev, imagen: dataUrl }; });
         };
         reader.readAsDataURL(file);
     };
@@ -3294,7 +3294,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
         try {
             await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: emailData.attachments || [] });
-            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Ticket', entidadNombre: `${emailData.subject}` }) }).catch(() => {});
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Ticket', entidadNombre: `${emailData.subject}` }) }).catch(() => { });
 
             setNotificationModal({
                 isOpen: true,
@@ -3608,7 +3608,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             // Calcular rango de fechas del WOS desde serviceDates usando valor numérico YYYYMMDD
             const toNum = (str) => {
                 const p = str.split('/');
-                return parseInt(p[2] + p[0].padStart(2,'0') + p[1].padStart(2,'0'), 10);
+                return parseInt(p[2] + p[0].padStart(2, '0') + p[1].padStart(2, '0'), 10);
             };
             let minWOS = Infinity, maxWOS = -Infinity;
             (wosServices || []).forEach(svc => {
@@ -3631,7 +3631,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 if (h.Status && h.Status !== 'Due') return false;
                 // Excluir registros semanales WK- de AZPEN (solo se auditan los Q-)
                 if (String(h.nombre).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN' && String(h.codigo || '').startsWith('WK-')) return false;
-                
+
                 // Filtrar por rango de fechas del WOS (traslape de semana)
                 if (hasRange && h.fecha_inicio && h.fecha_fin) {
                     const iniN = toNum(h.fecha_inicio);
@@ -3639,12 +3639,12 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                     if (isNaN(iniN) || isNaN(finN)) return false;
                     if (finN < minWOS || iniN > maxWOS) return false;
                 }
-                
+
                 return (!h.Status || h.Status === 'Due');
             });
             const duePE = specialProjectsHistoryData.filter(h => {
                 if (h.Status && h.Status !== 'Due') return false;
-                
+
                 // Filtrar por rango de fechas del WOS
                 if (hasRange) {
                     const fechaStr = h.periodo || h.fecha || h.timestamp || h.Timestamp || '';
@@ -3654,7 +3654,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         if (!isNaN(n) && (n < minWOS || n > maxWOS)) return false;
                     }
                 }
-                
+
                 return (!h.Status || h.Status === 'Due');
             });
             console.log('[WOS Filter] dueNomina:', dueNomina.length, 'duePE:', duePE.length);
@@ -3909,7 +3909,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
         // Calcular rango de fechas del WOS desde serviceDates
         const toNum = (str) => {
             const p = str.split('/');
-            return parseInt(p[2] + p[0].padStart(2,'0') + p[1].padStart(2,'0'), 10);
+            return parseInt(p[2] + p[0].padStart(2, '0') + p[1].padStart(2, '0'), 10);
         };
         let minWOS = Infinity, maxWOS = -Infinity;
         (wosServices || []).forEach(svc => {
@@ -3980,7 +3980,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 let horasTotal = 0;
                 const tableData = data.semanaTableData || data.earningsTableData || [];
                 if (Array.isArray(tableData)) {
-                    const days = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+                    const days = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
                     horasTotal = tableData.reduce((acc, r) =>
                         acc + days.reduce((a, d) => a + (parseFloat(r[d]?.final || r[d]?.sup || 0) || 0), 0), 0);
                 }
@@ -3999,7 +3999,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         const emps = Array.isArray(item.employees) ? item.employees : [];
                         return acc + emps.reduce((a, emp) => a + (parseFloat(emp.hours) || 0), 0);
                     }, 0);
-                } catch(e) {}
+                } catch (e) { }
                 return { ...h, source: 'P.E.', horasTotal };
             });
 
@@ -4354,7 +4354,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                                 <span className="text-[9px] font-black uppercase tracking-widest">Confirmado</span>
                                                             </div>
                                                         ) : (
-                                                             <button
+                                                            <button
                                                                 onClick={() => {
                                                                     setAcceptedKeys(prev => new Set([...prev, row.key]));
                                                                     const matchedLgmId = row.key;
@@ -4466,39 +4466,39 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                         const auditedList = wosData.auditedLgmIds || [];
                                         const svcAccepted = service.matchedLgmId && auditedList.includes(service.matchedLgmId);
                                         return (
-                                        <tr key={index} className={`border-b border-gray-50 transition-colors group ${svcAccepted ? 'bg-emerald-100 border-l-4 border-emerald-500' : 'hover:bg-gray-50/50 border-l-4 border-transparent'}`}>
-                                            <td className="px-4 py-4 text-[10px] font-black text-[#303a7f] uppercase break-words">
-                                                {svcAccepted && <CheckCircle size={14} className="inline-block mr-1.5 text-emerald-600 align-middle" />}
-                                                {service.customer}
-                                            </td>
-                                            <td className="px-4 py-4 text-[10px] font-black text-gray-500 uppercase break-words">{service.locationId}</td>
-                                            <td className="px-4 py-4 text-[10px] font-bold text-gray-400 tabular-nums break-words">{service.salesOrder}</td>
-                                            <td className="px-4 py-4 text-[10px] font-bold text-gray-400 tabular-nums break-words">{service.purchaseOrder}</td>
-                                            <td className="px-4 py-4 text-[9px] font-medium text-gray-400 truncate" title={service.reference}>{service.reference}</td>
-                                            <td className="px-4 py-4 text-[9px] font-black text-[#6bbdb7] uppercase">{service.serviceDates}</td>
-                                            <td className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase break-words">{service.cityState}</td>
-                                            <td className="px-4 py-4 text-[9px] font-medium text-red-400 uppercase italic truncate" title={service.vendorCreditReason}>{service.vendorCreditReason || "---"}</td>
-                                            <td className="px-4 py-4 text-[10px] font-black text-[#303a7f] uppercase break-words" title={service.serviceDescription}>{service.serviceDescription}</td>
-                                            <td className="px-4 py-4 text-[11px] font-black text-[#303a7f] text-right tabular-nums">
-                                                ${parseFloat(service.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </td>
-                                            <td className="px-4 py-4 text-center">
-                                                {!svcAccepted && parseFloat(service.amount) !== 0 && (
-                                                    <button
-                                                        onClick={() => {
-                                                            setManualMatchTarget(service);
-                                                            setIsManualMatchModalOpen(true);
-                                                        }}
-                                                        className="px-3 py-1.5 bg-[#6bbdb7] text-white text-[9px] font-black uppercase rounded-lg hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-1 mx-auto shadow-sm"
-                                                        title="Match Manual"
-                                                    >
-                                                        <Link size={11} /> Match
-                                                    </button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                            <tr key={index} className={`border-b border-gray-50 transition-colors group ${svcAccepted ? 'bg-emerald-100 border-l-4 border-emerald-500' : 'hover:bg-gray-50/50 border-l-4 border-transparent'}`}>
+                                                <td className="px-4 py-4 text-[10px] font-black text-[#303a7f] uppercase break-words">
+                                                    {svcAccepted && <CheckCircle size={14} className="inline-block mr-1.5 text-emerald-600 align-middle" />}
+                                                    {service.customer}
+                                                </td>
+                                                <td className="px-4 py-4 text-[10px] font-black text-gray-500 uppercase break-words">{service.locationId}</td>
+                                                <td className="px-4 py-4 text-[10px] font-bold text-gray-400 tabular-nums break-words">{service.salesOrder}</td>
+                                                <td className="px-4 py-4 text-[10px] font-bold text-gray-400 tabular-nums break-words">{service.purchaseOrder}</td>
+                                                <td className="px-4 py-4 text-[9px] font-medium text-gray-400 truncate" title={service.reference}>{service.reference}</td>
+                                                <td className="px-4 py-4 text-[9px] font-black text-[#6bbdb7] uppercase">{service.serviceDates}</td>
+                                                <td className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase break-words">{service.cityState}</td>
+                                                <td className="px-4 py-4 text-[9px] font-medium text-red-400 uppercase italic truncate" title={service.vendorCreditReason}>{service.vendorCreditReason || "---"}</td>
+                                                <td className="px-4 py-4 text-[10px] font-black text-[#303a7f] uppercase break-words" title={service.serviceDescription}>{service.serviceDescription}</td>
+                                                <td className="px-4 py-4 text-[11px] font-black text-[#303a7f] text-right tabular-nums">
+                                                    ${parseFloat(service.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </td>
+                                                <td className="px-4 py-4 text-center">
+                                                    {!svcAccepted && parseFloat(service.amount) !== 0 && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setManualMatchTarget(service);
+                                                                setIsManualMatchModalOpen(true);
+                                                            }}
+                                                            className="px-3 py-1.5 bg-[#6bbdb7] text-white text-[9px] font-black uppercase rounded-lg hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-1 mx-auto shadow-sm"
+                                                            title="Match Manual"
+                                                        >
+                                                            <Link size={11} /> Match
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                                 <tfoot>
                                     <tr className="bg-gray-50/80">
@@ -4555,7 +4555,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                             <th className="px-2 py-3 text-[9px] font-black uppercase tracking-widest text-right">Amount</th>
                                         </tr>
                                     </thead>
-                                     <tbody className="divide-y divide-gray-50">
+                                    <tbody className="divide-y divide-gray-50">
                                         {(selectedWosGroup.rawServices || []).map((s, idx) => {
                                             const auditedList = wosData.auditedLgmIds || [];
                                             const svcAudited = s.matchedLgmId ? auditedList.includes(s.matchedLgmId) : false;
@@ -4568,23 +4568,23 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                             }
                                             const isAccepted = svcAudited || recordAudited;
                                             return (
-                                            <tr key={idx} className={`${isAccepted ? 'bg-emerald-100 border-l-4 border-emerald-500' : 'hover:bg-gray-50/50 border-l-4 border-transparent'} transition-all`}>
-                                                <td className="px-2 py-3 text-[9px] font-black text-[#303a7f] uppercase truncate max-w-[120px]" title={s.customer}>
-                                                    {isAccepted && <CheckCircle size={14} className="inline-block mr-1.5 text-emerald-600 align-middle" />}
-                                                    {s.customer || '---'}
-                                                </td>
-                                                <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center truncate max-w-[100px]" title={s.locationId}>{s.locationId || '---'}</td>
-                                                <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center tabular-nums">{s.salesOrder || '---'}</td>
-                                                <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center tabular-nums">{s.purchaseOrder || '---'}</td>
-                                                <td className="px-2 py-3 text-[8px] font-medium text-gray-400 text-center truncate max-w-[90px]" title={s.reference}>{s.reference || '---'}</td>
-                                                <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center whitespace-nowrap">{s.serviceDates || '---'}</td>
-                                                <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center truncate max-w-[90px]" title={s.cityState}>{s.cityState || '---'}</td>
-                                                <td className="px-2 py-3 text-[8px] font-medium text-gray-400 text-center italic truncate max-w-[100px]" title={s.vendorCreditReason}>{s.vendorCreditReason || '---'}</td>
-                                                <td className="px-2 py-3 text-[9px] font-black text-[#303a7f] uppercase truncate max-w-[150px]" title={s.serviceDescription}>{s.serviceDescription}</td>
-                                                <td className="px-2 py-3 text-[10px] font-black text-[#6bbdb7] text-right tabular-nums whitespace-nowrap">
-                                                    ${parseFloat(s.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </td>
-                                            </tr>
+                                                <tr key={idx} className={`${isAccepted ? 'bg-emerald-100 border-l-4 border-emerald-500' : 'hover:bg-gray-50/50 border-l-4 border-transparent'} transition-all`}>
+                                                    <td className="px-2 py-3 text-[9px] font-black text-[#303a7f] uppercase truncate max-w-[120px]" title={s.customer}>
+                                                        {isAccepted && <CheckCircle size={14} className="inline-block mr-1.5 text-emerald-600 align-middle" />}
+                                                        {s.customer || '---'}
+                                                    </td>
+                                                    <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center truncate max-w-[100px]" title={s.locationId}>{s.locationId || '---'}</td>
+                                                    <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center tabular-nums">{s.salesOrder || '---'}</td>
+                                                    <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center tabular-nums">{s.purchaseOrder || '---'}</td>
+                                                    <td className="px-2 py-3 text-[8px] font-medium text-gray-400 text-center truncate max-w-[90px]" title={s.reference}>{s.reference || '---'}</td>
+                                                    <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center whitespace-nowrap">{s.serviceDates || '---'}</td>
+                                                    <td className="px-2 py-3 text-[9px] font-bold text-gray-500 text-center truncate max-w-[90px]" title={s.cityState}>{s.cityState || '---'}</td>
+                                                    <td className="px-2 py-3 text-[8px] font-medium text-gray-400 text-center italic truncate max-w-[100px]" title={s.vendorCreditReason}>{s.vendorCreditReason || '---'}</td>
+                                                    <td className="px-2 py-3 text-[9px] font-black text-[#303a7f] uppercase truncate max-w-[150px]" title={s.serviceDescription}>{s.serviceDescription}</td>
+                                                    <td className="px-2 py-3 text-[10px] font-black text-[#6bbdb7] text-right tabular-nums whitespace-nowrap">
+                                                        ${parseFloat(s.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                </tr>
                                             );
                                         })}
                                     </tbody>
@@ -4601,79 +4601,79 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
                             {/* FACTURA(S) LGM CRUZADA(S) */}
                             {selectedWosGroup.type !== 'Sin Registro' && (
-                            <div className="mt-8">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <div className="p-2 bg-[#6bbdb7]/10 rounded-lg">
-                                        <FileText size={16} className="text-[#6bbdb7]" />
+                                <div className="mt-8">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <div className="p-2 bg-[#6bbdb7]/10 rounded-lg">
+                                            <FileText size={16} className="text-[#6bbdb7]" />
+                                        </div>
+                                        <h4 className="text-sm font-black text-[#303a7f] uppercase tracking-wider">Factura(s) LGM Cruzada(s)</h4>
                                     </div>
-                                    <h4 className="text-sm font-black text-[#303a7f] uppercase tracking-wider">Factura(s) LGM Cruzada(s)</h4>
-                                </div>
-                                <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm overflow-hidden">
-                                    <table className="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr className="bg-gray-50 text-gray-400">
-                                                <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Tipo</th>
-                                                <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Tienda</th>
-                                                <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Período</th>
-                                                <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">ID / Código</th>
-                                                <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-right">Monto Facturado</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-50">
-                                            {selectedWosGroup.type === 'VWH' && (selectedWosGroup.matchedNominaRecords && selectedWosGroup.matchedNominaRecords.length > 0 ? selectedWosGroup.matchedNominaRecords : selectedWosGroup.matchedNominaRecord ? [selectedWosGroup.matchedNominaRecord] : []).map((rec, idx) => (
-                                                <tr key={`vwh-${idx}`} className="hover:bg-gray-50/50 transition-colors">
-                                                    <td className="px-4 py-3">
-                                                        <span className="inline-block px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-blue-50 text-[#303a7f] border border-blue-100">VWH</span>
+                                    <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm overflow-hidden">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-gray-50 text-gray-400">
+                                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Tipo</th>
+                                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Tienda</th>
+                                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Período</th>
+                                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">ID / Código</th>
+                                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-right">Monto Facturado</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-50">
+                                                {selectedWosGroup.type === 'VWH' && (selectedWosGroup.matchedNominaRecords && selectedWosGroup.matchedNominaRecords.length > 0 ? selectedWosGroup.matchedNominaRecords : selectedWosGroup.matchedNominaRecord ? [selectedWosGroup.matchedNominaRecord] : []).map((rec, idx) => (
+                                                    <tr key={`vwh-${idx}`} className="hover:bg-gray-50/50 transition-colors">
+                                                        <td className="px-4 py-3">
+                                                            <span className="inline-block px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-blue-50 text-[#303a7f] border border-blue-100">VWH</span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-[10px] font-black text-[#303a7f] uppercase">{rec.nombre || '---'}</td>
+                                                        <td className="px-4 py-3 text-[9px] font-bold text-gray-500 whitespace-nowrap">{rec.fecha_inicio || ''} - {rec.fecha_fin || ''}</td>
+                                                        <td className="px-4 py-3 text-[9px] font-bold text-gray-500 font-mono">{rec.codigo || '---'}</td>
+                                                        <td className="px-4 py-3 text-[10px] font-black text-[#6bbdb7] text-right tabular-nums whitespace-nowrap">
+                                                            ${getKBSFromNomina(rec).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {selectedWosGroup.type === 'P.E.' && (selectedWosGroup.matchedPERecords && selectedWosGroup.matchedPERecords.length > 0 ? selectedWosGroup.matchedPERecords : selectedWosGroup.matchedPERecord ? [selectedWosGroup.matchedPERecord] : []).map((rec, idx) => (
+                                                    <tr key={`pe-${idx}`} className="hover:bg-gray-50/50 transition-colors">
+                                                        <td className="px-4 py-3">
+                                                            <span className="inline-block px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-orange-50 text-orange-500 border border-orange-100">P.E.</span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-[10px] font-black text-[#303a7f] uppercase">{rec.tienda || rec.Tienda || '---'}</td>
+                                                        <td className="px-4 py-3 text-[9px] font-bold text-gray-500 whitespace-nowrap">{rec.periodo || rec.Periodo || '---'}</td>
+                                                        <td className="px-4 py-3 text-[9px] font-bold text-gray-500 font-mono">{rec.correlativo || rec.Correlativo || '---'}</td>
+                                                        <td className="px-4 py-3 text-[10px] font-black text-[#6bbdb7] text-right tabular-nums whitespace-nowrap">
+                                                            ${getKBSFromPE(rec).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                            <tfoot className="bg-gray-50/60 border-t-2 border-gray-100">
+                                                <tr>
+                                                    <td colSpan={4} className="px-4 py-3 text-right">
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total LGM Facturado</span>
+                                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total KBS Anunciado</span>
+                                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Diferencia</span>
+                                                        </div>
                                                     </td>
-                                                    <td className="px-4 py-3 text-[10px] font-black text-[#303a7f] uppercase">{rec.nombre || '---'}</td>
-                                                    <td className="px-4 py-3 text-[9px] font-bold text-gray-500 whitespace-nowrap">{rec.fecha_inicio || ''} - {rec.fecha_fin || ''}</td>
-                                                    <td className="px-4 py-3 text-[9px] font-bold text-gray-500 font-mono">{rec.codigo || '---'}</td>
-                                                    <td className="px-4 py-3 text-[10px] font-black text-[#6bbdb7] text-right tabular-nums whitespace-nowrap">
-                                                        ${getKBSFromNomina(rec).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    <td className="px-4 py-3 text-right">
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <span className="text-[10px] font-black text-[#303a7f] tabular-nums">
+                                                                ${parseFloat(selectedWosGroup.lgmBilled || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </span>
+                                                            <span className="text-[10px] font-black text-[#6bbdb7] tabular-nums">
+                                                                ${parseFloat(selectedWosGroup.kbsAnnounced || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </span>
+                                                            <span className={`text-[10px] font-black tabular-nums ${Math.abs(selectedWosGroup.diff || 0) <= 0.05 ? 'text-green-600' : (selectedWosGroup.diff || 0) < 0 ? 'text-red-500' : 'text-yellow-600'}`}>
+                                                                {(selectedWosGroup.diff || 0) > 0 ? '+' : ''}${parseFloat(Math.abs(selectedWosGroup.diff || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </span>
+                                                        </div>
                                                     </td>
                                                 </tr>
-                                            ))}
-                                            {selectedWosGroup.type === 'P.E.' && (selectedWosGroup.matchedPERecords && selectedWosGroup.matchedPERecords.length > 0 ? selectedWosGroup.matchedPERecords : selectedWosGroup.matchedPERecord ? [selectedWosGroup.matchedPERecord] : []).map((rec, idx) => (
-                                                <tr key={`pe-${idx}`} className="hover:bg-gray-50/50 transition-colors">
-                                                    <td className="px-4 py-3">
-                                                        <span className="inline-block px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-orange-50 text-orange-500 border border-orange-100">P.E.</span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-[10px] font-black text-[#303a7f] uppercase">{rec.tienda || rec.Tienda || '---'}</td>
-                                                    <td className="px-4 py-3 text-[9px] font-bold text-gray-500 whitespace-nowrap">{rec.periodo || rec.Periodo || '---'}</td>
-                                                    <td className="px-4 py-3 text-[9px] font-bold text-gray-500 font-mono">{rec.correlativo || rec.Correlativo || '---'}</td>
-                                                    <td className="px-4 py-3 text-[10px] font-black text-[#6bbdb7] text-right tabular-nums whitespace-nowrap">
-                                                        ${getKBSFromPE(rec).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                        <tfoot className="bg-gray-50/60 border-t-2 border-gray-100">
-                                            <tr>
-                                                <td colSpan={4} className="px-4 py-3 text-right">
-                                                    <div className="flex flex-col items-end gap-1">
-                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total LGM Facturado</span>
-                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total KBS Anunciado</span>
-                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Diferencia</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <div className="flex flex-col items-end gap-1">
-                                                        <span className="text-[10px] font-black text-[#303a7f] tabular-nums">
-                                                            ${parseFloat(selectedWosGroup.lgmBilled || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                        </span>
-                                                        <span className="text-[10px] font-black text-[#6bbdb7] tabular-nums">
-                                                            ${parseFloat(selectedWosGroup.kbsAnnounced || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                        </span>
-                                                        <span className={`text-[10px] font-black tabular-nums ${Math.abs(selectedWosGroup.diff || 0) <= 0.05 ? 'text-green-600' : (selectedWosGroup.diff || 0) < 0 ? 'text-red-500' : 'text-yellow-600'}`}>
-                                                            {(selectedWosGroup.diff || 0) > 0 ? '+' : ''}${parseFloat(Math.abs(selectedWosGroup.diff || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
+                                            </tfoot>
+                                        </table>
+                                    </div>
                                 </div>
-                            </div>
                             )}
 
                             <div className="mt-8 p-6 bg-blue-50/30 rounded-[1.5rem] border border-blue-100/50">
@@ -5164,7 +5164,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(ev) {
+        reader.onload = function (ev) {
             const dataUrl = ev.target.result;
             updateField('imagen', dataUrl);
         };
@@ -5178,7 +5178,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
         // Disparamos la sincronización en segundo plano inmediatamente
         const promise = onSave(editedEmployee);
         savePromiseRef.current = promise;
-        
+
         // Al mismo tiempo, mostramos la ventana de notificación premium
         setIsEditing(false);
         setShowSuccessModal(true);
@@ -5788,7 +5788,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                 <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
                     <div className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-10 flex flex-col items-center text-center animate-in zoom-in-95 duration-500 border-2 border-white relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16 opacity-50" />
-                        
+
                         <div className="w-20 h-20 rounded-[1.8rem] bg-[#6bbdb7] text-white flex items-center justify-center mb-8 shadow-2xl shadow-teal-900/20 animate-bounce relative z-10">
                             <CheckCircle size={36} className="animate-in zoom-in duration-500" />
                         </div>
@@ -5890,7 +5890,7 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(ev) {
+        reader.onload = function (ev) {
             const dataUrl = ev.target.result;
             updateField('imagen', dataUrl);
         };
@@ -6461,7 +6461,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                                 <LayoutDashboard size={20} className="text-[#6bbdb7]" /> Primeros Pasos
                             </h3>
                             <p className="text-sm font-bold text-gray-600 leading-relaxed mt-4">
-                                LogicPay es la plataforma integral de gestión de nómina de Logic Group Management, desarrollada por AdWisers LLC. 
+                                LogicPay es la plataforma integral de gestión de nómina de Logic Group Management, desarrollada por AdWisers LLC.
                                 Centraliza personal, tiendas, procesamiento de nómina, facturación, servicios especiales y CRM.
                             </p>
                             <div className="space-y-3 mt-4">
@@ -6796,7 +6796,7 @@ const VirtualAssistantScheduleModal = ({ isOpen, onClose, vaSchedule = [] }) => 
             assistants.forEach(a => {
                 const entry = (vaSchedule || []).find(
                     e => String(e.asistente || '').toLowerCase() === a.key &&
-                         String(e.dia_semana || '').toLowerCase() === day.toLowerCase()
+                        String(e.dia_semana || '').toLowerCase() === day.toLowerCase()
                 );
                 if (entry) {
                     if (entry.es_descanso) {
@@ -6890,11 +6890,11 @@ const VirtualAssistantScheduleModal = ({ isOpen, onClose, vaSchedule = [] }) => 
                                                         ) : cellOff ? (
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-sm">🌴</span>
-                                                                 <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Día Libre</span>
-                                                             </div>
-                                                         ) : (
-                                                             <div className="space-y-0.5">
-                                                                 <p className="text-[11px] font-bold text-[#303a7f]">{val.split('\n')[0]}</p>
+                                                                <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Día Libre</span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="space-y-0.5">
+                                                                <p className="text-[11px] font-bold text-[#303a7f]">{val.split('\n')[0]}</p>
                                                                 <p className="text-[8px] font-bold text-[#6bbdb7] uppercase tracking-widest">{val.split('\n')[1]}</p>
                                                             </div>
                                                         )}
@@ -7345,7 +7345,7 @@ const VWHTableModal = (props) => {
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
             await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
-            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte VWH', entidadNombre: `${payrollStore} - ${currentStartDate} a ${currentEndDate}` }) }).catch(() => {});
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte VWH', entidadNombre: `${payrollStore} - ${currentStartDate} a ${currentEndDate}` }) }).catch(() => { });
 
             const reportKey = normalizeKey(recordId || `${payrollStore}_${currentStartDate}_${currentEndDate}`);
             if (onEmailSent) onEmailSent(reportKey);
@@ -8218,15 +8218,15 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
                         const info = idToInfoMap[empId] || { nombre: originalName, cargo: empRow.cargo || 'Personal' };
 
                         if (!data[empId]) {
-                           data[empId] = {
-                               id: empId,
-                               nombre: info.nombre,
-                               cargo: info.cargo,
-                               firstName: info.firstName,
-                               lastName: info.lastName,
-                               totalBox1: 0,
-                               periods: {}
-                           };
+                            data[empId] = {
+                                id: empId,
+                                nombre: info.nombre,
+                                cargo: info.cargo,
+                                firstName: info.firstName,
+                                lastName: info.lastName,
+                                totalBox1: 0,
+                                periods: {}
+                            };
                         }
                         const amount = parseFloat(empRow.total_lgm) || parseFloat(empRow.total) || 0;
                         data[empId].periods[periodKey] = (data[empId].periods[periodKey] || 0) + amount;
@@ -8544,10 +8544,10 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
                                 })
                             )}
                         </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    </table>
                 </div>
+            </div>
+        </div>
     );
 };
 
@@ -8832,7 +8832,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                 const pdfResult = await generatePayStubPDF(emp.id);
                 if (pdfResult?.error) throw new Error(pdfResult.error);
                 await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`, attachments: [{ name: `Recibo_${emp.nombre.replace(/\s+/g, '_')}.pdf`, type: 'application/pdf', base64: pdfResult }] });
-                fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => {});
+                fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => { });
                 setSendingProgress(prev => ({ ...prev, logs: [`✅ Enviado a ${email}`, ...prev.logs] }));
 
                 if (onEmailSent) {
@@ -8854,7 +8854,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
         try {
             const pdfBase64 = await generatePayStubPDF(emp.id);
             await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`, attachments: [{ name: `Recibo_${emp.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
-            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => {});
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => { });
             setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
             if (onEmailSent) {
                 const persistentKey = `${selectedPeriod.range.replace(/\s+/g, '')}#${emp.id}`;
@@ -8937,7 +8937,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                                                                 const pdf = await generatePayStubPDF(emp.id);
                                                                 if (pdf) {
                                                                     const blob = await (await fetch(`data:application/pdf;base64,${pdf}`)).blob();
-                                                                     setPreviewPdf({ isOpen: true, url: URL.createObjectURL(blob), name: emp.nombre, email: emp.email_tax || '', pdfBase64: pdf, period: selectedPeriod?.range || '' });
+                                                                    setPreviewPdf({ isOpen: true, url: URL.createObjectURL(blob), name: emp.nombre, email: emp.email_tax || '', pdfBase64: pdf, period: selectedPeriod?.range || '' });
                                                                     setNotificationModal({ isOpen: false, type: 'loading', message: '' });
                                                                 }
                                                             }} className="p-2 text-[#6bbdb7] hover:bg-[#6bbdb7] hover:text-white rounded-lg transition-all"><Eye size={16} /></button>
@@ -9391,7 +9391,7 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                                         <div className="py-12 text-center text-gray-300 italic uppercase text-[10px] font-black tracking-widest">
                                             No se encontraron coincidencias en la base de datos
                                         </div>
-            )}
+                                    )}
                             </div>
                         </div>
                     </div>
@@ -10243,7 +10243,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             e.stores.add(storeName);
                         }
                     });
-                } catch (e) {}
+                } catch (e) { }
             });
 
             const unified = Object.values(empMap).map(e => ({
@@ -10319,7 +10319,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             const w1Mon = new Date(yC, mC - 1, dC);
             const wkBefore = new Date(w1Mon);
             wkBefore.setDate(wkBefore.getDate() - 7);
-            const fmtDate = (dt) => `${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}/${dt.getFullYear()}`;
+            const fmtDate = (dt) => `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}/${dt.getFullYear()}`;
             const wkBeforeStart = fmtDate(wkBefore);
             const allWkBeforeRecords = nominaHistoryData.filter(h =>
                 normalizeDate(h.fecha_inicio) === normalizeDate(wkBeforeStart) && h.nombre === period.store
@@ -10335,7 +10335,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         );
                         if (earningsEntry) chewyWkBeforeEarnings[empId] = earningsEntry;
                     });
-                } catch(e) {}
+                } catch (e) { }
             });
             Object.keys(chewyWkBeforeData).forEach(empId => {
                 if (!empStoreMap[empId]) {
@@ -10533,7 +10533,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                 }
                             });
                         });
-                    } catch (e) {}
+                    } catch (e) { }
                 });
             }
 
@@ -10607,12 +10607,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         const allEntries = [...biweeklyEmployees, ...addedSupervisors];
         const pad = (n) => String(n).padStart(2, '0');
         const now = new Date();
-        const fileDate = pad(now.getMonth()+1) + pad(now.getDate()) + String(now.getFullYear());
+        const fileDate = pad(now.getMonth() + 1) + pad(now.getDate()) + String(now.getFullYear());
         const fileTime = pad(now.getHours()) + pad(now.getMinutes());
 
         const w2EndRaw = period.w2?.end || '';
         const [endM, endD, endY] = w2EndRaw.split('/');
-        const endDateStr = pad(endM||'') + pad(endD||'') + String(endY||'');
+        const endDateStr = pad(endM || '') + pad(endD || '') + String(endY || '');
 
         const biweekNum = Math.ceil(period.w1?.weekNumInYear / 2) || '';
 
@@ -10694,7 +10694,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 };
 
                 await sendEmail('payroll', emailPayload);
-                fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => {});
+                fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => { });
 
                 setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
                 setSendingProgress(prev => ({ ...prev, logs: [`✅ Enviado con éxito a ${email}`, ...prev.logs] }));
@@ -10744,7 +10744,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             };
 
             await sendEmail('payroll', emailPayload);
-            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => {});
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => { });
 
             setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
             setSendingProgress(prev => ({ ...prev, status: 'finished', logs: [`✅ Recibo enviado con éxito a ${email}`, ...prev.logs] }));
@@ -10859,7 +10859,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
             await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
-            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Nómina', entidadNombre: emailData.subject }) }).catch(() => {});
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Nómina', entidadNombre: emailData.subject }) }).catch(() => { });
 
             setNotificationModal({
                 isOpen: true,
@@ -10905,7 +10905,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         const ws = XLSX.utils.json_to_sheet(rows);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Nómina');
-        XLSX.writeFile(wb, `Nomina_${period.store.replace(/\s+/g,'_')}_${period.range.replace(/\//g,'-').replace(/\s+/g,'_')}.xlsx`);
+        XLSX.writeFile(wb, `Nomina_${period.store.replace(/\s+/g, '_')}_${period.range.replace(/\//g, '-').replace(/\s+/g, '_')}.xlsx`);
     };
 
     const handleExportPDF = async () => {
@@ -11027,33 +11027,33 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                     <div className="flex items-center gap-3" data-html2canvas-ignore>
                         {user?.rol !== 'Operador de Pagos' && (
-                        <button
-                            onClick={() => setIsEmailModalOpen(true)}
-                            className="px-8 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/20"
-                        >
-                            <Mail size={16} />
-                            Enviar por Correo
-                        </button>
+                            <button
+                                onClick={() => setIsEmailModalOpen(true)}
+                                className="px-8 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/20"
+                            >
+                                <Mail size={16} />
+                                Enviar por Correo
+                            </button>
                         )}
                         {user?.rol === 'Operador de Pagos' && period.store === '__NOMINA_COMPLETA__' && (
-                        <button
-                            onClick={() => {
+                            <button
+                                onClick={() => {
                                     const csv = generateNachaCSV();
                                     const blob = new Blob([csv], { type: 'text/csv' });
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement('a');
                                     a.href = url;
-                                    a.download = `Payroll_ACH_${period.range.replace(/\//g,'-').replace(/\s+/g,'_')}.csv`;
+                                    a.download = `Payroll_ACH_${period.range.replace(/\//g, '-').replace(/\s+/g, '_')}.csv`;
                                     document.body.appendChild(a);
                                     a.click();
                                     document.body.removeChild(a);
                                     URL.revokeObjectURL(url);
                                 }}
-                            disabled={[...biweeklyEmployees, ...addedSupervisors].length === 0}
-                            className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                            <Download size={16} /> CSV
-                        </button>
+                                disabled={[...biweeklyEmployees, ...addedSupervisors].length === 0}
+                                className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <Download size={16} /> CSV
+                            </button>
                         )}
                         <button
                             onClick={() => setIsPayStubModalOpen(true)}
@@ -11154,7 +11154,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                         <tr key={`sup-${idx}`} className={`group transition-colors ${emp.rowColor} hover:brightness-95`}>
                                             <td className="p-4 border-r-2 border-gray-100 font-black text-[#303a7f] text-xs uppercase tracking-tight flex items-center justify-between">
                                                 <span>{emp.nombre}</span>
-                                {!isAlreadyProcessed && period.store !== '__NOMINA_COMPLETA__' && (
+                                                {!isAlreadyProcessed && period.store !== '__NOMINA_COMPLETA__' && (
                                                     <button
                                                         type="button"
                                                         onClick={() => {
@@ -11271,7 +11271,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                         const name = superInputName.trim().toUpperCase();
                                                         const salary = parseFloat(superInputSalary) || 0;
                                                         const code = superSelectedId || `SUP_${Date.now()}`;
-                                                        
+
                                                         // Evitar duplicados
                                                         if ([...biweeklyEmployees, ...addedSupervisors].some(emp => emp.nombre.toUpperCase() === name)) {
                                                             alert("Este supervisor ya está en la lista.");
@@ -11294,7 +11294,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                         };
 
                                                         setAddedSupervisors(prev => [...prev, newSuper]);
-                                                        
+
                                                         // Reset inputs
                                                         setSuperInputName('');
                                                         setSuperInputSalary('');
@@ -11330,23 +11330,23 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     {/* Action Bar */}
                     <div data-html2canvas-ignore className="mt-12 flex justify-end items-center gap-4 border-t-2 border-gray-50 pt-10">
                         {user?.rol !== 'Operador de Pagos' && (
-                        <button
-                            onClick={() => setIsConfirmModalOpen(true)}
-                            disabled={isSaving || isAlreadyProcessed || [...biweeklyEmployees, ...addedSupervisors].length === 0}
-                            className={`px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isSaving
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                : isAlreadyProcessed
-                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/20 cursor-not-allowed'
-                                    : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/20'
-                                }`}
-                        >
-                            {isSaving ? (
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-[#303a7f] rounded-full animate-spin" />
-                            ) : (
-                                <CheckCircle size={16} />
-                            )}
-                            {isSaving ? 'Confirmando...' : isAlreadyProcessed ? 'Nómina Confirmada' : 'Confirmar Nómina'}
-                        </button>
+                            <button
+                                onClick={() => setIsConfirmModalOpen(true)}
+                                disabled={isSaving || isAlreadyProcessed || [...biweeklyEmployees, ...addedSupervisors].length === 0}
+                                className={`px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isSaving
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : isAlreadyProcessed
+                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/20 cursor-not-allowed'
+                                        : 'bg-[#303a7f] text-white hover:bg-[#252a5e] shadow-blue-900/20'
+                                    }`}
+                            >
+                                {isSaving ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-[#303a7f] rounded-full animate-spin" />
+                                ) : (
+                                    <CheckCircle size={16} />
+                                )}
+                                {isSaving ? 'Confirmando...' : isAlreadyProcessed ? 'Nómina Confirmada' : 'Confirmar Nómina'}
+                            </button>
                         )}
 
                         {period.store === '__NOMINA_COMPLETA__' && user?.rol !== 'Operador de Pagos' && (
@@ -11357,7 +11357,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement('a');
                                     a.href = url;
-                                    a.download = `Payroll_ACH_${period.range.replace(/\//g,'-').replace(/\s+/g,'_')}.csv`;
+                                    a.download = `Payroll_ACH_${period.range.replace(/\//g, '-').replace(/\s+/g, '_')}.csv`;
                                     document.body.appendChild(a);
                                     a.click();
                                     document.body.removeChild(a);
@@ -11663,7 +11663,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                 base64: previewPdf.pdfBase64
                                             }]
                                         });
-                                        fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: previewPdf.name }) }).catch(() => {});
+                                        fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: previewPdf.name }) }).catch(() => { });
                                         setNotificationModal({ isOpen: true, type: 'success', message: `Recibo enviado con éxito a ${previewPdf.email}` });
                                     } catch (error) {
                                         setNotificationModal({ isOpen: true, type: 'error', message: `Error al enviar: ${error.message}` });
@@ -11896,7 +11896,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                         className={`h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg ${selectedStore !== '__NOMINA_COMPLETA__'
                             ? 'bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]'
                             : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        }`}
+                            }`}
                     >
                         <LayoutGrid size={16} />
                         WOS
@@ -11928,10 +11928,10 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                                 ? (nominaDetailData || []).some(d => {
                                     const id = String(d.ID_Consolidacion || d.id_consolidacion || '').trim();
                                     return id.includes(expectedId);
-                                  })
+                                })
                                 : (nominaDetailData || []).some(d =>
                                     String(d.ID_Consolidacion || d.id_consolidacion || '').trim() === expectedId
-                                  );
+                                );
                             return (
                                 <div
                                     key={p.periodNum}
@@ -12898,56 +12898,56 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, proveedores
                             (project.providers || []).map((row) => {
                                 const profit = (parseFloat(row.rateKBS) || 0) - (parseFloat(row.rateLogic) || 0);
                                 return (
-                                <tr key={row.id} className="hover:bg-purple-50/20 transition-colors group">
-                                    <td className="p-3">
-                                        <SearchableProviderInput
-                                            value={row.providerName}
-                                            proveedores={proveedores || []}
-                                            readOnly={isRegistered}
-                                            onChange={(name) => updateProviderRow(row.id, { providerName: name })}
-                                            onSelectProvider={(prov) => handleSelectProvider(row.id, prov)}
-                                        />
-                                    </td>
-                                    <td className="p-3">
-                                        <div className="flex items-center justify-center gap-1">
-                                            <span className="text-gray-400 text-[10px] font-black">$</span>
-                                            <EditableCell
-                                                value={row.rateKBS}
-                                                type="number"
+                                    <tr key={row.id} className="hover:bg-purple-50/20 transition-colors group">
+                                        <td className="p-3">
+                                            <SearchableProviderInput
+                                                value={row.providerName}
+                                                proveedores={proveedores || []}
                                                 readOnly={isRegistered}
-                                                onChange={(val) => updateProviderRow(row.id, { rateKBS: val })}
-                                                className="w-24 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-purple-400 transition-all text-center"
+                                                onChange={(name) => updateProviderRow(row.id, { providerName: name })}
+                                                onSelectProvider={(prov) => handleSelectProvider(row.id, prov)}
                                             />
-                                        </div>
-                                    </td>
-                                    <td className="p-3">
-                                        <div className="flex items-center justify-center gap-1">
-                                            <span className="text-gray-400 text-[10px] font-black">$</span>
-                                            <EditableCell
-                                                value={row.rateLogic}
-                                                type="number"
-                                                readOnly={isRegistered}
-                                                onChange={(val) => updateProviderRow(row.id, { rateLogic: val })}
-                                                className="w-24 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-purple-400 transition-all text-center"
-                                            />
-                                        </div>
-                                    </td>
-                                    <td className="p-3 text-center">
-                                        <span className={`text-xs font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                            ${profit.toFixed(2)}
-                                        </span>
-                                    </td>
-                                    <td className="p-3 text-center">
-                                        {!isRegistered && (
-                                            <button
-                                                onClick={() => removeProvider(row.id)}
-                                                className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        )}
-                                    </td>
-                                </tr>
+                                        </td>
+                                        <td className="p-3">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <span className="text-gray-400 text-[10px] font-black">$</span>
+                                                <EditableCell
+                                                    value={row.rateKBS}
+                                                    type="number"
+                                                    readOnly={isRegistered}
+                                                    onChange={(val) => updateProviderRow(row.id, { rateKBS: val })}
+                                                    className="w-24 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-purple-400 transition-all text-center"
+                                                />
+                                            </div>
+                                        </td>
+                                        <td className="p-3">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <span className="text-gray-400 text-[10px] font-black">$</span>
+                                                <EditableCell
+                                                    value={row.rateLogic}
+                                                    type="number"
+                                                    readOnly={isRegistered}
+                                                    onChange={(val) => updateProviderRow(row.id, { rateLogic: val })}
+                                                    className="w-24 bg-[#fcfcfc] border-2 border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-purple-400 transition-all text-center"
+                                                />
+                                            </div>
+                                        </td>
+                                        <td className="p-3 text-center">
+                                            <span className={`text-xs font-black ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                ${profit.toFixed(2)}
+                                            </span>
+                                        </td>
+                                        <td className="p-3 text-center">
+                                            {!isRegistered && (
+                                                <button
+                                                    onClick={() => removeProvider(row.id)}
+                                                    className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
                                 );
                             })
                         )}
@@ -13370,7 +13370,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
             await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: [{ name: `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
-            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Factura Proyecto Especial', entidadNombre: `${project.tienda} - #${project.invoice}` }) }).catch(() => {});
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Factura Proyecto Especial', entidadNombre: `${project.tienda} - #${project.invoice}` }) }).catch(() => { });
 
             const reportKey = normalizeKey(project.invoice);
             if (onEmailSent) onEmailSent(reportKey);
@@ -14389,7 +14389,7 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(ev) {
+        reader.onload = function (ev) {
             const dataUrl = ev.target.result;
             updateField('imagen', dataUrl);
         };
@@ -14959,46 +14959,46 @@ const AdminPayrollView = ({
 
                 {/* Action Buttons - Lado Derecho */}
                 {activeSection === 'employees' && (
-                <div className="flex gap-3">
-                    <button
-                        onClick={() => setIsAddingAdminEmployee(true)}
-                        className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
-                    >
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
-                        <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
-                    </button>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => setIsAddingAdminEmployee(true)}
+                            className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
+                        >
+                            <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
+                            <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
+                        </button>
 
-                </div>
+                    </div>
                 )}
                 {activeSection === 'expenses' && (
-                <div className="flex gap-3">
-                    <input
-                        type="file"
-                        ref={tdcFileInputRef}
-                        onChange={handleTdcFileSelect}
-                        accept=".numbers"
-                        className="hidden"
-                    />
-                    <button
-                        onClick={() => tdcFileInputRef.current?.click()}
-                        disabled={tdcLoading}
-                        className="flex items-center justify-center gap-3 px-6 py-3 bg-[#6bbdb7]/10 text-[#6bbdb7] border-2 border-[#6bbdb7]/20 rounded-2xl font-black transition-all active:scale-95 hover:bg-[#6bbdb7]/20 hover:border-[#6bbdb7]/40 group whitespace-nowrap"
-                    >
-                        {tdcLoading ? (
-                            <div className="w-[18px] h-[18px] border-2 border-[#6bbdb7] border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                            <Upload size={18} />
-                        )}
-                        <span className="tracking-widest uppercase text-[10px]">Importar TDC</span>
-                    </button>
-                    <button
-                        onClick={() => setIsAddingExpense(true)}
-                        className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
-                    >
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
-                        <span className="tracking-widest uppercase text-[10px]">Nuevo Gasto</span>
-                    </button>
-                </div>
+                    <div className="flex gap-3">
+                        <input
+                            type="file"
+                            ref={tdcFileInputRef}
+                            onChange={handleTdcFileSelect}
+                            accept=".numbers"
+                            className="hidden"
+                        />
+                        <button
+                            onClick={() => tdcFileInputRef.current?.click()}
+                            disabled={tdcLoading}
+                            className="flex items-center justify-center gap-3 px-6 py-3 bg-[#6bbdb7]/10 text-[#6bbdb7] border-2 border-[#6bbdb7]/20 rounded-2xl font-black transition-all active:scale-95 hover:bg-[#6bbdb7]/20 hover:border-[#6bbdb7]/40 group whitespace-nowrap"
+                        >
+                            {tdcLoading ? (
+                                <div className="w-[18px] h-[18px] border-2 border-[#6bbdb7] border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <Upload size={18} />
+                            )}
+                            <span className="tracking-widest uppercase text-[10px]">Importar TDC</span>
+                        </button>
+                        <button
+                            onClick={() => setIsAddingExpense(true)}
+                            className="flex items-center justify-center gap-3 px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black transition-all active:scale-95 shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] group whitespace-nowrap"
+                        >
+                            <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
+                            <span className="tracking-widest uppercase text-[10px]">Nuevo Gasto</span>
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -15257,7 +15257,7 @@ const VAScheduleSettings = ({ vaSchedule = [], onSave }) => {
                 const key = `${a.key}_${day}`;
                 const existing = (vaSchedule || []).find(
                     e => String(e.asistente || '').toLowerCase() === a.key &&
-                         String(e.dia_semana || '').toLowerCase() === day.toLowerCase()
+                        String(e.dia_semana || '').toLowerCase() === day.toLowerCase()
                 );
                 initial[key] = {
                     id: existing?.id || null,
@@ -15281,7 +15281,7 @@ const VAScheduleSettings = ({ vaSchedule = [], onSave }) => {
                 const key = `${a.key}_${day}`;
                 const existing = (vaSchedule || []).find(
                     e => String(e.asistente || '').toLowerCase() === a.key &&
-                         String(e.dia_semana || '').toLowerCase() === day.toLowerCase()
+                        String(e.dia_semana || '').toLowerCase() === day.toLowerCase()
                 );
                 newData[key] = {
                     id: existing?.id || null,
@@ -15348,7 +15348,7 @@ const VAScheduleSettings = ({ vaSchedule = [], onSave }) => {
                     className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-2 ${saved
                         ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
                         : 'bg-[#303a7f] text-white shadow-lg shadow-blue-900/20 hover:bg-[#252a5e]'
-                    }`}
+                        }`}
                 >
                     {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : <Save size={14} />}
                     {saving ? 'Guardando...' : saved ? 'Guardado' : 'Guardar Horario'}
@@ -15689,7 +15689,7 @@ const DatabaseExplorer = () => {
         fetch('/api/tables')
             .then(res => res.json())
             .then(tables => setAvailableTables(Array.isArray(tables) ? tables : []))
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     const fetchTableData = async (table) => {
@@ -15976,56 +15976,56 @@ const DatabaseExplorer = () => {
                                 {rows
                                     .filter(row => !storeFilter || (row.nombre || row.Tienda || '') === storeFilter)
                                     .map((row, idx) => (
-                                    <tr key={row.id || idx} className="hover:bg-[#303a7f]/5 transition-colors border-b border-gray-50 group">
-                                        <td className="px-3 py-2.5 text-[9px] font-black text-gray-400 border-r border-gray-50 text-center">
-                                            {idx + 1}
-                                        </td>
-                                        <td className="px-3 py-2.5 border-r border-gray-50 text-center">
-                                            <button
-                                                onClick={() => setConfirmDeleteRow({ row, idx })}
-                                                className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                title="Eliminar fila"
-                                            >
-                                                <Trash2 size={13} />
-                                            </button>
-                                        </td>
-                                        {columns.map(col => (
-                                            <td key={col} className="px-3 py-2.5 text-[11px] font-bold text-[#333333] border-r last:border-r-0 border-gray-50 max-w-[250px] relative">
-                                                {editingCell.row === idx && editingCell.col === col ? (
-                                                    <div className="flex items-center gap-1 animate-in fade-in duration-100">
-                                                        <input
-                                                            type="text"
-                                                            value={editValue}
-                                                            onChange={(e) => setEditValue(e.target.value)}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') handleCellSave(row, col);
-                                                                if (e.key === 'Escape') setEditingCell({ row: null, col: null });
-                                                            }}
-                                                            className="w-full bg-white border-2 border-[#6bbdb7] rounded-lg px-2 py-1 text-[11px] font-bold text-[#303a7f] outline-none"
-                                                            autoFocus
-                                                            onBlur={() => {
-                                                                if (!savingCell) setEditingCell({ row: null, col: null });
-                                                            }}
-                                                        />
-                                                        {savingCell && <Loader2 size={12} className="animate-spin text-[#6bbdb7] flex-shrink-0" />}
-                                                    </div>
-                                                ) : (
-                                                    <div
-                                                        className="cursor-pointer hover:bg-[#6bbdb7]/10 rounded px-1 -mx-1 transition-colors truncate flex items-center gap-1 group/cell"
-                                                        onClick={() => {
-                                                            setEditingCell({ row: idx, col });
-                                                            setEditValue(row[col] !== null && row[col] !== undefined ? String(row[col]) : '');
-                                                        }}
-                                                        title="Click para editar"
-                                                    >
-                                                        <span className="truncate">{formatCellValue(row[col])}</span>
-                                                        <Edit2 size={10} className="text-gray-200 group-hover/cell:text-[#6bbdb7] transition-colors flex-shrink-0 opacity-0 group-hover/cell:opacity-100" />
-                                                    </div>
-                                                )}
+                                        <tr key={row.id || idx} className="hover:bg-[#303a7f]/5 transition-colors border-b border-gray-50 group">
+                                            <td className="px-3 py-2.5 text-[9px] font-black text-gray-400 border-r border-gray-50 text-center">
+                                                {idx + 1}
                                             </td>
-                                        ))}
-                                    </tr>
-                                ))}
+                                            <td className="px-3 py-2.5 border-r border-gray-50 text-center">
+                                                <button
+                                                    onClick={() => setConfirmDeleteRow({ row, idx })}
+                                                    className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                    title="Eliminar fila"
+                                                >
+                                                    <Trash2 size={13} />
+                                                </button>
+                                            </td>
+                                            {columns.map(col => (
+                                                <td key={col} className="px-3 py-2.5 text-[11px] font-bold text-[#333333] border-r last:border-r-0 border-gray-50 max-w-[250px] relative">
+                                                    {editingCell.row === idx && editingCell.col === col ? (
+                                                        <div className="flex items-center gap-1 animate-in fade-in duration-100">
+                                                            <input
+                                                                type="text"
+                                                                value={editValue}
+                                                                onChange={(e) => setEditValue(e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') handleCellSave(row, col);
+                                                                    if (e.key === 'Escape') setEditingCell({ row: null, col: null });
+                                                                }}
+                                                                className="w-full bg-white border-2 border-[#6bbdb7] rounded-lg px-2 py-1 text-[11px] font-bold text-[#303a7f] outline-none"
+                                                                autoFocus
+                                                                onBlur={() => {
+                                                                    if (!savingCell) setEditingCell({ row: null, col: null });
+                                                                }}
+                                                            />
+                                                            {savingCell && <Loader2 size={12} className="animate-spin text-[#6bbdb7] flex-shrink-0" />}
+                                                        </div>
+                                                    ) : (
+                                                        <div
+                                                            className="cursor-pointer hover:bg-[#6bbdb7]/10 rounded px-1 -mx-1 transition-colors truncate flex items-center gap-1 group/cell"
+                                                            onClick={() => {
+                                                                setEditingCell({ row: idx, col });
+                                                                setEditValue(row[col] !== null && row[col] !== undefined ? String(row[col]) : '');
+                                                            }}
+                                                            title="Click para editar"
+                                                        >
+                                                            <span className="truncate">{formatCellValue(row[col])}</span>
+                                                            <Edit2 size={10} className="text-gray-200 group-hover/cell:text-[#6bbdb7] transition-colors flex-shrink-0 opacity-0 group-hover/cell:opacity-100" />
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
                             </tbody>
                         </table>
                     </div>
@@ -16699,7 +16699,7 @@ const HistorialActividad = ({ currentUser }) => {
         fetch(USUARIOS_API)
             .then(r => r.json())
             .then(data => setUsers(data))
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     const fetchLogs = useCallback(async (reset = false) => {
@@ -16961,7 +16961,7 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
             await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
-            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte', entidadNombre: emailData.subject }) }).catch(() => {});
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte', entidadNombre: emailData.subject }) }).catch(() => { });
             setNotificationModal({ isOpen: true, type: 'success', message: `Reporte enviado con éxito a ${emailData.to}.` });
             setIsEmailModalOpen(false);
         } catch (error) {
@@ -17424,34 +17424,34 @@ function App() {
                 .filter(emp => !emp.fecha_ingreso)
                 .map(emp => ({ nombre: emp.nombre, codigo_empleado: emp.codigo_empleado }));
             if (withoutDate.length > 0) {
-            try {
-                const resp = await fetch('/api/employees/first-dates', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(withoutDate)
-                });
-                const map = await resp.json();
-                for (const emp of employees) {
-                    const codigo = emp.codigo_empleado.toString().trim();
-                    if (map[codigo] && !emp.fecha_ingreso) {
-                        const updated = { ...emp, fecha_ingreso: map[codigo] };
-                        updated['Rate KBS'] = emp.rateKBS || 0;
-                        updated['Rate LGM'] = emp.rateLGM || 0;
-                        updated['Rate CSG'] = emp.rate_csg || 0;
-                        updated['Cliente'] = emp.cliente || 'KBS';
-                        updated['Observaciones'] = emp.observaciones || '';
-                        delete updated.rateKBS;
-                        delete updated.rateLGM;
-                        delete updated.rate_csg;
-                        delete updated.cliente;
-                        delete updated.observaciones;
-                        await syncToDatabase('upsert', updated, 'Personal', true, ['nombre', 'codigo_empleado'], true);
+                try {
+                    const resp = await fetch('/api/employees/first-dates', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(withoutDate)
+                    });
+                    const map = await resp.json();
+                    for (const emp of employees) {
+                        const codigo = emp.codigo_empleado.toString().trim();
+                        if (map[codigo] && !emp.fecha_ingreso) {
+                            const updated = { ...emp, fecha_ingreso: map[codigo] };
+                            updated['Rate KBS'] = emp.rateKBS || 0;
+                            updated['Rate LGM'] = emp.rateLGM || 0;
+                            updated['Rate CSG'] = emp.rate_csg || 0;
+                            updated['Cliente'] = emp.cliente || 'KBS';
+                            updated['Observaciones'] = emp.observaciones || '';
+                            delete updated.rateKBS;
+                            delete updated.rateLGM;
+                            delete updated.rate_csg;
+                            delete updated.cliente;
+                            delete updated.observaciones;
+                            await syncToDatabase('upsert', updated, 'Personal', true, ['nombre', 'codigo_empleado'], true);
+                        }
                     }
+                    fetchEmployees();
+                } catch (e) {
+                    console.error('Error escaneando fechas de ingreso:', e);
                 }
-                fetchEmployees();
-            } catch (e) {
-                console.error('Error escaneando fechas de ingreso:', e);
-            }
             }
 
             try {
@@ -18065,7 +18065,7 @@ function App() {
                     entidad: project.tienda || project.nombre,
                     entidadNombre: `#${project.invoice}`
                 })
-            }).catch(() => {});
+            }).catch(() => { });
             showSuccess('Proyecto Especial guardado en la base de datos.');
             fetchSpecialProjectsHistory();
             return true;
@@ -18117,7 +18117,7 @@ function App() {
                     entidad: existing.Tienda || existing.tienda || '',
                     entidadNombre: existing.Correlativo || existing.correlativo || ''
                 })
-            }).catch(() => {});
+            }).catch(() => { });
             showSuccess('Proyecto Especial anulado correctamente.');
             fetchSpecialProjectsHistory();
             return true;
@@ -18388,7 +18388,7 @@ function App() {
                                     }
                                 });
                             }
-                        } catch (e) {}
+                        } catch (e) { }
                     });
                     if (Object.keys(horasPorCargo).length > 0) {
                         entry.horas_por_cargo = horasPorCargo;
@@ -18736,7 +18736,7 @@ function App() {
             const formattedDesde = cleanDateStr(fechaDesde);
             const formattedHasta = cleanDateStr(fechaHasta);
             const storeNameFixed = (payrollStore || 'LGM').replace(/\s+/g, '_');
-            
+
             const fileName = `Asistencia_Corregida_${storeNameFixed}_${formattedDesde}-${formattedHasta}.xlsx`;
             XLSX.writeFile(wb, fileName);
             setSupervisorFile(null);
@@ -18896,12 +18896,12 @@ function App() {
                 console.log('[WD FUSION] payrollStore:', JSON.stringify(payrollStore));
                 console.log('[WD FUSION] isWalgreensDallas:', true);
                 console.log('[WD FUSION] semanaRows count:', semanaRows.length);
-                console.log('[WD FUSION] codigos:', semanaRows.map(r => ({ 
-                    nombre: r.nombre, 
-                    codigo_raw: JSON.stringify(r.codigo), 
-                    cargo: r.cargo 
+                console.log('[WD FUSION] codigos:', semanaRows.map(r => ({
+                    nombre: r.nombre,
+                    codigo_raw: JSON.stringify(r.codigo),
+                    cargo: r.cargo
                 })));
-                
+
                 const grouped = {};
                 const daysList = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
                 semanaRows.forEach(row => {
@@ -19304,7 +19304,7 @@ function App() {
             }
 
             await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments });
-            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte de Horas', entidadNombre: payrollStore || emailData.subject }) }).catch(() => {});
+            fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte de Horas', entidadNombre: payrollStore || emailData.subject }) }).catch(() => { });
 
             setStatusModalTitle("Envío Exitoso");
             setStatusModalMessage(`El reporte de horas ha sido enviado correctamente a ${emailData.to}.`);
@@ -19688,7 +19688,7 @@ function App() {
                     entidad: payrollStore,
                     entidadNombre: `${fechaDesde} - ${fechaHasta}`
                 })
-            }).catch(() => {});
+            }).catch(() => { });
 
             showSuccess("Cálculo Semanal procesado, Guardado en Historial y Personal actualizado exitosamente.");
             fetchEmployees();
@@ -19724,7 +19724,7 @@ function App() {
             const parseDateMMDD = (str) => {
                 if (!str) return '';
                 const parts = str.split('/');
-                if (parts.length === 3) return `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+                if (parts.length === 3) return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
                 return '';
             };
             const weekStart = parseDateMMDD(fechaDesde);
@@ -20586,13 +20586,13 @@ function App() {
                 try {
                     const pending = JSON.parse(pendingSyncStr);
                     const csvEmp = loaded.find(e => String(e.codigo_empleado).trim().replace(/^'/, '') === String(pending.codigo_empleado).trim().replace(/^'/, ''));
-                    
+
                     const keysToCompare = [
-                        'nombre', 'direccion', 'telefono', 'email', 'cargo', 'store_association', 
-                        'zip', 'tin', 'site_code', 'cuenta_bancaria', 'rateKBS', 'rateLGM', 'rate_csg', 
+                        'nombre', 'direccion', 'telefono', 'email', 'cargo', 'store_association',
+                        'zip', 'tin', 'site_code', 'cuenta_bancaria', 'rateKBS', 'rateLGM', 'rate_csg',
                         'cliente', 'observaciones', 'fecha_ingreso', 'fecha_egreso', 'activo', 'imagen'
                     ];
-                    
+
                     const isSyncComplete = csvEmp && keysToCompare.every(key => {
                         const csvVal = String(csvEmp[key] || '').trim().replace(/^'/, '');
                         const expVal = String(pending[key] || '').trim().replace(/^'/, '');
@@ -21088,8 +21088,8 @@ function App() {
         fetchAdminExpenses();
         fetchVASchedule();
         fetchPendingContratados();
-        fetchTableData(SALDOS_PENDIENTES_API_URL).then(data => setSaldosPendientesData(data || [])).catch(() => {});
-        fetchTableData('/api/data/CRM_Proveedores').then(data => setProvidersList(data || [])).catch(() => {});
+        fetchTableData(SALDOS_PENDIENTES_API_URL).then(data => setSaldosPendientesData(data || [])).catch(() => { });
+        fetchTableData('/api/data/CRM_Proveedores').then(data => setProvidersList(data || [])).catch(() => { });
     }, []);
 
     useEffect(() => {
@@ -21326,7 +21326,7 @@ function App() {
                 nombre: empToDelete.nombre,
                 codigo_empleado: empCodigo
             }, 'Personal', false, ['nombre', 'codigo_empleado'])
-            .catch(err => console.error('[handleDeleteEmployee] Error en syncToDatabase:', err));
+                .catch(err => console.error('[handleDeleteEmployee] Error en syncToDatabase:', err));
         }
     };
 
@@ -21377,7 +21377,7 @@ function App() {
             ).then(() => {
                 setPendingEmployeePrefill(null);
                 fetchPendingContratados();
-            }).catch(() => {});
+            }).catch(() => { });
         }
 
     };
@@ -21556,12 +21556,12 @@ function App() {
                                 autoFocus
                             />
                             <div className="flex items-center gap-3 justify-end">
-                    <button
-                        onClick={() => { setIsBiometricCommentModalOpen(false); setBiometricComment(''); }}
-                        className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 btn-close-danger"
-                    >
-                        Cancelar
-                    </button>
+                                <button
+                                    onClick={() => { setIsBiometricCommentModalOpen(false); setBiometricComment(''); }}
+                                    className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 btn-close-danger"
+                                >
+                                    Cancelar
+                                </button>
                                 <button
                                     onClick={() => {
                                         const comment = biometricComment.trim();
@@ -21586,12 +21586,12 @@ function App() {
                 user={user}
                 data={(() => {
                     const _ar = nominaHistoryData.find(h => String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === fechaDesde);
-                    if (_ar?.data_json) { try { const _p = JSON.parse(_ar.data_json); if (_p.semanaTableData?.length) return _p.semanaTableData; } catch(_e) {} }
+                    if (_ar?.data_json) { try { const _p = JSON.parse(_ar.data_json); if (_p.semanaTableData?.length) return _p.semanaTableData; } catch (_e) { } }
                     return semanaTableData;
                 })()}
                 historyKbsData={(() => {
                     const _ar = nominaHistoryData.find(h => String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === fechaDesde);
-                    if (_ar?.data_json) { try { const _p = JSON.parse(_ar.data_json); if (_p.kbsBillingTableData?.length) return _p.kbsBillingTableData; } catch(_e) {} }
+                    if (_ar?.data_json) { try { const _p = JSON.parse(_ar.data_json); if (_p.kbsBillingTableData?.length) return _p.kbsBillingTableData; } catch (_e) { } }
                     return [];
                 })()}
                 payrollStore={payrollStore}
@@ -21646,10 +21646,10 @@ function App() {
                         if (isAZPEN) {
                             // Crear nueva fila de Facturación Quincenal en Nomina_Historico
                             const qId = `Q-${(fechaDesde || '').replace(/\//g, '')}-${(fechaHasta || '').replace(/\//g, '')}`;
-                            
+
                             // Evitar duplicados
                             const exists = nominaHistoryData.some(h => h.codigo === qId && String(h.nombre).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN');
-                            
+
                             if (!exists) {
                                 const newRow = {
                                     nombre: payrollStore,
@@ -21665,9 +21665,9 @@ function App() {
                                     "WOS": "",
                                     "Status": "Due"
                                 };
-                                
+
                                 setNominaHistoryData(prev => [...prev, newRow]);
-                                
+
                                 billingPendingSaveRef.current.push({
                                     __prebuilt: true,
                                     nombre: newRow.nombre,
@@ -21720,7 +21720,7 @@ function App() {
             {isAttendanceEyeModalOpen && (() => {
                 const _approvedRecord = nominaHistoryData.find(h => String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === fechaDesde);
                 let modalSemanaData = semanaTableData, modalKbsData = kbsBillingTableData, modalEarningsData = earningsTableData;
-                if (_approvedRecord?.data_json) { try { const _p = JSON.parse(_approvedRecord.data_json); if (_p.semanaTableData?.length) modalSemanaData = _p.semanaTableData; if (_p.kbsBillingTableData?.length) modalKbsData = _p.kbsBillingTableData; if (_p.earningsTableData?.length) modalEarningsData = _p.earningsTableData; } catch(_e) {} }
+                if (_approvedRecord?.data_json) { try { const _p = JSON.parse(_approvedRecord.data_json); if (_p.semanaTableData?.length) modalSemanaData = _p.semanaTableData; if (_p.kbsBillingTableData?.length) modalKbsData = _p.kbsBillingTableData; if (_p.earningsTableData?.length) modalEarningsData = _p.earningsTableData; } catch (_e) { } }
                 const showSplit = getSplitInfo(fechaDesde).hasSplit;
 
                 const downloadAttendanceRatesAsExcel = () => {
@@ -21840,324 +21840,324 @@ function App() {
                 };
 
                 return (
-                <div className="fixed inset-0 z-[150] bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
-                    <div className="bg-slate-50 w-full h-full max-w-[98vw] max-h-[96vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
-                        {/* Header */}
-                        <div className="px-8 py-5 bg-white border-b border-slate-100 flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-purple-50 text-purple-700 rounded-2xl">
-                                    <Eye size={22} />
-                                </div>
-                                <div className="flex flex-col">
-                                    <h3 className="text-lg font-black text-slate-800 tracking-tight leading-none mb-1">
-                                        Rates y Costos de Asistencia Semanal
-                                    </h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
-                                        Análisis Financiero de Horas de la Semana
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={downloadAttendanceRatesAsExcel}
-                                    className="group p-2.5 rounded-xl transition-all active:scale-95 border border-[#6bbdb7]/40 bg-white text-[#6bbdb7] hover:bg-[#6bbdb7]/10 flex items-center justify-center gap-1.5"
-                                    title="Descargar Excel"
-                                >
-                                    <Download size={18} />
-                                    <span className="text-[9px] font-black uppercase tracking-widest leading-none hidden sm:inline">Excel</span>
-                                </button>
-                                <button
-                                    onClick={() => setIsAttendanceEyeModalOpen(false)}
-                                    className="group p-2.5 rounded-xl transition-all active:scale-95 border btn-close-danger flex items-center justify-center"
-                                >
-                                    <X size={18} />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Contenido Scrollable */}
-                        <div className="flex-1 overflow-y-auto p-8 space-y-6">
-                            {/* KPI Cards */}
-                            {(() => {
-                                let totalHours = 0;
-                                let totalKBS = 0;
-                                let totalLGM = 0;
-
-                                const daysList = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-
-                                modalSemanaData.forEach(row => {
-                                    const hDec = hhmmToDecimal(row.total.final);
-                                    totalHours += hDec;
-
-                                    const empId = `${String(row.nombre).trim().toLowerCase()}_${String(row.codigo).replace(/^'+/, '').trim()}`;
-                                    const kbsRow = (modalKbsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
-                                    const lgmRow = (modalEarningsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
-
-                                    const employeeInfo = employees.find(e =>
-                                        String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
-                                        String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
-                                    );
-
-                                    let kbsTotal, lgmTotal;
-                                    if (row.cargo_por_dia) {
-                                        const getRateForDay = (day, rateType) => {
-                                            if (row.cargo_por_dia[day] && row.cargo_por_dia[day].cargo !== row.cargo) {
-                                                return rateType === 'kbs' ? (row.cargo_por_dia[day].rateKBS || 0) : (row.cargo_por_dia[day].rateLGM || 0);
-                                            }
-                                            const empRate = rateType === 'kbs' ? (employeeInfo?.rateKBS || 0) : (employeeInfo?.rateLGM || 0);
-                                            return empRate;
-                                        };
-                                        kbsTotal = 0;
-                                        lgmTotal = 0;
-                                        daysList.forEach(day => {
-                                            const hrs = hhmmToDecimal(row[day]?.final || 0);
-                                            kbsTotal += hrs * getRateForDay(day, 'kbs');
-                                            lgmTotal += hrs * getRateForDay(day, 'lgm');
-                                        });
-                                    } else {
-                                        const kbsRate = kbsRow ? (kbsRow.rate || 0) : (employeeInfo?.rateKBS || 0);
-                                        kbsTotal = (kbsRow && !showSplit) ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
-                                        const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
-                                        lgmTotal = (lgmRow && !showSplit) ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
-                                    }
-
-                                    totalKBS += kbsTotal;
-                                    totalLGM += lgmTotal;
-                                });
-
-                                const margin = totalKBS - totalLGM;
-                                const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
-
-                                return (
-                                    <div className="grid grid-cols-4 gap-5">
-                                        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
-                                            <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl">
-                                                <Clock size={24} />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Horas</span>
-                                                <span className="text-2xl font-black text-slate-700">{formatDecimal(totalHours)}h</span>
-                                            </div>
-                                        </div>
-                                        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
-                                            <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl">
-                                                <TrendingUp size={24} />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Facturación KBS</span>
-                                                <span className="text-2xl font-black text-emerald-600">{formatCurrency(totalKBS)}</span>
-                                            </div>
-                                        </div>
-                                        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
-                                            <div className="p-4 bg-rose-50 text-rose-600 rounded-2xl">
-                                                <TrendingDown size={24} />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Costo LGM (Operativo)</span>
-                                                <span className="text-2xl font-black text-rose-600">{formatCurrency(totalLGM)}</span>
-                                            </div>
-                                        </div>
-                                        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
-                                            <div className="p-4 bg-purple-50 text-purple-600 rounded-2xl">
-                                                <DollarSign size={24} />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Utilidad Neta LGM</span>
-                                                <span className="text-2xl font-black text-purple-600">{formatCurrency(margin)}</span>
-                                            </div>
-                                        </div>
+                    <div className="fixed inset-0 z-[150] bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
+                        <div className="bg-slate-50 w-full h-full max-w-[98vw] max-h-[96vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
+                            {/* Header */}
+                            <div className="px-8 py-5 bg-white border-b border-slate-100 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-purple-50 text-purple-700 rounded-2xl">
+                                        <Eye size={22} />
                                     </div>
-                                );
-                            })()}
+                                    <div className="flex flex-col">
+                                        <h3 className="text-lg font-black text-slate-800 tracking-tight leading-none mb-1">
+                                            Rates y Costos de Asistencia Semanal
+                                        </h3>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                                            Análisis Financiero de Horas de la Semana
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={downloadAttendanceRatesAsExcel}
+                                        className="group p-2.5 rounded-xl transition-all active:scale-95 border border-[#6bbdb7]/40 bg-white text-[#6bbdb7] hover:bg-[#6bbdb7]/10 flex items-center justify-center gap-1.5"
+                                        title="Descargar Excel"
+                                    >
+                                        <Download size={18} />
+                                        <span className="text-[9px] font-black uppercase tracking-widest leading-none hidden sm:inline">Excel</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setIsAttendanceEyeModalOpen(false)}
+                                        className="group p-2.5 rounded-xl transition-all active:scale-95 border btn-close-danger flex items-center justify-center"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                            </div>
 
-                            {/* Tabla Registro de Asistencia Semanal Ampliada */}
-                            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse table-fixed">
-                                        <colgroup>
-                                            <col className="w-[14%]" />
-                                            <col className="w-[8%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[5.2%]" />
-                                            <col className="w-[7%]" />
-                                            <col className="w-[7.5%]" />
-                                            <col className="w-[8.5%]" />
-                                            <col className="w-[7.5%]" />
-                                            <col className="w-[8.5%]" />
-                                        </colgroup>
-                                        <thead>
-                                            <tr className="bg-slate-50/75 border-b border-slate-100">
-                                                <th className="px-2.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Empleado / Código</th>
-                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Cargo</th>
-                                                {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map((day, dIdx) => {
-                                                    const dayAbbrs = {
-                                                        domingo: 'Dom',
-                                                        lunes: 'Lun',
-                                                        martes: 'Mar',
-                                                        miercoles: 'Mié',
-                                                        jueves: 'Jue',
-                                                        viernes: 'Vie',
-                                                        sabado: 'Sáb'
-                                                    };
-                                                    return (
-                                                        <th key={day} className="px-1 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-center border-l border-slate-100">
-                                                            <span className="block mb-0.5">{dayAbbrs[day]}</span>
-                                                            <span className="text-[7.5px] text-slate-400 font-bold opacity-75">
-                                                                {fechaDesde ? getFormattedDateForDay(fechaDesde, dIdx) : '--/--'}
-                                                            </span>
-                                                        </th>
-                                                    );
-                                                })}
-                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-center border-l border-slate-100 bg-blue-50/30">Total Hrs</th>
-                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-purple-50/30">Rate KBS</th>
-                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-purple-50/50">Total KBS</th>
-                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-rose-50/30">Rate LGM</th>
-                                                <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-rose-50/50">Total LGM</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                            {modalSemanaData.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan="14" className="py-24 text-center text-slate-300 font-extrabold uppercase text-xs tracking-[0.3em] italic">
-                                                        No hay datos de asistencia cargados en esta semana.
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                (() => {
-                                                    const displayRows = [];
-                                                    const daysList3 = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-                                                    modalSemanaData.forEach((row, origIdx) => {
-                                                        const employeeInfo = employees.find(e =>
-                                                            String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
-                                                            String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
+                            {/* Contenido Scrollable */}
+                            <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                                {/* KPI Cards */}
+                                {(() => {
+                                    let totalHours = 0;
+                                    let totalKBS = 0;
+                                    let totalLGM = 0;
+
+                                    const daysList = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+
+                                    modalSemanaData.forEach(row => {
+                                        const hDec = hhmmToDecimal(row.total.final);
+                                        totalHours += hDec;
+
+                                        const empId = `${String(row.nombre).trim().toLowerCase()}_${String(row.codigo).replace(/^'+/, '').trim()}`;
+                                        const kbsRow = (modalKbsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+                                        const lgmRow = (modalEarningsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+
+                                        const employeeInfo = employees.find(e =>
+                                            String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
+                                            String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
+                                        );
+
+                                        let kbsTotal, lgmTotal;
+                                        if (row.cargo_por_dia) {
+                                            const getRateForDay = (day, rateType) => {
+                                                if (row.cargo_por_dia[day] && row.cargo_por_dia[day].cargo !== row.cargo) {
+                                                    return rateType === 'kbs' ? (row.cargo_por_dia[day].rateKBS || 0) : (row.cargo_por_dia[day].rateLGM || 0);
+                                                }
+                                                const empRate = rateType === 'kbs' ? (employeeInfo?.rateKBS || 0) : (employeeInfo?.rateLGM || 0);
+                                                return empRate;
+                                            };
+                                            kbsTotal = 0;
+                                            lgmTotal = 0;
+                                            daysList.forEach(day => {
+                                                const hrs = hhmmToDecimal(row[day]?.final || 0);
+                                                kbsTotal += hrs * getRateForDay(day, 'kbs');
+                                                lgmTotal += hrs * getRateForDay(day, 'lgm');
+                                            });
+                                        } else {
+                                            const kbsRate = kbsRow ? (kbsRow.rate || 0) : (employeeInfo?.rateKBS || 0);
+                                            kbsTotal = (kbsRow && !showSplit) ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
+                                            const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
+                                            lgmTotal = (lgmRow && !showSplit) ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
+                                        }
+
+                                        totalKBS += kbsTotal;
+                                        totalLGM += lgmTotal;
+                                    });
+
+                                    const margin = totalKBS - totalLGM;
+                                    const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
+
+                                    return (
+                                        <div className="grid grid-cols-4 gap-5">
+                                            <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
+                                                <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl">
+                                                    <Clock size={24} />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Horas</span>
+                                                    <span className="text-2xl font-black text-slate-700">{formatDecimal(totalHours)}h</span>
+                                                </div>
+                                            </div>
+                                            <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
+                                                <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl">
+                                                    <TrendingUp size={24} />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Facturación KBS</span>
+                                                    <span className="text-2xl font-black text-emerald-600">{formatCurrency(totalKBS)}</span>
+                                                </div>
+                                            </div>
+                                            <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
+                                                <div className="p-4 bg-rose-50 text-rose-600 rounded-2xl">
+                                                    <TrendingDown size={24} />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Costo LGM (Operativo)</span>
+                                                    <span className="text-2xl font-black text-rose-600">{formatCurrency(totalLGM)}</span>
+                                                </div>
+                                            </div>
+                                            <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-50 flex items-center gap-5">
+                                                <div className="p-4 bg-purple-50 text-purple-600 rounded-2xl">
+                                                    <DollarSign size={24} />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Utilidad Neta LGM</span>
+                                                    <span className="text-2xl font-black text-purple-600">{formatCurrency(margin)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Tabla Registro de Asistencia Semanal Ampliada */}
+                                <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse table-fixed">
+                                            <colgroup>
+                                                <col className="w-[14%]" />
+                                                <col className="w-[8%]" />
+                                                <col className="w-[5.2%]" />
+                                                <col className="w-[5.2%]" />
+                                                <col className="w-[5.2%]" />
+                                                <col className="w-[5.2%]" />
+                                                <col className="w-[5.2%]" />
+                                                <col className="w-[5.2%]" />
+                                                <col className="w-[5.2%]" />
+                                                <col className="w-[7%]" />
+                                                <col className="w-[7.5%]" />
+                                                <col className="w-[8.5%]" />
+                                                <col className="w-[7.5%]" />
+                                                <col className="w-[8.5%]" />
+                                            </colgroup>
+                                            <thead>
+                                                <tr className="bg-slate-50/75 border-b border-slate-100">
+                                                    <th className="px-2.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Empleado / Código</th>
+                                                    <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Cargo</th>
+                                                    {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map((day, dIdx) => {
+                                                        const dayAbbrs = {
+                                                            domingo: 'Dom',
+                                                            lunes: 'Lun',
+                                                            martes: 'Mar',
+                                                            miercoles: 'Mié',
+                                                            jueves: 'Jue',
+                                                            viernes: 'Vie',
+                                                            sabado: 'Sáb'
+                                                        };
+                                                        return (
+                                                            <th key={day} className="px-1 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-center border-l border-slate-100">
+                                                                <span className="block mb-0.5">{dayAbbrs[day]}</span>
+                                                                <span className="text-[7.5px] text-slate-400 font-bold opacity-75">
+                                                                    {fechaDesde ? getFormattedDateForDay(fechaDesde, dIdx) : '--/--'}
+                                                                </span>
+                                                            </th>
                                                         );
-                                                        const hasCargoMixtoRow = row.cargo_por_dia && Object.values(row.cargo_por_dia).some(d => d.cargo !== row.cargo);
+                                                    })}
+                                                    <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-center border-l border-slate-100 bg-blue-50/30">Total Hrs</th>
+                                                    <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-purple-50/30">Rate KBS</th>
+                                                    <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-purple-50/50">Total KBS</th>
+                                                    <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-rose-50/30">Rate LGM</th>
+                                                    <th className="px-1.5 py-3 text-[8.5px] font-black text-slate-500 uppercase tracking-wider text-right border-l border-slate-100 bg-rose-50/50">Total LGM</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {modalSemanaData.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="14" className="py-24 text-center text-slate-300 font-extrabold uppercase text-xs tracking-[0.3em] italic">
+                                                            No hay datos de asistencia cargados en esta semana.
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    (() => {
+                                                        const displayRows = [];
+                                                        const daysList3 = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                                                        modalSemanaData.forEach((row, origIdx) => {
+                                                            const employeeInfo = employees.find(e =>
+                                                                String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
+                                                                String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
+                                                            );
+                                                            const hasCargoMixtoRow = row.cargo_por_dia && Object.values(row.cargo_por_dia).some(d => d.cargo !== row.cargo);
 
-                                                        if (hasCargoMixtoRow) {
-                                                            const cargosUnicosRow = [...new Set(Object.values(row.cargo_por_dia).map(d => d.cargo))];
-                                                            cargosUnicosRow.forEach(cargoName => {
-                                                                let cargoHrs = 0;
-                                                                daysList3.forEach(day => {
-                                                                    if (row.cargo_por_dia[day] && row.cargo_por_dia[day].cargo === cargoName) {
-                                                                        cargoHrs += hhmmToDecimal(row[day]?.final || 0);
-                                                                    }
+                                                            if (hasCargoMixtoRow) {
+                                                                const cargosUnicosRow = [...new Set(Object.values(row.cargo_por_dia).map(d => d.cargo))];
+                                                                cargosUnicosRow.forEach(cargoName => {
+                                                                    let cargoHrs = 0;
+                                                                    daysList3.forEach(day => {
+                                                                        if (row.cargo_por_dia[day] && row.cargo_por_dia[day].cargo === cargoName) {
+                                                                            cargoHrs += hhmmToDecimal(row[day]?.final || 0);
+                                                                        }
+                                                                    });
+                                                                    const isDefaultCargo = cargoName === row.cargo;
+                                                                    const cargoRateEntry = Object.values(row.cargo_por_dia).find(d => d.cargo === cargoName);
+                                                                    const kbsRate = isDefaultCargo ? (employeeInfo?.rateKBS || 0) : (cargoRateEntry?.rateKBS || 0);
+                                                                    const lgmRate = isDefaultCargo ? (employeeInfo?.rateLGM || 0) : (cargoRateEntry?.rateLGM || 0);
+                                                                    displayRows.push({
+                                                                        nombre: row.nombre,
+                                                                        codigo: row.codigo,
+                                                                        cargo: cargoName,
+                                                                        isSubRow: true,
+                                                                        origIdx,
+                                                                        cargoHrs,
+                                                                        kbsRate,
+                                                                        lgmRate,
+                                                                        kbsTotal: cargoHrs * kbsRate,
+                                                                        lgmTotal: cargoHrs * lgmRate,
+                                                                        sourceRow: row,
+                                                                        employeeInfo
+                                                                    });
                                                                 });
-                                                                const isDefaultCargo = cargoName === row.cargo;
-                                                                const cargoRateEntry = Object.values(row.cargo_por_dia).find(d => d.cargo === cargoName);
-                                                                const kbsRate = isDefaultCargo ? (employeeInfo?.rateKBS || 0) : (cargoRateEntry?.rateKBS || 0);
-                                                                const lgmRate = isDefaultCargo ? (employeeInfo?.rateLGM || 0) : (cargoRateEntry?.rateLGM || 0);
+                                                            } else {
+                                                                const empId = `${String(row.nombre).trim().toLowerCase()}_${String(row.codigo).replace(/^'+/, '').trim()}`;
+                                                                const kbsRow = (modalKbsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+                                                                const lgmRow = (modalEarningsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
+                                                                const hDec = hhmmToDecimal(row.total.final);
+                                                                const kbsRate = kbsRow ? (kbsRow.rate || 0) : (employeeInfo?.rateKBS || 0);
+                                                                const kbsTotal = (kbsRow && !showSplit) ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
+                                                                const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
+                                                                const lgmTotal = (lgmRow && !showSplit) ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
                                                                 displayRows.push({
                                                                     nombre: row.nombre,
                                                                     codigo: row.codigo,
-                                                                    cargo: cargoName,
-                                                                    isSubRow: true,
+                                                                    cargo: row.cargo,
+                                                                    isSubRow: false,
                                                                     origIdx,
-                                                                    cargoHrs,
+                                                                    cargoHrs: hDec,
                                                                     kbsRate,
                                                                     lgmRate,
-                                                                    kbsTotal: cargoHrs * kbsRate,
-                                                                    lgmTotal: cargoHrs * lgmRate,
+                                                                    kbsTotal,
+                                                                    lgmTotal,
                                                                     sourceRow: row,
                                                                     employeeInfo
                                                                 });
-                                                            });
-                                                        } else {
-                                                            const empId = `${String(row.nombre).trim().toLowerCase()}_${String(row.codigo).replace(/^'+/, '').trim()}`;
-                                                            const kbsRow = (modalKbsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
-                                                            const lgmRow = (modalEarningsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
-                                                            const hDec = hhmmToDecimal(row.total.final);
-                                                            const kbsRate = kbsRow ? (kbsRow.rate || 0) : (employeeInfo?.rateKBS || 0);
-                                                            const kbsTotal = (kbsRow && !showSplit) ? (parseFloat(String(kbsRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * kbsRate);
-                                                            const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
-                                                            const lgmTotal = (lgmRow && !showSplit) ? (parseFloat(String(lgmRow.total || 0).replace(/[^0-9.]/g, '')) || 0) : (hDec * lgmRate);
-                                                            displayRows.push({
-                                                                nombre: row.nombre,
-                                                                codigo: row.codigo,
-                                                                cargo: row.cargo,
-                                                                isSubRow: false,
-                                                                origIdx,
-                                                                cargoHrs: hDec,
-                                                                kbsRate,
-                                                                lgmRate,
-                                                                kbsTotal,
-                                                                lgmTotal,
-                                                                sourceRow: row,
-                                                                employeeInfo
-                                                            });
-                                                        }
-                                                    });
+                                                            }
+                                                        });
 
-                                                    return displayRows.map((item, idx) => {
-                                                        const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
-                                                        const row = item.sourceRow;
+                                                        return displayRows.map((item, idx) => {
+                                                            const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
+                                                            const row = item.sourceRow;
 
-                                                        return (
-                                                            <tr key={`${item.origIdx}_${item.cargo}_${idx}`} className={`group hover:bg-slate-50/50 transition-colors ${item.isSubRow ? 'bg-slate-50/30' : ''}`}>
-                                                                <td className="px-2.5 py-2 border-r border-slate-50 overflow-hidden truncate">
-                                                                    {item.isSubRow ? (
-                                                                        <div className="flex flex-col overflow-hidden">
-                                                                            <span className="text-[9px] font-black text-slate-700 uppercase leading-none truncate ml-2">└ {item.nombre}</span>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="flex flex-col overflow-hidden">
-                                                                            <span className="text-[10.5px] font-black text-slate-700 uppercase leading-none truncate" title={row.nombre}>{row.nombre}</span>
-                                                                            <span className="text-[8px] font-black text-slate-400 tabular-nums tracking-[0.1em] mt-1">ID: {row.codigo || '----'}</span>
-                                                                        </div>
-                                                                    )}
-                                                                </td>
-                                                                <td className="px-1.5 py-2 border-r border-slate-50 overflow-hidden truncate">
-                                                                    {item.isSubRow ? (
-                                                                        <span className="text-[8px] font-extrabold text-amber-700 uppercase bg-amber-50 px-1.5 py-0.5 rounded">{item.cargo}</span>
-                                                                    ) : row.cargo_por_dia && Object.values(row.cargo_por_dia).some(d => d.cargo !== row.cargo) ? (
-                                                                        <span className="text-[8px] font-extrabold text-amber-700 uppercase bg-amber-50 px-1.5 py-0.5 rounded">Resumen</span>
-                                                                    ) : (
-                                                                        <span className="text-[8px] font-extrabold text-slate-500 uppercase bg-slate-100 px-1.5 py-0.5 rounded" title={row.cargo}>{row.cargo}</span>
-                                                                    )}
-                                                                </td>
-                                                                {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
-                                                                    const belongsToThisCargo = !item.isSubRow || (row.cargo_por_dia && row.cargo_por_dia[day] && row.cargo_por_dia[day].cargo === item.cargo);
-                                                                    return (
-                                                                        <td key={day} className="p-1 text-center border-l border-slate-50">
-                                                                            <span className={`text-[10.5px] font-black tabular-nums ${belongsToThisCargo ? 'text-slate-600' : 'text-slate-300'}`}>
-                                                                                {belongsToThisCargo ? formatDecimal(row[day]?.final) : '0'}
-                                                                            </span>
-                                                                        </td>
-                                                                    );
-                                                                })}
-                                                                <td className="px-1.5 py-2 text-center border-l border-slate-50 bg-blue-50/10">
-                                                                    <span className="text-[10.5px] font-black text-slate-700 tabular-nums">
-                                                                        {item.cargoHrs}h
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-purple-50/10 font-bold text-slate-600 tabular-nums text-[10.5px]">
-                                                                    {formatCurrency(item.kbsRate)}
-                                                                </td>
-                                                                <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-purple-50/20 font-black text-purple-700 tabular-nums text-[10.5px]">
-                                                                    {formatCurrency(item.kbsTotal)}
-                                                                </td>
-                                                                <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-rose-50/10 font-bold text-slate-600 tabular-nums text-[10.5px]">
-                                                                    {formatCurrency(item.lgmRate)}
-                                                                </td>
-                                                                <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-rose-50/20 font-black text-rose-600 tabular-nums text-[10.5px]">
-                                                                    {formatCurrency(item.lgmTotal)}
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    });
-                                                })()
-                                            )}
-                                        </tbody>
-                                    </table>
+                                                            return (
+                                                                <tr key={`${item.origIdx}_${item.cargo}_${idx}`} className={`group hover:bg-slate-50/50 transition-colors ${item.isSubRow ? 'bg-slate-50/30' : ''}`}>
+                                                                    <td className="px-2.5 py-2 border-r border-slate-50 overflow-hidden truncate">
+                                                                        {item.isSubRow ? (
+                                                                            <div className="flex flex-col overflow-hidden">
+                                                                                <span className="text-[9px] font-black text-slate-700 uppercase leading-none truncate ml-2">└ {item.nombre}</span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="flex flex-col overflow-hidden">
+                                                                                <span className="text-[10.5px] font-black text-slate-700 uppercase leading-none truncate" title={row.nombre}>{row.nombre}</span>
+                                                                                <span className="text-[8px] font-black text-slate-400 tabular-nums tracking-[0.1em] mt-1">ID: {row.codigo || '----'}</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-1.5 py-2 border-r border-slate-50 overflow-hidden truncate">
+                                                                        {item.isSubRow ? (
+                                                                            <span className="text-[8px] font-extrabold text-amber-700 uppercase bg-amber-50 px-1.5 py-0.5 rounded">{item.cargo}</span>
+                                                                        ) : row.cargo_por_dia && Object.values(row.cargo_por_dia).some(d => d.cargo !== row.cargo) ? (
+                                                                            <span className="text-[8px] font-extrabold text-amber-700 uppercase bg-amber-50 px-1.5 py-0.5 rounded">Resumen</span>
+                                                                        ) : (
+                                                                            <span className="text-[8px] font-extrabold text-slate-500 uppercase bg-slate-100 px-1.5 py-0.5 rounded" title={row.cargo}>{row.cargo}</span>
+                                                                        )}
+                                                                    </td>
+                                                                    {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
+                                                                        const belongsToThisCargo = !item.isSubRow || (row.cargo_por_dia && row.cargo_por_dia[day] && row.cargo_por_dia[day].cargo === item.cargo);
+                                                                        return (
+                                                                            <td key={day} className="p-1 text-center border-l border-slate-50">
+                                                                                <span className={`text-[10.5px] font-black tabular-nums ${belongsToThisCargo ? 'text-slate-600' : 'text-slate-300'}`}>
+                                                                                    {belongsToThisCargo ? formatDecimal(row[day]?.final) : '0'}
+                                                                                </span>
+                                                                            </td>
+                                                                        );
+                                                                    })}
+                                                                    <td className="px-1.5 py-2 text-center border-l border-slate-50 bg-blue-50/10">
+                                                                        <span className="text-[10.5px] font-black text-slate-700 tabular-nums">
+                                                                            {item.cargoHrs}h
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-purple-50/10 font-bold text-slate-600 tabular-nums text-[10.5px]">
+                                                                        {formatCurrency(item.kbsRate)}
+                                                                    </td>
+                                                                    <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-purple-50/20 font-black text-purple-700 tabular-nums text-[10.5px]">
+                                                                        {formatCurrency(item.kbsTotal)}
+                                                                    </td>
+                                                                    <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-rose-50/10 font-bold text-slate-600 tabular-nums text-[10.5px]">
+                                                                        {formatCurrency(item.lgmRate)}
+                                                                    </td>
+                                                                    <td className="px-1.5 py-2 text-right border-l border-slate-50 bg-rose-50/20 font-black text-rose-600 tabular-nums text-[10.5px]">
+                                                                        {formatCurrency(item.lgmTotal)}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        });
+                                                    })()
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
                 );
             })()
             }
@@ -22370,7 +22370,7 @@ function App() {
                 <div className="flex items-center gap-4 ml-auto">
                     <NotificationBell onSelectCandidato={(id) => { setPendingCandidatoId(id); setActiveTab('crm'); }} onSelectProveedor={(id) => { setPendingProveedorId(id); setActiveTab('crm'); }} />
                     <button
-                        onClick={() => {}}
+                        onClick={() => { }}
                         className="flex items-center gap-2 px-3 py-2 bg-[#303a7f]/5 text-[#303a7f] rounded-xl border-2 border-transparent hover:border-[#303a7f]/10 hover:bg-[#303a7f]/10 transition-all active:scale-95 group shadow-sm"
                         title="Correo"
                     >
@@ -22605,15 +22605,15 @@ function App() {
                                         <span className="tracking-widest uppercase text-[10px]">Importar Excel</span>
                                     </button>
                                     {userCanEdit && (
-                                    <button
-                                        onClick={() => setIsAddingStore(true)}
-                                        style={{ backgroundColor: '#303a7f' }}
-                                        className="h-11 text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e] whitespace-nowrap"
-                                    >
-                                        <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-                                        <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" />
-                                        <span className="tracking-widest uppercase text-[10px]">Agregar Tienda</span>
-                                    </button>
+                                        <button
+                                            onClick={() => setIsAddingStore(true)}
+                                            style={{ backgroundColor: '#303a7f' }}
+                                            className="h-11 text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e] whitespace-nowrap"
+                                        >
+                                            <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                                            <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" />
+                                            <span className="tracking-widest uppercase text-[10px]">Agregar Tienda</span>
+                                        </button>
                                     )}
                                 </div>
                                 <input
@@ -22633,7 +22633,7 @@ function App() {
                             {storesViewMode === 'grid' ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                                     {filteredStores.map((store, i) => (
-                                        <StoreCard key={i} store={store} employees={employees} onEdit={userCanEdit ? setEditingStore : () => {}} />
+                                        <StoreCard key={i} store={store} employees={employees} onEdit={userCanEdit ? setEditingStore : () => { }} />
                                     ))}
 
                                     {filteredStores.length === 0 && (
@@ -22655,7 +22655,7 @@ function App() {
                                     </div>
                                     <div className="divide-y divide-gray-50">
                                         {filteredStores.map((store, i) => (
-                                            <StoreRow key={i} store={store} employees={employees} onEdit={userCanEdit ? setEditingStore : () => {}} />
+                                            <StoreRow key={i} store={store} employees={employees} onEdit={userCanEdit ? setEditingStore : () => { }} />
                                         ))}
                                     </div>
 
@@ -22760,15 +22760,15 @@ function App() {
                                     </div>
 
                                     {userCanEditPersonal && (
-                                    <button
-                                        onClick={() => setIsAddingEmployee(true)}
-                                        style={{ backgroundColor: '#303a7f' }}
-                                        className="h-full text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e] whitespace-nowrap"
-                                    >
-                                        <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-                                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
-                                        <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
-                                    </button>
+                                        <button
+                                            onClick={() => setIsAddingEmployee(true)}
+                                            style={{ backgroundColor: '#303a7f' }}
+                                            className="h-full text-white font-black px-6 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#252a5e] whitespace-nowrap"
+                                        >
+                                            <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                                            <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
+                                            <span className="tracking-widest uppercase text-[10px]">Agregar Personal</span>
+                                        </button>
                                     )}
                                 </div>
                             </div>
@@ -22776,7 +22776,7 @@ function App() {
                             {personalViewMode === 'grid' ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                                     {employees.filter(e => e.nombre.toLowerCase().includes(employeeSearchTerm.toLowerCase())).map((employee, i) => (
-                                        <EmployeeCard key={i} employee={employee} onEdit={userCanEditPersonal ? setEditingEmployee : () => {}} />
+                                        <EmployeeCard key={i} employee={employee} onEdit={userCanEditPersonal ? setEditingEmployee : () => { }} />
                                     ))}
 
                                     {employees.length === 0 && (
@@ -22796,7 +22796,7 @@ function App() {
                                     </div>
                                     <div className="divide-y divide-gray-50">
                                         {employees.filter(e => e.nombre.toLowerCase().includes(employeeSearchTerm.toLowerCase())).map((employee, i) => (
-                                            <EmployeeRow key={i} employee={employee} onEdit={userCanEditPersonal ? setEditingEmployee : () => {}} />
+                                            <EmployeeRow key={i} employee={employee} onEdit={userCanEditPersonal ? setEditingEmployee : () => { }} />
                                         ))}
                                     </div>
 
@@ -22861,7 +22861,7 @@ function App() {
                                             <div className="flex flex-col gap-2">
                                                 <select
                                                     value={selectedClienteMap[c.id] || ''}
-                                                    onChange={e => setSelectedClienteMap(p => ({...p, [c.id]: e.target.value}))}
+                                                    onChange={e => setSelectedClienteMap(p => ({ ...p, [c.id]: e.target.value }))}
                                                     className="w-full bg-white border-2 border-gray-200 rounded-xl px-2.5 py-1.5 text-[9px] font-bold text-gray-700 outline-none focus:border-[#6bbdb7]/30 transition-all"
                                                 >
                                                     <option value="">Cliente...</option>
@@ -22899,7 +22899,7 @@ function App() {
                                             const [m2, d2, y2] = p.w2.end.split('/').map(Number);
                                             const pStart = new Date(y1, m1 - 1, d1 - 1);
                                             const pEnd = new Date(y2, m2 - 1, d2 - 1);
-                                            const fmt = (d) => `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
+                                            const fmt = (d) => `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
                                             return `${fmt(pStart)} - ${fmt(pEnd)}`;
                                         })()
                                         : `${p.w1.start} - ${p.w2.end}`;
@@ -23032,163 +23032,163 @@ function App() {
                                         h.fecha_inicio === fechaDesde
                                     );
                                     return !isCurrentWeekApproved && (
-                                    <>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-                                    {/* Control 0.5: Digitalizador de Planillas (IA) */}
-                                    <div className={`rounded-xl border transition-all duration-300 p-4 flex flex-col justify-between gap-4 ${sheetFiles.length > 0 ? 'border-[#6bbdb7]/40 bg-teal-50/20' : 'border-gray-200 bg-[#fbfbfb] hover:border-[#303a7f]/20 hover:bg-white hover:shadow-sm'}`}>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${sheetFiles.length > 0 ? 'bg-[#6bbdb7]/10' : 'bg-[#303a7f]/5'}`}>
-                                                    <Camera size={14} className={sheetFiles.length > 0 ? 'text-[#6bbdb7]' : 'text-[#303a7f]'} />
+                                        <>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+                                                {/* Control 0.5: Digitalizador de Planillas (IA) */}
+                                                <div className={`rounded-xl border transition-all duration-300 p-4 flex flex-col justify-between gap-4 ${sheetFiles.length > 0 ? 'border-[#6bbdb7]/40 bg-teal-50/20' : 'border-gray-200 bg-[#fbfbfb] hover:border-[#303a7f]/20 hover:bg-white hover:shadow-sm'}`}>
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${sheetFiles.length > 0 ? 'bg-[#6bbdb7]/10' : 'bg-[#303a7f]/5'}`}>
+                                                                <Camera size={14} className={sheetFiles.length > 0 ? 'text-[#6bbdb7]' : 'text-[#303a7f]'} />
+                                                            </div>
+                                                            <div>
+                                                                <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${sheetFiles.length > 0 ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Planillas IA</p>
+                                                                <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Digitalizador</p>
+                                                            </div>
+                                                        </div>
+                                                        {sheetFiles.length > 0 && <CheckCircle size={14} className="text-[#6bbdb7] animate-in zoom-in duration-300" />}
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="relative flex-1">
+                                                            <button
+                                                                disabled={!payrollStore}
+                                                                style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (sheetFiles.length > 0 ? '#6bbdb7' : '#303a7f') }}
+                                                                className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${sheetFiles.length > 0 ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
+                                                            >
+                                                                {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos Subidas') : 'Subir Fotos'}
+                                                            </button>
+                                                            <input
+                                                                type="file" multiple disabled={!payrollStore}
+                                                                className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
+                                                                onChange={(e) => {
+                                                                    const selected = Array.from(e.target.files);
+                                                                    if (selected.length > 0) {
+                                                                        const newItems = selected.map(file => ({
+                                                                            id: Math.random().toString(36).substr(2, 9), file: file, preview: URL.createObjectURL(file), comment: ''
+                                                                        }));
+                                                                        setSheetFiles(prev => [...prev, ...newItems]);
+                                                                        setIsSheetPreviewOpen(true);
+                                                                    }
+                                                                    e.target.value = null;
+                                                                }}
+                                                                accept="image/*"
+                                                            />
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className={`text-[9px] font-black uppercase tracking-widest leading-none ${sheetFiles.length > 0 ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>Planillas IA</p>
-                                                    <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Digitalizador</p>
-                                                </div>
-                                            </div>
-                                            {sheetFiles.length > 0 && <CheckCircle size={14} className="text-[#6bbdb7] animate-in zoom-in duration-300" />}
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="relative flex-1">
-                                                <button
-                                                    disabled={!payrollStore}
-                                                    style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (sheetFiles.length > 0 ? '#6bbdb7' : '#303a7f') }}
-                                                    className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${sheetFiles.length > 0 ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
-                                                >
-                                                    {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos Subidas') : 'Subir Fotos'}
-                                                </button>
-                                                <input
-                                                    type="file" multiple disabled={!payrollStore}
-                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
-                                                    onChange={(e) => {
-                                                        const selected = Array.from(e.target.files);
-                                                        if (selected.length > 0) {
-                                                            const newItems = selected.map(file => ({
-                                                                id: Math.random().toString(36).substr(2, 9), file: file, preview: URL.createObjectURL(file), comment: ''
-                                                            }));
-                                                            setSheetFiles(prev => [...prev, ...newItems]);
-                                                            setIsSheetPreviewOpen(true);
-                                                        }
-                                                        e.target.value = null;
-                                                    }}
-                                                    accept="image/*"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
 
-                                    {/* Control 1: Reporte de Supervisor */}
-                                    <div className={`rounded-xl border transition-all duration-300 p-4 flex flex-col justify-between gap-4 ${supervisorFile ? 'border-[#6bbdb7]/40 bg-teal-50/20' : 'border-gray-200 bg-[#fbfbfb] hover:border-[#303a7f]/20 hover:bg-white hover:shadow-sm'}`}>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${supervisorFile ? 'bg-[#6bbdb7]/10' : 'bg-[#303a7f]/5'}`}>
-                                                    <FileText size={14} className={supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'} />
+                                                {/* Control 1: Reporte de Supervisor */}
+                                                <div className={`rounded-xl border transition-all duration-300 p-4 flex flex-col justify-between gap-4 ${supervisorFile ? 'border-[#6bbdb7]/40 bg-teal-50/20' : 'border-gray-200 bg-[#fbfbfb] hover:border-[#303a7f]/20 hover:bg-white hover:shadow-sm'}`}>
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${supervisorFile ? 'bg-[#6bbdb7]/10' : 'bg-[#303a7f]/5'}`}>
+                                                                <FileText size={14} className={supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'} />
+                                                            </div>
+                                                            <div>
+                                                                <p className={`text-[9px] font-black uppercase tracking-widest leading-none truncate ${supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>{supervisorFile ? supervisorFile.name : 'Reporte Sup.'}</p>
+                                                                <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Horas Diarias</p>
+                                                            </div>
+                                                        </div>
+                                                        {supervisorFile && <CheckCircle size={14} className="text-[#6bbdb7] animate-in zoom-in duration-300" />}
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="relative flex-1">
+                                                            <button
+                                                                disabled={!payrollStore}
+                                                                style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (supervisorFile ? '#6bbdb7' : '#303a7f') }}
+                                                                className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${supervisorFile ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
+                                                            >
+                                                                {supervisorFile ? 'Data Lista' : 'Subir Excel'}
+                                                            </button>
+                                                            <input
+                                                                ref={supervisorFileInputRef}
+                                                                type="file" disabled={!payrollStore}
+                                                                className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
+                                                                onChange={(e) => setSupervisorFile(e.target.files[0])}
+                                                                accept=".xlsx,.xls,.csv"
+                                                            />
+                                                        </div>
+                                                        {supervisorFile && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSupervisorFile(null);
+                                                                    if (supervisorFileInputRef.current) supervisorFileInputRef.current.value = "";
+                                                                }}
+                                                                className="w-10 h-10 flex shrink-0 items-center justify-center rounded-lg border border-red-100 text-red-500 bg-red-50 hover:bg-red-100 transition-colors"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className={`text-[9px] font-black uppercase tracking-widest leading-none truncate ${supervisorFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>{supervisorFile ? supervisorFile.name : 'Reporte Sup.'}</p>
-                                                    <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Horas Diarias</p>
-                                                </div>
-                                            </div>
-                                            {supervisorFile && <CheckCircle size={14} className="text-[#6bbdb7] animate-in zoom-in duration-300" />}
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="relative flex-1">
-                                                <button
-                                                    disabled={!payrollStore}
-                                                    style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (supervisorFile ? '#6bbdb7' : '#303a7f') }}
-                                                    className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${supervisorFile ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
-                                                >
-                                                    {supervisorFile ? 'Data Lista' : 'Subir Excel'}
-                                                </button>
-                                                <input
-                                                    ref={supervisorFileInputRef}
-                                                    type="file" disabled={!payrollStore}
-                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
-                                                    onChange={(e) => setSupervisorFile(e.target.files[0])}
-                                                    accept=".xlsx,.xls,.csv"
-                                                />
-                                            </div>
-                                            {supervisorFile && (
-                                                <button
-                                                    onClick={() => {
-                                                        setSupervisorFile(null);
-                                                        if (supervisorFileInputRef.current) supervisorFileInputRef.current.value = "";
-                                                    }}
-                                                    className="w-10 h-10 flex shrink-0 items-center justify-center rounded-lg border border-red-100 text-red-500 bg-red-50 hover:bg-red-100 transition-colors"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
 
-                                    {/* Control 2: Reporte IVR */}
-                                    <div className={`rounded-xl border transition-all duration-300 p-4 flex flex-col justify-between gap-4 ${biometricFile ? 'border-[#6bbdb7]/40 bg-teal-50/20' : 'border-gray-200 bg-[#fbfbfb] hover:border-[#303a7f]/20 hover:bg-white hover:shadow-sm'}`}>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${biometricFile ? 'bg-[#6bbdb7]/10' : 'bg-[#303a7f]/5'}`}>
-                                                    <Clock8 size={14} className={biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'} />
-                                                </div>
-                                                <div>
-                                                    <p className={`text-[9px] font-black uppercase tracking-widest leading-none truncate ${biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>{biometricFile ? biometricFile.name : 'Reporte IVR'}</p>
-                                                    <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Biométrico</p>
+                                                {/* Control 2: Reporte IVR */}
+                                                <div className={`rounded-xl border transition-all duration-300 p-4 flex flex-col justify-between gap-4 ${biometricFile ? 'border-[#6bbdb7]/40 bg-teal-50/20' : 'border-gray-200 bg-[#fbfbfb] hover:border-[#303a7f]/20 hover:bg-white hover:shadow-sm'}`}>
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${biometricFile ? 'bg-[#6bbdb7]/10' : 'bg-[#303a7f]/5'}`}>
+                                                                <Clock8 size={14} className={biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'} />
+                                                            </div>
+                                                            <div>
+                                                                <p className={`text-[9px] font-black uppercase tracking-widest leading-none truncate ${biometricFile ? 'text-[#6bbdb7]' : 'text-[#303a7f]'}`}>{biometricFile ? biometricFile.name : 'Reporte IVR'}</p>
+                                                                <p className="text-[7px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Biométrico</p>
+                                                            </div>
+                                                        </div>
+                                                        {biometricFile && <CheckCircle size={14} className="text-[#6bbdb7] animate-in zoom-in duration-300" />}
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="relative flex-1">
+                                                            <button
+                                                                disabled={!payrollStore}
+                                                                style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (biometricFile ? '#6bbdb7' : '#303a7f') }}
+                                                                className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${biometricFile ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
+                                                            >
+                                                                {biometricFile ? 'Data Lista' : 'Subir Ponches'}
+                                                            </button>
+                                                            <input
+                                                                type="file" disabled={!payrollStore}
+                                                                className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
+                                                                onChange={(e) => setBiometricFile(e.target.files[0])}
+                                                                accept=".xlsx,.xls,.csv,.txt"
+                                                            />
+                                                        </div>
+                                                        {biometricFile && (
+                                                            <button
+                                                                onClick={() => setBiometricFile(null)}
+                                                                className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg border border-red-100 text-red-500 bg-red-50 hover:bg-red-100 transition-colors"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                            {biometricFile && <CheckCircle size={14} className="text-[#6bbdb7] animate-in zoom-in duration-300" />}
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="relative flex-1">
-                                                <button
-                                                    disabled={!payrollStore}
-                                                    style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (biometricFile ? '#6bbdb7' : '#303a7f') }}
-                                                    className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${biometricFile ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
-                                                >
-                                                    {biometricFile ? 'Data Lista' : 'Subir Ponches'}
-                                                </button>
-                                                <input
-                                                    type="file" disabled={!payrollStore}
-                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
-                                                    onChange={(e) => setBiometricFile(e.target.files[0])}
-                                                    accept=".xlsx,.xls,.csv,.txt"
-                                                />
-                                            </div>
-                                            {biometricFile && (
-                                                <button
-                                                    onClick={() => setBiometricFile(null)}
-                                                    className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg border border-red-100 text-red-500 bg-red-50 hover:bg-red-100 transition-colors"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
 
-                                {/* Botón de Procesamiento */}
-                                <div className="mt-10 flex justify-center relative z-10">
-                                    <button
-                                        onClick={() => biometricFile ? setIsBiometricCommentModalOpen(true) : processPayroll()}
-                                        disabled={!payrollStore || !fechaDesde || !fechaHasta || !(supervisorFile || biometricFile) || isProcessingPayroll}
-                                        style={{ backgroundColor: (payrollStore && fechaDesde && fechaHasta && (supervisorFile || biometricFile)) ? '#303a7f' : '#f3f4f6' }}
-                                        className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl flex items-center gap-3 ${((supervisorFile || biometricFile) && payrollStore && fechaDesde && fechaHasta)
-                                            ? 'text-white shadow-blue-900/20 active:scale-95 hover:bg-[#252a5e]'
-                                            : 'text-gray-300 cursor-not-allowed shadow-none'
-                                            }`}
-                                    >
-                                        {isProcessingPayroll ? (
-                                            <>
-                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Procesando...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Settings size={18} className={((supervisorFile || biometricFile) && payrollStore) ? "animate-spin-slow" : ""} />
-                                                Procesar Data
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                                    </>
+                                            {/* Botón de Procesamiento */}
+                                            <div className="mt-10 flex justify-center relative z-10">
+                                                <button
+                                                    onClick={() => biometricFile ? setIsBiometricCommentModalOpen(true) : processPayroll()}
+                                                    disabled={!payrollStore || !fechaDesde || !fechaHasta || !(supervisorFile || biometricFile) || isProcessingPayroll}
+                                                    style={{ backgroundColor: (payrollStore && fechaDesde && fechaHasta && (supervisorFile || biometricFile)) ? '#303a7f' : '#f3f4f6' }}
+                                                    className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl flex items-center gap-3 ${((supervisorFile || biometricFile) && payrollStore && fechaDesde && fechaHasta)
+                                                        ? 'text-white shadow-blue-900/20 active:scale-95 hover:bg-[#252a5e]'
+                                                        : 'text-gray-300 cursor-not-allowed shadow-none'
+                                                        }`}
+                                                >
+                                                    {isProcessingPayroll ? (
+                                                        <>
+                                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                            Procesando...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Settings size={18} className={((supervisorFile || biometricFile) && payrollStore) ? "animate-spin-slow" : ""} />
+                                                            Procesar Data
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </>
                                     );
                                 })()}
                             </section>
@@ -23222,18 +23222,17 @@ function App() {
                                                     // Limpieza profunda (Forzar Refrescamiento de Caché)
                                                     setKbsBillingTableData([]);
                                                     setEarningsTableData([]);
-                                                    
+
                                                     setTimeout(() => {
                                                         setIsLoading(false);
                                                         setIsAttendanceEyeModalOpen(true);
                                                     }, 1500);
                                                 }}
                                                 disabled={semanaTableData.length === 0}
-                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center justify-center group ${
-                                                    semanaTableData.length > 0
+                                                className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center justify-center group ${semanaTableData.length > 0
                                                         ? 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100 animate-pulse'
                                                         : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
-                                                }`}
+                                                    }`}
                                                 title="Ver Rates y Costos"
                                             >
                                                 <Eye size={16} />
@@ -23297,10 +23296,10 @@ function App() {
                                         </div>
                                     </div>
 
-                                    <div ref={attendanceTableRef} className="overflow-x-auto rounded-3xl border-[3px] border-gray-200 bg-white">
+                                    <div ref={attendanceTableRef} className="rounded-3xl border-[3px] border-gray-200 bg-white">
                                         <table className="w-full text-left border-collapse">
-                                            <thead>
-                                                <tr className="bg-[#f9f9f9]/80">
+                                            <thead className="sticky top-[-17px] z-40 bg-[#f9f9f9] shadow-sm ring-1 ring-gray-200">
+                                                <tr className="bg-[#f9f9f9]">
                                                     <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
                                                     <th className="p-3 text-[9px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Cargo</th>
                                                     {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map((day, dIdx) => (
@@ -23333,7 +23332,7 @@ function App() {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y-[3px] divide-gray-200">
-                                            {semanaTableData.length === 0 ? (
+                                                {semanaTableData.length === 0 ? (
                                                     <tr>
                                                         <td colSpan="10" className="py-24 text-center text-gray-300 font-extrabold uppercase text-xs tracking-[0.3em] italic">
                                                             Esperando el despliegue de datos del supervisor...
@@ -23362,30 +23361,30 @@ function App() {
                                                                                 >B</button>
                                                                             </div>
                                                                         )}
-                                                                        <div className="flex flex-col">
+                                                                    <div className="flex flex-col">
                                                                         <div className="flex items-center gap-2">
                                                                             <span className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
                                                                             {!(nominaHistoryData || []).some(h =>
                                                                                 String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
                                                                                 h.fecha_inicio === fechaDesde
                                                                             ) && (
-                                                                                <>
-                                                                                <button
-                                                                                    onClick={() => { setEmployeeSelectorMode('replace'); setEmployeeSelectorRowIdx(idx); setEmployeeSearchQuery(''); setIsEmployeeSelectorOpen(true); }}
-                                                                                    className="w-5 h-5 rounded-full bg-gray-100 text-gray-400 hover:bg-amber-100 hover:text-amber-600 transition-all flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100"
-                                                                                    title="Reemplazar empleado"
-                                                                                >
-                                                                                    <Pencil size={10} />
-                                                                                </button>
-                                                                                <button
-                                                                                    onClick={() => setSemanaTableData(prev => prev.filter((r, j) => j !== idx))}
-                                                                                    className="w-5 h-5 rounded-full bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-500 transition-all flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100"
-                                                                                    title="Eliminar empleado"
-                                                                                >
-                                                                                    <Trash2 size={10} />
-                                                                                </button>
-                                                                                </>
-                                                                            )}
+                                                                                    <>
+                                                                                        <button
+                                                                                            onClick={() => { setEmployeeSelectorMode('replace'); setEmployeeSelectorRowIdx(idx); setEmployeeSearchQuery(''); setIsEmployeeSelectorOpen(true); }}
+                                                                                            className="w-5 h-5 rounded-full bg-gray-100 text-gray-400 hover:bg-amber-100 hover:text-amber-600 transition-all flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100"
+                                                                                            title="Reemplazar empleado"
+                                                                                        >
+                                                                                            <Pencil size={10} />
+                                                                                        </button>
+                                                                                        <button
+                                                                                            onClick={() => setSemanaTableData(prev => prev.filter((r, j) => j !== idx))}
+                                                                                            className="w-5 h-5 rounded-full bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-500 transition-all flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100"
+                                                                                            title="Eliminar empleado"
+                                                                                        >
+                                                                                            <Trash2 size={10} />
+                                                                                        </button>
+                                                                                    </>
+                                                                                )}
                                                                         </div>
                                                                         <span className="text-[9px] font-black text-[#6bbdb7] tabular-nums tracking-[0.1em] mt-1">ID: {row.codigo || '----'}</span>
                                                                     </div>
@@ -23416,32 +23415,32 @@ function App() {
                                                                         <div className="flex flex-col gap-2">
                                                                             {/* Pills Interactivos — bloqueados si la semana fue aprobada */}
                                                                             {!weekLocked && (
-                                                                                    <div className="flex justify-between gap-1">
-                                                                                        <button
-                                                                                            onClick={() => handleAuditChange(idx, day, dayVal.sup)}
-                                                                                            className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.sup ? 'bg-blue-100/50 border-[#303a7f]/20 text-[#303a7f] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'}`}
-                                                                                        >
-                                                                                            {formatDecimal(dayVal.sup)}
-                                                                                        </button>
-                                                                                        <button
-                                                                                            onClick={() => handleAuditChange(idx, day, dayVal.bio)}
-                                                                                            className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.bio ? 'bg-teal-50/50 border-[#6bbdb7]/20 text-[#6bbdb7] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'} ${dayVal.bio === 'X' ? '!text-red-500' : ''}`}
-                                                                                        >
-                                                                                            {formatDecimal(dayVal.bio)}
-                                                                                        </button>
-                                                                                    </div>
-                                                                                )}
+                                                                                <div className="flex justify-between gap-1">
+                                                                                    <button
+                                                                                        onClick={() => handleAuditChange(idx, day, dayVal.sup)}
+                                                                                        className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.sup ? 'bg-blue-100/50 border-[#303a7f]/20 text-[#303a7f] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'}`}
+                                                                                    >
+                                                                                        {formatDecimal(dayVal.sup)}
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => handleAuditChange(idx, day, dayVal.bio)}
+                                                                                        className={`px-3 py-1 rounded-full text-[9px] font-black transition-all active:scale-90 border ${dayVal.final === dayVal.bio ? 'bg-teal-50/50 border-[#6bbdb7]/20 text-[#6bbdb7] shadow-sm' : 'bg-gray-50/50 text-gray-400 border-transparent'} ${dayVal.bio === 'X' ? '!text-red-500' : ''}`}
+                                                                                    >
+                                                                                        {formatDecimal(dayVal.bio)}
+                                                                                    </button>
+                                                                                </div>
+                                                                            )}
                                                                             {/* Input de Auditoría — bloqueado en solo lectura si la semana fue aprobada */}
-                                                                                    <div className={`relative rounded-xl overflow-hidden shadow-sm transition-all duration-300 border-[2px] ${isManual ? 'border-[#6bbdb7] shadow-[0_0_15px_rgba(107,189,183,0.2)]' : 'border-[#303a7f]'}`}>
-                                                                                        <input
-                                                                                            type="text"
-                                                                                            value={formatDecimal(dayVal.final)}
-                                                                                            onChange={(e) => !weekLocked && handleAuditChange(idx, day, e.target.value)}
-                                                                                            readOnly={weekLocked}
-                                                                                            className={`w-full bg-[#f9f9f9] px-2 py-2 text-center text-[12px] font-black text-[#303a7f] tabular-nums outline-none border-none placeholder-gray-300 ${weekLocked ? 'cursor-not-allowed' : ''}`}
-                                                                                            placeholder={weekLocked ? '' : '0'}
-                                                                                        />
-                                                                                    </div>
+                                                                            <div className={`relative rounded-xl overflow-hidden shadow-sm transition-all duration-300 border-[2px] ${isManual ? 'border-[#6bbdb7] shadow-[0_0_15px_rgba(107,189,183,0.2)]' : 'border-[#303a7f]'}`}>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={formatDecimal(dayVal.final)}
+                                                                                    onChange={(e) => !weekLocked && handleAuditChange(idx, day, e.target.value)}
+                                                                                    readOnly={weekLocked}
+                                                                                    className={`w-full bg-[#f9f9f9] px-2 py-2 text-center text-[12px] font-black text-[#303a7f] tabular-nums outline-none border-none placeholder-gray-300 ${weekLocked ? 'cursor-not-allowed' : ''}`}
+                                                                                    placeholder={weekLocked ? '' : '0'}
+                                                                                />
+                                                                            </div>
                                                                             {row.cargo_por_dia && row.cargo_por_dia[day] && (
                                                                                 <div className="flex flex-col gap-1 mt-1">
                                                                                     <span className={`text-[7px] font-extrabold uppercase px-1.5 py-0.5 rounded leading-none ${row.cargo_por_dia[day].cargo === row.cargo ? 'bg-gray-100 text-gray-500' : 'bg-amber-100 text-amber-700'}`}>
@@ -23498,16 +23497,16 @@ function App() {
                                         String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
                                         h.fecha_inicio === fechaDesde
                                     ) && (
-                                        <div className="mt-3 flex justify-center">
-                                            <button
-                                                onClick={() => { setEmployeeSelectorMode('add'); setEmployeeSelectorRowIdx(null); setEmployeeSearchQuery(''); setIsEmployeeSelectorOpen(true); }}
-                                                className="px-5 py-2 rounded-xl border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#6bbdb7] hover:text-[#6bbdb7] hover:bg-teal-50/30 transition-all text-[9px] font-black uppercase tracking-widest flex items-center gap-2 active:scale-95"
-                                            >
-                                                <Plus size={14} />
-                                                Agregar Empleado
-                                            </button>
-                                        </div>
-                                    )}
+                                            <div className="mt-3 flex justify-center">
+                                                <button
+                                                    onClick={() => { setEmployeeSelectorMode('add'); setEmployeeSelectorRowIdx(null); setEmployeeSearchQuery(''); setIsEmployeeSelectorOpen(true); }}
+                                                    className="px-5 py-2 rounded-xl border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#6bbdb7] hover:text-[#6bbdb7] hover:bg-teal-50/30 transition-all text-[9px] font-black uppercase tracking-widest flex items-center gap-2 active:scale-95"
+                                                >
+                                                    <Plus size={14} />
+                                                    Agregar Empleado
+                                                </button>
+                                            </div>
+                                        )}
 
                                     {(semanaTableData.length > 0 || specialProjectsData.length > 0) && (
                                         <div className="mt-2 flex justify-end gap-4 border-t-2 border-gray-50 pt-3">
@@ -23772,7 +23771,7 @@ function App() {
                             const [m2, d2, y2] = p.w2.end.split('/').map(Number);
                             const pStart = new Date(y1, m1 - 1, d1 - 1);
                             const pEnd = new Date(y2, m2 - 1, d2 - 1);
-                            const fmt = (d) => `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
+                            const fmt = (d) => `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
                             return `${fmt(pStart)} - ${fmt(pEnd)}`;
                         })()
                         : `${p.w1.start} - ${p.w2.end}`;
@@ -23893,32 +23892,32 @@ function App() {
                                         let fecha_inicio = '';
                                         let fecha_fin = '';
                                         if (parts.length === 3) {
-                                             const startStr = parts[1];
-                                             const endStr = parts[2];
-                                             if (startStr.length === 8 && endStr.length === 8) {
-                                                 fecha_inicio = `${startStr.slice(0, 2)}/${startStr.slice(2, 4)}/${startStr.slice(4)}`;
-                                                 fecha_fin = `${endStr.slice(0, 2)}/${endStr.slice(2, 4)}/${endStr.slice(4)}`;
-                                             }
+                                            const startStr = parts[1];
+                                            const endStr = parts[2];
+                                            if (startStr.length === 8 && endStr.length === 8) {
+                                                fecha_inicio = `${startStr.slice(0, 2)}/${startStr.slice(2, 4)}/${startStr.slice(4)}`;
+                                                fecha_fin = `${endStr.slice(0, 2)}/${endStr.slice(2, 4)}/${endStr.slice(4)}`;
+                                            }
                                         }
                                         const fieldMap = {
-                                             'fecha rad.': ['fecha rad.', 'Fecha Rad.'],
-                                             'pago': ['pago', 'Pago'],
-                                             'fecha de pago': ['fecha de pago', 'Fecha de Pago'],
-                                             'wos': ['wos', 'WOS'],
-                                             'pagada': ['status', 'Status']
+                                            'fecha rad.': ['fecha rad.', 'Fecha Rad.'],
+                                            'pago': ['pago', 'Pago'],
+                                            'fecha de pago': ['fecha de pago', 'Fecha de Pago'],
+                                            'wos': ['wos', 'WOS'],
+                                            'pagada': ['status', 'Status']
                                         };
                                         const finalVal = field === 'pagada' ? (val ? 'Paid' : 'Due') : val;
                                         const newRow = {
-                                             nombre: selectedHistoryStore,
-                                             codigo: week,
-                                             fecha_inicio,
-                                             fecha_fin,
-                                             data_json: JSON.stringify({ isQuincenaAZPEN: true, expectedPayment: 484.33 }),
-                                             "Fecha Rad.": '',
-                                             "Pago": '',
-                                             "Fecha de Pago": '',
-                                             "WOS": '',
-                                             "Status": 'Due'
+                                            nombre: selectedHistoryStore,
+                                            codigo: week,
+                                            fecha_inicio,
+                                            fecha_fin,
+                                            data_json: JSON.stringify({ isQuincenaAZPEN: true, expectedPayment: 484.33 }),
+                                            "Fecha Rad.": '',
+                                            "Pago": '',
+                                            "Fecha de Pago": '',
+                                            "WOS": '',
+                                            "Status": 'Due'
                                         };
                                         (fieldMap[field] || []).forEach(key => { newRow[key] = finalVal; });
                                         return [...prev, newRow];
@@ -24666,7 +24665,7 @@ function App() {
                             delete payload.cliente;
                             delete payload.observaciones;
 
-syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado'], true);
+                            syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado'], true);
 
                             return newEmployees;
                         });

@@ -15350,6 +15350,46 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
     const [hoursReportPdfBase64, setHoursReportPdfBase64] = useState(null);
     const attendanceTableRef = useRef(null);
     const attendanceReportRef = useRef(null);
+    const theadRef = useRef(null);
+    const [isTheadSticky, setIsTheadSticky] = useState(false);
+    const [theadStickyWidth, setTheadStickyWidth] = useState(0);
+    const [theadStickyLeft, setTheadStickyLeft] = useState(0);
+    const isStickyRef = useRef(false);
+
+    useEffect(() => {
+        const scrollEl = document.querySelector('[class*="overflow-y-auto"].flex-1, main.overflow-y-auto');
+        const target = scrollEl || window;
+        const handleScroll = () => {
+            const tableEl = attendanceTableRef.current;
+            if (!tableEl) return;
+            const theadEl = tableEl.querySelector('thead');
+            if (!theadEl) return;
+            const tableRect = tableEl.getBoundingClientRect();
+            const theadHeight = theadEl.offsetHeight;
+            if (tableRect.top < 0 && tableRect.bottom > theadHeight) {
+                if (!isStickyRef.current) {
+                    isStickyRef.current = true;
+                    setIsTheadSticky(true);
+                    setTheadStickyWidth(tableEl.offsetWidth);
+                    setTheadStickyLeft(tableRect.left);
+                }
+            } else {
+                if (isStickyRef.current) {
+                    isStickyRef.current = false;
+                    setIsTheadSticky(false);
+                }
+            }
+        };
+        if (scrollEl) scrollEl.addEventListener('scroll', handleScroll, { passive: true });
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        window.addEventListener('resize', handleScroll);
+        setTimeout(handleScroll, 200);
+        return () => {
+            if (scrollEl) scrollEl.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('resize', handleScroll);
+        };
+    }, []);
 
     const [specialProjectsData, setSpecialProjectsData] = useState([]);
     const [payrollDrafts, setPayrollDrafts] = useState({});
@@ -20899,10 +20939,11 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                         })()}
                                     </div>
 
-                                    <div ref={attendanceTableRef} className="overflow-x-auto rounded-2xl border-2 border-gray-200 bg-white">
+                                    <div ref={attendanceTableRef} className="rounded-2xl border-2 border-gray-200 bg-white">
+                                        {isTheadSticky && <div style={{ height: theadRef.current?.offsetHeight || 0 }} />}
                                         <table className="w-full text-left border-collapse">
-                                            <thead>
-                                                <tr className="bg-[#f9f9f9]/80">
+                                            <thead ref={theadRef} className={isTheadSticky ? 'fixed z-[100]' : ''} style={isTheadSticky ? { width: theadStickyWidth, left: theadStickyLeft, top: '-10px', maxWidth: '100vw' } : {}}>
+                                                <tr className="bg-[#f9f9f9]">
                                                     <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
                                                     <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Cargo</th>
                                                     {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map((day, dIdx) => (
