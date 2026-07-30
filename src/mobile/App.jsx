@@ -1615,10 +1615,11 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
                                     <Tooltip
                                         formatter={(value) => formatMoney(value)}
                                         contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
+                                        wrapperStyle={{ zIndex: 50 }}
                                     />
                                 </PieChart>
                             </ResponsiveContainer>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ROI Total</span>
                                 <span className="text-2xl font-black text-[#303a7f] tracking-tighter">{roiPercent}%</span>
                             </div>
