@@ -4646,7 +4646,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                             className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-xs"
                                         >
                                             <option value="">Seleccione Tienda</option>
-                                            {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                            {stores.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
                                         </select>
                                     ) : (
                                         <input
@@ -5249,7 +5249,7 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1">Tienda Asignada</label>
                                     <select value={newEmployee.tienda} onChange={(e) => updateField('tienda', e.target.value)} className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 font-bold text-sm">
                                         <option value="">Seleccione Tienda</option>
-                                        {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                        {stores.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
                                     </select>
                                 </div>
                                 <div className="group">

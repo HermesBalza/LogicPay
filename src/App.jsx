@@ -1550,7 +1550,7 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
                                 className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[120px] truncate"
                             >
                                 <option value="Todas">Todas las Tiendas</option>
-                                {stores.map((s, idx) => <option key={s.codigo || `dash-store-${idx}`} value={s.nombre}>{s.nombre}</option>)}
+                                {stores.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map((s, idx) => <option key={s.codigo || `dash-store-${idx}`} value={s.nombre}>{s.nombre}</option>)}
                             </select>
                         </div>
 
@@ -4877,7 +4877,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         >
                             <option value="">Todas las tiendas</option>
                             {[...new Set(availableForManualMatch.map(e => e.nombre || e.tienda || e.Tienda || ''))]
-                                .filter(Boolean).sort().map(s => (
+                                .filter(Boolean).sort((a, b) => a.localeCompare(b, 'es')).map(s => (
                                     <option key={s} value={s}>{s}</option>
                                 ))
                             }
@@ -5337,7 +5337,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                                 className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-xs"
                                             >
                                                 <option value="">Seleccione Tienda</option>
-                                                {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                                {stores.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
                                             </select>
                                         ) : (
                                             <input
@@ -6043,7 +6043,7 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
                                             className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
                                         >
                                             <option value="">Seleccione Tienda</option>
-                                            {stores.map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
+                                            {stores.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map(s => <option key={s.codigo} value={s.nombre}>{s.nombre}</option>)}
                                         </select>
                                     </div>
                                     <div className="group">
