@@ -11807,6 +11807,15 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
     };
 
     const weekType = isChewyStore(selectedStore) ? 'mon-sun' : 'sun-sat';
+    const getChewyRange = (start, end) => {
+        if (!isChewyStore(selectedStore)) return null;
+        const [m1, d1, y1] = start.split('/').map(Number);
+        const [m2, d2, y2] = end.split('/').map(Number);
+        const pStart = new Date(y1, m1 - 1, d1 - 1);
+        const pEnd = new Date(y2, m2 - 1, d2 - 1);
+        const fmt = (d) => `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
+        return { start: fmt(pStart), end: fmt(pEnd) };
+    };
     const biweeklyPeriods = generateBiweeklyPeriods(weekType);
     const availableYears = Array.from({ length: 15 }, (_, i) => 2026 + i);
     const filteredPeriods = biweeklyPeriods.filter(p => p.filterYear === selectedYear);
@@ -11922,9 +11931,12 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                         {filteredPeriods.map((p) => {
                             const bothProcessed = isWeekProcessed(p.w1.start) && isWeekProcessed(p.w2.start);
+                            const chewyRange = getChewyRange(p.w1.start, p.w2.end);
+                            const idStart = chewyRange ? chewyRange.start : p.w1.start;
+                            const idEnd = chewyRange ? chewyRange.end : p.w2.end;
                             const expectedId = selectedStore === '__NOMINA_COMPLETA__'
-                                ? `_${p.w1.start}_-_${p.w2.end}`.replace(/\s+/g, '_')
-                                : `${selectedStore}_${p.w1.start}_-_${p.w2.end}`.replace(/\s+/g, '_');
+                                ? `_${idStart}_-_${idEnd}`.replace(/\s+/g, '_')
+                                : `${selectedStore}_${idStart}_-_${idEnd}`.replace(/\s+/g, '_');
                             const isProcessed = selectedStore === '__NOMINA_COMPLETA__'
                                 ? (nominaDetailData || []).some(d => {
                                     const id = String(d.ID_Consolidacion || d.id_consolidacion || '').trim();
