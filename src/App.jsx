@@ -10149,6 +10149,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     const [previewPdf, setPreviewPdf] = useState({ isOpen: false, url: '', name: '' });
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [dailyDetailsData, setDailyDetailsData] = useState({});
+    const [rawEntriesData, setRawEntriesData] = useState({});
 
     const handleCommentChange = (index, value) => {
         setBiweeklyEmployees(prev => {
@@ -10352,63 +10353,6 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             });
         }
 
-        // Daily details extraction for "Detalles de Nómina" modal
-        const dayNamesES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-        const dayNamesShort = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-        const parseW1Start = period.w1?.start ? (() => { const [m,d,y]=period.w1.start.split('/').map(Number); return new Date(y,m-1,d); })() : null;
-        const parseW2Start = period.w2?.start ? (() => { const [m,d,y]=period.w2.start.split('/').map(Number); return new Date(y,m-1,d); })() : null;
-        const fmtDate = (d) => `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
-        const dailyParse = (val) => { if (!val || val === 'X' || val === '0:00') return 0; const s=String(val).trim(); if (s.includes(':')) { const [h,m2]=s.split(':').map(Number); return h+(m2||0)/60; } return parseFloat(s)||0; };
-
-        const detailsMap = {};
-        Object.keys(empDataMap).forEach(empId => {
-            const empName = empId.split('_')[0] || empId;
-            const data = empDataMap[empId];
-            const w1Entry = data.w1.find(e => e.store === period.store && e.empData) || data.w1[0];
-            const w2Entry = data.w2.find(e => e.store === period.store && e.empData) || data.w2[0];
-
-            const days = [];
-            if (parseW1Start) {
-                for (let i = 0; i < 7; i++) {
-                    const dt = new Date(parseW1Start);
-                    dt.setDate(dt.getDate() + i);
-                    const dayIdx = dt.getDay();
-                    const dayName = dayNamesES[dayIdx];
-                    let hours = 0;
-                    if (w1Entry?.empData) {
-                        hours = dailyParse(w1Entry.empData[dayName]?.final);
-                    }
-                    if (period._isChewyPayroll && dayIdx === 0) {
-                        const wkB = chewyWkBeforeData[empId];
-                        hours = dailyParse(wkB?.domingo?.final);
-                    }
-                    days.push({ date: fmtDate(dt), day: dayNamesShort[dayIdx], dayName, hours, week: 1 });
-                }
-            }
-            if (parseW2Start) {
-                for (let i = 0; i < 7; i++) {
-                    const dt = new Date(parseW2Start);
-                    dt.setDate(dt.getDate() + i);
-                    const dayIdx = dt.getDay();
-                    const dayName = dayNamesES[dayIdx];
-                    let hours = 0;
-                    if (w2Entry?.empData) {
-                        hours = dailyParse(w2Entry.empData[dayName]?.final);
-                    }
-                    if (period._isChewyPayroll && dayIdx === 0) {
-                        hours = dailyParse(w1Entry?.empData?.domingo?.final);
-                    }
-                    days.push({ date: fmtDate(dt), day: dayNamesShort[dayIdx], dayName, hours, week: 2 });
-                }
-            }
-
-            detailsMap[empId] = {
-                nombre: empName.replace(/^\w/, c => c.toUpperCase()),
-                days
-            };
-        });
-        setDailyDetailsData(detailsMap);
-
         // También incluir Proyectos Especiales en el mapa de sedes
         // peStoreMap se construye desde el historial COMPLETO de P.E. (no filtrado por tienda)
         // para detectar cuando un empleado tiene P.E. en una tienda diferente a la actual.
@@ -10502,6 +10446,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         }
 
         // 4. Construir lista consolidada final
+        const entriesMap = {};
         const consolidated = finalEmpIds.map(id => {
             const data = empDataMap[id] || { w1: [], w2: [] };
 
@@ -10510,6 +10455,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
             const w1Entries = filterStore ? data.w1.filter(e => e.store === filterStore) : data.w1;
             const w2Entries = filterStore ? data.w2.filter(e => e.store === filterStore) : data.w2;
+            entriesMap[id] = { w1Entries, w2Entries, chewyWkBefore: period._isChewyPayroll ? (chewyWkBeforeData[id] || null) : null };
 
             let totalHoursW1, totalHoursW2;
             if (period._isChewyPayroll) {
@@ -10638,7 +10584,66 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             return a.nombre.localeCompare(b.nombre);
         });
         setBiweeklyEmployees(consolidated);
+        setRawEntriesData(entriesMap);
     }, [period, nominaHistoryData, specialProjectsData, specialProjectsHistoryData, nominaDetailData]);
+
+    useEffect(() => {
+        if (!period) return;
+        const dayNamesES = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+        const dayNamesShort = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        const chewyShift = period._isChewyPayroll ? -1 : 0;
+        const parseW1Start = period.w1?.start ? (() => { const [m,d,y]=period.w1.start.split('/').map(Number); return new Date(y,m-1,d+chewyShift); })() : null;
+        const parseW2Start = period.w2?.start ? (() => { const [m,d,y]=period.w2.start.split('/').map(Number); return new Date(y,m-1,d+chewyShift); })() : null;
+        const fmtDate = (d) => `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
+        const dailyParse = (val) => { if (!val || val === 'X' || val === '0:00') return 0; const s=String(val).trim(); if (s.includes(':')) { const [h,m2]=s.split(':').map(Number); return h+(m2||0)/60; } return parseFloat(s)||0; };
+
+        const detailsMap = {};
+        Object.keys(rawEntriesData).forEach(empId => {
+            const empName = empId.split('_')[0] || empId;
+            const entry = rawEntriesData[empId];
+            const w1Entry = entry.w1Entries?.[0] || null;
+            const w2Entry = entry.w2Entries?.[0] || null;
+            const wkBefore = entry.chewyWkBefore || null;
+
+            const days = [];
+            if (parseW1Start) {
+                for (let i = 0; i < 7; i++) {
+                    const dt = new Date(parseW1Start);
+                    dt.setDate(dt.getDate() + i);
+                    const dayIdx = dt.getDay();
+                    const dayName = dayNamesES[dayIdx];
+                    let hours = 0;
+                    if (period._isChewyPayroll && dayIdx === 0) {
+                        hours = dailyParse(wkBefore?.domingo?.final);
+                    } else if (w1Entry?.empData) {
+                        hours = dailyParse(w1Entry.empData[dayName]?.final);
+                    }
+                    days.push({ date: fmtDate(dt), day: dayNamesShort[dayIdx], dayName, hours, week: 1 });
+                }
+            }
+            if (parseW2Start) {
+                for (let i = 0; i < 7; i++) {
+                    const dt = new Date(parseW2Start);
+                    dt.setDate(dt.getDate() + i);
+                    const dayIdx = dt.getDay();
+                    const dayName = dayNamesES[dayIdx];
+                    let hours = 0;
+                    if (period._isChewyPayroll && dayIdx === 0) {
+                        hours = dailyParse(w1Entry?.empData?.domingo?.final);
+                    } else if (w2Entry?.empData) {
+                        hours = dailyParse(w2Entry.empData[dayName]?.final);
+                    }
+                    days.push({ date: fmtDate(dt), day: dayNamesShort[dayIdx], dayName, hours, week: 2 });
+                }
+            }
+
+            detailsMap[empId] = {
+                nombre: empName.replace(/^\w/, c => c.toUpperCase()),
+                days
+            };
+        });
+        setDailyDetailsData(detailsMap);
+    }, [rawEntriesData, period]);
 
     if (!period) return null;
 
