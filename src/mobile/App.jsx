@@ -8946,6 +8946,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     const [sendingProgress, setSendingProgress] = useState({ current: 0, total: 0, status: 'idle', logs: [] });
     const [sentPayStubs, setSentPayStubs] = useState({}); // { [empId]: true }
     const [previewPdf, setPreviewPdf] = useState({ isOpen: false, url: '', name: '' });
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [dailyDetailsData, setDailyDetailsData] = useState({});
 
     const handleCommentChange = (index, value) => {
         setBiweeklyEmployees(prev => {
@@ -9148,6 +9150,63 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 }
             });
         }
+
+        // Daily details extraction for "Detalles de Nómina" modal
+        const dayNamesES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const dayNamesShort = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        const parseW1Start = period.w1?.start ? (() => { const [m,d,y]=period.w1.start.split('/').map(Number); return new Date(y,m-1,d); })() : null;
+        const parseW2Start = period.w2?.start ? (() => { const [m,d,y]=period.w2.start.split('/').map(Number); return new Date(y,m-1,d); })() : null;
+        const fmtDate = (d) => `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
+        const dailyParse = (val) => { if (!val || val === 'X' || val === '0:00') return 0; const s=String(val).trim(); if (s.includes(':')) { const [h,m2]=s.split(':').map(Number); return h+(m2||0)/60; } return parseFloat(s)||0; };
+
+        const detailsMap = {};
+        Object.keys(empDataMap).forEach(empId => {
+            const empName = empId.split('_')[0] || empId;
+            const data = empDataMap[empId];
+            const w1Entry = data.w1.find(e => e.store === period.store && e.empData) || data.w1[0];
+            const w2Entry = data.w2.find(e => e.store === period.store && e.empData) || data.w2[0];
+
+            const days = [];
+            if (parseW1Start) {
+                for (let i = 0; i < 7; i++) {
+                    const dt = new Date(parseW1Start);
+                    dt.setDate(dt.getDate() + i);
+                    const dayIdx = dt.getDay();
+                    const dayName = dayNamesES[dayIdx];
+                    let hours = 0;
+                    if (w1Entry?.empData) {
+                        hours = dailyParse(w1Entry.empData[dayName]?.final);
+                    }
+                    if (period._isChewyPayroll && dayIdx === 0) {
+                        const wkB = chewyWkBeforeData[empId];
+                        hours = dailyParse(wkB?.domingo?.final);
+                    }
+                    days.push({ date: fmtDate(dt), day: dayNamesShort[dayIdx], dayName, hours, week: 1 });
+                }
+            }
+            if (parseW2Start) {
+                for (let i = 0; i < 7; i++) {
+                    const dt = new Date(parseW2Start);
+                    dt.setDate(dt.getDate() + i);
+                    const dayIdx = dt.getDay();
+                    const dayName = dayNamesES[dayIdx];
+                    let hours = 0;
+                    if (w2Entry?.empData) {
+                        hours = dailyParse(w2Entry.empData[dayName]?.final);
+                    }
+                    if (period._isChewyPayroll && dayIdx === 0) {
+                        hours = dailyParse(w1Entry?.empData?.domingo?.final);
+                    }
+                    days.push({ date: fmtDate(dt), day: dayNamesShort[dayIdx], dayName, hours, week: 2 });
+                }
+            }
+
+            detailsMap[empId] = {
+                nombre: empName.replace(/^\w/, c => c.toUpperCase()),
+                days
+            };
+        });
+        setDailyDetailsData(detailsMap);
 
         // También incluir Proyectos Especiales en el mapa de sedes
         // peStoreMap se construye desde el historial COMPLETO de P.E. (no filtrado por tienda)
@@ -10043,6 +10102,14 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                     {/* Action Bar */}
                     <div data-html2canvas-ignore className="mt-6 flex flex-col items-center gap-2 border-t-2 border-gray-50 pt-4">
+                        <button
+                            onClick={() => setIsDetailsModalOpen(true)}
+                            disabled={[...biweeklyEmployees, ...addedSupervisors].length === 0}
+                            className="w-full px-6 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg bg-white text-[#6bbdb7] border-2 border-[#6bbdb7] hover:bg-[#6bbdb7] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            <FileText size={14} />
+                            Detalles de Nómina
+                        </button>
                         {user?.rol !== 'Operador de Pagos' && (
                         <button
                             onClick={() => setIsEmailModalOpen(true)}
@@ -10380,6 +10447,146 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     </div>
                 </div>
             )}
+
+            {/* MODAL: Detalles de Nómina */}
+            {isDetailsModalOpen && (() => {
+                const allEmployees = [...biweeklyEmployees, ...addedSupervisors];
+                const sampleEmp = allEmployees.find(e => dailyDetailsData[String(e.id || '').trim().toLowerCase()]);
+                const sampleDays = sampleEmp ? dailyDetailsData[String(sampleEmp.id).trim().toLowerCase()]?.days || [] : [];
+                const w1Days = sampleDays.filter(d => d.week === 1);
+                const w2Days = sampleDays.filter(d => d.week === 2);
+
+                return (
+                    <div className="fixed inset-0 z-[500] bg-white flex flex-col animate-in fade-in duration-200" data-html2canvas-ignore>
+                        <header className="px-4 py-2.5 border-b-2 border-gray-100 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-[#6bbdb7] text-white rounded-lg shadow-lg shadow-teal-900/20">
+                                    <FileText size={16} />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black text-[#303a7f] tracking-tighter uppercase leading-none">Detalles de Nómina</h3>
+                                    <p className="text-[#6bbdb7] text-[8px] font-black uppercase tracking-widest">{period.store} — {period.range}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsDetailsModalOpen(false)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg transition-all active:scale-90">
+                                <X size={18} />
+                            </button>
+                        </header>
+
+                        <div className="flex-1 overflow-auto custom-scrollbar">
+                            <table className="w-full border-collapse table-fixed" style={{ minWidth: '100%' }}>
+                                <thead className="sticky top-0 z-10">
+                                    <tr>
+                                        <th className="sticky left-0 z-20 bg-gray-100 p-1.5 text-left text-[7px] font-black text-[#303a7f] uppercase tracking-wider border-b-2 border-gray-200" style={{ width: '100px', minWidth: '100px' }}>
+                                            Empleado
+                                        </th>
+                                        {w1Days.map((d, i) => (
+                                            <th key={`w1h-${i}`} className="bg-[#6bbdb7]/10 p-1 text-center border-b-2 border-[#6bbdb7]/20" style={{ width: '4.8%' }}>
+                                                <div className="text-[6px] font-mono text-[#6bbdb7] font-bold leading-tight">{d.date.substring(0, 5)}</div>
+                                                <div className="text-[7px] font-black text-[#6bbdb7] uppercase leading-tight">{d.day}</div>
+                                            </th>
+                                        ))}
+                                        {w2Days.map((d, i) => (
+                                            <th key={`w2h-${i}`} className="bg-[#303a7f]/10 p-1 text-center border-b-2 border-[#303a7f]/20" style={{ width: '4.8%' }}>
+                                                <div className="text-[6px] font-mono text-[#303a7f] font-bold leading-tight">{d.date.substring(0, 5)}</div>
+                                                <div className="text-[7px] font-black text-[#303a7f] uppercase leading-tight">{d.day}</div>
+                                            </th>
+                                        ))}
+                                        <th className="bg-gray-200 p-1 text-center border-b-2 border-gray-300" style={{ width: '40px' }}>
+                                            <div className="text-[6px] font-black text-[#303a7f] uppercase">Total</div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {allEmployees.map((emp, rowIdx) => {
+                                        const empId = String(emp.id || '').trim().toLowerCase();
+                                        const details = dailyDetailsData[empId];
+                                        const empDays = details?.days || [];
+                                        const empW1 = empDays.filter(d => d.week === 1);
+                                        const empW2 = empDays.filter(d => d.week === 2);
+                                        const totalW1 = empW1.reduce((s, d) => s + d.hours, 0);
+                                        const totalW2 = empW2.reduce((s, d) => s + d.hours, 0);
+                                        const bg = rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30';
+                                        return (
+                                            <tr key={emp.id} className={`${bg} hover:bg-teal-50/30 transition-colors`}>
+                                                <td className="sticky left-0 z-10 p-1.5 border-b border-gray-100 text-[8px] font-bold text-[#303a7f] truncate" style={{ maxWidth: '100px', background: rowIdx % 2 === 0 ? '#fff' : '#f9fafb' }} title={emp.nombre}>
+                                                    {emp.nombre}
+                                                </td>
+                                                {empW1.map((d, i) => (
+                                                    <td key={`w1-${i}`} className={`p-1 text-center border-b border-gray-50 ${d.hours > 0 ? '' : 'opacity-20'}`}>
+                                                        <span className="text-[8px] font-mono font-bold text-[#6bbdb7] tabular-nums">{d.hours > 0 ? d.hours.toFixed(1) : '—'}</span>
+                                                    </td>
+                                                ))}
+                                                {empW2.map((d, i) => (
+                                                    <td key={`w2-${i}`} className={`p-1 text-center border-b border-gray-50 ${d.hours > 0 ? '' : 'opacity-20'}`}>
+                                                        <span className="text-[8px] font-mono font-bold text-[#303a7f] tabular-nums">{d.hours > 0 ? d.hours.toFixed(1) : '—'}</span>
+                                                    </td>
+                                                ))}
+                                                <td className="p-1 text-center border-b border-gray-50 bg-gray-100/50">
+                                                    <span className="text-[8px] font-mono font-black text-[#303a7f] tabular-nums">{Number(totalW1 + totalW2).toFixed(1)}</span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    <tr className="bg-gray-100 font-black">
+                                        <td className="sticky left-0 z-10 p-1.5 border-t-2 border-gray-300 text-[7px] font-black text-[#303a7f] uppercase tracking-wider" style={{ background: '#f3f4f6' }}>
+                                            Totales
+                                        </td>
+                                        {w1Days.map((_, i) => {
+                                            const sum = allEmployees.reduce((s, emp) => {
+                                                const eId = String(emp.id || '').trim().toLowerCase();
+                                                const det = dailyDetailsData[eId];
+                                                return s + ((det?.days || []).filter(d => d.week === 1)[i]?.hours || 0);
+                                            }, 0);
+                                            return (
+                                                <td key={`w1t-${i}`} className="p-1 text-center border-t-2 border-gray-300">
+                                                    <span className="text-[7px] font-mono font-black text-[#6bbdb7] tabular-nums">{sum > 0 ? sum.toFixed(1) : '—'}</span>
+                                                </td>
+                                            );
+                                        })}
+                                        {w2Days.map((_, i) => {
+                                            const sum = allEmployees.reduce((s, emp) => {
+                                                const eId = String(emp.id || '').trim().toLowerCase();
+                                                const det = dailyDetailsData[eId];
+                                                return s + ((det?.days || []).filter(d => d.week === 2)[i]?.hours || 0);
+                                            }, 0);
+                                            return (
+                                                <td key={`w2t-${i}`} className="p-1 text-center border-t-2 border-gray-300">
+                                                    <span className="text-[7px] font-mono font-black text-[#303a7f] tabular-nums">{sum > 0 ? sum.toFixed(1) : '—'}</span>
+                                                </td>
+                                            );
+                                        })}
+                                        <td className="p-1 text-center border-t-2 border-gray-300 bg-gray-200">
+                                            <span className="text-[7px] font-mono font-black text-[#303a7f] tabular-nums">
+                                                {allEmployees.reduce((s, emp) => {
+                                                    const eId = String(emp.id || '').trim().toLowerCase();
+                                                    const det = dailyDetailsData[eId];
+                                                    return s + ((det?.days || []).reduce((a, d) => a + d.hours, 0) || 0);
+                                                }, 0).toFixed(1)}
+                                            </span>
+                                        </td>
+                                        <td className="p-1 text-center border-t-2 border-gray-300 bg-[#303a7f]/10">
+                                            <span className="text-[7px] font-mono font-black text-[#303a7f] tabular-nums">
+                                                {allEmployees.reduce((s, emp) => {
+                                                    const eId = String(emp.id || '').trim().toLowerCase();
+                                                    const det = dailyDetailsData[eId];
+                                                    return s + ((det?.days || []).filter(d => d.week === 2).reduce((a, d) => a + d.hours, 0) || 0);
+                                                }, 0).toFixed(1)}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <footer className="px-4 py-2.5 bg-gray-50/50 border-t border-gray-100 flex items-center justify-end shrink-0">
+                            <button onClick={() => setIsDetailsModalOpen(false)} className="px-6 py-2.5 bg-white text-gray-500 border-2 border-gray-100 rounded-lg font-black uppercase text-[9px] tracking-widest hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all flex items-center gap-1.5">
+                                <X size={12} /> Cerrar
+                            </button>
+                        </footer>
+                    </div>
+                );
+            })()}
         </div>
     );
 };
