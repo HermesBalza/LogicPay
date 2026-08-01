@@ -10129,6 +10129,53 @@ const generatePayStubPDF = async (stubId) => {
     }
 };
 
+// Construye rawEntriesData desde los registros históricos (necesario también para nóminas ya confirmadas)
+const buildRawEntries = (period, nominaHistoryData) => {
+    const map = {};
+    const parseRecord = (records, weekKey) => {
+        (records || []).forEach(record => {
+            try {
+                const data = JSON.parse(record.data_json);
+                (data.semanaTableData || []).forEach(emp => {
+                    const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
+                    if (!map[empId]) map[empId] = { w1Entries: [], w2Entries: [], chewyWkBefore: null };
+                    map[empId][`${weekKey}Entries`].push({ store: record.nombre, empData: emp });
+                });
+            } catch (e) { }
+        });
+    };
+    const w1Records = nominaHistoryData.filter(h => normalizeDate(h.fecha_inicio) === normalizeDate(period.w1?.start));
+    const w2Records = nominaHistoryData.filter(h => normalizeDate(h.fecha_inicio) === normalizeDate(period.w2?.start));
+    parseRecord(w1Records, 'w1');
+    parseRecord(w2Records, 'w2');
+    if (period._isChewyPayroll) {
+        const [mC, dC, yC] = period.w1.start.split('/').map(Number);
+        const wkBefore = new Date(yC, mC - 1, dC);
+        wkBefore.setDate(wkBefore.getDate() - 7);
+        const fmtDate = (dt) => `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}/${dt.getFullYear()}`;
+        const wkBeforeRecords = nominaHistoryData.filter(h =>
+            normalizeDate(h.fecha_inicio) === normalizeDate(fmtDate(wkBefore)) && h.nombre === period.store
+        );
+        wkBeforeRecords.forEach(record => {
+            try {
+                const data = JSON.parse(record.data_json);
+                (data.semanaTableData || []).forEach(emp => {
+                    const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
+                    if (!map[empId]) map[empId] = { w1Entries: [], w2Entries: [], chewyWkBefore: null };
+                    map[empId].chewyWkBefore = emp;
+                });
+            } catch (e) { }
+        });
+    }
+    if (period.store !== CONSOLIDATED_STORE && period.store !== '__NOMINA_COMPLETA__') {
+        Object.keys(map).forEach(empId => {
+            map[empId].w1Entries = map[empId].w1Entries.filter(e => e.store === period.store);
+            map[empId].w2Entries = map[empId].w2Entries.filter(e => e.store === period.store);
+        });
+    }
+    return map;
+};
+
 const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, onConfirmPayroll, onBack, user }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
@@ -10197,6 +10244,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     return a.nombre.localeCompare(b.nombre);
                 });
                 setBiweeklyEmployees(loaded);
+                setRawEntriesData(buildRawEntries(period, nominaHistoryData));
                 return;
             } catch (e) {
                 console.error("Error loading saved detail data:", e);
