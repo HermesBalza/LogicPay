@@ -10176,6 +10176,13 @@ const buildRawEntries = (period, nominaHistoryData) => {
     return map;
 };
 
+// Un empleado se trata como supervisor salarial SOLO si además tiene sueldo fijo mayor a 0;
+// si tiene rate, se le paga por horas aunque su cargo figure como "Supervisor".
+const isSalariedSupervisor = (emp) => {
+    const cargo = String(emp?.cargo || '').toLowerCase();
+    return cargo === 'supervisor' && Number(emp?.sueldoFijo || 0) > 0;
+};
+
 const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, onConfirmPayroll, onBack, user }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
@@ -10234,13 +10241,13 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         cargo: row.cargo,
                         address: fullAddress,
                         comments: row.comments || '',
-                        rowColor: row.cargo === 'Supervisor' ? 'bg-teal-50/40 border-l-4 border-teal-500' : (period.store === CONSOLIDATED_STORE || period.store === '__NOMINA_COMPLETA__' ? 'bg-amber-50/30' : 'bg-white'),
+                        rowColor: isSalariedSupervisor(row) ? 'bg-teal-50/40 border-l-4 border-teal-500' : (period.store === CONSOLIDATED_STORE || period.store === '__NOMINA_COMPLETA__' ? 'bg-amber-50/30' : 'bg-white'),
                         isMultiSite: false
                     };
                 });
                 loaded.sort((a, b) => {
-                    if (a.cargo === 'Supervisor' && b.cargo !== 'Supervisor') return 1;
-                    if (a.cargo !== 'Supervisor' && b.cargo === 'Supervisor') return -1;
+                    if (isSalariedSupervisor(a) && !isSalariedSupervisor(b)) return 1;
+                    if (!isSalariedSupervisor(a) && isSalariedSupervisor(b)) return -1;
                     return a.nombre.localeCompare(b.nombre);
                 });
                 setBiweeklyEmployees(loaded);
@@ -10301,12 +10308,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             const unified = Object.values(empMap).map(e => ({
                 ...e,
                 comments: e.comments || (e.isMultiSite && e.stores.size > 0 ? Array.from(e.stores).join('\n').toUpperCase() : ''),
-                rowColor: e.cargo === 'Supervisor' || e.cargo === 'supervisor' ? 'bg-teal-50/40 border-l-4 border-teal-500' : (e.isMultiSite ? 'bg-amber-50/30' : 'bg-white'),
+                rowColor: isSalariedSupervisor(e) ? 'bg-teal-50/40 border-l-4 border-teal-500' : (e.isMultiSite ? 'bg-amber-50/30' : 'bg-white'),
             }));
 
             unified.sort((a, b) => {
-                if ((a.cargo === 'Supervisor' || a.cargo === 'supervisor') && (b.cargo !== 'Supervisor' && b.cargo !== 'supervisor')) return 1;
-                if ((a.cargo !== 'Supervisor' && a.cargo !== 'supervisor') && (b.cargo === 'Supervisor' || b.cargo === 'supervisor')) return -1;
+                if (isSalariedSupervisor(a) && !isSalariedSupervisor(b)) return 1;
+                if (!isSalariedSupervisor(a) && isSalariedSupervisor(b)) return -1;
                 if (a.isMultiSite && !b.isMultiSite) return 1;
                 if (!a.isMultiSite && b.isMultiSite) return -1;
                 return a.nombre.localeCompare(b.nombre);
@@ -10697,11 +10704,11 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
     // 3. Cálculos de Totales
     const calculateTotalHrs = (emp) => {
-        if (emp.cargo === 'Supervisor') return 0;
+        if (isSalariedSupervisor(emp)) return 0;
         return (Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0));
     };
     const calculatePagoTotal = (emp) => {
-        if (emp.cargo === 'Supervisor') {
+        if (isSalariedSupervisor(emp)) {
             return Number(emp.sueldoFijo || 0);
         }
         const baseEarnings = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
@@ -18563,7 +18570,7 @@ function App() {
             // 1. Preparar datos para Nomina_Detalle
             const nominaDetalleRows = biweeklyEmployees.map(emp => {
                 const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase());
-                const isSup = emp.cargo === 'Supervisor';
+                const isSup = isSalariedSupervisor(emp);
                 const totalHrs = isSup ? 0 : Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0);
                 const baseEarnings = isSup ? (Number(emp.sueldoFijo) || 0) : (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
                 const totalLGM = baseEarnings + (emp.peEarnings || 0);
