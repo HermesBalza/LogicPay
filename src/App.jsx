@@ -11838,6 +11838,44 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 const w1Days = sampleDays.filter(d => d.week === 1);
                 const w2Days = sampleDays.filter(d => d.week === 2);
 
+                const exportDetailsExcel = () => {
+                    const allDays = [...w1Days, ...w2Days];
+                    const header = ['Empleado', ...allDays.map(d => `${d.day} ${d.date}`), 'Total'];
+                    const rows = allEmployees.map(emp => {
+                        const empId = String(emp.id || '').trim().toLowerCase();
+                        const days = dailyDetailsData[empId]?.days || [];
+                        const empW1 = days.filter(d => d.week === 1);
+                        const empW2 = days.filter(d => d.week === 2);
+                        const row = [emp.nombre];
+                        empW1.forEach(d => row.push(d.hours > 0 ? Number(d.hours.toFixed(1)) : ''));
+                        empW2.forEach(d => row.push(d.hours > 0 ? Number(d.hours.toFixed(1)) : ''));
+                        const total = empW1.reduce((s, d) => s + d.hours, 0) + empW2.reduce((s, d) => s + d.hours, 0);
+                        row.push(Number(total.toFixed(1)));
+                        return row;
+                    });
+                    const totalsRow = ['Totales'];
+                    allDays.forEach((_, i) => {
+                        const week = i < w1Days.length ? 1 : 2;
+                        const idx = i < w1Days.length ? i : i - w1Days.length;
+                        const sum = allEmployees.reduce((s, emp) => {
+                            const empId = String(emp.id || '').trim().toLowerCase();
+                            return s + ((dailyDetailsData[empId]?.days || []).filter(d => d.week === week)[idx]?.hours || 0);
+                        }, 0);
+                        totalsRow.push(sum > 0 ? Number(sum.toFixed(1)) : '');
+                    });
+                    totalsRow.push(Number(allEmployees.reduce((s, emp) => {
+                        const empId = String(emp.id || '').trim().toLowerCase();
+                        return s + ((dailyDetailsData[empId]?.days || []).reduce((a, d) => a + d.hours, 0) || 0);
+                    }, 0).toFixed(1)));
+                    rows.push(totalsRow);
+                    const ws = XLSX.utils.aoa_to_sheet([[`Detalles de Nómina — ${period.store} — ${period.range}`], header, ...rows]);
+                    ws['!cols'] = [{ wch: 30 }, ...allDays.map(() => ({ wch: 11 })), { wch: 10 }];
+                    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: header.length - 1 } }];
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, 'Detalles');
+                    XLSX.writeFile(wb, `Detalles_Nomina_${period.store.replace(/\s+/g, '_')}_${period.range.replace(/\//g, '-').replace(/\s+/g, '_')}.xlsx`);
+                };
+
                 return (
                     <div className="fixed inset-0 z-[500] bg-white flex flex-col animate-in fade-in duration-200" data-html2canvas-ignore>
                         <header className="px-6 py-3 border-b-2 border-gray-100 flex items-center justify-between shrink-0">
@@ -11850,9 +11888,14 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     <p className="text-[#6bbdb7] text-[9px] font-black uppercase tracking-widest">{period.store} — {period.range}</p>
                                 </div>
                             </div>
-                            <button onClick={() => setIsDetailsModalOpen(false)} className="p-2.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl transition-all active:scale-90">
-                                <X size={22} />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button onClick={exportDetailsExcel} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase text-[9px] tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-emerald-900/10">
+                                    <Download size={15} /> Excel
+                                </button>
+                                <button onClick={() => setIsDetailsModalOpen(false)} className="p-2.5 border-2 border-red-400 text-red-400 hover:bg-red-500 hover:border-red-500 hover:text-white rounded-xl transition-all active:scale-90">
+                                    <X size={22} />
+                                </button>
+                            </div>
                         </header>
 
                         <div className="flex-1 overflow-auto custom-scrollbar">
@@ -11951,12 +11994,6 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                 </tbody>
                             </table>
                         </div>
-
-                        <footer className="px-6 py-3 bg-gray-50/50 border-t border-gray-100 flex items-center justify-end shrink-0">
-                            <button onClick={() => setIsDetailsModalOpen(false)} className="px-8 py-3 bg-white text-gray-500 border-2 border-gray-100 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all flex items-center gap-2">
-                                <X size={14} /> Cerrar
-                            </button>
-                        </footer>
                     </div>
                 );
             })()}
