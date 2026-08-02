@@ -19024,11 +19024,17 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                         const projects = Array.isArray(parsed) ? parsed : [parsed];
                         obj.Pago_KBS = projects.reduce((total, project) => {
                             const emps = Array.isArray(project.employees) ? project.employees : [];
-                            return total + emps.reduce((sum, emp) => sum + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0)), 0);
+                            const provs = Array.isArray(project.providers) ? project.providers : [];
+                            const empTotal = emps.reduce((sum, emp) => sum + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0)), 0);
+                            const provTotal = provs.reduce((sum, p) => sum + (parseFloat(p.rateKBS) || 0), 0);
+                            return total + empTotal + provTotal;
                         }, 0);
                         obj.Pago_LGM = projects.reduce((total, project) => {
                             const emps = Array.isArray(project.employees) ? project.employees : [];
-                            return total + emps.reduce((sum, emp) => sum + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateLogic) || 0)), 0);
+                            const provs = Array.isArray(project.providers) ? project.providers : [];
+                            const empTotal = emps.reduce((sum, emp) => sum + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateLogic) || 0)), 0);
+                            const provTotal = provs.reduce((sum, p) => sum + (parseFloat(p.rateLogic) || 0), 0);
+                            return total + empTotal + provTotal;
                         }, 0);
                         obj.Tienda = obj.Tienda || obj.tienda || obj.nombre;
                         obj.Timestamp = obj.Fecha_Confirmacion || obj.fecha_confirmacion || obj['Fecha Confirmacion'] || obj['Fecha_Confirmacion'] || obj['Fecha Rad.'] || obj['Fecha Rad'] || obj.fecha;
@@ -21038,7 +21044,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                 <button
                                                     disabled={!payrollStore}
                                                     style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (sheetFiles.length > 0 ? '#6bbdb7' : '#303a7f') }}
-                                                    className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${sheetFiles.length > 0 ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
+                                                    className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all duration-200 shadow-sm active:scale-95 enabled:hover:-translate-y-0.5 enabled:hover:shadow-md enabled:hover:brightness-110 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2`}
                                                 >
                                                     {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos Subidas') : 'Subir Fotos'}
                                                 </button>
@@ -21081,7 +21087,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                 <button
                                                     disabled={!payrollStore}
                                                     style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (supervisorFile ? '#6bbdb7' : '#303a7f') }}
-                                                    className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${supervisorFile ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
+                                                    className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all duration-200 shadow-sm active:scale-95 enabled:hover:-translate-y-0.5 enabled:hover:shadow-md enabled:hover:brightness-110 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2`}
                                                 >
                                                     {supervisorFile ? 'Data Lista' : 'Subir Excel'}
                                                 </button>
@@ -21126,7 +21132,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                 <button
                                                     disabled={!payrollStore}
                                                     style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (biometricFile ? '#6bbdb7' : '#303a7f') }}
-                                                    className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${biometricFile ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
+                                                    className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all duration-200 shadow-sm active:scale-95 enabled:hover:-translate-y-0.5 enabled:hover:shadow-md enabled:hover:brightness-110 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2`}
                                                 >
                                                     {biometricFile ? 'Data Lista' : 'Subir Ponches'}
                                                 </button>

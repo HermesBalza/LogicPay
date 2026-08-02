@@ -23361,7 +23361,7 @@ function App() {
                                                             <button
                                                                 disabled={!payrollStore}
                                                                 style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (sheetFiles.length > 0 ? '#6bbdb7' : '#303a7f') }}
-                                                                className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${sheetFiles.length > 0 ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
+                                                                className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all duration-200 shadow-sm active:scale-95 enabled:hover:-translate-y-0.5 enabled:hover:shadow-md enabled:hover:brightness-110 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2`}
                                                             >
                                                                 {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos Subidas') : 'Subir Fotos'}
                                                             </button>
@@ -23404,7 +23404,7 @@ function App() {
                                                             <button
                                                                 disabled={!payrollStore}
                                                                 style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (supervisorFile ? '#6bbdb7' : '#303a7f') }}
-                                                                className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${supervisorFile ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
+                                                                className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all duration-200 shadow-sm active:scale-95 enabled:hover:-translate-y-0.5 enabled:hover:shadow-md enabled:hover:brightness-110 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2`}
                                                             >
                                                                 {supervisorFile ? 'Data Lista' : 'Subir Excel'}
                                                             </button>
@@ -23449,7 +23449,7 @@ function App() {
                                                             <button
                                                                 disabled={!payrollStore}
                                                                 style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (biometricFile ? '#6bbdb7' : '#303a7f') }}
-                                                                className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2 ${biometricFile ? 'hover:bg-[#59aba5]' : 'hover:bg-[#252a5e]'}`}
+                                                                className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all duration-200 shadow-sm active:scale-95 enabled:hover:-translate-y-0.5 enabled:hover:shadow-md enabled:hover:brightness-110 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2`}
                                                             >
                                                                 {biometricFile ? 'Data Lista' : 'Subir Ponches'}
                                                             </button>
