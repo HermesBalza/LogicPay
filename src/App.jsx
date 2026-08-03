@@ -3342,7 +3342,7 @@ const StoreAddView = ({ onSave, onBack }) => {
 };
 
 
-const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], wosHistoryData = [], syncToDatabase, onRefreshHistory, onAcceptPayment, setNotificationModal }) => {
+const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHistoryData = [], stores = [], wosHistoryData = [], syncToDatabase, onRefreshHistory, onAcceptPayment, setNotificationModal, saldosPendientesData = [] }) => {
     const fileInputRef = useRef(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isCrossing, setIsCrossing] = useState(false);
@@ -3468,6 +3468,8 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 String(h.nombre || '').trim().toLowerCase() === String(record.nombre || '').trim().toLowerCase() &&
                 String(h.codigo || '').replace(/^'+/, '').trim() === String(record.codigo || '').replace(/^'+/, '').trim()
             );
+        } else if (record.source === 'PENDIENTE') {
+            idx = saldosPendientesData.findIndex(s => String(s.id) === String(record._pendienteId ?? record.id));
         } else {
             const correlativo = String(record.Correlativo || record.correlativo || '').replace(/^'+/, '').trim();
             idx = specialProjectsHistoryData.findIndex(h =>
@@ -3477,7 +3479,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
         if (idx < 0) return;
 
-        const prefix = record.source === 'VWH' ? 'N' : 'S';
+        const prefix = record.source === 'VWH' ? 'N' : record.source === 'PENDIENTE' ? 'D' : 'S';
         const newMatchId = `${prefix}-${idx}`;
 
         const updatedServices = wosServices.map(s =>
@@ -3493,24 +3495,31 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
         const originalRecord = record.source === 'VWH'
             ? nominaHistoryData[idx]
-            : specialProjectsHistoryData[idx];
+            : record.source === 'PENDIENTE'
+                ? saldosPendientesData[idx]
+                : specialProjectsHistoryData[idx];
 
         const wosAmount = parseFloat(wosService.amount) || 0;
         const row = {
             key: newMatchId,
-            type: record.source === 'VWH' ? 'VWH' : 'P.E.',
-            storeName: record.source === 'VWH' ? record.nombre : (record.tienda || record.Tienda),
+            type: record.source === 'PENDIENTE' ? 'PENDIENTE' : record.source === 'VWH' ? 'VWH' : 'P.E.',
+            storeName: record.source === 'PENDIENTE' ? (originalRecord?.tienda || record.nombre || '') : record.source === 'VWH' ? record.nombre : (record.tienda || record.Tienda),
             kbsAnnounced: wosAmount,
             matchedNominaRecord: record.source === 'VWH' ? originalRecord : null,
             matchedNominaRecords: record.source === 'VWH' ? [originalRecord] : [],
             matchedPERecord: record.source === 'P.E.' ? originalRecord : null,
             matchedPERecords: record.source === 'P.E.' ? [originalRecord] : [],
+            matchedSaldoRecord: record.source === 'PENDIENTE' ? originalRecord : null,
             rawServices: [wosService],
             descriptions: [wosService.serviceDescription || ''],
-            lgmBilled: record.Pago_KBS || record.kbsTotal || 0,
-            diff: wosAmount - (record.Pago_KBS || record.kbsTotal || 0),
+            lgmBilled: record.source === 'PENDIENTE'
+                ? (parseFloat(originalRecord?.saldo_pendiente) || 0)
+                : (record.Pago_KBS || record.kbsTotal || 0),
+            diff: wosAmount - (record.source === 'PENDIENTE'
+                ? (parseFloat(originalRecord?.saldo_pendiente) || 0)
+                : (record.Pago_KBS || record.kbsTotal || 0)),
             storeCode: '',
-            serviceDates: record.source === 'VWH' ? `${record.fecha_inicio || ''} - ${record.fecha_fin || ''}` : (record.periodo || record.Periodo || '')
+            serviceDates: record.source === 'VWH' ? `${record.fecha_inicio || ''} - ${record.fecha_fin || ''}` : (record.periodo || record.Periodo || originalRecord?.semana_facturada || '')
         };
 
         onAcceptPayment(row, wosData);
@@ -3529,6 +3538,8 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 String(h.nombre || '').trim().toLowerCase() === String(record.nombre || '').trim().toLowerCase() &&
                 String(h.codigo || '').replace(/^'+/, '').trim() === String(record.codigo || '').replace(/^'+/, '').trim()
             );
+        } else if (record.source === 'PENDIENTE') {
+            idx = saldosPendientesData.findIndex(s => String(s.id) === String(record._pendienteId ?? record.id));
         } else {
             const correlativo = String(record.Correlativo || record.correlativo || '').replace(/^'+/, '').trim();
             idx = specialProjectsHistoryData.findIndex(h =>
@@ -3538,7 +3549,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
         if (idx < 0) return;
 
-        const prefix = record.source === 'VWH' ? 'N' : 'S';
+        const prefix = record.source === 'VWH' ? 'N' : record.source === 'PENDIENTE' ? 'D' : 'S';
         const newMatchId = `${prefix}-${idx}`;
 
         const updatedServices = wosServices.map(s =>
@@ -3557,23 +3568,30 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
         const originalRecord = record.source === 'VWH'
             ? nominaHistoryData[idx]
-            : specialProjectsHistoryData[idx];
+            : record.source === 'PENDIENTE'
+                ? saldosPendientesData[idx]
+                : specialProjectsHistoryData[idx];
 
         const row = {
             key: newMatchId,
-            type: record.source === 'VWH' ? 'VWH' : 'P.E.',
-            storeName: record.source === 'VWH' ? record.nombre : (record.tienda || record.Tienda),
+            type: record.source === 'PENDIENTE' ? 'PENDIENTE' : record.source === 'VWH' ? 'VWH' : 'P.E.',
+            storeName: record.source === 'PENDIENTE' ? (originalRecord?.tienda || record.nombre || '') : record.source === 'VWH' ? record.nombre : (record.tienda || record.Tienda),
             kbsAnnounced: combinedAmount,
             matchedNominaRecord: record.source === 'VWH' ? originalRecord : null,
             matchedNominaRecords: record.source === 'VWH' ? [originalRecord] : [],
             matchedPERecord: record.source === 'P.E.' ? originalRecord : null,
             matchedPERecords: record.source === 'P.E.' ? [originalRecord] : [],
+            matchedSaldoRecord: record.source === 'PENDIENTE' ? originalRecord : null,
             rawServices: existingServices,
             descriptions: existingServices.map(s => s.serviceDescription || ''),
-            lgmBilled: record.Pago_KBS || record.kbsTotal || 0,
-            diff: combinedAmount - (record.Pago_KBS || record.kbsTotal || 0),
+            lgmBilled: record.source === 'PENDIENTE'
+                ? (parseFloat(originalRecord?.saldo_pendiente) || 0)
+                : (record.Pago_KBS || record.kbsTotal || 0),
+            diff: combinedAmount - (record.source === 'PENDIENTE'
+                ? (parseFloat(originalRecord?.saldo_pendiente) || 0)
+                : (record.Pago_KBS || record.kbsTotal || 0)),
             storeCode: '',
-            serviceDates: record.source === 'VWH' ? `${record.fecha_inicio || ''} - ${record.fecha_fin || ''}` : (record.periodo || record.Periodo || '')
+            serviceDates: record.source === 'VWH' ? `${record.fecha_inicio || ''} - ${record.fecha_fin || ''}` : (record.periodo || record.Periodo || originalRecord?.semana_facturada || '')
         };
 
         onAcceptPayment(row, wosData);
@@ -3965,6 +3983,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             let matchedNominaRecords = [];
             let matchedPERecord = null;
             let matchedPERecords = [];
+            let matchedSaldoRecord = null;
             let type = 'Sin Registro';
             let lgmBilled = 0;
             let storeCode = group.wosRows[0].locationId || '';
@@ -3999,6 +4018,15 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         storeName = records[0].tienda;
                         period = records.map(r => r.periodo).filter(Boolean).join(' | ');
                     }
+                } else if (pfx === 'D') {
+                    const saldo = indices.map(i => saldosPendientesData[i]).find(Boolean);
+                    matchedSaldoRecord = saldo || null;
+                    if (saldo) {
+                        type = 'PENDIENTE';
+                        lgmBilled = parseFloat(saldo.saldo_pendiente) || 0;
+                        storeName = saldo.tienda || saldo.ref_id || '';
+                        period = saldo.semana_facturada || saldo.fecha_rad || '';
+                    }
                 }
             }
 
@@ -4017,10 +4045,11 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 matchedNominaRecords,
                 matchedPERecord,
                 matchedPERecords,
+                matchedSaldoRecord,
                 rawServices: group.wosRows
             };
         });
-    }, [wosServices, nominaHistoryData, specialProjectsHistoryData]);
+    }, [wosServices, nominaHistoryData, specialProjectsHistoryData, saldosPendientesData]);
 
     const wosDiscrepancies = useMemo(() => {
         if (!wosServices.length) return { lgmOrphans: [], wosOrphans: [] };
@@ -4122,13 +4151,54 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 return { ...h, source: 'P.E.', horasTotal };
             });
 
-        return [...nominaEntries, ...peEntries]
+        const pendienteEntries = (saldosPendientesData || [])
+            .filter(s => !(s.pagado === 1 || s.pagado === true) && (parseFloat(s.saldo_pendiente) || 0) > 0.009)
+            .map(s => ({
+                ...s,
+                source: 'PENDIENTE',
+                nombre: s.tienda || '',
+                tienda: s.tienda || '',
+                Periodo: s.semana_facturada || '',
+                'Fecha Rad.': s.fecha_rad || '',
+                Pago_KBS: s.saldo_pendiente || 0,
+                Pago: s.pago_recibido || 0,
+                Pago_LGM: 0,
+                horasTotal: 0,
+                wos: s.wos || '',
+                _pendienteId: s.id
+            }));
+
+        // Orden cronológico ascendente (más antigua arriba). Fallback:
+        // 1) Fecha Rad. 2) primera fecha de Periodo/semana 3) fecha_inicio 4) al final
+        const parseDateNum = (str) => {
+            if (!str) return null;
+            const m = String(str).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+            if (!m) return null;
+            return parseInt(m[3] + m[1].padStart(2, '0') + m[2].padStart(2, '0'), 10);
+        };
+        const entryDateNum = (e) => {
+            const fechaRad = e['Fecha Rad.'] || e.fecha_rad || e.radicacion || '';
+            let n = parseDateNum(fechaRad);
+            if (n !== null && !isNaN(n)) return n;
+            const periodStr = e.Periodo || e.semana_facturada || `${e.fecha_inicio || ''} - ${e.fecha_fin || ''}`;
+            const firstDate = String(periodStr).split(' - ')[0].trim();
+            n = parseDateNum(firstDate);
+            if (n !== null && !isNaN(n)) return n;
+            n = parseDateNum(e.fecha_inicio || '');
+            if (n !== null && !isNaN(n)) return n;
+            return Infinity;
+        };
+
+        return [...nominaEntries, ...peEntries, ...pendienteEntries]
             .sort((a, b) => {
+                const da = entryDateNum(a);
+                const db = entryDateNum(b);
+                if (da !== db) return (da - db);
                 const nameA = (a.nombre || a.tienda || a.Tienda || '').toString().toLowerCase();
                 const nameB = (b.nombre || b.tienda || b.Tienda || '').toString().toLowerCase();
                 return nameA.localeCompare(nameB);
             });
-    }, [nominaHistoryData, specialProjectsHistoryData]);
+    }, [nominaHistoryData, specialProjectsHistoryData, saldosPendientesData]);
 
     const totalDeficit = crossMatchResults
         .filter(r => r.type !== 'Sin Registro' && r.diff < 0)
@@ -4394,7 +4464,8 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                         </tr>
                                     ) : crossMatchResults.filter(r => r.type !== 'Sin Registro').map(row => {
                                         const isAlreadyAudit = (row.type === 'VWH' && (row.matchedNominaRecord?.wos || row.matchedNominaRecord?.WOS)) ||
-                                            (row.type === 'P.E.' && (row.matchedPERecord?.wos || row.matchedPERecord?.WOS));
+                                            (row.type === 'P.E.' && (row.matchedPERecord?.wos || row.matchedPERecord?.WOS)) ||
+                                            (row.type === 'PENDIENTE' && (row.matchedSaldoRecord?.pagado === 1 || row.matchedSaldoRecord?.pagado === true));
                                         const isAccepted = acceptedKeys.has(row.key) || isAlreadyAudit;
                                         const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
                                         const hasMatch = row.lgmBilled > 0;
@@ -4424,6 +4495,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                 {/* Tipo */}
                                                 <td className="px-4 py-4 text-center">
                                                     <span className={`inline-block px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${row.type === 'P.E.' ? 'bg-orange-50 text-orange-500 border border-orange-100' :
+                                                        row.type === 'PENDIENTE' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
                                                         row.type === 'VWH + P.E.' ? 'bg-purple-50 text-purple-500 border border-purple-100' :
                                                             'bg-blue-50 text-[#303a7f] border border-blue-100'
                                                         }`}>{row.type}</span>
@@ -4477,7 +4549,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                                 onClick={() => {
                                                                     setAcceptedKeys(prev => new Set([...prev, row.key]));
                                                                     const matchedLgmId = row.key;
-                                                                    if (matchedLgmId && (matchedLgmId.startsWith('N-') || matchedLgmId.startsWith('S-'))) {
+                                                                    if (matchedLgmId && (matchedLgmId.startsWith('N-') || matchedLgmId.startsWith('S-') || matchedLgmId.startsWith('D-'))) {
                                                                         const currentAudited = wosData.auditedLgmIds || [];
                                                                         if (!currentAudited.includes(matchedLgmId)) {
                                                                             const newAudited = [...currentAudited, matchedLgmId];
@@ -4684,6 +4756,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                 const ridx = parseInt(idxStr);
                                                 if (pfx === 'N') recordAudited = !!(nominaHistoryData[ridx]?.wos || nominaHistoryData[ridx]?.WOS);
                                                 else if (pfx === 'S') recordAudited = !!(specialProjectsHistoryData[ridx]?.wos || specialProjectsHistoryData[ridx]?.WOS);
+                                                else if (pfx === 'D') recordAudited = !!(selectedWosGroup.matchedSaldoRecord?.pagado === 1 || selectedWosGroup.matchedSaldoRecord?.pagado === true);
                                             }
                                             const isAccepted = svcAudited || recordAudited;
                                             return (
@@ -4765,6 +4838,19 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                         </td>
                                                     </tr>
                                                 ))}
+                                                {selectedWosGroup.type === 'PENDIENTE' && selectedWosGroup.matchedSaldoRecord && (
+                                                    <tr key={`pend-0`} className="hover:bg-gray-50/50 transition-colors">
+                                                        <td className="px-4 py-3">
+                                                            <span className="inline-block px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-amber-50 text-amber-600 border border-amber-100">SALDO</span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-[10px] font-black text-[#303a7f] uppercase">{selectedWosGroup.matchedSaldoRecord.tienda || '---'}</td>
+                                                        <td className="px-4 py-3 text-[9px] font-bold text-gray-500 whitespace-nowrap">{selectedWosGroup.matchedSaldoRecord.semana_facturada || selectedWosGroup.matchedSaldoRecord.fecha_rad || '---'}</td>
+                                                        <td className="px-4 py-3 text-[9px] font-bold text-gray-500 font-mono">{selectedWosGroup.matchedSaldoRecord.ref_id || '---'}</td>
+                                                        <td className="px-4 py-3 text-[10px] font-black text-[#6bbdb7] text-right tabular-nums whitespace-nowrap">
+                                                            ${parseFloat(selectedWosGroup.matchedSaldoRecord.saldo_pendiente || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                    </tr>
+                                                )}
                                             </tbody>
                                             <tfoot className="bg-gray-50/60 border-t-2 border-gray-100">
                                                 <tr>
@@ -5051,7 +5137,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                 return parts.length > 1 ? parts[0] + '.' + parts[1].slice(0, 2) : parts[0];
                                             };
                                             return (
-                                                <tr key={idx} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
+                                                <tr key={idx} className={`group hover:bg-[#fcfdfe] transition-colors duration-200 ${entry.source === 'PENDIENTE' ? 'bg-amber-50/40' : ''}`}>
                                                     <td className="px-3 py-4 text-center">
                                                         <div className="inline-block w-24">
                                                             <span className={`text-[10px] font-bold uppercase tracking-wider ${fechaRad ? 'text-[#303a7f]' : 'text-gray-300'}`}>
@@ -5060,7 +5146,10 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-4 text-center">
-                                                        <span className="text-[#303a7f] text-[10px] font-bold transition-all whitespace-nowrap">{periodo}</span>
+                                                        {entry.source === 'PENDIENTE' && (
+                                                            <span className="inline-block px-2 py-0.5 rounded-md bg-amber-100 text-amber-600 text-[8px] font-black uppercase tracking-widest mb-1">SALDO</span>
+                                                        )}
+                                                        <span className="text-[#303a7f] text-[10px] font-bold transition-all whitespace-nowrap block">{periodo}</span>
                                                     </td>
                                                     <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{horas.toFixed(1)} <span className="text-[8px] text-gray-300 font-bold ml-0.5">H</span></td>
                                                     <td className="px-3 py-4 text-center text-[10px] font-black text-[#303a7f]">{formatCurrency(factKBS)}</td>
@@ -20871,6 +20960,100 @@ function App() {
             });
 
             setIsSyncingPE(true);
+        } else if (row.type === 'PENDIENTE') {
+            const saldo = row.matchedSaldoRecord;
+            if (!saldo) return;
+
+            const saldoId = saldo.id;
+            const saldoTipo = String(saldo.tipo || '').trim().toUpperCase();
+            const saldoRef = String(saldo.ref_id || '').replace(/^'+/, '').trim();
+            const factKBS = parseFloat(saldo.facturacion_kbs) || 0;
+            const prevPagoRecibido = parseFloat(saldo.pago_recibido) || 0;
+            const newPagoRecibido = prevPagoRecibido + paymentAmount;
+            const fullyPaid = newPagoRecibido >= factKBS - 0.01;
+            const newSaldo = Math.max(0, factKBS - newPagoRecibido);
+
+            // Acumular pago en la factura VWH/PE subyacente (ref_id)
+            if (saldoTipo === 'VWH') {
+                const record = (nominaHistoryData || []).find(h =>
+                    String(h.codigo || '').replace(/^'+/, '').trim() === saldoRef
+                );
+                if (record) {
+                    const prevPago = parseFloat(record.Pago || record.pago || 0) || 0;
+                    const accPago = prevPago + paymentAmount;
+                    setNominaHistoryData(prev => prev.map(h =>
+                        String(h.codigo || '').replace(/^'+/, '').trim() === saldoRef
+                            ? { ...h, "pago": accPago, "fecha de pago": paymentDate, "wos": wosNumber }
+                            : h
+                    ));
+                    billingPendingSaveRef.current.push({
+                        __prebuilt: true,
+                        nombre: record.nombre,
+                        codigo: `'${saldoRef}`,
+                        fecha_inicio: record.fecha_inicio || '',
+                        fecha_fin: record.fecha_fin || '',
+                        data_json: record.data_json || '{}',
+                        "Fecha Rad.": record['Fecha Rad.'] || record['fecha rad.'] || '',
+                        "Pago": accPago,
+                        "Fecha de Pago": paymentDate,
+                        "WOS": wosNumber,
+                        "Status": record['Status'] || record['status'] || 'Due',
+                        auditAccion: 'Auditó',
+                        auditEntidad: `VWH ${record.nombre} ${record.fecha_inicio} - ${record.fecha_fin}`
+                    });
+                    setIsSyncingBilling(true);
+                }
+            } else if (saldoTipo === 'PE') {
+                const record = (specialProjectsHistoryData || []).find(h =>
+                    String(h.correlativo || h.Correlativo || '').replace(/^'+/, '').trim() === saldoRef
+                );
+                if (record) {
+                    const prevPago = parseFloat(record.Pago || record.pago || 0) || 0;
+                    const accPago = prevPago + paymentAmount;
+                    setSpecialProjectsHistoryData(prev => prev.map(h =>
+                        String(h.correlativo || h.Correlativo || '').replace(/^'+/, '').trim() === saldoRef
+                            ? { ...h, "pago": accPago, "fecha de pago": paymentDate, "wos": wosNumber }
+                            : h
+                    ));
+                    pePendingSaveRef.current.push({
+                        __prebuilt: true,
+                        "ID_Consolidacion": record.id_consolidacion || record.ID_Consolidacion || '',
+                        "Tienda": record.tienda || record.Tienda || '',
+                        "Periodo": record.periodo || record.Periodo || '',
+                        "Data_JSON": record.data_json || record.Data_JSON || '{}',
+                        "Fecha_Confirmacion": record.fecha_confirmacion || record.Fecha_Confirmacion || '',
+                        "Correlativo": saldoRef,
+                        "Fecha Rad.": record['fecha rad.'] || record['Fecha Rad.'] || '',
+                        "Pago": accPago,
+                        "Fecha de Pago": paymentDate,
+                        "WOS": wosNumber,
+                        "Status": record['Status'] || record['status'] || 'Due',
+                        auditAccion: 'Auditó',
+                        auditEntidad: `P.E. ${record.tienda || record.Tienda || ''} ${record.periodo || record.Periodo || ''}`
+                    });
+                    setIsSyncingPE(true);
+                }
+            }
+
+            // Actualizar saldo pendiente en estado local
+            setSaldosPendientesData(prev => prev.map(r =>
+                String(r.id) === String(saldoId)
+                    ? { ...r, pago_recibido: newPagoRecibido, saldo_pendiente: newSaldo, wos: wosNumber, pagado: fullyPaid ? 1 : 0, updated_at: new Date().toISOString() }
+                    : r
+            ));
+
+            // Persistir el saldo actualizado en la tabla Saldos_Pendientes
+            fetch(API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    action: 'upsert',
+                    sheetName: 'Saldos_Pendientes',
+                    data: { id: saldoId, pago_recibido: newPagoRecibido, saldo_pendiente: newSaldo, wos: wosNumber, pagado: fullyPaid ? 1 : 0, updated_at: new Date().toISOString() },
+                    matchKeys: ['id']
+                })
+            }).catch(() => { });
         }
 
     };
@@ -25189,6 +25372,7 @@ function App() {
                 onRefreshHistory={fetchWosHistory}
                 onAcceptPayment={handleAcceptWOSPayment}
                 setNotificationModal={setNotificationModal}
+                saldosPendientesData={saldosPendientesData}
             />
 
             {isManualModalOpen && (
