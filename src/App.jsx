@@ -11951,42 +11951,52 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             {/* MODAL: Detalles de Nómina */}
             {isDetailsModalOpen && (() => {
                 const allEmployees = [...biweeklyEmployees, ...addedSupervisors];
-                const sampleEmp = allEmployees.find(e => dailyDetailsData[String(e.id || '').trim().toLowerCase()]);
-                const sampleDays = sampleEmp ? dailyDetailsData[String(sampleEmp.id).trim().toLowerCase()]?.days || [] : [];
-                const w1Days = sampleDays.filter(d => d.week === 1);
-                const w2Days = sampleDays.filter(d => d.week === 2);
+                const dayNamesShort = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                const chewyShift = period._isChewyPayroll ? -1 : 0;
+                const buildPeriodDays = (startStr) => {
+                    if (!startStr) return [];
+                    const [m, d, y] = startStr.split('/').map(Number);
+                    const start = new Date(y, m - 1, d + chewyShift);
+                    return Array.from({ length: 7 }, (_, i) => {
+                        const dt = new Date(start);
+                        dt.setDate(dt.getDate() + i);
+                        return {
+                            date: `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}/${dt.getFullYear()}`,
+                            day: dayNamesShort[dt.getDay()]
+                        };
+                    });
+                };
+                const w1Days = buildPeriodDays(period.w1?.start);
+                const w2Days = buildPeriodDays(period.w2?.start);
+                const hoursForDate = (emp, date) => {
+                    const det = dailyDetailsData[String(emp.id || '').trim().toLowerCase()];
+                    const day = det?.days?.find(d => d.date === date);
+                    return day ? day.hours : 0;
+                };
 
                 const exportDetailsExcel = () => {
                     const allDays = [...w1Days, ...w2Days];
                     const header = ['Empleado', ...allDays.map(d => `${d.day} ${d.date}`), 'P.E', 'Total'];
                     const rows = allEmployees.map(emp => {
-                        const empId = String(emp.id || '').trim().toLowerCase();
-                        const days = dailyDetailsData[empId]?.days || [];
-                        const empW1 = days.filter(d => d.week === 1);
-                        const empW2 = days.filter(d => d.week === 2);
                         const row = [emp.nombre];
-                        empW1.forEach(d => row.push(d.hours > 0 ? Number(d.hours.toFixed(1)) : ''));
-                        empW2.forEach(d => row.push(d.hours > 0 ? Number(d.hours.toFixed(1)) : ''));
+                        allDays.forEach(d => {
+                            const h = hoursForDate(emp, d.date);
+                            row.push(h > 0 ? Number(h.toFixed(1)) : '');
+                        });
                         row.push(Number(emp.pe) > 0 ? Number(Number(emp.pe).toFixed(1)) : '');
-                        const total = empW1.reduce((s, d) => s + d.hours, 0) + empW2.reduce((s, d) => s + d.hours, 0) + (Number(emp.pe) || 0);
+                        const total = allDays.reduce((s, d) => s + hoursForDate(emp, d.date), 0) + (Number(emp.pe) || 0);
                         row.push(Number(total.toFixed(1)));
                         return row;
                     });
                     const totalsRow = ['Totales'];
-                    allDays.forEach((_, i) => {
-                        const week = i < w1Days.length ? 1 : 2;
-                        const idx = i < w1Days.length ? i : i - w1Days.length;
-                        const sum = allEmployees.reduce((s, emp) => {
-                            const empId = String(emp.id || '').trim().toLowerCase();
-                            return s + ((dailyDetailsData[empId]?.days || []).filter(d => d.week === week)[idx]?.hours || 0);
-                        }, 0);
+                    allDays.forEach(d => {
+                        const sum = allEmployees.reduce((s, emp) => s + hoursForDate(emp, d.date), 0);
                         totalsRow.push(sum > 0 ? Number(sum.toFixed(1)) : '');
                     });
                     const peSum = allEmployees.reduce((s, emp) => s + (Number(emp.pe) || 0), 0);
                     totalsRow.push(peSum > 0 ? Number(peSum.toFixed(1)) : '');
                     totalsRow.push(Number(allEmployees.reduce((s, emp) => {
-                        const empId = String(emp.id || '').trim().toLowerCase();
-                        return s + ((dailyDetailsData[empId]?.days || []).reduce((a, d) => a + d.hours, 0) || 0) + (Number(emp.pe) || 0);
+                        return s + allDays.reduce((a, d) => a + hoursForDate(emp, d.date), 0) + (Number(emp.pe) || 0);
                     }, 0).toFixed(1)));
                     rows.push(totalsRow);
                     const ws = XLSX.utils.aoa_to_sheet([[`Detalles de Nómina — ${period.store} — ${period.range}`], header, ...rows]);
@@ -12048,13 +12058,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                 </thead>
                                 <tbody>
                                     {allEmployees.map((emp, rowIdx) => {
-                                        const empId = String(emp.id || '').trim().toLowerCase();
-                                        const details = dailyDetailsData[empId];
-                                        const empDays = details?.days || [];
-                                        const empW1 = empDays.filter(d => d.week === 1);
-                                        const empW2 = empDays.filter(d => d.week === 2);
-                                        const totalW1 = empW1.reduce((s, d) => s + d.hours, 0);
-                                        const totalW2 = empW2.reduce((s, d) => s + d.hours, 0);
+                                        const totalW1 = w1Days.reduce((s, d) => s + hoursForDate(emp, d.date), 0);
+                                        const totalW2 = w2Days.reduce((s, d) => s + hoursForDate(emp, d.date), 0);
                                         const empPE = Number(emp.pe) || 0;
                                         const bg = rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30';
                                         return (
@@ -12062,16 +12067,22 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                 <td className="sticky left-0 z-10 p-2 border-b border-gray-100 text-[9px] font-bold text-[#303a7f] truncate" style={{ maxWidth: '120px', background: rowIdx % 2 === 0 ? '#fff' : '#f9fafb' }} title={emp.nombre}>
                                                     {emp.nombre}
                                                 </td>
-                                                {empW1.map((d, i) => (
-                                                    <td key={`w1-${i}`} className={`p-1.5 text-center border-b border-gray-50 ${d.hours > 0 ? '' : 'opacity-20'}`}>
-                                                        <span className="text-[9px] font-mono font-bold text-[#6bbdb7] tabular-nums">{d.hours > 0 ? d.hours.toFixed(1) : '—'}</span>
-                                                    </td>
-                                                ))}
-                                                {empW2.map((d, i) => (
-                                                    <td key={`w2-${i}`} className={`p-1.5 text-center border-b border-gray-50 ${d.hours > 0 ? '' : 'opacity-20'}`}>
-                                                        <span className="text-[9px] font-mono font-bold text-[#303a7f] tabular-nums">{d.hours > 0 ? d.hours.toFixed(1) : '—'}</span>
-                                                    </td>
-                                                ))}
+                                                {w1Days.map((d, i) => {
+                                                    const h = hoursForDate(emp, d.date);
+                                                    return (
+                                                        <td key={`w1-${i}`} className={`p-1.5 text-center border-b border-gray-50 ${h > 0 ? '' : 'opacity-20'}`}>
+                                                            <span className="text-[9px] font-mono font-bold text-[#6bbdb7] tabular-nums">{h > 0 ? h.toFixed(1) : '—'}</span>
+                                                        </td>
+                                                    );
+                                                })}
+                                                {w2Days.map((d, i) => {
+                                                    const h = hoursForDate(emp, d.date);
+                                                    return (
+                                                        <td key={`w2-${i}`} className={`p-1.5 text-center border-b border-gray-50 ${h > 0 ? '' : 'opacity-20'}`}>
+                                                            <span className="text-[9px] font-mono font-bold text-[#303a7f] tabular-nums">{h > 0 ? h.toFixed(1) : '—'}</span>
+                                                        </td>
+                                                    );
+                                                })}
                                                 <td className="p-1.5 text-center border-b border-gray-50 bg-orange-50/40">
                                                     <span className="text-[9px] font-mono font-black text-orange-500 tabular-nums">{empPE > 0 ? empPE.toFixed(1) : '—'}</span>
                                                 </td>
@@ -12085,24 +12096,16 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                         <td className="sticky left-0 z-10 p-2 border-t-2 border-gray-300 text-[8px] font-black text-[#303a7f] uppercase tracking-wider" style={{ background: '#f3f4f6' }}>
                                             Totales
                                         </td>
-                                        {w1Days.map((_, i) => {
-                                            const sum = allEmployees.reduce((s, emp) => {
-                                                const empId = String(emp.id || '').trim().toLowerCase();
-                                                const det = dailyDetailsData[empId];
-                                                return s + ((det?.days || []).filter(d => d.week === 1)[i]?.hours || 0);
-                                            }, 0);
+                                        {w1Days.map((d, i) => {
+                                            const sum = allEmployees.reduce((s, emp) => s + hoursForDate(emp, d.date), 0);
                                             return (
                                                 <td key={`w1t-${i}`} className="p-1.5 text-center border-t-2 border-gray-300">
                                                     <span className="text-[8px] font-mono font-black text-[#6bbdb7] tabular-nums">{sum > 0 ? sum.toFixed(1) : '—'}</span>
                                                 </td>
                                             );
                                         })}
-                                        {w2Days.map((_, i) => {
-                                            const sum = allEmployees.reduce((s, emp) => {
-                                                const empId = String(emp.id || '').trim().toLowerCase();
-                                                const det = dailyDetailsData[empId];
-                                                return s + ((det?.days || []).filter(d => d.week === 2)[i]?.hours || 0);
-                                            }, 0);
+                                        {w2Days.map((d, i) => {
+                                            const sum = allEmployees.reduce((s, emp) => s + hoursForDate(emp, d.date), 0);
                                             return (
                                                 <td key={`w2t-${i}`} className="p-1.5 text-center border-t-2 border-gray-300">
                                                     <span className="text-[8px] font-mono font-black text-[#303a7f] tabular-nums">{sum > 0 ? sum.toFixed(1) : '—'}</span>
@@ -12119,9 +12122,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                         <td className="p-1.5 text-center border-t-2 border-gray-300 bg-gray-200">
                                             <span className="text-[8px] font-mono font-black text-[#303a7f] tabular-nums">
                                                 {allEmployees.reduce((s, emp) => {
-                                                    const empId = String(emp.id || '').trim().toLowerCase();
-                                                    const det = dailyDetailsData[empId];
-                                                    return s + ((det?.days || []).reduce((a, d) => a + d.hours, 0) || 0) + (Number(emp.pe) || 0);
+                                                    return s + w1Days.reduce((a, d) => a + hoursForDate(emp, d.date), 0) + w2Days.reduce((a, d) => a + hoursForDate(emp, d.date), 0) + (Number(emp.pe) || 0);
                                                 }, 0).toFixed(1)}
                                             </span>
                                         </td>
