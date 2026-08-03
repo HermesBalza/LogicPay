@@ -1157,7 +1157,8 @@ const DashboardView = ({
     const costoPromedioEmp = empStatsArr.length > 0 ? (totalCostos / empStatsArr.length) : 0;
 
     // 5. PE & VWH
-    const volumenPE = filteredPE.length;
+    const esAnulado = (r) => String(r.visible || r.Visible || '').trim().toLowerCase() === 'anulado';
+    const volumenPE = filteredPE.filter(r => !esAnulado(r)).length;
     const margenPE = totalKBS_PE - totalLGM_PE;
     const vwhRecords = filteredWOS.filter(w => w.auditDate);
     const incidenciaVWH = vwhRecords.length;
@@ -1172,10 +1173,9 @@ const DashboardView = ({
         return s === 'Paid' || s === 'Pagada';
     };
 
-    const facturasFiltradas = [...filteredNomina, ...filteredPE].filter(r => {
-        const isAZPEN_WK = String(r.nombre || '').toUpperCase().includes('AZPEN') && String(r.codigo || '').startsWith('WK-');
-        return !isAZPEN_WK;
-    });
+    const esAZPEN_WK = (r) => String(r.nombre || '').toUpperCase().includes('AZPEN') && String(r.codigo || '').startsWith('WK-');
+    const facturasVWH = filteredNomina.filter(r => !esAZPEN_WK(r)).length;
+    const facturasFiltradas = [...filteredNomina, ...filteredPE].filter(r => !esAZPEN_WK(r) && !esAnulado(r));
     const facturasReportadasPagadas = facturasFiltradas.filter(r => tieneRad(r) && estaPagada(r)).length;
     const facturasReportadasPendientes = facturasFiltradas.filter(r => tieneRad(r) && !estaPagada(r)).length;
     const facturasNoReportadas = facturasFiltradas.filter(r => !tieneRad(r)).length;
@@ -1959,7 +1959,7 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
                         <div className="grid grid-cols-2 gap-4 flex-1">
                             <div className="bg-orange-50/50 border border-orange-100 p-4 rounded-2xl flex flex-col justify-center">
                                 <p className="text-[10px] font-black text-orange-800/60 uppercase tracking-widest mb-1">Facturas VWH</p>
-                                <h4 className="text-3xl font-black text-orange-600 tracking-tighter">{filteredNomina.length}</h4>
+                                <h4 className="text-3xl font-black text-orange-600 tracking-tighter">{facturasVWH}</h4>
                                 <p className="text-[9px] font-bold text-orange-800/40 uppercase mt-2">Total en periodo</p>
                             </div>
 
