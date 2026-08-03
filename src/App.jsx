@@ -3402,6 +3402,24 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
     const [manualMatchMulti, setManualMatchMulti] = useState(false);
     const [manualMatchSelectedIds, setManualMatchSelectedIds] = useState(new Set());
 
+    // Mapa de tiendas: codigo -> nombre, para resolver la tienda de cada línea del WOS
+    const wosStoreMap = useMemo(() => {
+        const map = {};
+        (stores || []).forEach(s => {
+            const code = String(s.codigo).trim();
+            if (code) map[code] = s.nombre;
+        });
+        return map;
+    }, [stores]);
+
+    const resolveWosStoreName = (customer) => {
+        const str = String(customer || '');
+        const colonIdx = str.lastIndexOf(':');
+        if (colonIdx < 0) return '';
+        const storeCode = str.slice(colonIdx + 1).trim();
+        return wosStoreMap[storeCode] || '';
+    };
+
     // --- Lógica de Envío de Ticket (Reclamos) ---
     const handleSendTicketEmail = async (emailData) => {
         setIsSendingTicket(true);
@@ -4660,7 +4678,12 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                             <tr key={index} className={`border-b border-gray-50 transition-colors group ${svcAccepted ? 'bg-emerald-100 border-l-4 border-emerald-500' : 'hover:bg-gray-50/50 border-l-4 border-transparent'}`}>
                                                 <td className="px-4 py-4 text-[10px] font-black text-[#303a7f] uppercase break-words">
                                                     {svcAccepted && <CheckCircle size={14} className="inline-block mr-1.5 text-emerald-600 align-middle" />}
-                                                    {service.customer}
+                                                    <div className="flex flex-col">
+                                                        {resolveWosStoreName(service.customer) && (
+                                                            <span className="text-[#6bbdb7] text-[9px] font-black uppercase tracking-wider">{resolveWosStoreName(service.customer)}</span>
+                                                        )}
+                                                        <span>{service.customer}</span>
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-4 text-[10px] font-black text-gray-500 uppercase break-words">{service.locationId}</td>
                                                 <td className="px-4 py-4 text-[10px] font-bold text-gray-400 tabular-nums break-words">{service.salesOrder}</td>
