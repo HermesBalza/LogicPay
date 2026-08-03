@@ -17899,14 +17899,12 @@ function App() {
             }
 
             try {
-                const sinEgreso = employees
-                    .filter(emp => !emp.fecha_egreso)
-                    .map(emp => ({ nombre: emp.nombre, codigo_empleado: emp.codigo_empleado }));
-                if (sinEgreso.length > 0) {
+                const evalEmployees = employees.map(emp => ({ nombre: emp.nombre, codigo_empleado: emp.codigo_empleado }));
+                if (evalEmployees.length > 0) {
                     const resp = await fetch('/api/employees/last-dates', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(sinEgreso)
+                        body: JSON.stringify(evalEmployees)
                     });
                     const lastDatesMap = await resp.json();
                     const baseDate = new Date();
@@ -17914,14 +17912,17 @@ function App() {
                         const codigo = emp.codigo_empleado.toString().trim();
                         const info = lastDatesMap[codigo];
                         const lastDate = info?.lastDate;
-                        if (lastDate && !emp.fecha_egreso) {
+                        if (lastDate) {
                             const lastParts = lastDate.split('/');
                             const lastWorked = new Date(lastParts[2], lastParts[0] - 1, lastParts[1]);
                             const refParts = info?.referenceDate ? info.referenceDate.split('/') : null;
                             const base = refParts ? new Date(refParts[2], refParts[0] - 1, refParts[1]) : baseDate;
                             const diffDays = Math.floor((base - lastWorked) / (1000 * 60 * 60 * 24));
-                            if (diffDays >= 7) {
-                                const updated = { ...emp, fecha_egreso: lastDate };
+                            const hasEgreso = !!(emp.fecha_egreso && String(emp.fecha_egreso).trim());
+                            const marcar = !hasEgreso && diffDays >= 7;
+                            const reactivar = hasEgreso && diffDays < 7;
+                            if (marcar || reactivar) {
+                                const updated = { ...emp, fecha_egreso: marcar ? lastDate : '' };
                                 updated['Rate KBS'] = emp.rateKBS || 0;
                                 updated['Rate LGM'] = emp.rateLGM || 0;
                                 updated['Rate CSG'] = emp.rate_csg || 0;
@@ -19975,24 +19976,23 @@ function App() {
 
             const fechaDesdeParts = fechaDesde.split('/');
             const fechaDesdeDate = new Date(fechaDesdeParts[2], fechaDesdeParts[0] - 1, fechaDesdeParts[1]);
-            const empleadosTiendaSinSemana = employees.filter(e =>
+            const empleadosTiendaFueraSemana = employees.filter(e =>
                 String(e.tienda || '').trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
-                !e.fecha_egreso &&
                 !semanaTableData.some(row =>
                     String(row.codigo || '').toString().trim() === String(e.codigo_empleado || '').toString().trim() &&
                     String(row.nombre || '').toString().trim().toLowerCase() === String(e.nombre || '').toString().trim().toLowerCase()
                 )
             );
 
-            if (empleadosTiendaSinSemana.length > 0) {
+            if (empleadosTiendaFueraSemana.length > 0) {
                 try {
                     const resp = await fetch('/api/employees/last-dates', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(empleadosTiendaSinSemana.map(e => ({ nombre: e.nombre, codigo_empleado: e.codigo_empleado })))
+                        body: JSON.stringify(empleadosTiendaFueraSemana.map(e => ({ nombre: e.nombre, codigo_empleado: e.codigo_empleado })))
                     });
                     const lastDatesMap = await resp.json();
-                    for (const emp of empleadosTiendaSinSemana) {
+                    for (const emp of empleadosTiendaFueraSemana) {
                         const codigo = emp.codigo_empleado.toString().trim();
                         const info = lastDatesMap[codigo];
                         const lastDate = info?.lastDate;
@@ -20002,8 +20002,11 @@ function App() {
                             const refParts = info?.referenceDate ? info.referenceDate.split('/') : null;
                             const baseDate = refParts ? new Date(refParts[2], refParts[0] - 1, refParts[1]) : fechaDesdeDate;
                             const diffDays = Math.floor((baseDate - lastWorkedDate) / (1000 * 60 * 60 * 24));
-                            if (diffDays >= 7) {
-                                const updated = { ...emp, fecha_egreso: lastDate };
+                            const hasEgreso = !!(emp.fecha_egreso && String(emp.fecha_egreso).trim());
+                            const marcar = !hasEgreso && diffDays >= 7;
+                            const reactivar = hasEgreso && diffDays < 7;
+                            if (marcar || reactivar) {
+                                const updated = { ...emp, fecha_egreso: marcar ? lastDate : '' };
                                 updated['Rate KBS'] = emp.rateKBS || 0;
                                 updated['Rate LGM'] = emp.rateLGM || 0;
                                 updated['Rate CSG'] = emp.rate_csg || 0;
