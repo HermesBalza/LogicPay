@@ -10610,7 +10610,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                 const exportDetailsExcel = () => {
                     const allDays = [...w1Days, ...w2Days];
-                    const header = ['Empleado', ...allDays.map(d => `${d.day} ${d.date}`), 'Total'];
+                    const header = ['Empleado', ...allDays.map(d => `${d.day} ${d.date}`), 'P.E', 'Total'];
                     const rows = allEmployees.map(emp => {
                         const empId = String(emp.id || '').trim().toLowerCase();
                         const days = dailyDetailsData[empId]?.days || [];
@@ -10619,7 +10619,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         const row = [emp.nombre];
                         empW1.forEach(d => row.push(d.hours > 0 ? Number(d.hours.toFixed(1)) : ''));
                         empW2.forEach(d => row.push(d.hours > 0 ? Number(d.hours.toFixed(1)) : ''));
-                        const total = empW1.reduce((s, d) => s + d.hours, 0) + empW2.reduce((s, d) => s + d.hours, 0);
+                        row.push(Number(emp.pe) > 0 ? Number(Number(emp.pe).toFixed(1)) : '');
+                        const total = empW1.reduce((s, d) => s + d.hours, 0) + empW2.reduce((s, d) => s + d.hours, 0) + (Number(emp.pe) || 0);
                         row.push(Number(total.toFixed(1)));
                         return row;
                     });
@@ -10633,13 +10634,15 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         }, 0);
                         totalsRow.push(sum > 0 ? Number(sum.toFixed(1)) : '');
                     });
+                    const peSum = allEmployees.reduce((s, emp) => s + (Number(emp.pe) || 0), 0);
+                    totalsRow.push(peSum > 0 ? Number(peSum.toFixed(1)) : '');
                     totalsRow.push(Number(allEmployees.reduce((s, emp) => {
                         const empId = String(emp.id || '').trim().toLowerCase();
-                        return s + ((dailyDetailsData[empId]?.days || []).reduce((a, d) => a + d.hours, 0) || 0);
+                        return s + ((dailyDetailsData[empId]?.days || []).reduce((a, d) => a + d.hours, 0) || 0) + (Number(emp.pe) || 0);
                     }, 0).toFixed(1)));
                     rows.push(totalsRow);
                     const ws = XLSX.utils.aoa_to_sheet([[`Detalles de Nómina — ${period.store} — ${period.range}`], header, ...rows]);
-                    ws['!cols'] = [{ wch: 30 }, ...allDays.map(() => ({ wch: 11 })), { wch: 10 }];
+                    ws['!cols'] = [{ wch: 30 }, ...allDays.map(() => ({ wch: 11 })), { wch: 8 }, { wch: 10 }];
                     ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: header.length - 1 } }];
                     const wb = XLSX.utils.book_new();
                     XLSX.utils.book_append_sheet(wb, ws, 'Detalles');
@@ -10687,6 +10690,9 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                 <div className="text-[7px] font-black text-[#303a7f] uppercase leading-tight">{d.day}</div>
                                             </th>
                                         ))}
+                                        <th className="bg-orange-50 p-1 text-center border-b-2 border-orange-200" style={{ width: '36px' }}>
+                                            <div className="text-[6px] font-black text-orange-500 uppercase">P.E</div>
+                                        </th>
                                         <th className="bg-gray-200 p-1 text-center border-b-2 border-gray-300" style={{ width: '40px' }}>
                                             <div className="text-[6px] font-black text-[#303a7f] uppercase">Total</div>
                                         </th>
@@ -10701,6 +10707,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                         const empW2 = empDays.filter(d => d.week === 2);
                                         const totalW1 = empW1.reduce((s, d) => s + d.hours, 0);
                                         const totalW2 = empW2.reduce((s, d) => s + d.hours, 0);
+                                        const empPE = Number(emp.pe) || 0;
                                         const bg = rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30';
                                         return (
                                             <tr key={emp.id} className={`${bg} hover:bg-teal-50/30 transition-colors`}>
@@ -10717,8 +10724,11 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                         <span className="text-[8px] font-mono font-bold text-[#303a7f] tabular-nums">{d.hours > 0 ? d.hours.toFixed(1) : '—'}</span>
                                                     </td>
                                                 ))}
+                                                <td className="p-1 text-center border-b border-gray-50 bg-orange-50/40">
+                                                    <span className="text-[8px] font-mono font-black text-orange-500 tabular-nums">{empPE > 0 ? empPE.toFixed(1) : '—'}</span>
+                                                </td>
                                                 <td className="p-1 text-center border-b border-gray-50 bg-gray-100/50">
-                                                    <span className="text-[8px] font-mono font-black text-[#303a7f] tabular-nums">{Number(totalW1 + totalW2).toFixed(1)}</span>
+                                                    <span className="text-[8px] font-mono font-black text-[#303a7f] tabular-nums">{Number(totalW1 + totalW2 + empPE).toFixed(1)}</span>
                                                 </td>
                                             </tr>
                                         );
@@ -10751,21 +10761,19 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                 </td>
                                             );
                                         })}
+                                        <td className="p-1 text-center border-t-2 border-gray-300 bg-orange-100/60">
+                                            <span className="text-[7px] font-mono font-black text-orange-500 tabular-nums">
+                                                {allEmployees.reduce((s, emp) => s + (Number(emp.pe) || 0), 0) > 0
+                                                    ? Number(allEmployees.reduce((s, emp) => s + (Number(emp.pe) || 0), 0)).toFixed(1)
+                                                    : '—'}
+                                            </span>
+                                        </td>
                                         <td className="p-1 text-center border-t-2 border-gray-300 bg-gray-200">
                                             <span className="text-[7px] font-mono font-black text-[#303a7f] tabular-nums">
                                                 {allEmployees.reduce((s, emp) => {
                                                     const eId = String(emp.id || '').trim().toLowerCase();
                                                     const det = dailyDetailsData[eId];
-                                                    return s + ((det?.days || []).reduce((a, d) => a + d.hours, 0) || 0);
-                                                }, 0).toFixed(1)}
-                                            </span>
-                                        </td>
-                                        <td className="p-1 text-center border-t-2 border-gray-300 bg-[#303a7f]/10">
-                                            <span className="text-[7px] font-mono font-black text-[#303a7f] tabular-nums">
-                                                {allEmployees.reduce((s, emp) => {
-                                                    const eId = String(emp.id || '').trim().toLowerCase();
-                                                    const det = dailyDetailsData[eId];
-                                                    return s + ((det?.days || []).filter(d => d.week === 2).reduce((a, d) => a + d.hours, 0) || 0);
+                                                    return s + ((det?.days || []).reduce((a, d) => a + d.hours, 0) || 0) + (Number(emp.pe) || 0);
                                                 }, 0).toFixed(1)}
                                             </span>
                                         </td>
