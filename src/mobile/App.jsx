@@ -15917,14 +15917,17 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                         body: JSON.stringify(sinEgreso)
                     });
                     const lastDatesMap = await resp.json();
-                    const hoy = new Date();
+                    const baseDate = new Date();
                     for (const emp of employees) {
                         const codigo = emp.codigo_empleado.toString().trim();
-                        const lastDate = lastDatesMap[codigo];
+                        const info = lastDatesMap[codigo];
+                        const lastDate = info?.lastDate;
                         if (lastDate && !emp.fecha_egreso) {
                             const lastParts = lastDate.split('/');
                             const lastWorked = new Date(lastParts[2], lastParts[0] - 1, lastParts[1]);
-                            const diffDays = Math.floor((hoy - lastWorked) / (1000 * 60 * 60 * 24));
+                            const refParts = info?.referenceDate ? info.referenceDate.split('/') : null;
+                            const base = refParts ? new Date(refParts[2], refParts[0] - 1, refParts[1]) : baseDate;
+                            const diffDays = Math.floor((base - lastWorked) / (1000 * 60 * 60 * 24));
                             if (diffDays >= 7) {
                                 const updated = { ...emp, fecha_egreso: lastDate };
                                 updated['Rate KBS'] = emp.rateKBS || 0;
@@ -17964,11 +17967,14 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     const lastDatesMap = await resp.json();
                     for (const emp of empleadosTiendaSinSemana) {
                         const codigo = emp.codigo_empleado.toString().trim();
-                        const lastDate = lastDatesMap[codigo];
+                        const info = lastDatesMap[codigo];
+                        const lastDate = info?.lastDate;
                         if (lastDate) {
                             const lastParts = lastDate.split('/');
                             const lastWorkedDate = new Date(lastParts[2], lastParts[0] - 1, lastParts[1]);
-                            const diffDays = Math.floor((fechaDesdeDate - lastWorkedDate) / (1000 * 60 * 60 * 24));
+                            const refParts = info?.referenceDate ? info.referenceDate.split('/') : null;
+                            const baseDate = refParts ? new Date(refParts[2], refParts[0] - 1, refParts[1]) : fechaDesdeDate;
+                            const diffDays = Math.floor((baseDate - lastWorkedDate) / (1000 * 60 * 60 * 24));
                             if (diffDays >= 7) {
                                 const updated = { ...emp, fecha_egreso: lastDate };
                                 updated['Rate KBS'] = emp.rateKBS || 0;

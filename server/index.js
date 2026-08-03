@@ -1097,16 +1097,56 @@ app.post('/api/employees/first-dates', (req, res) => {
   }
 });
 
-// Endpoint para calcular ultimo dia trabajado desde Nomina_Historico
+// Endpoint para calcular ultimo dia trabajado desde Nomina_Historico y Proyectos_Especiales
 app.post('/api/employees/last-dates', (req, res) => {
   try {
     const employees = req.body;
     if (!Array.isArray(employees) || employees.length === 0) {
       return res.json({});
     }
-    const result = {};
+    const parseDateStr = (s) => {
+      const parts = String(s || '').split('/');
+      if (parts.length !== 3) return null;
+      const d = new Date(parts[2], parts[0] - 1, parts[1]);
+      return isNaN(d.getTime()) ? null : d;
+    };
+    const fmtDate = (d) => `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
+
     const allHistory = db.prepare('SELECT * FROM Nomina_Historico WHERE data_json IS NOT NULL AND data_json != ?').all('');
 
+    // Fecha de referencia: ultimo dia de la semana aprobada mas reciente en todo LogicPay
+    let referenceDate = null;
+    let maxWeekStartTs = 0;
+    let refRow = null;
+    for (const row of allHistory) {
+      const d = parseDateStr(row.fecha_inicio);
+      if (d && d.getTime() > maxWeekStartTs) {
+        maxWeekStartTs = d.getTime();
+        refRow = row;
+      }
+    }
+    if (refRow) {
+      const fin = parseDateStr(refRow.fecha_fin);
+      if (fin) {
+        referenceDate = fmtDate(fin);
+      } else {
+        const base = parseDateStr(refRow.fecha_inicio);
+        if (base) {
+          base.setDate(base.getDate() + 6);
+          referenceDate = fmtDate(base);
+        }
+      }
+    }
+
+    // Proyectos Especiales: ultimo dia del periodo donde el empleado tiene horas > 0
+    const allPE = db.prepare('SELECT * FROM Proyectos_Especiales WHERE Data_JSON IS NOT NULL AND Data_JSON != ?').all('');
+    const pePeriodEnd = (periodStr) => {
+      const parts = String(periodStr || '').split('-');
+      if (parts.length < 2) return null;
+      return parseDateStr(parts[parts.length - 1].trim());
+    };
+
+    const result = {};
     for (const emp of employees) {
       const nombreEmp = String(emp.nombre || '').trim().toLowerCase();
       const codigoEmp = String(emp.codigo_empleado || '').trim();
@@ -1123,30 +1163,57 @@ app.post('/api/employees/last-dates', (req, res) => {
             String(e.codigo || '').replace(/^'+/, '').trim() === codigoEmp
           );
           if (empData && row.fecha_inicio) {
-            const parts = row.fecha_inicio.split('/');
-            if (parts.length === 3) {
-              const rowDate = new Date(parts[2], parts[0] - 1, parts[1]);
-              if (!latestRowDate || rowDate > latestRowDate) {
-                latestRow = row;
-                latestEmpData = empData;
-                latestRowDate = rowDate;
-              }
+            const rowDate = parseDateStr(row.fecha_inicio);
+            if (rowDate && (!latestRowDate || rowDate > latestRowDate)) {
+              latestRow = row;
+              latestEmpData = empData;
+              latestRowDate = rowDate;
             }
           }
         } catch (e) { /* ignorar registros con JSON invalido */ }
       }
 
+      let lastWorkedDate = null;
       if (latestRow && latestEmpData) {
         const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
         for (let d = diasSemana.length - 1; d >= 0; d--) {
           if (parseFloat(latestEmpData[diasSemana[d]]?.final || 0) > 0) {
-            const parts = latestRow.fecha_inicio.split('/');
-            const fechaBase = new Date(parts[2], parts[0] - 1, parts[1]);
+            const fechaBase = parseDateStr(latestRow.fecha_inicio);
             fechaBase.setDate(fechaBase.getDate() + d);
-            result[codigoEmp] = `${String(fechaBase.getMonth() + 1).padStart(2, '0')}/${String(fechaBase.getDate()).padStart(2, '0')}/${fechaBase.getFullYear()}`;
+            lastWorkedDate = fechaBase;
             break;
           }
         }
+      }
+
+      // Proyectos Especiales
+      for (const peRow of allPE) {
+        const endDate = pePeriodEnd(peRow.Periodo || peRow.periodo || '');
+        if (!endDate) continue;
+        let payload = null;
+        try { payload = JSON.parse(peRow.Data_JSON || peRow.data_json || '{}'); } catch (e) { continue; }
+        const items = Array.isArray(payload) ? payload : [payload];
+        let found = false;
+        for (const item of items) {
+          const emps = Array.isArray(item.employees) ? item.employees : [];
+          for (const peEmp of emps) {
+            if (String(peEmp.employeeName || '').trim().toLowerCase() === nombreEmp && parseFloat(peEmp.hours || 0) > 0) {
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+        }
+        if (found && (!lastWorkedDate || endDate > lastWorkedDate)) {
+          lastWorkedDate = endDate;
+        }
+      }
+
+      if (lastWorkedDate) {
+        result[codigoEmp] = {
+          lastDate: fmtDate(lastWorkedDate),
+          referenceDate
+        };
       }
     }
     res.json(result);
