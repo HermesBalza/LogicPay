@@ -857,6 +857,7 @@ const DashboardView = ({
     const [selectedStore, setSelectedStore] = useState('Todas');
     const [selectedEmployee, setSelectedEmployee] = useState('Todos');
     const [selectedSupervisor, setSelectedSupervisor] = useState('Todos');
+    const [selectedState, setSelectedState] = useState('Todos');
     const [trendPeriod, setTrendPeriod] = useState('monthly'); // 'monthly' | 'weekly'
     const [infoModal, setInfoModal] = useState(null);
     const [showReportModal, setShowReportModal] = useState(false);
@@ -962,12 +963,23 @@ const DashboardView = ({
         return true;
     };
 
+    // Mapa tienda -> estado (Estados Unidos) para el filtro por estado
+    const storeStateMap = useMemo(() => {
+        const map = {};
+        stores.forEach(s => {
+            if (s.nombre && s.estado) map[s.nombre] = s.estado;
+        });
+        return map;
+    }, [stores]);
+
+    const stateOptions = useMemo(() => [...new Set(stores.map(s => s.estado).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')), [stores]);
+
     // 1. Filtrado Base
     const filteredNomina = useMemo(() => nominaHistoryData.filter(h => {
         const passDate = isDateInRange(h.Fecha_Envio || h.Timestamp || h.Periodo);
-        const passStore = selectedStore === 'Todas' || h.Tienda === selectedStore;
+        const passStore = (selectedStore === 'Todas' || h.Tienda === selectedStore) && (selectedState === 'Todos' || storeStateMap[h.Tienda] === selectedState);
         return passDate && passStore;
-    }), [nominaHistoryData, dateFrom, dateTo, selectedStore]);
+    }), [nominaHistoryData, dateFrom, dateTo, selectedStore, selectedState, storeStateMap]);
 
     const hhmmToDecimal = (hhmm) => {
         if (!hhmm || hhmm === 'X' || hhmm === '0:00') return 0;
@@ -1015,29 +1027,30 @@ const DashboardView = ({
         const allDetails = [...nominaDetailData, ...derivedNominaHistoryEmployees];
         return allDetails.filter(d => {
             const passDate = isDateInRange(d.Fecha_Confirmacion || d.Periodo);
-            const passStore = selectedStore === 'Todas' || d.Tienda === selectedStore;
+            const passStore = (selectedStore === 'Todas' || d.Tienda === selectedStore) && (selectedState === 'Todos' || storeStateMap[d.Tienda] === selectedState);
             const passEmployee = selectedEmployee === 'Todos' || String(d.Empleado).trim().toLowerCase() === String(selectedEmployee).trim().toLowerCase();
             return passDate && passStore && passEmployee;
         });
-    }, [nominaDetailData, derivedNominaHistoryEmployees, dateFrom, dateTo, selectedStore, selectedEmployee]);
+    }, [nominaDetailData, derivedNominaHistoryEmployees, dateFrom, dateTo, selectedStore, selectedState, storeStateMap, selectedEmployee]);
 
     const filteredPE = useMemo(() => specialProjectsHistoryData.filter(pe => {
         const passDate = isDateInRange(pe.Periodo || pe.periodo || pe.timestamp || pe.Timestamp || pe.fecha);
-        const passStore = selectedStore === 'Todas' || pe.tienda === selectedStore || pe.Tienda === selectedStore;
+        const peTienda = pe.tienda || pe.Tienda;
+        const passStore = (selectedStore === 'Todas' || peTienda === selectedStore) && (selectedState === 'Todos' || storeStateMap[peTienda] === selectedState);
         return passDate && passStore;
-    }), [specialProjectsHistoryData, dateFrom, dateTo, selectedStore]);
+    }), [specialProjectsHistoryData, dateFrom, dateTo, selectedStore, selectedState, storeStateMap]);
 
     const filteredWOS = useMemo(() => wosHistoryData.filter(wos => {
         const passDate = isDateInRange(wos.Fecha_Envio || wos.Timestamp || wos.Fecha);
-        const passStore = selectedStore === 'Todas' || wos.Tienda === selectedStore;
+        const passStore = (selectedStore === 'Todas' || wos.Tienda === selectedStore) && (selectedState === 'Todos' || storeStateMap[wos.Tienda] === selectedState);
         return passDate && passStore;
-    }), [wosHistoryData, dateFrom, dateTo, selectedStore]);
+    }), [wosHistoryData, dateFrom, dateTo, selectedStore, selectedState, storeStateMap]);
 
     const filteredCSG = useMemo(() => (csgServicesData || []).filter(s => {
         const passDate = isDateInRange(s.fecha || s['Fecha Rad.'] || s.Timestamp);
-        const passStore = selectedStore === 'Todas' || s.tienda === selectedStore;
+        const passStore = (selectedStore === 'Todas' || s.tienda === selectedStore) && (selectedState === 'Todos' || storeStateMap[s.tienda] === selectedState);
         return passDate && passStore;
-    }), [csgServicesData, dateFrom, dateTo, selectedStore]);
+    }), [csgServicesData, dateFrom, dateTo, selectedStore, selectedState, storeStateMap]);
 
     const filteredAdminExpenses = useMemo(() => adminExpenses.filter(e => {
         return isDateInRange(e.fecha);
@@ -1073,6 +1086,7 @@ const DashboardView = ({
     // 3. Estadísticas por Tienda
     const storeStats = stores.map(store => {
         if (selectedSupervisor !== 'Todos' && store.supervisor_lsg !== selectedSupervisor) return null;
+        if (selectedState !== 'Todos' && store.estado !== selectedState) return null;
 
         const nStore = filteredNomina.filter(n => n.Tienda === store.nombre);
         const peStore = filteredPE.filter(pe => pe.tienda === store.nombre || pe.Tienda === store.nombre);
@@ -1471,15 +1485,13 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
         <div className="h-full overflow-y-auto custom-scrollbar pb-8 animate-in fade-in zoom-in-95 duration-500">
             {/* Header & Controls */}
             <div className="px-8 pb-4">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-xl shadow-blue-900/5 border border-gray-100">
+                <div className="flex flex-nowrap items-center gap-3 bg-white p-3 rounded-2xl shadow-xl shadow-blue-900/5 border border-gray-100 overflow-x-auto mb-8">
                             <div
                                 className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200 cursor-pointer relative hover:bg-gray-100 transition-colors group"
                                 onClick={() => openDatePicker(fromDateRef)}
                             >
                                 <Calendar size={14} className="text-[#303a7f] pointer-events-none" />
-                                <div className="min-w-[120px] pointer-events-none">
+                                <div className="min-w-[100px] pointer-events-none">
                                     <span className="block text-xs font-black text-[#333333] uppercase tracking-wider">
                                         {dateFrom ? formatDisplayDate(dateFrom) : 'Desde'}
                                     </span>
@@ -1505,7 +1517,7 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
                                 onClick={() => openDatePicker(toDateRef)}
                             >
                                 <Calendar size={14} className="text-[#303a7f] pointer-events-none" />
-                                <div className="min-w-[120px] pointer-events-none">
+                                <div className="min-w-[100px] pointer-events-none">
                                     <span className="block text-xs font-black text-[#333333] uppercase tracking-wider">
                                         {dateTo ? formatDisplayDate(dateTo) : 'Hasta'}
                                     </span>
@@ -1537,19 +1549,14 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
                             >
                                 <Eraser size={16} strokeWidth={2.5} />
                             </button>
-                        </div>
-                    </div>
-
-                    {/* Control Panel (Filtros Restantes) */}
-                    <div className="flex flex-wrap gap-3 bg-white p-3 rounded-2xl shadow-xl shadow-blue-900/5 border border-gray-100">
                         <div className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200">
                             <StoreIcon size={14} className="text-[#303a7f]" />
                             <select
                                 value={selectedStore}
                                 onChange={(e) => setSelectedStore(e.target.value)}
-                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[120px] truncate"
+                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[105px] truncate"
                             >
-                                <option value="Todas">Todas las Tiendas</option>
+                                <option value="Todas">Tiendas</option>
                                 {stores.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map((s, idx) => <option key={s.codigo || `dash-store-${idx}`} value={s.nombre}>{s.nombre}</option>)}
                             </select>
                         </div>
@@ -1559,9 +1566,9 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
                             <select
                                 value={selectedEmployee}
                                 onChange={(e) => setSelectedEmployee(e.target.value)}
-                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[120px] truncate"
+                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[105px] truncate"
                             >
-                                <option value="Todos">Todos los Empleados</option>
+                                <option value="Todos">Empleados</option>
                                 {employees.map((emp, idx) => <option key={emp.codigo_empleado || `dash-emp-${idx}`} value={emp.nombre}>{emp.nombre}</option>)}
                             </select>
                         </div>
@@ -1571,12 +1578,24 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
                             <select
                                 value={selectedSupervisor}
                                 onChange={(e) => setSelectedSupervisor(e.target.value)}
-                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[120px] truncate"
+                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[105px] truncate"
                             >
                                 <option value="Todos">Supervisores</option>
                                 {[...new Set(stores.map(s => s.supervisor_lsg).filter(Boolean))].map(sup =>
                                     <option key={sup} value={sup}>{sup}</option>
                                 )}
+                            </select>
+                        </div>
+
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[#f9f9f9] rounded-xl border border-gray-200">
+                            <MapPin size={14} className="text-[#303a7f]" />
+                            <select
+                                value={selectedState}
+                                onChange={(e) => setSelectedState(e.target.value)}
+                                className="bg-transparent text-xs font-black text-[#333333] uppercase tracking-wider outline-none max-w-[105px] truncate"
+                            >
+                                <option value="Todos">Estados</option>
+                                {stateOptions.map((st, idx) => <option key={st || `dash-state-${idx}`} value={st}>{st}</option>)}
                             </select>
                         </div>
 
@@ -1588,7 +1607,6 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
                             <BarChart3 size={14} className="group-hover:scale-110 transition-transform" />
                             <span className="text-[10px] font-black uppercase tracking-widest">Resumen</span>
                         </button>
-                    </div>
                 </div>
 
                 {/* 1. Resumen Financiero Global (KPIs Principales) */}
