@@ -864,6 +864,8 @@ const DashboardView = ({
         'workforce-analytics': 'Análisis de carga laboral: ranking de empleados por horas trabajadas en el periodo. Ayuda a identificar distribución de la fuerza laboral.',
         'pe-vwh': 'Cantidad total de facturas VWH y Proyectos Especiales en el periodo. Incluye el desglose de facturaciones del año: reportadas y pagadas, reportadas y pendientes, no reportadas a KBS y WOS auditados.',
         'distribucion-pagos': 'Clasificación del flujo de efectivo: pagos completados, montos pendientes de cobro a clientes y pendientes de pago a empleados.',
+        'ranking-facturacion-estado': 'Ranking de los estados (USA) por monto total facturado a KBS en el periodo filtrado: nómina regular + proyectos especiales + servicios CSG.',
+        'ranking-costo-estado': 'Ranking de los estados (USA) por costo de nómina en el periodo filtrado: nómina regular + proyectos especiales + servicios CSG (LGM). Los gastos administrativos son globales y no se atribuyen por estado.',
     };
 
     const formatDisplayDate = (dateValue) => {
@@ -1076,6 +1078,33 @@ const DashboardView = ({
     const top5Tiendas = [...storeStats].sort((a, b) => b.margen - a.margen).slice(0, 5);
     const overBudgetStores = storeStats.filter(s => s.utilizacion > 100);
     const costoPromedioTienda = storeStats.length > 0 ? (totalCostos / storeStats.length) : 0;
+
+    // 3.5 Estadísticas por Estado (Estados Unidos)
+    const storeStateMap = useMemo(() => {
+        const map = {};
+        stores.forEach(s => {
+            if (s.nombre && s.estado) map[s.nombre] = s.estado;
+        });
+        return map;
+    }, [stores]);
+
+    const stateStatsMap = {};
+    const addStateStat = (tienda, kbs, lgm) => {
+        const st = storeStateMap[tienda];
+        if (!st) return;
+        if (!stateStatsMap[st]) stateStatsMap[st] = { estado: st, kbs: 0, lgm: 0, tiendas: 0 };
+        stateStatsMap[st].kbs += kbs;
+        stateStatsMap[st].lgm += lgm;
+    };
+    filteredNomina.forEach(h => addStateStat(h.Tienda, parseFloat(h.Pago_KBS) || 0, parseFloat(h.Pago_LGM) || 0));
+    filteredPE.forEach(pe => { const t = pe.tienda || pe.Tienda; addStateStat(t, parseFloat(pe.pago_kbs || pe.Pago_KBS) || 0, parseFloat(pe.pago_lgm || pe.Pago_LGM) || 0); });
+    filteredCSG.forEach(s => addStateStat(s.tienda, parseFloat(s.monto_csg) || 0, parseFloat(s.monto_lgm) || 0));
+    stores.forEach(s => { if (s.estado && stateStatsMap[s.estado]) stateStatsMap[s.estado].tiendas += 1; });
+    const stateStatsArr = Object.values(stateStatsMap);
+    const rankingFacturacionEstado = [...stateStatsArr].sort((a, b) => b.kbs - a.kbs);
+    const rankingCostoEstado = [...stateStatsArr].sort((a, b) => b.lgm - a.lgm);
+    const totalFacturacionEstado = stateStatsArr.reduce((sum, x) => sum + x.kbs, 0) || 1;
+    const totalCostoEstado = stateStatsArr.reduce((sum, x) => sum + x.lgm, 0) || 1;
 
     // 4. Workforce Analytics
     const empStatsMap = {};
@@ -1792,6 +1821,69 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 3.5 Rankings por Estado (USA) — Móvil */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div className="bg-white rounded-[2rem] p-4 shadow-xl shadow-blue-900/5 border border-gray-100">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="p-2 bg-emerald-50 rounded-xl text-emerald-500">
+                                <DollarSign size={18} />
+                            </div>
+                            <h3 className="text-xs font-black text-[#303a7f] uppercase tracking-tighter">Ranking por Estados · Facturación</h3>
+                        </div>
+                        <div className="space-y-1.5">
+                            {rankingFacturacionEstado.map((st, idx) => (
+                                <div key={st.estado} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-[#f9f9f9] border border-gray-100">
+                                    <span className={`w-6 h-6 flex items-center justify-center rounded-lg text-[9px] font-black flex-shrink-0 ${idx < 3 ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>{idx + 1}</span>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-[11px] font-black text-[#333333] uppercase truncate">
+                                                {st.estado} <span className="text-[8px] font-bold text-gray-400 normal-case">({st.tiendas} tienda{st.tiendas !== 1 ? 's' : ''})</span>
+                                            </span>
+                                            <span className="text-xs font-black text-emerald-600 tabular-nums">{formatMoney(st.kbs)}</span>
+                                        </div>
+                                        <div className="w-full h-1 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(st.kbs / totalFacturacionEstado) * 100}%` }} />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {!rankingFacturacionEstado.length && (
+                                <p className="text-[11px] font-bold text-gray-400 text-center py-4">Sin datos de facturación en el periodo.</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-[2rem] p-4 shadow-xl shadow-blue-900/5 border border-gray-100">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="p-2 bg-rose-50 rounded-xl text-rose-500">
+                                <Users size={18} />
+                            </div>
+                            <h3 className="text-xs font-black text-[#303a7f] uppercase tracking-tighter">Ranking por Estados · Costo de Nómina</h3>
+                        </div>
+                        <div className="space-y-1.5">
+                            {rankingCostoEstado.map((st, idx) => (
+                                <div key={st.estado} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-[#f9f9f9] border border-gray-100">
+                                    <span className={`w-6 h-6 flex items-center justify-center rounded-lg text-[9px] font-black flex-shrink-0 ${idx < 3 ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-400'}`}>{idx + 1}</span>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-[11px] font-black text-[#333333] uppercase truncate">
+                                                {st.estado} <span className="text-[8px] font-bold text-gray-400 normal-case">({st.tiendas} tienda{st.tiendas !== 1 ? 's' : ''})</span>
+                                            </span>
+                                            <span className="text-xs font-black text-red-500 tabular-nums">{formatMoney(st.lgm)}</span>
+                                        </div>
+                                        <div className="w-full h-1 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                                            <div className="h-full bg-red-400 rounded-full" style={{ width: `${(st.lgm / totalCostoEstado) * 100}%` }} />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {!rankingCostoEstado.length && (
+                                <p className="text-[11px] font-bold text-gray-400 text-center py-4">Sin datos de costo de nómina en el periodo.</p>
+                            )}
                         </div>
                     </div>
                 </div>
