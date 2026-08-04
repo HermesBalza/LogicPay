@@ -69,7 +69,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS AuditLog (
     entidad TEXT,
     entidad_nombre TEXT,
     detalles TEXT,
-    created_at TEXT DEFAULT (datetime('now','localtime'))
+    created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );`);
 db.exec(`CREATE INDEX IF NOT EXISTS idx_auditlog_created ON AuditLog(created_at DESC);`);
 

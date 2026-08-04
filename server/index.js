@@ -53,8 +53,8 @@ function filterValidColumns(table, data) {
 function auditLog(userId, userName, accion, entidad, entidadNombre, detalles = null) {
     try {
         if (!userId && !userName) return; // Saltar si no hay contexto de usuario
-        const stmt = db.prepare(`INSERT INTO AuditLog (user_id, user_name, accion, entidad, entidad_nombre, detalles) VALUES (?, ?, ?, ?, ?, ?)`);
-        stmt.run(userId || null, userName || 'Sistema', accion, entidad || null, entidadNombre || null, detalles ? JSON.stringify(detalles) : null);
+        const stmt = db.prepare(`INSERT INTO AuditLog (user_id, user_name, accion, entidad, entidad_nombre, detalles, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+        stmt.run(userId || null, userName || 'Sistema', accion, entidad || null, entidadNombre || null, detalles ? JSON.stringify(detalles) : null, new Date().toISOString());
     } catch (e) {
         console.error('[AuditLog] Error al registrar:', e.message);
     }

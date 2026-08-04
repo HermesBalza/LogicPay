@@ -15181,7 +15181,6 @@ const HistorialActividad = ({ currentUser }) => {
     const formatDateTime = (isoStr) => {
         if (!isoStr) return { date: '', time: '' };
         const d = new Date(isoStr + (isoStr.endsWith('Z') || isoStr.includes('+') ? '' : 'Z'));
-        d.setHours(d.getHours() + 4);
         const today = new Date();
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
