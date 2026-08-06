@@ -20191,7 +20191,9 @@ function App() {
             const splitInfo = getSplitInfo(fechaDesde);
 
             const saveHistoryPart = async (start, end, partLabel = null) => {
-                const days = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                const days = isWeekMonSun(payrollStore)
+                    ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
+                    : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
                 const startIndex = partLabel === 'A' ? 0 : (partLabel === 'B' ? splitInfo.splitIdx : 0);
                 const endIndex = partLabel === 'A' ? splitInfo.splitIdx - 1 : (partLabel === 'B' ? 6 : 6);
 
