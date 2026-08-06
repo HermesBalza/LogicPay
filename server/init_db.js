@@ -90,7 +90,8 @@ CREATE TABLE IF NOT EXISTS Tiendas (
     "imagen" TEXT,
     "cliente" TEXT,
     "rate_csg" TEXT,
-    "rate_lgm" TEXT
+    "rate_lgm" TEXT,
+    "tipo_facturacion" TEXT DEFAULT 'domingo_a_sabado'
 );
 
 -- Tabla Nomina_Historico
@@ -239,4 +240,11 @@ try {
     console.log('Tablas SQLite creadas y/o verificadas correctamente.');
 } catch (error) {
     console.error('Error al inicializar la base de datos:', error);
+}
+
+try {
+    db.exec(`ALTER TABLE Tiendas ADD COLUMN "tipo_facturacion" TEXT DEFAULT 'domingo_a_sabado'`);
+    console.log('Columna tipo_facturacion agregada a Tiendas.');
+} catch (e) {
+    // Columna ya existe, ignorar
 }

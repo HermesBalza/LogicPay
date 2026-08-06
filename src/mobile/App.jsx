@@ -149,7 +149,13 @@ const VASCHEDULE_API_URL = `${LOCAL_API_BASE}/VASchedule`;
 const CRM_CANDIDATOS_API_URL = `${LOCAL_API_BASE}/CRM_Candidatos`;
 const SALDOS_PENDIENTES_API_URL = `${LOCAL_API_BASE}/Saldos_Pendientes`;
 const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
-const isChewyStore = (name) => String(name).includes('Chewy');
+let _storesRef = [];
+const isWeekMonSun = (storeName) => {
+    const store = _storesRef.find(s => s.nombre === storeName);
+    if (store?.tipo_facturacion === 'lunes_a_domingo') return true;
+    if (store?.tipo_facturacion === 'domingo_a_sabado') return false;
+    return String(storeName).includes('Chewy');
+};
 const isWalgreensDallas = (name) => String(name).trim().toLowerCase() === 'walgreens dallas';
 
 // Parsea una fila CSV respetando campos entre comillas
@@ -416,6 +422,7 @@ const csvRowToStore = (flat) => ({
     employees: (() => { try { return JSON.parse(flat.employees || '[]'); } catch (e) { return []; } })(),
     // ─── Campos CSG (fallback seguro: tiendas KBS sin estos campos siguen funcionando igual) ───
     cliente: flat.cliente || flat.Cliente || 'KBS',
+    tipo_facturacion: flat.tipo_facturacion || 'domingo_a_sabado',
     rate_csg: parseFloat(flat.rate_csg || flat['Rate CSG'] || flat['rate csg'] || 0) || 0,
     rate_lgm: parseFloat(flat.rate_lgm || flat.rate_lgm_csg || flat['Rate LGM CSG'] || flat['rate lgm'] || flat['Rate LGM'] || 0) || 0,
     tarifas: {
@@ -2533,6 +2540,30 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                                 </div>
 
                                 <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Tipo de Facturación</label>
+                                    {isEditing ? (
+                                        <select
+                                            value={editedStore.tipo_facturacion || 'domingo_a_sabado'}
+                                            onChange={(e) => updateField('tipo_facturacion', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold text-sm appearance-none cursor-pointer"
+                                            style={{
+                                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23303a7f' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                                                backgroundRepeat: 'no-repeat',
+                                                backgroundPosition: 'right 12px center',
+                                                paddingRight: '2.5rem'
+                                            }}
+                                        >
+                                            <option value="domingo_a_sabado">Domingo a Sábado</option>
+                                            <option value="lunes_a_domingo">Lunes a Domingo</option>
+                                        </select>
+                                    ) : (
+                                        <div className="w-full bg-gray-100 text-gray-500 border-transparent rounded-xl p-3.5 font-bold text-sm">
+                                            {editedStore.tipo_facturacion === 'lunes_a_domingo' ? 'Lunes a Domingo' : 'Domingo a Sábado'}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="group">
                                     <label className="text-[9px] text-[#6bbdb7] uppercase font-black tracking-widest block mb-1 pl-1">Estado (US)</label>
                                     <input
                                         type="text"
@@ -2818,7 +2849,8 @@ const StoreAddView = ({ onSave, onBack }) => {
             shift_lead: { kbs: '', lsg: '' }
         },
         employees: [],
-        cliente: 'KBS'
+        cliente: 'KBS',
+        tipo_facturacion: 'domingo_a_sabado'
     });
 
     const updateField = (field, value) => {
@@ -2961,6 +2993,23 @@ const StoreAddView = ({ onSave, onBack }) => {
                                         onChange={(e) => updateField('max_horas', e.target.value)}
                                         className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
                                     />
+                                </div>
+                                <div className="group">
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Tipo de Facturación</label>
+                                    <select
+                                        value={newStore.tipo_facturacion || 'domingo_a_sabado'}
+                                        onChange={(e) => updateField('tipo_facturacion', e.target.value)}
+                                        className="w-full bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white focus:ring-4 focus:ring-[#303a7f]/5 transition-all font-bold text-sm appearance-none cursor-pointer"
+                                        style={{
+                                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23303a7f' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                                            backgroundRepeat: 'no-repeat',
+                                            backgroundPosition: 'right 12px center',
+                                            paddingRight: '2.5rem'
+                                        }}
+                                    >
+                                        <option value="domingo_a_sabado">Domingo a Sábado</option>
+                                        <option value="lunes_a_domingo">Lunes a Domingo</option>
+                                    </select>
                                 </div>
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Dirección Oficial</label>
@@ -6350,13 +6399,13 @@ const VWHTableModal = (props) => {
     };
 
     const downloadVWHAsExcel = () => {
-        const isChewy = isChewyStore(payrollStore);
-        const days = isChewy
+        const isMonSun = isWeekMonSun(payrollStore);
+        const days = isMonSun
             ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
             : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
         const dayToIndex = {
-            0: isChewy ? 6 : 0, 1: isChewy ? 0 : 1, 2: isChewy ? 1 : 2,
-            3: isChewy ? 2 : 3, 4: isChewy ? 3 : 4, 5: isChewy ? 4 : 5, 6: isChewy ? 5 : 6,
+            0: isMonSun ? 6 : 0, 1: isMonSun ? 0 : 1, 2: isMonSun ? 1 : 2,
+            3: isMonSun ? 2 : 3, 4: isMonSun ? 3 : 4, 5: isMonSun ? 4 : 5, 6: isMonSun ? 5 : 6,
         };
 
         const buildSheet = (reportData, start, end) => {
@@ -6507,21 +6556,21 @@ const VWHTableModal = (props) => {
     };
 
     const renderVWHReport = (reportData, start, end, isSplitPart = false) => {
-        const isChewy = isChewyStore(payrollStore);
+        const isMonSun = isWeekMonSun(payrollStore);
         const isAZPEN = String(payrollStore).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN';
-        const days = isChewy
+        const days = isMonSun
             ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
             : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
         let currentTotal = 0;
 
         const dayToIndex = {
-            0: isChewy ? 6 : 0,
-            1: isChewy ? 0 : 1,
-            2: isChewy ? 1 : 2,
-            3: isChewy ? 2 : 3,
-            4: isChewy ? 3 : 4,
-            5: isChewy ? 4 : 5,
-            6: isChewy ? 5 : 6,
+            0: isMonSun ? 6 : 0,
+            1: isMonSun ? 0 : 1,
+            2: isMonSun ? 1 : 2,
+            3: isMonSun ? 2 : 3,
+            4: isMonSun ? 3 : 4,
+            5: isMonSun ? 4 : 5,
+            6: isMonSun ? 5 : 6,
         };
 
         const [mS, dS, yS] = start.split('/');
@@ -6952,7 +7001,7 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
                             <thead>
                                 <tr className="bg-gray-50/50">
                                     <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-100">ID Empleado / Nombre</th>
-                                    {(isChewyStore(payrollStore) ? ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'] : ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']).map((day, idx) => (
+                                    {(isWeekMonSun(payrollStore) ? ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'] : ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']).map((day, idx) => (
                                         <th key={day} className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-100 bg-gray-50/30">
                                             <div className="flex flex-col items-center">
                                                 <span>{day}</span>
@@ -6973,7 +7022,7 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
                                         <td className="p-6 border-r-[2px] border-gray-50">
                                             <span className="text-sm font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
                                         </td>
-                                        {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
+                                        {(isWeekMonSun(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
                                             const value = row[day]?.sup;
                                             const isZero = !value || value === 0 || value === '0';
                                             return (
@@ -7916,8 +7965,8 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
 
     const handleDownloadExcel = () => {
         const wb = XLSX.utils.book_new();
-        const isChewy = isChewyStore(payrollStore);
-        const excelDayHeaders = isChewy
+        const isMonSun = isWeekMonSun(payrollStore);
+        const excelDayHeaders = isMonSun
             ? ["Nombre y Apellidos", "Código", "Cargo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo", "TOTAL"]
             : ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"];
         const ws = XLSX.utils.aoa_to_sheet([
@@ -7933,7 +7982,7 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
                 e.tienda === payrollStore
             );
 
-            const dayCols = isChewy
+            const dayCols = isMonSun
                 ? [row.lunes, row.martes, row.miercoles, row.jueves, row.viernes, row.sabado, row.domingo]
                 : [row.domingo, row.lunes, row.martes, row.miercoles, row.jueves, row.viernes, row.sabado];
 
@@ -8011,7 +8060,7 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
                             <thead>
                                 <tr className="bg-gray-50/50">
                                     <th className="p-5 text-[10px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-100">ID Empleado / Nombre</th>
-                                    {(isChewyStore(payrollStore) ? ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'] : ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']).map((day, idx) => (
+                                    {(isWeekMonSun(payrollStore) ? ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'] : ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']).map((day, idx) => (
                                         <th key={day} className="p-5 text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-teal-50">
                                             <div className="flex flex-col items-center">
                                                 <span>{day}</span>
@@ -8032,7 +8081,7 @@ const BiometricTableIVRModal = ({ isOpen, onClose, onOpenDetails, data, fechaDes
                                         <td className="p-6 border-r-[2px] border-gray-50">
                                             <span className="text-sm font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</span>
                                         </td>
-                                        {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
+                                        {(isWeekMonSun(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
                                             const value = row[day];
                                             const isZero = !value || value === 0 || value === '0' || value === '0h' || value === '00:00' || value === '0:00';
                                             return (
@@ -10912,9 +10961,9 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
         return biweekly;
     };
 
-    const weekType = isChewyStore(selectedStore) ? 'mon-sun' : 'sun-sat';
+    const weekType = isWeekMonSun(selectedStore) ? 'mon-sun' : 'sun-sat';
     const getChewyRange = (start, end) => {
-        if (!isChewyStore(selectedStore)) return null;
+        if (!isWeekMonSun(selectedStore)) return null;
         const [m1, d1, y1] = start.split('/').map(Number);
         const [m2, d2, y2] = end.split('/').map(Number);
         const pStart = new Date(y1, m1 - 1, d1 - 1);
@@ -12671,8 +12720,8 @@ const BillingView = ({
                         }
 
                         data.semanaTableData.forEach(emp => {
-                            const isChewyHouston = isChewyStore(storeName);
-                            if (isChewyHouston && sIdx > eIdx) {
+                            const isMonSunHouston = isWeekMonSun(storeName);
+                            if (isMonSunHouston && sIdx > eIdx) {
                                 for (let i = sIdx; i <= 6; i++) {
                                     stats.horas += helperHhmmToDecimal(emp[daysMapping[i]]?.final || 0);
                                 }
@@ -15685,6 +15734,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
         () => !!localStorage.getItem('pending_employee_sync')
     );
     const [stores, setStores] = useState([]);
+    _storesRef = stores;
     const [employees, setEmployees] = useState([]);
     const [dbStatus, setDbStatus] = useState('conectando'); // 'conectado' | 'desconectado' | 'sincronizando'
 
@@ -18633,7 +18683,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 // 1. Intentar cargar el template oficial desde /public
                 let wb;
                 try {
-                    const templateResp = await fetch(isChewyStore(payrollStore) ? '/Formato_de_Carga_de_Asistencia_Chewy.xlsx' : '/Formato_de_Carga_de_Asistencia.xlsx');
+                    const templateResp = await fetch(isWeekMonSun(payrollStore) ? '/Formato_de_Carga_de_Asistencia_Chewy.xlsx' : '/Formato_de_Carga_de_Asistencia.xlsx');
                     if (!templateResp.ok) throw new Error("Template not found");
                     const templateData = await templateResp.arrayBuffer();
                     wb = XLSX.read(templateData);
@@ -18642,7 +18692,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     wb = XLSX.utils.book_new();
                     const ws = XLSX.utils.aoa_to_sheet([
                         ["Nombre de Tienda"],
-                        isChewyStore(payrollStore)
+                        isWeekMonSun(payrollStore)
                             ? ["Nombre y Apellidos", "Código", "Cargo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo", "TOTAL"]
                             : ["Nombre y Apellidos", "Código", "Cargo", "Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "TOTAL"]
                     ]);
@@ -18720,7 +18770,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             "Nombre y Apellidos": emp.nombre,
                             "Código": emp.es_nuevo ? "NO REGISTRADO" : codigoOficial,
                             "Cargo": emp.cargo,
-                            ...(isChewyStore(payrollStore)
+                            ...(isWeekMonSun(payrollStore)
                                 ? { "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0", "Domingo": "0" }
                                 : { "Domingo": "0", "Lunes": "0", "Martes": "0", "Miercoles": "0", "Jueves": "0", "Viernes": "0", "Sabado": "0" }
                             ),
@@ -20161,10 +20211,12 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
 
                 const downloadAttendanceRatesAsExcel = () => {
                     try {
-                        const isChewy = isChewyStore(payrollStore);
+                        const isMonSun = isWeekMonSun(payrollStore);
                         const dayAbbrs = { domingo: 'Dom', lunes: 'Lun', martes: 'Mar', miercoles: 'Mié', jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb' };
-                        const storeDayOrder = isChewy ? [1, 2, 3, 4, 5, 6, 0] : [0, 1, 2, 3, 4, 5, 6];
-                        const dayNamesBySundayIdx = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                        const storeDayOrder = [0, 1, 2, 3, 4, 5, 6];
+                        const dayNamesOrdered = isMonSun
+                            ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
+                            : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
                         const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
 
                         const splitInfo = getSplitInfo(fechaDesde);
@@ -20186,7 +20238,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                             const headers = ['Empleado', 'Código', 'Cargo'];
                             sortedIndices.forEach(i => {
                                 const dateStr = getFormattedDateForDay(fechaDesde, i);
-                                headers.push(`${dayAbbrs[dayNamesBySundayIdx[i]]} ${dateStr}`);
+                                headers.push(`${dayAbbrs[dayNamesOrdered[i]]} ${dateStr}`);
                             });
                             headers.push('Total Hrs', 'Rate LGM', 'Total LGM');
 
@@ -20207,7 +20259,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                 const rowData = [row.nombre, row.codigo, hasCargoMixtoExcel ? [...new Set(Object.values(row.cargo_por_dia).map(d => d.cargo))].join(' / ') : row.cargo];
 
                                 sortedIndices.forEach(i => {
-                                    const dayName = dayNamesBySundayIdx[i];
+                                    const dayName = dayNamesOrdered[i];
                                     const hDec = hhmmToDecimal(row[dayName]?.final || 0);
                                     totalHrs += hDec;
                                     rowData.push(hDec);
@@ -20232,7 +20284,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                         let cargoHrs = 0;
                                         const subRow = [row.nombre, row.codigo, cargoName];
                                         sortedIndices.forEach(i => {
-                                            const dayName = dayNamesBySundayIdx[i];
+                                            const dayName = dayNamesOrdered[i];
                                             if (row.cargo_por_dia[dayName] && row.cargo_por_dia[dayName].cargo === cargoName) {
                                                 const hDec = hhmmToDecimal(row[dayName]?.final || 0);
                                                 cargoHrs += hDec;
@@ -21050,8 +21102,8 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                 user={user}
                                 onClose={() => { }}
                                 onProcessBiweekly={(p) => {
-                                    const isChewy = isChewyStore(selectedHistoryStore);
-                                    const range = isChewy
+                                    const isMonSun = isWeekMonSun(selectedHistoryStore);
+                                    const range = isMonSun
                                         ? (() => {
                                             const [m1, d1, y1] = p.w1.start.split('/').map(Number);
                                             const [m2, d2, y2] = p.w2.end.split('/').map(Number);
@@ -21066,7 +21118,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                         range: range,
                                         w1: p.w1,
                                         w2: p.w2,
-                                        _isChewyPayroll: isChewy || undefined
+                                        _isChewyPayroll: isMonSun || undefined
                                     });
                                     loadSpecialProjectsForPeriod(selectedHistoryStore, range);
                                     setIsBiweeklyManagementOpen(true);
@@ -21401,7 +21453,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                 <tr className="bg-[#f9f9f9]">
                                                     <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Empleado / Código</th>
                                                     <th className="p-1.5 text-[7px] font-black text-[#303a7f] uppercase tracking-widest border-b-[3px] border-gray-200 bg-gray-50/50">Cargo</th>
-                                                    {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map((day, dIdx) => (
+                                                    {(isWeekMonSun(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map((day, dIdx) => (
                                                         <th key={day} className="p-1.5 text-[8px] font-black text-[#333333] uppercase tracking-widest text-center border-b-[3px] border-l-[3px] border-gray-200 min-w-[70px] bg-gray-50/20">
                                                             <div className="flex flex-col items-center">
                                                                 <span>{day}</span>
@@ -21498,7 +21550,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                                     <span className="text-[8px] font-extrabold text-gray-500 uppercase leading-tight bg-gray-50 px-1.5 py-0.5 rounded-md">{row.cargo}</span>
                                                                 )}
                                                             </td>
-                                                            {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
+                                                            {(isWeekMonSun(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => {
                                                                 const dayVal = row[day];
                                                                 const isManual = dayVal.final !== dayVal.sup && dayVal.final !== dayVal.bio;
                                                                 const weekLocked = (nominaHistoryData || []).some(h =>
@@ -21867,8 +21919,8 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                 user={user}
                 onClose={() => setIsHistoryModalOpen(false)}
                 onProcessBiweekly={(p) => {
-                    const isChewy = isChewyStore(selectedHistoryStore);
-                    const range = isChewy
+                    const isMonSun = isWeekMonSun(selectedHistoryStore);
+                    const range = isMonSun
                         ? (() => {
                             const [m1, d1, y1] = p.w1.start.split('/').map(Number);
                             const [m2, d2, y2] = p.w2.end.split('/').map(Number);
@@ -21883,7 +21935,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                         range: range,
                         w1: p.w1,
                         w2: p.w2,
-                        _isChewyPayroll: isChewy || undefined
+                        _isChewyPayroll: isMonSun || undefined
                     });
                     setIsBiweeklyManagementOpen(true);
                     setIsHistoryModalOpen(false);
@@ -22122,7 +22174,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                 const empId = String(emp.codigo || emp.nombre);
                                                 const existing = consolidatedSemana.find(e => String(e.codigo || e.nombre) === empId);
                                                 if (existing) {
-                                                    (isChewyStore(selectedHistoryStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).forEach(day => {
+                                                    (isWeekMonSun(selectedHistoryStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).forEach(day => {
                                                         const currentVal = hhmmToDecimal(existing[day]?.final || 0);
                                                         const newVal = hhmmToDecimal(emp[day]?.final || 0);
                                                         if (newVal > 0) {
@@ -22875,7 +22927,7 @@ syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado
                     <thead>
                         <tr style={{ backgroundColor: '#f9fafb' }}>
                             <th style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>Employee / Position</th>
-                            {(isChewyStore(payrollStore) ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']).map((d, i) => (
+                            {(isWeekMonSun(payrollStore) ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']).map((d, i) => (
                                 <th key={i} style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'center', borderBottom: '2px solid #e5e7eb' }}>{d}</th>
                             ))}
                             <th style={{ padding: '15px', fontSize: '10px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase', textAlign: 'right', borderBottom: '2px solid #e5e7eb' }}>Total</th>
@@ -22888,7 +22940,7 @@ syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado
                                     <p style={{ fontSize: '12px', fontWeight: '900', color: '#303a7f', margin: 0, textTransform: 'uppercase' }}>{row.nombre}</p>
                                     <p style={{ fontSize: '10px', fontWeight: '700', color: '#6bbdb7', margin: '3px 0 0 0' }}>{row.cargo} | ID: {row.codigo}</p>
                                 </td>
-                                {(isChewyStore(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => (
+                                {(isWeekMonSun(payrollStore) ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']).map(day => (
                                     <td key={day} style={{ padding: '15px', textAlign: 'center', fontSize: '12px', fontWeight: '900', color: '#4b5563' }}>
                                         {row[day]?.final || '-'}
                                     </td>
