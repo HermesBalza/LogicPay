@@ -3966,6 +3966,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                   (donde el fin de uno + 1 día = inicio del siguiente) y sus montos SUMAN el monto anunciado
                   por KBS, debes tratarlos como UN solo registro combinado.
                   En ese caso, devuelve en matchedLgmId los IDs unidos con "+" (ej. "N-0+1").
+                - RESTRICCIÓN DE FECHAS: Al combinar facturas por cierre de mes, verifica que AMBAS facturas estén DENTRO del rango de fechas del servicio WOS (serviceDates). Jamás combines una factura de una semana anterior o posterior que no solape con el período que KBS está pagando. La fecha de inicio de la factura más antigua del combo NUNCA debe ser menor que la fecha de inicio del servicio WOS, y la fecha de fin de la factura más reciente del combo NUNCA debe ser mayor que la fecha de fin del servicio WOS.
                 - NOTA: Los IDs compuestos (ej. "N-104+105") ya están incluidos en los DATOS DE ENTRADA#2 como combinaciones de dos registros LGM partidos por cierre de mes. Si el monto del WOS coincide con el expected_kbs_payment del compuesto, usa ese ID combinado.
 
                 FORMATO DE SALIDA (JSON Puro, sin markdown):
@@ -4003,6 +4004,15 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         const backward = isConsecutiveDays(other.fecha_fin, rec.fecha_inicio);
                         if (!forward && !backward) continue;
                         const ord = forward ? [rec, other] : [other, rec];
+                        const svcDates = (svc.serviceDates || '').split(' - ');
+                        if (svcDates[0]) {
+                            const svcStart = toNum(svcDates[0]);
+                            if (toNum(ord[0].fecha_inicio) < svcStart) continue;
+                        }
+                        if (svcDates[1]) {
+                            const svcEnd = toNum(svcDates[1]);
+                            if (toNum(ord[1].fecha_fin) > svcEnd) continue;
+                        }
                         const sum = getKBSFromNomina(ord[0]) + getKBSFromNomina(ord[1]);
                         if (Math.abs(sum - (parseFloat(svc.amount) || 0)) < 0.01) {
                             const ia = nominaHistoryData.indexOf(ord[0]);
