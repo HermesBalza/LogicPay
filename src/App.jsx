@@ -5031,7 +5031,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                     <span className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-widest">{item.source} · {item.periodo || `${item.fecha_inicio} - ${item.fecha_fin}`}</span>
                                                 </div>
                                                 <div className="text-right">
-                                                    <span className="text-xs font-black text-[#303a7f] tabular-nums block">${(parseFloat(item.Pago_LGM || 0) || parseFloat(item.monto || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                    <span className="text-xs font-black text-[#303a7f] tabular-nums block">${(item.source === 'P.E.' ? getKBSFromPE(item) : getKBSFromNomina(item)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                     <span className="text-[9px] font-bold text-orange-500 uppercase tracking-tighter">Status: {item.Status || item.status}</span>
                                                 </div>
                                             </div>
