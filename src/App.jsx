@@ -5286,6 +5286,20 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                 </tbody>
                             </table>
                         </div>
+                        {manualMatchMulti && manualMatchSelectedIds.size >= 2 && (
+                            <div className="px-8 py-4 bg-[#303a7f]/5 border-t-2 border-[#303a7f]/10 flex items-center justify-between">
+                                <span className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider">
+                                    {manualMatchSelectedIds.size} facturas seleccionadas
+                                </span>
+                                <button
+                                    onClick={() => handleManualMatchMulti(manualMatchTarget)}
+                                    className="px-6 py-2.5 bg-[#6bbdb7] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[#59aba5] transition-all active:scale-95 shadow-lg shadow-teal-900/20 flex items-center gap-2"
+                                >
+                                    <CheckCircle size={14} />
+                                    Confirmar Selección
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -8823,10 +8837,10 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
                                     );
                                 })
                             )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
         </div>
     );
 };
