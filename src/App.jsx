@@ -532,7 +532,7 @@ const csvRowToAdminEmployee = (flat) => ({
 // Función para comprimir imágenes antes de enviar a Sheets (evita límites de celda/POST)
 const compressImage = (base64Str, maxWidth = 300, quality = 0.7) => {
     return new Promise((resolve) => {
-        const img = new Image();
+        const img = new window.Image();
         img.src = base64Str;
         img.onload = () => {
             const canvas = document.createElement('canvas');
@@ -16703,6 +16703,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
     const [confirmDelete, setConfirmDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+    const [uploadingPhotoId, setUploadingPhotoId] = useState(null);
 
     // Formulario nuevo usuario
     const [newUserForm, setNewUserForm] = useState({ nombre: '', email: '', password: '', confirmPassword: '', rol: 'Asistente', foto: '' });
@@ -16737,7 +16738,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (ev) => {
-            const img = new Image();
+            const img = new window.Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 canvas.width = 500;
@@ -16806,6 +16807,7 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
 
     const handleEditField = async (userId, field, value) => {
         try {
+            console.log('[EditField] Guardando userId:', userId, 'field:', field, 'value length:', value?.length);
             const res = await fetch('/api/write', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -16816,11 +16818,13 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                     matchKeys: ['id']
                 })
             });
+            console.log('[EditField] Respuesta API:', res.status, res.statusText);
             if (!res.ok) throw new Error('Error al actualizar');
             showNotif('Usuario actualizado');
             fetchUsers();
             if (onUserUpdate && currentUser?.id === userId) onUserUpdate();
         } catch (e) {
+            console.error('[EditField] Error:', e);
             showNotif(`Error: ${e.message}`, 'error');
         }
     };
@@ -16870,25 +16874,49 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
     const handleFotoUpload = (userId) => (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        console.log('[FotoUpload] Iniciando carga para userId:', userId, 'archivo:', file.name, file.size);
+        setUploadingPhotoId(userId);
         const reader = new FileReader();
+        reader.onerror = () => {
+            console.error('[FotoUpload] Error al leer archivo');
+            showNotif('Error al leer la imagen', 'error');
+            setUploadingPhotoId(null);
+            e.target.value = '';
+        };
         reader.onload = (ev) => {
-            const img = new Image();
+            console.log('[FotoUpload] Archivo leído correctamente, creando Image...');
+            const img = new window.Image();
+            img.onerror = () => {
+                console.error('[FotoUpload] Error al decodificar imagen');
+                showNotif('La imagen no es válida o está corrupta', 'error');
+                setUploadingPhotoId(null);
+                e.target.value = '';
+            };
             img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = 500;
-                canvas.height = 500;
-                const ctx = canvas.getContext('2d');
-                const s = Math.min(img.width, img.height);
-                const sx = (img.width - s) / 2;
-                const sy = (img.height - s) / 2;
-                ctx.drawImage(img, sx, sy, s, s, 0, 0, 500, 500);
-                const base64 = canvas.toDataURL('image/jpeg', 0.9);
-                handleEditField(userId, 'foto', base64);
+                console.log('[FotoUpload] Imagen decodificada, procesando canvas...');
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 500;
+                    canvas.height = 500;
+                    const ctx = canvas.getContext('2d');
+                    const s = Math.min(img.width, img.height);
+                    const sx = (img.width - s) / 2;
+                    const sy = (img.height - s) / 2;
+                    ctx.drawImage(img, sx, sy, s, s, 0, 0, 500, 500);
+                    const base64 = canvas.toDataURL('image/jpeg', 0.9);
+                    console.log('[FotoUpload] Canvas procesado, base64 length:', base64.length, 'guardando...');
+                    handleEditField(userId, 'foto', base64);
+                } catch (err) {
+                    console.error('[FotoUpload] Error en canvas:', err);
+                    showNotif('Error al procesar la imagen', 'error');
+                }
+                console.log('[FotoUpload] Finalizando, limpiando upload state');
+                setUploadingPhotoId(null);
+                e.target.value = '';
             };
             img.src = ev.target.result;
         };
         reader.readAsDataURL(file);
-        e.target.value = '';
     };
 
     const rolColors = { Asistente: 'text-[#6bbdb7]', CEO: 'text-[#303a7f]', Desarrollador: 'text-amber-500', 'Operador de Pagos': 'text-purple-500' };
@@ -16945,8 +16973,12 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                                             </div>
                                         )}
                                         <label className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full border border-gray-200 flex items-center justify-center cursor-pointer hover:bg-[#6bbdb7] hover:text-white transition-all shadow-sm">
-                                            <Camera size={10} />
-                                            <input type="file" accept="image/*" onChange={handleFotoUpload(u.id)} className="hidden" />
+                                            {uploadingPhotoId === u.id ? (
+                                                <span className="animate-spin text-[10px]">⟳</span>
+                                            ) : (
+                                                <Camera size={10} />
+                                            )}
+                                            <input type="file" accept="image/*" onChange={handleFotoUpload(u.id)} className="hidden" disabled={uploadingPhotoId === u.id} />
                                         </label>
                                     </div>
                                 </td>
