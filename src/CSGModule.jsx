@@ -793,7 +793,11 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, syncToDat
                     syncData,
                     'CSG_Nomina',
                     false,
-                    ['id_nomina']
+                    ['id_nomina'],
+                    false,
+                    'Envió correo de',
+                    'Nómina CSG',
+                    biweek.label
                 );
 
                 // Actualizar estado local
@@ -854,7 +858,11 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, syncToDat
                     syncData,
                     'CSG_Nomina',
                     false,
-                    ['id_nomina']
+                    ['id_nomina'],
+                    false,
+                    'Confirmó',
+                    'Nómina CSG',
+                    biweek.label
                 );
             }
 
@@ -1198,7 +1206,7 @@ const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wos
 
             // Guardar en la nueva hoja WOS_CSG
             if (syncToDatabase) {
-                await syncToDatabase('upsert', payload, 'WOS_CSG', false, ['WOS_Number']);
+                await syncToDatabase('upsert', payload, 'WOS_CSG', false, ['WOS_Number'], false, 'Actualizó', 'WOS CSG', payload.WOS_Number || '');
                 console.log("[WOS CSG] Auto-guardado exitoso en WOS_CSG:", payload.WOS_Number);
                 if (onRefreshHistory) onRefreshHistory();
             }
@@ -2190,7 +2198,7 @@ const CSGBillingView = ({ csgServicesData = [], syncToDatabase, onRefresh }) => 
                 Status: field === 'status' ? finalValue : (localStatuses[correlativo] || service.Status || service.status || 'Due')
             };
 
-            await syncToDatabase('upsert', dbPayload, 'CSG_Servicios', true, ['correlativo']);
+            await syncToDatabase('upsert', dbPayload, 'CSG_Servicios', true, ['correlativo'], false, 'Actualizó', 'Servicio CSG', dbPayload.correlativo || '');
             
             if (onRefresh) onRefresh();
         } catch (error) {
@@ -2481,7 +2489,11 @@ const CSGServiceDetailsModal = ({ service, onClose, syncToDatabase }) => {
                     syncData,
                     'CSG_Servicios',
                     false,
-                    ['correlativo']
+                    ['correlativo'],
+                    false,
+                    'Envió correo de',
+                    'Servicio CSG',
+                    syncData.correlativo || ''
                 );
             }
 
@@ -3371,7 +3383,7 @@ const CSGView = ({ stores = [], employees = [], csgServicesData = [], activeCSGT
             payload['Fecha Rad.'] = autoDate;
 
             // Guardar en la tabla CSG_Servicios de SQLite
-            await syncToDatabase('upsert', payload, 'CSG_Servicios', true, ['correlativo']);
+            await syncToDatabase('upsert', payload, 'CSG_Servicios', true, ['correlativo'], false, 'Actualizó', 'Servicio CSG', payload.correlativo || '');
 
             setIsCsgFormOpen(false);
             setStatusModal({

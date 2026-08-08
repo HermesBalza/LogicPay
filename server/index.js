@@ -111,7 +111,7 @@ app.get('/api/data/:table', (req, res) => {
 app.post('/api/write', (req, res) => {
   try {
     const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { action, sheetName, data: rawData, matchKeys, userId, userName, skipAuditLog, auditAccion, auditEntidad } = payload;
+    const { action, sheetName, data: rawData, matchKeys, userId, userName, skipAuditLog, auditAccion, auditEntidad, auditEntidadNombre } = payload;
 
     if (action === 'reserveInvoice') {
         const row = db.prepare("SELECT value FROM Variables WHERE key = 'next_invoice'").get();
@@ -130,7 +130,7 @@ app.post('/api/write', (req, res) => {
       return res.status(400).json({ success: false, error: 'Ninguna columna válida en los datos enviados' });
     }
 
-    const entidadNombre = getEntityName(rawData);
+    const entidadNombre = auditEntidadNombre || getEntityName(rawData);
     let wasInsert = false;
 
     if (action === 'upsert') {

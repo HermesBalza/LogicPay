@@ -325,12 +325,12 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
   };
 
-  const syncToDatabase = async (action, data, sheetName, matchKeys = []) => {
+  const syncToDatabase = async (action, data, sheetName, matchKeys = [], auditAccion = null, auditEntidad = null, auditEntidadNombre = null) => {
     try {
       const res = await fetch(API_WRITE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, data, sheetName, matchKeys, userId: currentUser?.id, userName: currentUser?.nombre })
+        body: JSON.stringify({ action, data, sheetName, matchKeys, userId: currentUser?.id, userName: currentUser?.nombre, auditAccion, auditEntidad, auditEntidadNombre })
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
@@ -363,7 +363,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
       if (formCandidato.estado === 'Contratado' && selectedCandidato._creado_en_personal !== '1' && selectedCandidato._pendiente_en_personal !== '1') {
         data._pendiente_en_personal = '1';
       }
-      const res = await syncToDatabase('upsert', data, 'CRM_Candidatos', ['id']);
+      const res = await syncToDatabase('upsert', data, 'CRM_Candidatos', ['id'], formCandidato.estado === 'Contratado' ? 'Contrató' : 'Actualizó', 'Candidato', data.nombre || '');
       if (res?.success) {
         if (formCandidato.estado === 'Contratado' && selectedCandidato._creado_en_personal !== '1') {
           onCandidatoContratado?.();
@@ -510,7 +510,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
       // Mark the selected quote as approved
       const ctzs = cotizaciones.filter(c => c.proyecto_id === proyecto.id && c.proveedor_id === proveedorId);
       for (const c of ctzs) {
-        await syncToDatabase('upsert', { id: c.id, estado: 'Aprobada', updated_at: new Date().toISOString() }, 'CRM_Cotizaciones', ['id']);
+        await syncToDatabase('upsert', { id: c.id, estado: 'Aprobada', updated_at: new Date().toISOString() }, 'CRM_Cotizaciones', ['id'], 'Aprobó', 'Cotización', c.nombre || '');
       }
       showNotif('Proveedor seleccionado. Proyecto en ejecución.');
       fetchData();

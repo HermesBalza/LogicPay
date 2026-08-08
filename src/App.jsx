@@ -15394,7 +15394,7 @@ const AdminPayrollView = ({
                 Fecha_Confirmacion: timestamp,
                 Total_Nomina: newRecord.total_nomina,
                 Empleados_JSON: JSON.stringify(newRecord.empleados)
-            }, 'Admin_Nomina_Historico', true);
+            }, 'Admin_Nomina_Historico', true, [], false, 'Confirmó', 'Nómina Admin', selectedPeriod);
 
             showNotif('success', `Nómina del período ${selectedPeriod} confirmada exitosamente.`);
             setActiveSection('history');
@@ -18249,18 +18249,20 @@ function App() {
             try {
                 for (const task of queue) {
                     let payload;
-                    let auditAccion, auditEntidad;
+                    let auditAccion, auditEntidad, auditEntidadNombre;
 
                     if (task.__prebuilt) {
                         // FIX Bug #1 y #4: Payload pre-construido en el click → usar directamente sin re-lookups stale.
-                        const { __prebuilt: _, auditAccion: aA, auditEntidad: aE, ...rest } = task;
+                        const { __prebuilt: _, auditAccion: aA, auditEntidad: aE, auditEntidadNombre: aEN, ...rest } = task;
                         payload = rest;
                         auditAccion = aA;
                         auditEntidad = aE;
+                        auditEntidadNombre = aEN;
                         console.log('[PE OBSERVER] Processing __prebuilt task', { correlativo: payload.Correlativo, auditAccion, auditEntidad });
                     } else {
                         auditAccion = null;
                         auditEntidad = null;
+                        auditEntidadNombre = null;
                         // Formato legado {id, field, val} de BillingView → mantener lógica original.
                         const { id, field, val } = task;
                         console.log('[PE OBSERVER] Looking up existing record', { id, field, val });
@@ -18314,10 +18316,22 @@ function App() {
                             "WOS": field === 'wos' ? val : (existing['wos'] || existing['WOS'] || 0),
                             "Status": statusVal
                         };
+
+                        if (field === 'pagada') {
+                            auditAccion = val ? 'Marcó como pagado' : 'Desmarcó como pagado';
+                            auditEntidad = 'Facturación Proyecto Especial';
+                            let proyectoNombre = '';
+                            try {
+                                const djPE = JSON.parse(payload.Data_JSON || payload.data_json || '{}');
+                                const proyectosPE = Array.isArray(djPE) ? djPE : [djPE];
+                                proyectoNombre = proyectosPE.map(p => p.proyecto || '').filter(Boolean).join(', ');
+                            } catch (e) { }
+                            auditEntidadNombre = `${payload.Tienda || ''} ${proyectoNombre}`.trim();
+                        }
                     }
 
                     console.log('[PE OBSERVER] About to syncToDatabase', { payload, sheetName: 'Proyectos_Especiales', matchKeys: ['Correlativo'] });
-                    await syncToDatabase('upsert', payload, 'Proyectos_Especiales', false, ['Correlativo'], false, auditAccion, auditEntidad);
+                    await syncToDatabase('upsert', payload, 'Proyectos_Especiales', false, ['Correlativo'], false, auditAccion, auditEntidad, auditEntidadNombre);
                     console.log('[PE OBSERVER] syncToDatabase completed successfully');
 
                     const wosRawPE = (payload['WOS'] || payload['wos'] || '').toString().trim();
@@ -18397,17 +18411,19 @@ function App() {
             try {
                 for (const task of queue) {
                     let payload;
-                    let auditAccion, auditEntidad;
+                    let auditAccion, auditEntidad, auditEntidadNombre;
 
                     if (task.__prebuilt) {
                         // FIX Bug #1 y #4: Payload pre-construido en el click → usar directamente sin closure stale.
-                        const { __prebuilt: _, auditAccion: aA, auditEntidad: aE, ...rest } = task;
+                        const { __prebuilt: _, auditAccion: aA, auditEntidad: aE, auditEntidadNombre: aEN, ...rest } = task;
                         payload = rest;
                         auditAccion = aA;
                         auditEntidad = aE;
+                        auditEntidadNombre = aEN;
                     } else {
                         auditAccion = null;
                         auditEntidad = null;
+                        auditEntidadNombre = null;
                         // Formato legado {id: week, field, val} de BillingView → mantener lógica original.
                         const { id: week, field, val } = task;
                         // FIX Bug #2: Normalizar apóstrofe antes de comparar para evitar fallos de find().
@@ -18457,6 +18473,12 @@ function App() {
                             "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
                             "Status": field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['Status'] || existing['status'] || 'Due')
                         };
+
+                        if (field === 'pagada') {
+                            auditAccion = val ? 'Marcó como pagado' : 'Desmarcó como pagado';
+                            auditEntidad = 'Facturación VWH';
+                            auditEntidadNombre = `${selectedHistoryStore} ${payload.fecha_inicio || ''} - ${payload.fecha_fin || ''}`;
+                        }
                     }
 
                     // FIX Bug #3: matchKeys explícitos para que el Apps Script localice la fila exacta
@@ -18473,7 +18495,8 @@ function App() {
                             userId: user?.id,
                             userName: user?.nombre,
                             auditAccion,
-                            auditEntidad
+                            auditEntidad,
+                            auditEntidadNombre
                         })
                     });
                     console.log('[LogicPay] Sincronización Exitosa VWH (Cola):', payload.nombre, payload.codigo);
@@ -18595,7 +18618,12 @@ function App() {
                             action: 'upsert',
                             sheetName: 'CSG_Servicios',
                             data: payload,
-                            matchKeys: ['correlativo']
+                            matchKeys: ['correlativo'],
+                            userId: user?.id,
+                            userName: user?.nombre,
+                            auditAccion: field === 'status' ? (val ? 'Marcó como pagado' : 'Desmarcó como pagado') : 'Actualizó',
+                            auditEntidad: 'Servicio CSG',
+                            auditEntidadNombre: correlativo
                         })
                     });
                     console.log('[LogicPay] Sincronización Exitosa CSG (Cola):', correlativo);
@@ -19091,7 +19119,7 @@ function App() {
             // 4. Sincronizar
             setConfirmPayrollProgress(60);
             setConfirmPayrollStep("Sincronizando Nómina Detalle...");
-            await syncToDatabase('upsert', consolidatedNomina, 'Nomina_Detalle');
+            await syncToDatabase('upsert', consolidatedNomina, 'Nomina_Detalle', false, [], false, 'Confirmó', 'Nómina', `${selectedBiweeklyPeriod.store} (${selectedBiweeklyPeriod.range})`);
 
             // Refrescar datos de detalle para que la vista los tenga actualizados
             await fetchNominaDetail();
@@ -19157,7 +19185,7 @@ function App() {
 
             for (let i = 0; i < newStores.length; i++) {
                 const store = newStores[i];
-                await syncToDatabase('upsert', { ...store, codigo: `'${store.codigo}` });
+                await syncToDatabase('upsert', { ...store, codigo: `'${store.codigo}` }, 'Tiendas', false, [], true);
                 setSyncProgress(i + 1);
             }
 
@@ -21064,8 +21092,9 @@ function App() {
                     "Fecha de Pago": paymentDate,
                     "WOS": wosNumber,
                     "Status": record['Status'] || record['status'] || 'Due',
-                    auditAccion: 'Auditó',
-                    auditEntidad: `VWH ${record.nombre} ${record.fecha_inicio} - ${record.fecha_fin}`
+                    auditAccion: 'Aceptó pago de WOS',
+                    auditEntidad: 'VWH',
+                    auditEntidadNombre: `${record.nombre} ${record.fecha_inicio} - ${record.fecha_fin}`
                 });
             });
 
@@ -21099,8 +21128,9 @@ function App() {
                 "Fecha de Pago": paymentDate,
                 "WOS": wosNumber,
                 "Status": record['Status'] || record['status'] || 'Due',
-                auditAccion: 'Auditó',
-                auditEntidad: `P.E. ${record.tienda || record.Tienda || ''} ${record.periodo || record.Periodo || ''}`
+                auditAccion: 'Aceptó pago de WOS',
+                auditEntidad: 'P.E.',
+                auditEntidadNombre: `${record.tienda || record.Tienda || ''} ${record.periodo || record.Periodo || ''}`
             });
 
             setIsSyncingPE(true);
@@ -21142,8 +21172,9 @@ function App() {
                         "Fecha de Pago": paymentDate,
                         "WOS": wosNumber,
                         "Status": record['Status'] || record['status'] || 'Due',
-                        auditAccion: 'Auditó',
-                        auditEntidad: `VWH ${record.nombre} ${record.fecha_inicio} - ${record.fecha_fin}`
+                        auditAccion: 'Aceptó pago de WOS',
+                        auditEntidad: 'VWH',
+                        auditEntidadNombre: `${record.nombre} ${record.fecha_inicio} - ${record.fecha_fin}`
                     });
                     setIsSyncingBilling(true);
                 }
@@ -21172,8 +21203,9 @@ function App() {
                         "Fecha de Pago": paymentDate,
                         "WOS": wosNumber,
                         "Status": record['Status'] || record['status'] || 'Due',
-                        auditAccion: 'Auditó',
-                        auditEntidad: `P.E. ${record.tienda || record.Tienda || ''} ${record.periodo || record.Periodo || ''}`
+                        auditAccion: 'Aceptó pago de WOS',
+                        auditEntidad: 'P.E.',
+                        auditEntidadNombre: `${record.tienda || record.Tienda || ''} ${record.periodo || record.Periodo || ''}`
                     });
                     setIsSyncingPE(true);
                 }
@@ -21976,12 +22008,12 @@ function App() {
     }, [saldosPendientesData]);
 
     // ─── API: Sincronizar cambios con SQLite ──────────────────────────
-    const syncToDatabase = (action, data, sheetName = 'Tiendas', skipRefresh = false, matchKeys = [], skipAuditLog = false, auditAccion = null, auditEntidad = null) => {
+    const syncToDatabase = (action, data, sheetName = 'Tiendas', skipRefresh = false, matchKeys = [], skipAuditLog = false, auditAccion = null, auditEntidad = null, auditEntidadNombre = null) => {
         setDbStatus('sincronizando');
         return fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, data, sheetName, matchKeys, userId: user?.id, userName: user?.nombre, skipAuditLog, auditAccion, auditEntidad })
+            body: JSON.stringify({ action, data, sheetName, matchKeys, userId: user?.id, userName: user?.nombre, skipAuditLog, auditAccion, auditEntidad, auditEntidadNombre })
         })
             .then(async response => {
                 if (!response.ok) {
@@ -22459,7 +22491,10 @@ function App() {
                                     "Pago": newRow["Pago"],
                                     "Fecha de Pago": newRow["Fecha de Pago"],
                                     "WOS": newRow["WOS"],
-                                    "Status": newRow["Status"]
+                                    "Status": newRow["Status"],
+                                    auditAccion: 'Agregó',
+                                    auditEntidad: 'Facturación Quincenal',
+                                    auditEntidadNombre: `${newRow.nombre} ${fechaDesde} - ${fechaHasta}`
                                 });
                                 setIsSyncingBilling(true);
                             }
