@@ -10623,6 +10623,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             });
 
             setBiweeklyEmployees(unified);
+            setRawEntriesData(buildRawEntries(period, nominaHistoryData));
             return;
         }
 
