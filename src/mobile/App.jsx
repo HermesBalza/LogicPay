@@ -11506,7 +11506,7 @@ const EditableCell = ({ value, onChange, type = "text", className, readOnly = fa
 };
 
 // ─── Componente de Proyecto Individual dentro de P.E ──────────────────────────
-const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdateProject, onRemoveProject, onAnulateProject, onRegisterEmployee, onRegisterProject, minDate, maxDate }) => {
+const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdateProject, onRemoveProject, onAnulateProject, onRegisterEmployee, onRegisterProject, minDate, maxDate, isWeekApproved = false }) => {
     const isRegistered = project.status === 'registered';
 
     // Estados locales para evitar re-renders globales en cada tecla
@@ -11601,7 +11601,8 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
                             project.visible !== 'anulado' && (
                                 <button
                                     onClick={() => onAnulateProject(project)}
-                                    className="px-3 py-1.5 bg-white text-red-500 border-2 border-red-100 rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-red-50 hover:border-red-500 transition-all active:scale-95 shadow-sm"
+                                    disabled={isWeekApproved}
+                                    className={`px-3 py-1.5 bg-white text-red-500 border-2 border-red-100 rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-red-50 hover:border-red-500 transition-all active:scale-95 shadow-sm ${isWeekApproved ? 'opacity-40 cursor-not-allowed' : ''}`}
                                 >
                                     Anular
                                 </button>
@@ -11818,7 +11819,7 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, onUpdatePro
 });
 
 // ─── Vista Principal de Proyectos Especiales ─────────────────────────────────
-const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterProject, onAnulateProjectSheet, onRegisterEmployee, onUpdateLocationHistory, onSyncCorrelativo, onReserveInvoice }) => {
+const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, employees, stores, specialProjectsData, setSpecialProjectsData, nextInvoice, setNextInvoice, onRegisterProject, onAnulateProjectSheet, onRegisterEmployee, onUpdateLocationHistory, onSyncCorrelativo, onReserveInvoice, isWeekApproved = false }) => {
     const [anulatingProject, setAnulatingProject] = useState(null);
 
     // Convertir el rango de fechas MM/DD/YYYY a YYYY-MM-DD para los inputs tipo date
@@ -11998,6 +11999,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
                                 onRegisterProject={handleRegisterProject}
                                 minDate={minDate}
                                 maxDate={maxDate}
+                                isWeekApproved={isWeekApproved}
                             />
                         ))}
                     </div>
@@ -12005,13 +12007,20 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 
                 {/* Botón global para nuevo proyecto */}
                 <div className="mt-4 flex justify-center">
-                    <button
-                        onClick={addProject}
-                        className="flex items-center gap-2 bg-[#303a7f] text-white px-6 py-3 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
-                    >
-                        <Plus size={16} />
-                        Nuevo Proyecto Especial
-                    </button>
+                    {isWeekApproved ? (
+                        <div className="flex items-center gap-2 bg-teal-50 text-teal-700 px-6 py-3 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] border-2 border-teal-200">
+                            <CheckCircle size={16} />
+                            Semana Aprobada — Solo Lectura
+                        </div>
+                    ) : (
+                        <button
+                            onClick={addProject}
+                            className="flex items-center gap-2 bg-[#303a7f] text-white px-6 py-3 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95"
+                        >
+                            <Plus size={16} />
+                            Nuevo Proyecto Especial
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
@@ -21453,10 +21462,10 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                             return (
                                                 <button
                                                     onClick={handleOpenSpecialProjects}
-                                                    disabled={!payrollStore || !fechaDesde || !fechaHasta || isCurrentWeekApproved}
-                                                    title={isCurrentWeekApproved ? 'Semana aprobada: no se pueden agregar P.E.' : 'Abrir Proyectos Especiales'}
+                                                    disabled={!payrollStore || !fechaDesde || !fechaHasta}
+                                                    title={isCurrentWeekApproved ? 'Semana aprobada — solo lectura' : 'Abrir Proyectos Especiales'}
                                                     className={`flex-1 p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center justify-center gap-2 group ${isCurrentWeekApproved
-                                                        ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60'
+                                                        ? 'bg-teal-50 text-[#0d9488] border-teal-200 hover:bg-teal-100'
                                                         : (payrollStore && fechaDesde && fechaHasta)
                                                             ? 'bg-amber-50 text-[#b76b00] border-amber-100 hover:bg-amber-100'
                                                             : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
@@ -22775,6 +22784,10 @@ syncToDatabase('upsert', payload, 'Personal', false, ['nombre', 'codigo_empleado
                             return newEmployees;
                         });
                     }}
+                    isWeekApproved={(nominaHistoryData || []).some(h =>
+                        String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                        h.fecha_inicio === fechaDesde
+                    )}
                 />
             )}
 
