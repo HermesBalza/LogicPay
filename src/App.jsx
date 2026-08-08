@@ -3442,6 +3442,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
     const [acceptedKeys, setAcceptedKeys] = useState(new Set());
     const [selectedWosGroup, setSelectedWosGroup] = useState(null);
     const [isWOSBugOpen, setIsWOSBugOpen] = useState(false);
+    const [isWOSZeroModalOpen, setIsWOSZeroModalOpen] = useState(false);
     const [isWOSHistoryOpen, setIsWOSHistoryOpen] = useState(false);
     const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
     const [isSendingTicket, setIsSendingTicket] = useState(false);
@@ -4196,6 +4197,17 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             wosOrphans
         };
     }, [crossMatchResults, wosServices, nominaHistoryData, specialProjectsHistoryData]);
+
+    const { lgmZeroItems, lgmMainItems } = useMemo(() => {
+        const zeroItems = [];
+        const mainItems = [];
+        (wosDiscrepancies.lgmOrphans || []).forEach(item => {
+            const monto = item.source === 'P.E.' ? getKBSFromPE(item) : getKBSFromNomina(item);
+            if (parseFloat(monto) === 0) zeroItems.push(item);
+            else mainItems.push(item);
+        });
+        return { lgmZeroItems: zeroItems, lgmMainItems: mainItems };
+    }, [wosDiscrepancies, getKBSFromPE, getKBSFromNomina]);
 
     const availableForManualMatch = useMemo(() => {
         const nominaEntries = nominaHistoryData
@@ -5004,11 +5016,25 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         <div className="flex-1 flex flex-col bg-[#fdfdfe]">
                             <div className="p-8 border-b border-gray-100 bg-white/50 backdrop-blur-sm sticky top-0 z-10">
                                 <div className="flex items-center justify-between mb-2">
-                                    <h3 className="text-xs font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
-                                        <History size={16} /> Pendientes LGM no en WOS
-                                    </h3>
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="text-xs font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
+                                            <History size={16} /> Pendientes LGM no en WOS
+                                        </h3>
+                                        {lgmZeroItems.length > 0 && (
+                                            <button
+                                                onClick={() => setIsWOSZeroModalOpen(true)}
+                                                className="relative p-2 bg-orange-50 text-orange-500 rounded-lg hover:bg-orange-100 hover:text-orange-600 transition-all active:scale-95 shadow-sm"
+                                                title="Ver facturaciones en $0.00"
+                                            >
+                                                <Trash2 size={14} />
+                                                <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 bg-orange-500 text-white text-[8px] font-black rounded-full leading-none">
+                                                    {lgmZeroItems.length}
+                                                </span>
+                                            </button>
+                                        )}
+                                    </div>
                                     <span className="px-3 py-1 bg-orange-100 text-orange-600 text-[10px] font-black rounded-full uppercase tracking-tighter">
-                                        {wosDiscrepancies.lgmOrphans.length} Registros
+                                        {lgmMainItems.length} Registros
                                     </span>
                                 </div>
                                 <p className="text-[10px] font-medium text-gray-400 leading-relaxed italic">
@@ -5017,13 +5043,13 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-4">
-                                {wosDiscrepancies.lgmOrphans.length === 0 ? (
+                                {lgmMainItems.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center h-64 text-gray-300">
                                         <CheckCircle size={48} strokeWidth={1} className="mb-4 text-teal-200" />
                                         <p className="text-[10px] font-black uppercase tracking-widest">Sin Pendientes Huérfanos</p>
                                     </div>
                                 ) : (
-                                    wosDiscrepancies.lgmOrphans.map((item, idx) => (
+                                    lgmMainItems.map((item, idx) => (
                                         <div key={idx} className="bg-white border-2 border-gray-100 rounded-2xl p-5 hover:border-orange-200 transition-all shadow-sm group">
                                             <div className="flex justify-between items-start mb-4">
                                                 <div className="flex flex-col">
@@ -5115,6 +5141,69 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                     <div className="px-12 py-6 border-t font-black text-[10px] text-gray-400 bg-white flex justify-between uppercase tracking-widest">
                         <span>AdWisers - LogicPay</span>
                         <span className="text-orange-500 animate-pulse">● Discrepancias en WOS</span>
+                        <span>{new Date().toLocaleString()}</span>
+                    </div>
+                </div>
+            )}
+
+            {/* VENTANA EMERGENTE: FACTURACIONES EN $0.00 */}
+            {isWOSZeroModalOpen && (
+                <div className="fixed inset-0 z-[260] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
+                    <header className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between sticky top-0 bg-white z-20 shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-lg shadow-orange-900/10">
+                                <Trash2 size={20} />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter leading-none">Facturaciones en $0.00</h2>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pendientes LGM no en WOS</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <span className="px-3 py-1 bg-orange-100 text-orange-600 text-[10px] font-black rounded-full uppercase tracking-tighter">
+                                {lgmZeroItems.length} Registros
+                            </span>
+                            <button
+                                onClick={() => setIsWOSZeroModalOpen(false)}
+                                className="p-3 btn-close-danger rounded-xl transition-all active:scale-95 shadow-sm"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                    </header>
+
+                    <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-4">
+                        {lgmZeroItems.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-64 text-gray-300">
+                                <CheckCircle size={48} strokeWidth={1} className="mb-4 text-teal-200" />
+                                <p className="text-[10px] font-black uppercase tracking-widest">Sin Facturaciones en $0.00</p>
+                            </div>
+                        ) : (
+                            lgmZeroItems.map((item, idx) => (
+                                <div key={idx} className="bg-white border-2 border-gray-100 rounded-2xl p-5 hover:border-orange-200 transition-all shadow-sm group">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-[11px] font-black text-[#303a7f] uppercase leading-tight group-hover:text-orange-600 transition-colors">{item.nombre || item.tienda || "---"}</span>
+                                            <span className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-widest">{item.source} · {item.periodo || `${item.fecha_inicio} - ${item.fecha_fin}`}</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-xs font-black text-gray-300 tabular-nums block">$0.00</span>
+                                            <span className="text-[9px] font-bold text-orange-500 uppercase tracking-tighter">Status: {item.Status || item.status}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-4 border-t border-gray-50">
+                                        <AlertTriangle size={10} className="text-orange-300" />
+                                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Factura radicada sin monto de facturación KBS</span>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="px-12 py-6 border-t font-black text-[10px] text-gray-400 bg-white flex justify-between uppercase tracking-widest">
+                        <span>AdWisers - LogicPay</span>
+                        <span className="text-orange-500 animate-pulse">● Facturaciones en $0.00</span>
                         <span>{new Date().toLocaleString()}</span>
                     </div>
                 </div>
