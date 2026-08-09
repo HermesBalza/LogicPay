@@ -3428,6 +3428,20 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
         } catch (e) { }
         return 0;
     };
+
+    const getProjectFecha = (rec) => {
+        try {
+            const raw = JSON.parse(rec.data_json || rec.Data_JSON || '{}');
+            const item = Array.isArray(raw) ? raw[0] : raw;
+            const f = (item && item.fecha) || '';
+            if (!f) return '';
+            if (f.includes('-') && !f.includes('/')) {
+                const [y, m, d] = f.split('-');
+                if (y && m && d) return `${m}/${d}/${y}`;
+            }
+            return f;
+        } catch (e) { return ''; }
+    };
     const [wosData, setWosData] = useState({
         wosNumber: '',
         subcontractor: '',
@@ -3837,12 +3851,12 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 // Excluir registros semanales WK- de AZPEN (solo se auditan los Q-)
                 if (String(h.nombre).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN' && String(h.codigo || '').startsWith('WK-')) return false;
 
-                // Filtrar por rango de fechas del WOS (traslape de semana)
+                // Filtrar por rango de fechas del WOS (factura 100% dentro del rango)
                 if (hasRange && h.fecha_inicio && h.fecha_fin) {
                     const iniN = toNum(h.fecha_inicio);
                     const finN = toNum(h.fecha_fin);
                     if (isNaN(iniN) || isNaN(finN)) return false;
-                    if (finN < minWOS || iniN > maxWOS) return false;
+                    if (iniN < minWOS || finN > maxWOS) return false;
                 }
 
                 return (!h.Status || h.Status === 'Due');
@@ -3850,12 +3864,11 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             const duePE = specialProjectsHistoryData.filter(h => {
                 if (h.Status && h.Status !== 'Due') return false;
 
-                // Filtrar por rango de fechas del WOS
+                // Filtrar por rango de fechas del WOS usando la Fecha del Proyecto
                 if (hasRange) {
-                    const fechaStr = h.periodo || h.fecha || h.timestamp || h.Timestamp || '';
-                    const firstDate = fechaStr.split(' - ')[0] || fechaStr;
-                    if (firstDate && firstDate.includes('/')) {
-                        const n = toNum(firstDate);
+                    const projectDate = getProjectFecha(h);
+                    if (projectDate && projectDate.includes('/')) {
+                        const n = toNum(projectDate);
                         if (!isNaN(n) && (n < minWOS || n > maxWOS)) return false;
                     }
                 }
@@ -4170,7 +4183,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             if (hasRange && h.fecha_inicio && h.fecha_fin) {
                 const iniN = toNum(h.fecha_inicio);
                 const finN = toNum(h.fecha_fin);
-                if (!isNaN(iniN) && !isNaN(finN) && (finN < minWOS || iniN > maxWOS)) return false;
+                if (!isNaN(iniN) && !isNaN(finN) && (iniN < minWOS || finN > maxWOS)) return false;
             }
             return !matchedNominaSet.has(h);
         });
@@ -4179,10 +4192,9 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             const status = String(h['Status'] || h['status'] || 'Due').trim().toLowerCase();
             if (status !== 'due') return false;
             if (hasRange) {
-                const fechaStr = h.periodo || h.fecha || h.timestamp || h.Timestamp || '';
-                const firstDate = fechaStr.split(' - ')[0] || fechaStr;
-                if (firstDate && firstDate.includes('/')) {
-                    const n = toNum(firstDate);
+                const projectDate = getProjectFecha(h);
+                if (projectDate && projectDate.includes('/')) {
+                    const n = toNum(projectDate);
                     if (!isNaN(n) && (n < minWOS || n > maxWOS)) return false;
                 }
             }
@@ -5054,7 +5066,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                             <div className="flex justify-between items-start mb-4">
                                                 <div className="flex flex-col">
                                                     <span className="text-[11px] font-black text-[#303a7f] uppercase leading-tight group-hover:text-orange-600 transition-colors">{item.nombre || item.tienda || "---"}</span>
-                                                    <span className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-widest">{item.source} · {item.periodo || `${item.fecha_inicio} - ${item.fecha_fin}`}</span>
+                                                    <span className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-widest">{item.source} · {item.periodo || `${item.fecha_inicio} - ${item.fecha_fin}`}{item.source === 'P.E.' && getProjectFecha(item) ? ` · Fecha Proyecto ${getProjectFecha(item)}` : ''}</span>
                                                 </div>
                                                 <div className="text-right">
                                                     <span className="text-xs font-black text-[#303a7f] tabular-nums block">${(item.source === 'P.E.' ? getKBSFromPE(item) : getKBSFromNomina(item)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
