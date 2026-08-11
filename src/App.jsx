@@ -8489,12 +8489,26 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
     );
 };
 
-const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDetailData, onOpenPayrollAdvice }) => {
+const TaxCenterView = ({ employees, stores, csgNominaData, adminPayrollHistory, nominaDetailData, onOpenPayrollAdvice }) => {
     const [fiscalYear, setFiscalYear] = useState(() => {
         const curYear = new Date().getFullYear();
         return curYear >= 2026 ? curYear : 2026;
     });
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedState, setSelectedState] = useState('Todos');
+
+    const storeStateMap = useMemo(() => {
+        const map = {};
+        stores.forEach(s => {
+            if (s.nombre && s.estado) map[s.nombre] = s.estado;
+        });
+        return map;
+    }, [stores]);
+
+    const stateOptions = useMemo(() =>
+        [...new Set(stores.map(s => s.estado).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, 'es')),
+    [stores]);
 
     const availableYears = useMemo(() => {
         const yearsSet = new Set();
@@ -8550,7 +8564,8 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
                     nombre: emp.nombre,
                     cargo: emp.cargo || 'Personal',
                     firstName: emp.first_name,
-                    lastName: emp.last_name
+                    lastName: emp.last_name,
+                    tienda: emp.tienda || ''
                 };
                 if (normalized) nameToIdMap[normalized] = id;
             }
@@ -8632,6 +8647,7 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
                                 cargo: info.cargo,
                                 firstName: info.firstName,
                                 lastName: info.lastName,
+                                tienda: info.tienda || '',
                                 totalBox1: 0,
                                 periods: {}
                             };
@@ -8687,6 +8703,7 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
                                 cargo: info.cargo,
                                 firstName: info.firstName,
                                 lastName: info.lastName,
+                                tienda: info.tienda || '',
                                 totalBox1: 0,
                                 periods: {}
                             };
@@ -8762,6 +8779,7 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
                                 cargo: info.cargo,
                                 firstName: info.firstName,
                                 lastName: info.lastName,
+                                tienda: info.tienda || '',
                                 totalBox1: 0,
                                 periods: {}
                             };
@@ -8791,16 +8809,19 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
 
     const filteredRows = useMemo(() => {
         return reportData.rows
-            .filter(row =>
-                row.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                row.id.toString().includes(searchTerm)
-            )
+            .filter(row => {
+                const matchesSearch = row.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    row.id.toString().includes(searchTerm);
+                const rowState = storeStateMap[row.tienda] || '';
+                const matchesState = selectedState === 'Todos' || rowState === selectedState;
+                return matchesSearch && matchesState;
+            })
             .sort((a, b) => {
                 const nameA = (a.lastName || a.nombre.split(' ').pop() || '').toLowerCase();
                 const nameB = (b.lastName || b.nombre.split(' ').pop() || '').toLowerCase();
                 return nameA.localeCompare(nameB);
             });
-    }, [reportData.rows, searchTerm]);
+    }, [reportData.rows, searchTerm, selectedState, storeStateMap]);
 
     const handleExportExcel = () => {
         const exportData = filteredRows.map(row => {
@@ -8825,7 +8846,6 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
                 'Box 1 Nonemployee Compensation': row.totalBox1,
             };
 
-            // Añadir columnas de periodos
             reportData.periods.forEach(p => {
                 baseRow[p] = row.periods[p] || 0;
             });
@@ -8834,9 +8854,28 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
         });
 
         const ws = XLSX.utils.json_to_sheet(exportData);
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        let moneyColStart = -1;
+        for (let col = range.s.c; col <= range.e.c; col++) {
+            const headerCell = ws[XLSX.utils.encode_cell({ r: 0, c: col })];
+            if (headerCell && headerCell.v === 'Box 1 Nonemployee Compensation') {
+                moneyColStart = col;
+                break;
+            }
+        }
+        if (moneyColStart >= 0) {
+            for (let row = 1; row <= range.e.r; row++) {
+                for (let col = moneyColStart; col <= range.e.c; col++) {
+                    const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+                    if (ws[cellRef] && typeof ws[cellRef].v === 'number') {
+                        ws[cellRef].z = '#,##0.00';
+                    }
+                }
+            }
+        }
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Reporte 1099");
-        XLSX.writeFile(wb, `Reporte_1099_${fiscalYear}_LogicPay.xlsx`);
+        XLSX.writeFile(wb, `Reporte_1099_${fiscalYear}_LogicPay.xlsx`, { cellStyles: true });
     };
 
     return (
@@ -8863,6 +8902,18 @@ const TaxCenterView = ({ employees, csgNominaData, adminPayrollHistory, nominaDe
                         {availableYears.map(year => (
                             <option key={year} value={year}>Fiscal {year}</option>
                         ))}
+                    </select>
+                </div>
+
+                <div className="h-11 bg-white border-2 border-brand-primary/10 rounded-2xl p-1 flex items-center shadow-sm">
+                    <MapPin size={14} className="text-[#303a7f] ml-2" />
+                    <select
+                        value={selectedState}
+                        onChange={(e) => setSelectedState(e.target.value)}
+                        className="h-full bg-white border-none rounded-xl px-4 text-[10px] font-black text-[#303a7f] uppercase tracking-widest outline-none cursor-pointer hover:bg-gray-50 transition-colors"
+                    >
+                        <option value="Todos">Estados</option>
+                        {stateOptions.map((st, idx) => <option key={st || `tax-state-${idx}`} value={st}>{st}</option>)}
                     </select>
                 </div>
 
@@ -24583,6 +24634,7 @@ function App() {
                     {activeTab === 'tax_center' && (
                         <TaxCenterView
                             employees={employees}
+                            stores={stores}
                             csgNominaData={csgNominaData}
                             adminPayrollHistory={adminPayrollHistory}
                             nominaDetailData={nominaDetailData}
