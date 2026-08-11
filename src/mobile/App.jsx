@@ -18375,7 +18375,12 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                         });
                     }
                     return aiData.rows.map(aiRow => {
-                        const empInfo = employees.find(e => String(e.codigo_empleado).trim() === aiRow.nombre.toString().trim());
+                        const empInfo = employees.find(e =>
+                            String(e.codigo_empleado).trim() === aiRow.nombre.toString().trim() &&
+                            String(e.tienda || '').trim().toLowerCase() === String(payrollStore).trim().toLowerCase()
+                        ) || employees.find(e =>
+                            String(e.codigo_empleado).trim() === aiRow.nombre.toString().trim()
+                        );
                         const base = (day) => aiRow[day] || '0';
                         return {
                             nombre: empInfo?.nombre || aiRow.nombre,
@@ -20758,7 +20763,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                     >
                                         <div className="flex flex-col">
                                             <span className="text-[12px] font-black text-slate-700 uppercase leading-tight">{emp.nombre}</span>
-                                            <span className="text-[9px] font-bold text-slate-400 mt-0.5">ID: {emp.codigo_empleado}</span>
+                                            <span className="text-[9px] font-bold text-slate-400 mt-0.5">ID: {emp.codigo_empleado}{emp.tienda ? ` · ${emp.tienda}` : ''}</span>
                                         </div>
                                         <span className="text-[9px] font-bold text-slate-400 uppercase bg-slate-100 px-2 py-1 rounded-md">{emp.cargo || 'N/A'}</span>
                                     </button>
@@ -21559,8 +21564,13 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                         </td>
                                                     </tr>
                                                 ) : (
-                                                    semanaTableData.map((row, idx) => (
-                                                        <tr key={idx} className="group hover:bg-[#303a7f]/[0.02] transition-colors">
+                                                    semanaTableData.map((row, idx) => {
+                                                        const duplicateCodeInOtherStore = employees.some(e =>
+                                                            String(e.codigo_empleado).trim() === String(row.codigo).trim() &&
+                                                            String(e.tienda || '').trim().toLowerCase() !== String(payrollStore).trim().toLowerCase()
+                                                        );
+                                                        return (
+                                                        <tr key={idx} className={`group transition-colors ${duplicateCodeInOtherStore ? 'bg-amber-50/60 hover:bg-amber-100/70' : 'hover:bg-[#303a7f]/[0.02]'}`}>
                                                             <td className="p-2 border-r-[2px] border-gray-100">
                                                                 <div className="flex items-center gap-2">
                                                                     {/* Botones S/B por fila — ocultos cuando la semana está aprobada */}
@@ -21606,7 +21616,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                                                 </>
                                                                             )}
                                                                         </div>
-                                                                        <span className="text-[8px] font-black text-[#6bbdb7] tabular-nums tracking-[0.1em] mt-0.5">ID: {row.codigo || '----'}</span>
+                                                                        <span className={`text-[8px] font-black tabular-nums tracking-[0.1em] mt-0.5 flex items-center gap-1.5 ${duplicateCodeInOtherStore ? 'text-amber-600' : 'text-[#6bbdb7]'}`}>ID: {row.codigo || '----'}{duplicateCodeInOtherStore && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Este código también existe en otra tienda" />}</span>
                                                                     </div>
                                                                 </div>
                                                             </td>
@@ -21710,7 +21720,8 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                                                 </div>
                                                             </td>
                                                         </tr>
-                                                    ))
+                                                        );
+                                                    })
                                                 )}
                                             </tbody>
                                         </table>
