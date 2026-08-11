@@ -1051,7 +1051,10 @@ const DashboardView = ({
     const totalGastosAdmin = totalGastosMisc + totalGastosPersonal;
 
     const totalIngresos = totalKBS_Nomina + totalKBS_PE + totalCSG_Ingresos;
-    const totalCostos = totalLGM_Nomina + totalLGM_PE + totalCSG_Costos + totalGastosAdmin;
+    const totalCostosOperativos = totalLGM_Nomina + totalLGM_PE + totalCSG_Costos;
+    const totalCostos = selectedState === 'Todos'
+        ? totalCostosOperativos + totalGastosAdmin
+        : totalCostosOperativos;
     const margenBruto = totalIngresos - totalCostos;
     const roiPercent = totalIngresos > 0 ? ((margenBruto / totalIngresos) * 100).toFixed(1) : 0;
 
