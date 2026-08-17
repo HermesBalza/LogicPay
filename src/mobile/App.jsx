@@ -17532,10 +17532,15 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                     const cargosUnicos = [...new Set(group.map(r => r.cargo))];
                     const defaultCargo = group[0].cargo;
                     const rawCodigo = String(group[0].codigo || '').replace(/^'+/, '').trim();
+                    const employeeInfo = employees.find(e =>
+                        String(e.codigo_empleado).replace(/^'+/, '').trim() === rawCodigo &&
+                        String(e.nombre).trim().toLowerCase() === String(group[0].nombre).trim().toLowerCase()
+                    );
+                    const cargoConfigurado = employeeInfo?.cargo || defaultCargo;
                     const merged = {
                         ...group[0],
                         codigo: rawCodigo,
-                        cargo: defaultCargo,
+                        cargo: cargoConfigurado,
                         cargo_por_dia: {}
                     };
                     daysList.forEach(day => {
@@ -17552,21 +17557,19 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                     bio: 'X',
                                     final: String((parseFloat(String(merged[day].final || 0)) + parseFloat(String(subRow[day]?.final || 0))) || 0)
                                 };
-                                const employeeInfo = employees.find(e =>
-                                    String(e.codigo_empleado).replace(/^'+/, '').trim() === rawCodigo &&
-                                    String(e.nombre).trim().toLowerCase() === String(merged.nombre).trim().toLowerCase()
-                                );
                                 if (!merged.cargo_por_dia[day]) {
-                                    const isDefaultCargo = subCargo === defaultCargo;
+                                    const coincideConfig = String(subCargo).trim().toLowerCase() === String(cargoConfigurado).trim().toLowerCase();
                                     merged.cargo_por_dia[day] = {
                                         cargo: subCargo,
-                                        rateKBS: isDefaultCargo ? (employeeInfo?.rateKBS || 0) : 0,
-                                        rateLGM: isDefaultCargo ? (employeeInfo?.rateLGM || 0) : 0
+                                        rateKBS: coincideConfig ? (employeeInfo?.rateKBS || 0) : '',
+                                        rateLGM: employeeInfo?.rateLGM || 0
                                     };
                                 }
                             }
                         });
                     });
+                    let totalSup = 0;
+                    let totalBio = 0;
                     daysList.forEach(day => {
                         const val = String(merged[day].final || '0');
                         if (val && val !== 'X') {
@@ -17577,8 +17580,17 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                 totalMinutos += parseFloat(val) * 60;
                             }
                         }
+                        const supVal = parseFloat(String(merged[day].sup || 0));
+                        if (!isNaN(supVal)) totalSup += supVal;
+                        const bioVal = String(merged[day].bio || 'X');
+                        if (bioVal !== 'X' && !isNaN(parseFloat(bioVal))) totalBio += parseFloat(bioVal);
                     });
-                    merged.total = { ...merged.total, final: String(Math.round((totalMinutos / 60) * 100) / 100) };
+                    const prevBio = merged.total?.bio;
+                    merged.total = {
+                        sup: Math.round(totalSup * 100) / 100,
+                        bio: prevBio !== 'X' && !isNaN(parseFloat(prevBio)) ? Math.round(totalBio * 100) / 100 : 'X',
+                        final: String(Math.round((totalMinutos / 60) * 100) / 100)
+                    };
                     if (cargosUnicos.length <= 1) delete merged.cargo_por_dia;
                     return merged;
                 });
@@ -17602,10 +17614,15 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                         const cargosUnicos = [...new Set(rows.map(r => r.cargo))];
                         const defaultCargo = rows[0].cargo;
                         const rawCodigo = String(rows[0].codigo || '').replace(/^'+/, '').trim();
+                        const employeeInfo = employees.find(e =>
+                            String(e.codigo_empleado).replace(/^'+/, '').trim() === rawCodigo &&
+                            String(e.nombre).trim().toLowerCase() === String(rows[0].nombre).trim().toLowerCase()
+                        );
+                        const cargoConfigurado = employeeInfo?.cargo || defaultCargo;
                         const merged = {
                             ...rows[0],
                             codigo: rawCodigo,
-                            cargo: defaultCargo,
+                            cargo: cargoConfigurado,
                             cargo_por_dia: {}
                         };
                         daysList.forEach(day => {
@@ -17622,21 +17639,19 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                         bio: 'X',
                                         final: String((parseFloat(String(merged[day].final || 0)) + parseFloat(String(subRow[day]?.final || 0))) || 0)
                                     };
-                                    const employeeInfo = employees.find(e =>
-                                        String(e.codigo_empleado).replace(/^'+/, '').trim() === rawCodigo &&
-                                        String(e.nombre).trim().toLowerCase() === String(merged.nombre).trim().toLowerCase()
-                                    );
                                     if (!merged.cargo_por_dia[day]) {
-                                        const isDefaultCargo = subCargo === defaultCargo;
+                                        const coincideConfig = String(subCargo).trim().toLowerCase() === String(cargoConfigurado).trim().toLowerCase();
                                         merged.cargo_por_dia[day] = {
                                             cargo: subCargo,
-                                            rateKBS: isDefaultCargo ? (employeeInfo?.rateKBS || 0) : 0,
-                                            rateLGM: isDefaultCargo ? (employeeInfo?.rateLGM || 0) : 0
+                                            rateKBS: coincideConfig ? (employeeInfo?.rateKBS || 0) : '',
+                                            rateLGM: employeeInfo?.rateLGM || 0
                                         };
                                     }
                                 }
                             });
                         });
+                        let totalSup = 0;
+                        let totalBio = 0;
                         daysList.forEach(day => {
                             const val = String(merged[day].final || '0');
                             if (val && val !== 'X') {
@@ -17647,8 +17662,17 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                     totalMinutos += parseFloat(val) * 60;
                                 }
                             }
+                            const supVal = parseFloat(String(merged[day].sup || 0));
+                            if (!isNaN(supVal)) totalSup += supVal;
+                            const bioVal = String(merged[day].bio || 'X');
+                            if (bioVal !== 'X' && !isNaN(parseFloat(bioVal))) totalBio += parseFloat(bioVal);
                         });
-                        merged.total = { ...merged.total, final: String(Math.round((totalMinutos / 60) * 100) / 100) };
+                        const prevBio = merged.total?.bio;
+                        merged.total = {
+                            sup: Math.round(totalSup * 100) / 100,
+                            bio: prevBio !== 'X' && !isNaN(parseFloat(prevBio)) ? Math.round(totalBio * 100) / 100 : 'X',
+                            final: String(Math.round((totalMinutos / 60) * 100) / 100)
+                        };
                         if (cargosUnicos.length <= 1) delete merged.cargo_por_dia;
                         mergedByName.push(merged);
                         mergedNames.add(rows[0].nombre.trim().toLowerCase());
