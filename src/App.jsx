@@ -22786,10 +22786,8 @@ function App() {
                                     const lgmRate = lgmRow ? (lgmRow.rate || 0) : (employeeInfo?.rateLGM || 0);
                                     lgmTotalCalc = totalHrs * lgmRate;
                                     rowData.push(totalHrs, formatCurrency(lgmRate), formatCurrency(lgmTotalCalc));
-                                } else {
-                                    rowData.push(totalHrs, 'Variable', formatCurrency(lgmTotalCalc));
+                                    rows.push(rowData);
                                 }
-                                rows.push(rowData);
 
                                 if (hasCargoMixtoExcel) {
                                     const cargosUnicos = [...new Set(Object.values(row.cargo_por_dia).map(d => d.cargo))];
