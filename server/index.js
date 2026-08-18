@@ -1114,29 +1114,36 @@ app.post('/api/employees/last-dates', (req, res) => {
 
     const allHistory = db.prepare('SELECT * FROM Nomina_Historico WHERE data_json IS NOT NULL AND data_json != ?').all('');
 
-    // Fecha de referencia: ultimo dia de la semana aprobada mas reciente en todo LogicPay
-    let referenceDate = null;
-    let maxWeekStartTs = 0;
-    let refRow = null;
-    for (const row of allHistory) {
-      const d = parseDateStr(row.fecha_inicio);
-      if (d && d.getTime() > maxWeekStartTs) {
-        maxWeekStartTs = d.getTime();
-        refRow = row;
-      }
-    }
-    if (refRow) {
-      const fin = parseDateStr(refRow.fecha_fin);
-      if (fin) {
-        referenceDate = fmtDate(fin);
-      } else {
-        const base = parseDateStr(refRow.fecha_inicio);
-        if (base) {
-          base.setDate(base.getDate() + 6);
-          referenceDate = fmtDate(base);
+    // Fecha de referencia POR TIENDA con tope de tiempo:
+    // - fin de la ultima semana aprobada de la tienda del empleado;
+    // - si esa fecha tiene mas de 10 dias de antiguedad, la referencia avanza con el tiempo (hoy - 10 dias).
+    const capDate = new Date();
+    capDate.setDate(capDate.getDate() - 10);
+    const computeStoreReference = (storeName) => {
+      const storeKey = String(storeName || '').trim().toLowerCase();
+      if (!storeKey) return null;
+      let maxWeekStartTs = 0;
+      let refRow = null;
+      for (const row of allHistory) {
+        if (String(row.nombre || '').trim().toLowerCase() !== storeKey) continue;
+        const d = parseDateStr(row.fecha_inicio);
+        if (d && d.getTime() > maxWeekStartTs) {
+          maxWeekStartTs = d.getTime();
+          refRow = row;
         }
       }
-    }
+      if (!refRow) return null;
+      let fin = parseDateStr(refRow.fecha_fin);
+      if (!fin) {
+        fin = parseDateStr(refRow.fecha_inicio);
+        if (fin) fin.setDate(fin.getDate() + 6);
+      }
+      if (!fin) return null;
+      if (fin.getTime() < capDate.getTime()) {
+        fin = new Date(capDate);
+      }
+      return fmtDate(fin);
+    };
 
     // Proyectos Especiales: ultimo dia del periodo donde el empleado tiene horas > 0
     const allPE = db.prepare('SELECT * FROM Proyectos_Especiales WHERE Data_JSON IS NOT NULL AND Data_JSON != ?').all('');
@@ -1212,7 +1219,7 @@ app.post('/api/employees/last-dates', (req, res) => {
       if (lastWorkedDate) {
         result[codigoEmp] = {
           lastDate: fmtDate(lastWorkedDate),
-          referenceDate
+          referenceDate: computeStoreReference(emp.tienda)
         };
       }
     }
