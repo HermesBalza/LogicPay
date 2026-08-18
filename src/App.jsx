@@ -16799,12 +16799,8 @@ const DatabaseExplorer = () => {
                                                                 autoFocus
                                                                 onBlur={() => {
                                                                     if (!savingCell) setEditingCell({ row: null, col: null });
-                    }}
-                    isWeekApproved={(nominaHistoryData || []).some(h =>
-                        String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
-                        h.fecha_inicio === fechaDesde
-                    )}
-                />
+                                                                }}
+                                                            />
                                                             {savingCell && <Loader2 size={12} className="animate-spin text-[#6bbdb7] flex-shrink-0" />}
                                                         </div>
                                                     ) : (
