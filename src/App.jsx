@@ -18175,6 +18175,7 @@ function App() {
     const [isEmployeeStatsModalOpen, setIsEmployeeStatsModalOpen] = useState(false);
     const [isStoreStatsModalOpen, setIsStoreStatsModalOpen] = useState(false);
     const [isConfirmApproveModalOpen, setIsConfirmApproveModalOpen] = useState(false);
+    const [isConfirmClearWeekModalOpen, setIsConfirmClearWeekModalOpen] = useState(false);
     const [isZeroRateModalOpen, setIsZeroRateModalOpen] = useState(false);
     const [zeroRateEmployees, setZeroRateEmployees] = useState([]);
     const [isHoursReportEmailModalOpen, setIsHoursReportEmailModalOpen] = useState(false);
@@ -20110,6 +20111,24 @@ function App() {
             setIsStatusModalOpen(true);
         } finally {
             setIsSendingHoursReport(false);
+        }
+    };
+
+    const handleClearWeekData = () => {
+        if (!payrollStore || !fechaDesde || !fechaHasta) return;
+        const isApproved = (nominaHistoryData || []).some(h =>
+            String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+            h.fecha_inicio === fechaDesde
+        );
+        if (isApproved) return;
+
+        setSemanaTableData([]);
+
+        const draftKey = `${payrollStore}_${fechaDesde}_${fechaHasta}`.replace(/\s+/g, '_');
+        if (payrollDrafts && payrollDrafts[draftKey]) {
+            const { [draftKey]: removedDraft, ...remainingDrafts } = payrollDrafts;
+            setPayrollDrafts(remainingDrafts);
+            syncVariableToDatabase('payroll_drafts', JSON.stringify(remainingDrafts));
         }
     };
 
@@ -24202,6 +24221,24 @@ function App() {
                                                     {semanaTableData.length} Empleados
                                                 </span>
                                             </div>
+                                            {(() => {
+                                                const isCurrentWeekApproved = (nominaHistoryData || []).some(h =>
+                                                    String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                                                    h.fecha_inicio === fechaDesde
+                                                );
+                                                return (
+                                                    <button
+                                                        onClick={() => setIsConfirmClearWeekModalOpen(true)}
+                                                        disabled={isCurrentWeekApproved}
+                                                        title={isCurrentWeekApproved ? 'Semana aprobada — no se puede limpiar' : 'Limpiar Semana'}
+                                                        className={`p-2.5 rounded-xl transition-all active:scale-95 border-2 shadow-sm flex items-center justify-center group ${isCurrentWeekApproved
+                                                            ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                                                            : 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100'}`}
+                                                    >
+                                                        <Eraser size={16} className="group-hover:-rotate-12 transition-transform" />
+                                                    </button>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
 
@@ -24555,6 +24592,38 @@ function App() {
                                         </div>
                                     )}
                                 </section>
+
+                                {isConfirmClearWeekModalOpen && (
+                                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#f9f9f9]/80 backdrop-blur-sm p-4">
+                                        <div className="w-full max-w-md bg-white rounded-[2rem] p-8 shadow-2xl border border-gray-100 flex flex-col items-center animate-in zoom-in-95 duration-300">
+                                            <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-6 shadow-inner border border-red-100">
+                                                <AlertTriangle size={32} className="text-red-500" />
+                                            </div>
+                                            <h3 className="text-2xl font-black text-[#303a7f] mb-2 text-center tracking-tight">¿LIMPIAR SEMANA?</h3>
+                                            <p className="text-center text-gray-500 text-sm font-medium mb-8 leading-relaxed">
+                                                Esta acción limpiará los datos de la tabla de asistencia y eliminará el borrador guardado de esta semana.<br /><br />
+                                                Deberá <strong className="text-red-500 font-black uppercase">volver a cargar los datos</strong> si desea aprobar la semana.
+                                            </p>
+                                            <div className="flex gap-4 w-full">
+                                                <button
+                                                    onClick={() => setIsConfirmClearWeekModalOpen(false)}
+                                                    className="flex-1 py-4 bg-gray-50 hover:bg-gray-100 text-gray-600 font-black rounded-2xl transition-all border border-gray-200 uppercase text-[10px] tracking-widest active:scale-95"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setIsConfirmClearWeekModalOpen(false);
+                                                        handleClearWeekData();
+                                                    }}
+                                                    className="flex-1 py-4 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-2xl transition-all shadow-lg shadow-rose-900/20 uppercase text-[10px] tracking-widest active:scale-95 flex justify-center items-center gap-2"
+                                                >
+                                                    <Eraser size={14} /> Limpiar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
