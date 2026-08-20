@@ -20,7 +20,7 @@ const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'databa
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));

@@ -1190,9 +1190,28 @@ const DashboardView = ({
     const facturasReportadasPendientes = facturasFiltradas.filter(r => tieneRad(r) && !estaPagada(r)).length;
     const facturasNoReportadas = facturasFiltradas.filter(r => !tieneRad(r)).length;
 
+    const cobradoNomina = nominaHistoryData.filter(h => {
+        const passDate = isDateInRange(h.fecha_fin || h.Fecha_Envio || h.Timestamp || h.Periodo);
+        const passStore = (selectedStore === 'Todas' || h.Tienda === selectedStore) && (selectedState === 'Todos' || storeStateMap[h.Tienda] === selectedState);
+        return passDate && passStore && estaPagada(h);
+    }).reduce((acc, r) => acc + (parseFloat(r.Pago || r.pago) || 0), 0);
+
+    const cobradoPE = specialProjectsHistoryData.filter(pe => {
+        let fechaProyecto = null;
+        try {
+            const parsed = JSON.parse(pe.data_json || pe.Data_JSON || '');
+            const projects = Array.isArray(parsed) ? parsed : [parsed];
+            fechaProyecto = projects[0]?.fecha || null;
+        } catch (e) {}
+        const passDate = isDateInRange(fechaProyecto || pe.Periodo || pe.periodo || pe.timestamp || pe.Timestamp || pe.fecha);
+        const peTienda = pe.tienda || pe.Tienda;
+        const passStore = (selectedStore === 'Todas' || peTienda === selectedStore) && (selectedState === 'Todos' || storeStateMap[peTienda] === selectedState);
+        return passDate && passStore && estaPagada(pe);
+    }).reduce((acc, r) => acc + (parseFloat(r.Pago || r.pago) || 0), 0);
+
     const totalCobrado =
-        filteredNomina.filter(r => estaPagada(r)).reduce((acc, r) => acc + (parseFloat(r.Pago || r.pago) || 0), 0) +
-        filteredPE.filter(r => estaPagada(r)).reduce((acc, r) => acc + (parseFloat(r.Pago || r.pago) || 0), 0) +
+        cobradoNomina +
+        cobradoPE +
         filteredCSG.filter(r => estaPagada(r)).reduce((acc, r) => acc + (parseFloat(r.pago) || 0), 0);
 
     const cuentasPorCobrar = totalIngresos - totalCobrado;
@@ -14840,7 +14859,7 @@ const BillingView = ({
                         pago: h['Pago'] || h['pago'] || '',
                         fecha_pago: h['Fecha de Pago'] || h['fecha de pago'] || '',
                         wos: h['WOS'] || h['wos'] || '',
-                        pagada: h['pagada'] === true || h['pagada'] === 'true' || (h['Status'] || h['status']) === 'Paid'
+                        pagada: h['pagada'] === true || h['pagada'] === 'true' || (h['Status'] || h['status']) === 'Paid' || (h['Status'] || h['status']) === 'Pagada'
                     };
                 }
 
@@ -21446,7 +21465,7 @@ function App() {
                         "Pago": h['Pago'] || h['pago'] || '',
                         "Fecha de Pago": h['Fecha de Pago'] || h['fecha de pago'] || '',
                         "WOS": h['WOS'] || h['wos'] || 0,
-                        "Status": h['pagada'] === true || h['pagada'] === 'true' || (h['Status'] || h['status']) === 'Paid' ? 'Paid' : 'Due',
+                        "Status": h['pagada'] === true || h['pagada'] === 'true' || (h['Status'] || h['status']) === 'Paid' || (h['Status'] || h['status']) === 'Pagada' ? 'Paid' : 'Due',
                         "_invoiceNum": parseInt(rowTotalToNumber(p.invoice)) || 0 // Temp for sorting
                     });
                 });
