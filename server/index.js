@@ -486,7 +486,7 @@ function seedConfigVariables() {
   db.exec(`CREATE TABLE IF NOT EXISTS Variables ("key" TEXT PRIMARY KEY, "value" TEXT);`);
   const seedData = [
     { key: 'gemini_api_key', value: process.env.VITE_GEMINI_API_KEY || '' },
-    { key: 'mail_api_url_general', value: 'https://script.google.com/macros/s/AKfycbwJO2nSGQxA5TjaMUsuhlVUlZhksSFIm1oQihRsM3M9C6BJoMeBOu4mu7Nqxd56bVYunw/exec' },
+    { key: 'mail_api_url_general', value: 'https://script.google.com/macros/s/AKfycbwTVoyRb8tVVuQh58dUkSoBzJ42D9r4Ieq62N2s__dDcFjBHlT1bQ0igTcYpEW9iAU/exec' },
     { key: 'mail_api_url_payroll', value: '' },
     { key: 'places_api_key', value: process.env.VITE_PLACES_API_KEY || '' },
   ];
