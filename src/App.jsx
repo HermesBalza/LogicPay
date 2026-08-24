@@ -11202,54 +11202,48 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     );
 
     const generateNachaCSV = () => {
-        const allEntries = [...biweeklyEmployees, ...addedSupervisors];
         const pad = (n) => String(n).padStart(2, '0');
         const now = new Date();
-        const fileDate = pad(now.getMonth() + 1) + pad(now.getDate()) + String(now.getFullYear());
+        const fileDate = `${String(now.getFullYear()).slice(-2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
         const fileTime = pad(now.getHours()) + pad(now.getMinutes());
-
-        const w2EndRaw = period.w2?.end || '';
-        const [endM, endD, endY] = w2EndRaw.split('/');
-        const endDateStr = pad(endM || '') + pad(endD || '') + String(endY || '');
-
+        const rangoFin = String(period.range || '').split(' - ').pop() || '';
+        const [finM, finD, finY] = rangoFin.split('/').map(Number);
+        const entregaDate = new Date(finY, finM - 1, (finD || 0) + 6);
+        const entrega = `${String(entregaDate.getFullYear()).slice(-2)}${pad(entregaDate.getMonth() + 1)}${pad(entregaDate.getDate())}`;
         const biweekNum = Math.ceil(period.w1?.weekNumInYear / 2) || '';
-
-        const rows = allEntries.map(emp => {
+        const allEntries = [...biweeklyEmployees, ...addedSupervisors];
+        const traceBase = `${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+        const rows = [];
+        allEntries.forEach(emp => {
             const empCode = String(emp.id.split('_')[1] || '').trim();
             const empName = String(emp.nombre || '').trim().toLowerCase();
             const dbEmp = employees.find(e => {
                 const nombreBD = [e.first_name, e.last_name].filter(Boolean).join(' ').trim().toLowerCase();
                 return nombreBD === empName && String(e.codigo_empleado || '').trim() === empCode;
             });
-            const amount = Number(calculatePagoTotal(emp) || 0).toFixed(2);
-            const trxnCode = (dbEmp?.account_type !== 'savings') ? '22' : '32';
-            const firstName = dbEmp?.first_name || '';
-            const lastName = dbEmp?.last_name || '';
-            const trxnId = (firstName || lastName) ? `${firstName}_${lastName}_${endDateStr}` : '';
-            return {
-                routing: dbEmp?.routing_num || '',
-                account: dbEmp?.account_num || '',
-                amount,
-                idNumber: dbEmp?.id_number || dbEmp?.codigo_empleado || '',
-                payeeName: dbEmp?.payee_name || '',
-                trxnCode,
-                trxnId,
+            const routing = String(dbEmp?.routing_num || '').replace(/\D/g, '');
+            const account = String(dbEmp?.account_num || '').replace(/\D/g, '');
+            rows.push({
+                routing,
+                account,
+                amountCents: Math.round(Number(calculatePagoTotal(emp) || 0) * 100),
+                idNumber: String(dbEmp?.id_number || dbEmp?.codigo_empleado || '').replace(/,/g, ''),
+                payeeName: String(dbEmp?.payee_name || '').replace(/,/g, '').trim(),
+                trxnCode: (dbEmp?.account_type !== 'savings') ? '22' : '32',
                 addenda: biweekNum ? `Payroll BW${biweekNum}` : ''
-            };
+            });
         });
-
-        const totalAmount = rows.reduce((sum, r) => sum + parseFloat(r.amount), 0).toFixed(2);
-
+        const totalCreditCents = rows.reduce((sum, r) => sum + r.amountCents, 0);
         const csv = [];
         csv.push('Indicator,File ID (Modifier),File creation date,File creation time,Total trxn,Total ACH credit amount,Total ACH debit amount,Batch Count,,');
-        csv.push(`1,A,${fileDate},${fileTime},${rows.length},${totalAmount},0,1,,`);
+        csv.push(`1,A,${fileDate},${fileTime},${rows.length},${totalCreditCents},0,1,,`);
         csv.push('Indicator,Service class code,Chase Acct,SEC Code,Entry description,Delivery by date,Batch credit amount,Batch debit amount,Batch number,Trxn in Batch');
-        csv.push(`5,220,826336130,PPD,PAYROLL,${endDateStr},${totalAmount},0,1,${rows.length}`);
+        csv.push(`5,220,826336130,PPD,PAYROLL,${entrega},${totalCreditCents},0,100,${rows.length}`);
         csv.push('Indicator,Trxn Code,Routing Num,Acct number,Trxn amount,ID Number,Payee name,Trxn ID,Addenda,');
-        rows.forEach(r => {
-            csv.push(`6,${r.trxnCode},${r.routing},${r.account},${r.amount},${r.idNumber},"${r.payeeName}",${r.trxnId},${r.addenda},`);
+        rows.forEach((r, idx) => {
+            const traceId = `100${traceBase}${String(idx + 1).padStart(4, '0')}`;
+            csv.push(`6,${r.trxnCode},${r.routing},${r.account},${r.amountCents},${r.idNumber},${r.payeeName},${traceId},${r.addenda},`);
         });
-
         return csv.join('\n');
     };
 
@@ -11637,12 +11631,13 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             <button
                                 onClick={() => {
                                     const csv = generateNachaCSV();
-                                    const storePart = period.store && period.store !== '__NOMINA_COMPLETA__' ? `${period.store.replace(/\s+/g, '_')}_` : '';
+                                    const storePart = period.storeCode ? `${String(period.storeCode).replace(/\s+/g, '_')}_` : '';
+                                    const baseName = `Payroll_ACH_${storePart}${period.range.replace(/\//g, '-').replace(/\s+/g, '_')}`;
                                     const blob = new Blob([csv], { type: 'text/csv' });
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement('a');
                                     a.href = url;
-                                    a.download = `Payroll_ACH_${storePart}${period.range.replace(/\//g, '-').replace(/\s+/g, '_')}.csv`;
+                                    a.download = `${baseName.slice(0, 46)}.csv`;
                                     document.body.appendChild(a);
                                     a.click();
                                     document.body.removeChild(a);
@@ -23847,6 +23842,7 @@ function App() {
                                         : `${p.w1.start} - ${p.w2.end}`;
                                     setSelectedBiweeklyPeriod({
                                         store: selectedHistoryStore,
+                                        storeCode: String(stores.find(s => String(s.nombre).trim() === String(selectedHistoryStore).trim())?.codigo || '').trim(),
                                         range: range,
                                         w1: p.w1,
                                         w2: p.w2,
@@ -24776,6 +24772,7 @@ function App() {
                         : `${p.w1.start} - ${p.w2.end}`;
                     setSelectedBiweeklyPeriod({
                         store: selectedHistoryStore,
+                        storeCode: String(stores.find(s => String(s.nombre).trim() === String(selectedHistoryStore).trim())?.codigo || '').trim(),
                         range: range,
                         w1: p.w1,
                         w2: p.w2,
