@@ -11082,20 +11082,14 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                                 onChange={(e) => onSelectStore(e.target.value)}
                                 className={`w-full bg-gray-50 border-2 rounded-xl px-3 pr-8 py-2 text-xs font-bold outline-none transition-all cursor-pointer shadow-inner appearance-none h-10 ${selectedStore && selectedStore !== '__NOMINA_COMPLETA__' && selectedStore !== '' ? 'border-[#6bbdb7] bg-[#f0faf9] text-[#303a7f] font-black' : 'border-brand-primary/10 text-[#303a7f] focus:border-[#303a7f]/30'}`}
                             >
-                                {user?.rol === 'Operador de Pagos' ? (
-                                    <option value="__NOMINA_COMPLETA__" style={selectedStore === '__NOMINA_COMPLETA__' ? { backgroundColor: '#6bbdb7', color: 'white', fontWeight: 'bold' } : {}}>📋 Nómina Completa</option>
-                                ) : (
-                                    <>
-                                        <option value="__NOMINA_COMPLETA__" style={selectedStore === '__NOMINA_COMPLETA__' ? { backgroundColor: '#6bbdb7', color: 'white', fontWeight: 'bold' } : {}}>📋 Nómina Completa</option>
-                                        <option value="" style={selectedStore === '' ? { backgroundColor: '#6bbdb7', color: 'white', fontWeight: 'bold' } : {}}>Selecciona una Tienda</option>
-                                        <option value={CONSOLIDATED_STORE} style={selectedStore === CONSOLIDATED_STORE ? { backgroundColor: '#6bbdb7', color: 'white', fontWeight: 'bold' } : { fontWeight: 'black', color: '#6bbdb7' }}>
-                                            ❇️ {CONSOLIDATED_STORE}
-                                        </option>
-                                        {stores.filter(s => (s.cliente || 'KBS').toUpperCase() === 'KBS').sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map((s, idx) => (
-                                            <option key={s.codigo || `store-${idx}`} value={s.nombre} style={s.nombre === selectedStore ? { backgroundColor: '#6bbdb7', color: 'white', fontWeight: 'bold' } : {}}>{s.nombre}</option>
-                                        ))}
-                                    </>
-                                )}
+                                <option value="__NOMINA_COMPLETA__" style={selectedStore === '__NOMINA_COMPLETA__' ? { backgroundColor: '#6bbdb7', color: 'white', fontWeight: 'bold' } : {}}>📋 Nómina Completa</option>
+                                <option value="" style={selectedStore === '' ? { backgroundColor: '#6bbdb7', color: 'white', fontWeight: 'bold' } : {}}>Selecciona una Tienda</option>
+                                <option value={CONSOLIDATED_STORE} style={selectedStore === CONSOLIDATED_STORE ? { backgroundColor: '#6bbdb7', color: 'white', fontWeight: 'bold' } : { fontWeight: 'black', color: '#6bbdb7' }}>
+                                    ❇️ {CONSOLIDATED_STORE}
+                                </option>
+                                {stores.filter(s => (s.cliente || 'KBS').toUpperCase() === 'KBS').sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map((s, idx) => (
+                                    <option key={s.codigo || `store-${idx}`} value={s.nombre} style={s.nombre === selectedStore ? { backgroundColor: '#6bbdb7', color: 'white', fontWeight: 'bold' } : {}}>{s.nombre}</option>
+                                ))}
                             </select>
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#303a7f]/50">
                                 <ChevronDown size={14} strokeWidth={3} />
