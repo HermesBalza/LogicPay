@@ -11633,15 +11633,16 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                 Enviar por Correo
                             </button>
                         )}
-                        {user?.rol === 'Operador de Pagos' && period.store === '__NOMINA_COMPLETA__' && (
+                        {user?.rol === 'Operador de Pagos' && (
                             <button
                                 onClick={() => {
                                     const csv = generateNachaCSV();
+                                    const storePart = period.store && period.store !== '__NOMINA_COMPLETA__' ? `${period.store.replace(/\s+/g, '_')}_` : '';
                                     const blob = new Blob([csv], { type: 'text/csv' });
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement('a');
                                     a.href = url;
-                                    a.download = `Payroll_ACH_${period.range.replace(/\//g, '-').replace(/\s+/g, '_')}.csv`;
+                                    a.download = `Payroll_ACH_${storePart}${period.range.replace(/\//g, '-').replace(/\s+/g, '_')}.csv`;
                                     document.body.appendChild(a);
                                     a.click();
                                     document.body.removeChild(a);
