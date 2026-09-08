@@ -5841,9 +5841,12 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                             <label className="text-[8px] text-[#6bbdb7] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Fecha de Nacimiento</label>
                                             {isEditing ? (
                                                 <input
-                                                    type="date"
-                                                    value={formatDateForInput(editedEmployee.fecha_nacimiento)}
-                                                    onChange={(e) => updateField('fecha_nacimiento', e.target.value)}
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    placeholder="MM/DD/YYYY"
+                                                    maxLength={10}
+                                                    value={editedEmployee.fecha_nacimiento || ''}
+                                                    onChange={(e) => handleDateInputChange(e.target.value, (v) => updateField('fecha_nacimiento', v))}
                                                     className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
                                                 />
                                             ) : (
@@ -6537,9 +6540,12 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
                                     <div className="group">
                                         <label className="text-[8px] text-[#6bbdb7] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Fecha de Nacimiento</label>
                                         <input
-                                            type="date"
-                                            value={formatDateForInput(newEmployee.fecha_nacimiento)}
-                                            onChange={(e) => updateField('fecha_nacimiento', e.target.value)}
+                                            type="text"
+                                            inputMode="numeric"
+                                            placeholder="MM/DD/YYYY"
+                                            maxLength={10}
+                                            value={newEmployee.fecha_nacimiento || ''}
+                                            onChange={(e) => handleDateInputChange(e.target.value, (v) => updateField('fecha_nacimiento', v))}
                                             className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
                                         />
                                         {calculateAge(newEmployee.fecha_nacimiento) !== null && (
