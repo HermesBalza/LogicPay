@@ -320,6 +320,28 @@ const formatDateForDisplay = (dateStr) => {
     return `${month}/${day}/${year}`;
 };
 
+// ─── Calcula la edad actual a partir de la fecha de nacimiento (MM/DD/AAAA o ISO) ───
+// Devuelve null si no hay fecha válida o si la fecha es futura (la UI oculta el badge en ese caso)
+const calculateAge = (dateStr) => {
+    if (!dateStr) return null;
+    let birth = null;
+    const parts = String(dateStr).trim().split('/');
+    if (parts.length === 3 && parts.every(p => p !== '')) {
+        // Formato MM/DD/AAAA (estándar del sistema)
+        birth = new Date(parseInt(parts[2], 10), parseInt(parts[0], 10) - 1, parseInt(parts[1], 10));
+    } else {
+        // Formato ISO (yyyy-mm-dd), tal como lo devuelve el input type="date"
+        const iso = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (iso) birth = new Date(parseInt(iso[1], 10), parseInt(iso[2], 10) - 1, parseInt(iso[3], 10));
+    }
+    if (!birth || isNaN(birth.getTime()) || birth > new Date()) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age >= 0 && age < 150 ? age : null;
+};
+
 const handleDateInputChange = (value, setter) => {
     const clean = value.replace(/\D/g, '');
     let formatted = clean;
@@ -466,6 +488,7 @@ const csvRowToEmployee = (flat) => {
         codigo_empleado: (findValue(['codigo_empleado', 'codigo_emple']) || '').toString().replace(/^'/, ''),
         fecha_ingreso: findValue(['fecha_ingreso']) || '',
         fecha_egreso: findValue(['fecha_egreso']) || '',
+        fecha_nacimiento: findValue(['fecha_nacimiento', 'fecha_nacim', 'Fecha Nacimiento', 'fecha de nacimiento']) || '',
         cargo: findValue(['cargo']) || '',
         tienda: findValue(['tienda']) || '',
         cuenta_bancaria: findValue(['cuenta_bancaria', 'cuenta_banca']) || '',
@@ -2448,11 +2471,19 @@ const EmployeeCard = ({ employee, onEdit }) => (
         className="card cursor-pointer group hover:border-[#303a7f]/40 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-900/10 relative overflow-hidden bg-white/80 backdrop-blur-sm border-transparent hover:-translate-y-2 active:scale-95"
     >
         <div className="flex justify-between items-start mb-5">
-            <div className="w-16 h-16 bg-[#f9f9f9] rounded-2xl group-hover:bg-[#303a7f]/5 transition-colors border border-transparent overflow-hidden flex items-center justify-center">
-                {employee.imagen ? (
-                    <img src={employee.imagen} alt={employee.nombre} className="w-full h-full object-cover" />
-                ) : (
-                    <Users className="text-gray-300 group-hover:text-[#303a7f]" size={28} />
+            <div className="flex items-center gap-2">
+                <div className="w-16 h-16 bg-[#f9f9f9] rounded-2xl group-hover:bg-[#303a7f]/5 transition-colors border border-transparent overflow-hidden flex items-center justify-center flex-shrink-0">
+                    {employee.imagen ? (
+                        <img src={employee.imagen} alt={employee.nombre} className="w-full h-full object-cover" />
+                    ) : (
+                        <Users className="text-gray-300 group-hover:text-[#303a7f]" size={28} />
+                    )}
+                </div>
+                {calculateAge(employee.fecha_nacimiento) !== null && (
+                    <div className="flex flex-col items-center justify-center bg-[#6bbdb7]/10 text-[#6bbdb7] px-2.5 py-1.5 rounded-xl border border-transparent">
+                        <span className="text-sm font-black leading-none">{calculateAge(employee.fecha_nacimiento)}</span>
+                        <span className="text-[7px] font-black uppercase tracking-widest mt-0.5">años</span>
+                    </div>
                 )}
             </div>
             <div className="flex flex-col items-end gap-2">
@@ -5775,7 +5806,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                             />
                                         )}
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-3 gap-2">
                                         <div className="group">
                                             <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Fecha de Ingreso</label>
                                             {isEditing ? (
@@ -5804,6 +5835,26 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                                 <div className="w-full bg-gray-100 text-gray-500 rounded-xl p-3 font-bold text-xs">
                                                     {formatDateForDisplay(editedEmployee.fecha_egreso)}
                                                 </div>
+                                            )}
+                                        </div>
+                                        <div className="group">
+                                            <label className="text-[8px] text-[#6bbdb7] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Fecha de Nacimiento</label>
+                                            {isEditing ? (
+                                                <input
+                                                    type="date"
+                                                    value={formatDateForInput(editedEmployee.fecha_nacimiento)}
+                                                    onChange={(e) => updateField('fecha_nacimiento', e.target.value)}
+                                                    className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
+                                                />
+                                            ) : (
+                                                <div className="w-full bg-gray-100 text-gray-500 rounded-xl p-3 font-bold text-xs">
+                                                    {formatDateForDisplay(editedEmployee.fecha_nacimiento)}
+                                                </div>
+                                            )}
+                                            {calculateAge(editedEmployee.fecha_nacimiento) !== null && (
+                                                <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-1 pl-1">
+                                                    Edad: {calculateAge(editedEmployee.fecha_nacimiento)} años
+                                                </p>
                                             )}
                                         </div>
                                     </div>
@@ -6267,6 +6318,7 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
             codigo_empleado: '',
             fecha_ingreso: '',
             fecha_egreso: '',
+            fecha_nacimiento: '',
             cargo: '',
             tienda: '',
             routing_num: '',
@@ -6481,6 +6533,20 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
                                             onChange={(e) => updateField('fecha_ingreso', e.target.value)}
                                             className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
                                         />
+                                    </div>
+                                    <div className="group">
+                                        <label className="text-[8px] text-[#6bbdb7] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Fecha de Nacimiento</label>
+                                        <input
+                                            type="date"
+                                            value={formatDateForInput(newEmployee.fecha_nacimiento)}
+                                            onChange={(e) => updateField('fecha_nacimiento', e.target.value)}
+                                            className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3 outline-none font-bold text-xs"
+                                        />
+                                        {calculateAge(newEmployee.fecha_nacimiento) !== null && (
+                                            <p className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-1 pl-1">
+                                                Edad: {calculateAge(newEmployee.fecha_nacimiento)} años
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -19292,6 +19358,7 @@ function App() {
                         ...row.excelRow,
                         fecha_ingreso: fullExcelRow?.fecha_ingreso || fullExcelRow?.['Fecha Ingreso'] || '',
                         fecha_egreso: fullExcelRow?.fecha_egreso || fullExcelRow?.['Fecha Egreso'] || '',
+                        fecha_nacimiento: fullExcelRow?.fecha_nacimiento || fullExcelRow?.['Fecha Nacimiento'] || '',
                         cuenta_bancaria: fullExcelRow?.cuenta_bancaria || fullExcelRow?.['Cuenta Bancaria'] || '',
                         tienda: fullExcelRow?.tienda || fullExcelRow?.Tienda || '',
                         imagen: fullExcelRow?.imagen || '',
@@ -19337,6 +19404,7 @@ function App() {
                         codigo_empleado: (excel.codigo || excel.codigo_empleado || '').toString().replace(/^'/, ''),
                         fecha_ingreso: excel.fecha_ingreso || '',
                         fecha_egreso: excel.fecha_egreso || '',
+                        fecha_nacimiento: excel.fecha_nacimiento || '',
                         cargo: (excel.cargo || '').trim() || 'SIN CARGO',
                         tienda: excel.tienda || '',
                         cuenta_bancaria: (excel.cuenta_bancaria || '').toString().replace(/^'/, ''),
@@ -19373,6 +19441,7 @@ function App() {
                         codigo_empleado: (emp.codigo_empleado || excel.codigo || '').toString().replace(/^'/, ''),
                         fecha_ingreso: emp.fecha_ingreso || excel.fecha_ingreso || '',
                         fecha_egreso: emp.fecha_egreso || excel.fecha_egreso || '',
+                        fecha_nacimiento: emp.fecha_nacimiento || excel.fecha_nacimiento || '',
                         cargo: (emp.cargo || excel.cargo || '').trim() || 'SIN CARGO',
                         tienda: emp.tienda || excel.tienda || '',
                         cuenta_bancaria: (emp.cuenta_bancaria || excel.cuenta_bancaria || '').toString().replace(/^'/, ''),
@@ -21524,7 +21593,7 @@ function App() {
                     const keysToCompare = [
                         'nombre', 'direccion', 'telefono', 'email', 'cargo', 'store_association',
                         'zip', 'tin', 'site_code', 'cuenta_bancaria', 'rateKBS', 'rateLGM', 'rate_csg',
-                        'cliente', 'observaciones', 'fecha_ingreso', 'fecha_egreso', 'activo', 'imagen'
+                        'cliente', 'observaciones', 'fecha_ingreso', 'fecha_egreso', 'fecha_nacimiento', 'activo', 'imagen'
                     ];
 
                     const isSyncComplete = csvEmp && keysToCompare.every(key => {

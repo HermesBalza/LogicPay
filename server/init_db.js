@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS Personal (
     "codigo_empleado" TEXT,
     "fecha_ingreso" TEXT,
     "fecha_egreso" TEXT,
+    "fecha_nacimiento" TEXT,
     "cargo" TEXT,
     "tienda" TEXT,
     "cuenta_bancaria" TEXT,
@@ -245,6 +246,14 @@ try {
 try {
     db.exec(`ALTER TABLE Tiendas ADD COLUMN "tipo_facturacion" TEXT DEFAULT 'domingo_a_sabado'`);
     console.log('Columna tipo_facturacion agregada a Tiendas.');
+} catch (e) {
+    // Columna ya existe, ignorar
+}
+
+// Migración segura: agregar columna fecha_nacimiento a Personal si no existe (para BD existentes)
+try {
+    db.exec(`ALTER TABLE Personal ADD COLUMN "fecha_nacimiento" TEXT`);
+    console.log('Columna fecha_nacimiento agregada a Personal.');
 } catch (e) {
     // Columna ya existe, ignorar
 }
