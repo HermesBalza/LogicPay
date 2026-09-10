@@ -12062,8 +12062,8 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
         if (onAnulateProjectSheet) {
             const success = await onAnulateProjectSheet(consolidationId);
             if (success) {
-                // Actualizar localmente para mostrar el badge sin esperar al polling
-                updateProject(project.id, { visible: 'anulado' });
+                // Eliminar el proyecto localmente (físicamente fue borrado de la base de datos)
+                removeProject(project.id);
                 setAnulatingProject(null);
             }
         }
@@ -12533,7 +12533,7 @@ const AnularProjectModal = ({ project, onClose, onConfirm }) => {
                 </h3>
 
                 <p className="text-gray-500 font-bold text-sm leading-relaxed text-center mb-10">
-                    Esta acción marcará el proyecto <span className="text-[#303a7f]">#{project.invoice}</span> como "anulado" en la base de datos. Esta acción no se puede deshacer.
+                    Esta acción <span className="text-red-500 font-black">eliminará permanentemente</span> el proyecto <span className="text-[#303a7f]">#{project.invoice}</span> de la base de datos. Esta acción no se puede deshacer.
                     <br /><br />
                     Para confirmar, escriba el número de Invoice a continuación:
                 </p>
@@ -16706,24 +16706,10 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             return false;
         }
 
-        const payload = {
-            "ID_Consolidacion": projectIdConsolidacion,
-            "Tienda": existing.tienda || existing.Tienda || '',
-            "Periodo": existing.periodo || existing.Periodo || '',
-            "Data_JSON": existing.data_json || existing.Data_JSON || '{}',
-            "Fecha_Confirmacion": existing.fecha_confirmacion || existing.Fecha_Confirmacion || '',
-            "Correlativo": existing.correlativo || existing.Correlativo || '',
-            "Fecha Rad.": existing['fecha rad.'] || existing['Fecha Rad.'] || '',
-            "Pago": existing.pago || existing.Pago || '',
-            "Fecha de Pago": existing['fecha de pago'] || existing['Fecha de Pago'] || '',
-            "WOS": existing.wos || existing.WOS || 0,
-            "Status": existing.status || existing.Status || '',
-            "Visible": 'anulado'
-        };
-
         try {
             showProcessing('Anulando Proyecto Especial en la base de datos...');
-            await syncToDatabase('upsert', payload, 'Proyectos_Especiales', false, ['ID_Consolidacion'], true);
+            // Eliminación física del registro: el proyecto anulado se borra de la tabla Proyectos_Especiales
+            await syncToDatabase('delete', { "ID_Consolidacion": projectIdConsolidacion }, 'Proyectos_Especiales', false, ['ID_Consolidacion'], true);
             fetch('/api/audit-log', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

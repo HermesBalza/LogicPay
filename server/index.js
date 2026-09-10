@@ -181,7 +181,9 @@ app.post('/api/write', (req, res) => {
        const whereClause = validMatchKeys.map(k => `\"${k}\" = ?`).join(' AND ');
        const whereValues = validMatchKeys.map(k => data[k]);
        db.prepare(`DELETE FROM ${sheetName} WHERE ${whereClause}`).run(whereValues);
-       auditLog(userId, userName, 'Eliminó', mapEntityName(sheetName), entidadNombre, { table: sheetName, matchKeys });
+       if (!skipAuditLog) {
+         auditLog(userId, userName, 'Eliminó', mapEntityName(sheetName), entidadNombre, { table: sheetName, matchKeys });
+       }
        return res.json({ success: true });
     }
 
