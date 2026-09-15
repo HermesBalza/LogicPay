@@ -42,6 +42,15 @@ const getMonthFromDate = (dateStr) => {
     return null;
 };
 
+// Criterio unificado con Dashboard: Nómina se agrupa por Fecha Rad. (Fecha_Envio), con respaldos Timestamp -> Periodo
+const getNominaFecha = (n) => {
+    if (!n) return '';
+    const raw = n.Fecha_Envio || n.Timestamp || n.Periodo || '';
+    // Si el string contiene un rango ' - ', tomar la primera fecha (igual que isDateInRange del Dashboard)
+    const idx = String(raw).indexOf(' - ');
+    return idx > 0 ? String(raw).slice(0, idx).trim() : raw;
+};
+
 const getPEMonth = (pe) => {
     const fecha = pe.fecha || pe.Fecha_Confirmacion || pe.Timestamp || pe.periodo || pe.Periodo || '';
     if (!fecha) return null;
@@ -117,7 +126,7 @@ const ResumenView = ({
     const availableYears = useMemo(() => {
         const years = new Set();
         nominaHistoryData.forEach(n => {
-            const y = getYearFromDate(n.fecha_inicio);
+            const y = getYearFromDate(getNominaFecha(n));
             if (y) years.add(y);
         });
         specialProjectsHistoryData.forEach(pe => {
@@ -169,8 +178,8 @@ const ResumenView = ({
 
                 const nominaRecords = nominaHistoryData.filter(n =>
                     n.Tienda === storeName &&
-                    getYearFromDate(n.fecha_inicio) === selectedYear &&
-                    getMonthFromDate(n.fecha_inicio) === m
+                    getYearFromDate(getNominaFecha(n)) === selectedYear &&
+                    getMonthFromDate(getNominaFecha(n)) === m
                 );
                 nominaRecords.forEach(n => {
                     ingresos += parseFloat(n.Pago_KBS) || 0;
