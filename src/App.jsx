@@ -9628,8 +9628,9 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
             const email = emp.email_tax;
             setSendingProgress(prev => ({ ...prev, current: i + 1, logs: [`Generando recibo para ${emp.nombre}...`, ...prev.logs] }));
             try {
-                const pdfResult = await generatePayStubPDF(emp.id);
+                const pdfResult = await generatePayStubPDF(buildPayStubEmployee(emp, true), selectedPeriod);
                 if (pdfResult?.error) throw new Error(pdfResult.error);
+                if (!pdfResult || typeof pdfResult !== 'string') throw new Error("No se pudo generar el PDF");
                 await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`, attachments: [{ name: `Recibo_${emp.nombre.replace(/\s+/g, '_')}.pdf`, type: 'application/pdf', base64: pdfResult }] });
                 fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => { });
                 setSendingProgress(prev => ({ ...prev, logs: [`✅ Enviado a ${email}`, ...prev.logs] }));
@@ -9651,7 +9652,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
         if (!email) return alert("Email no encontrado.");
         setNotificationModal({ isOpen: true, type: 'loading', message: `Enviando a ${emp.nombre}...` });
         try {
-            const pdfBase64 = await generatePayStubPDF(emp.id);
+            const pdfBase64 = await generatePayStubPDF(buildPayStubEmployee(emp, true), selectedPeriod);
             await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`, attachments: [{ name: `Recibo_${emp.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
             fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => { });
             setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
@@ -9733,7 +9734,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                                                         <>
                                                             <button onClick={async () => {
                                                                 setNotificationModal({ isOpen: true, type: 'loading', message: `Generando PDF...` });
-                                                                const pdf = await generatePayStubPDF(emp.id);
+                                                                const pdf = await generatePayStubPDF(buildPayStubEmployee(emp, true), selectedPeriod);
                                                                 if (pdf) {
                                                                     const blob = await (await fetch(`data:application/pdf;base64,${pdf}`)).blob();
                                                                     setPreviewPdf({ isOpen: true, url: URL.createObjectURL(blob), name: emp.nombre, email: emp.email_tax || '', pdfBase64: pdf, period: selectedPeriod?.range || '' });
@@ -9753,27 +9754,6 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                     </div>
                 </div>
             </main>
-            <div className="absolute left-[-9999px] top-0 pointer-events-none select-none opacity-0">
-                {selectedPeriod && biweeklyEmployees.map(emp => (
-                    <PayStubPDF
-                        key={`stub-tpl-${emp.id}`}
-                        employee={{
-                            ...emp,
-                            codigo: emp.id.split('_')[1],
-                            stubId: emp.id,
-                            hoursW1: emp.semana1,
-                            earningsW1: (parseFloat(emp.semana1) || 0) * emp.rate,
-                            hoursW2: emp.semana2,
-                            earningsW2: (parseFloat(emp.semana2) || 0) * emp.rate,
-                            peEarnings: emp.peEarnings || (emp.totalPay - ((Number(emp.semana1) + Number(emp.semana2)) * emp.rate) - (Number(emp.csgEarnings) || 0) - (Number(emp.adminEarnings) || 0)),
-                            csgEarnings: emp.csgEarnings || 0,
-                            adminEarnings: emp.adminEarnings || 0
-                        }}
-                        period={selectedPeriod}
-                        store="Global"
-                    />
-                ))}
-            </div>
             {previewPdf.isOpen && (
                 <div className="fixed inset-0 z-[600] flex items-center justify-center p-8 backdrop-blur-md bg-white/20">
                     <div className="bg-white w-full max-w-4xl h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border">
@@ -10749,177 +10729,268 @@ const WOSTicketModal = ({ isOpen, onClose, onSend, isSending }) => {
     );
 };
 
-// ─── COMPONENTE: PayStubPDF (Plantilla Premium para Recibos) ────────────────
-const PayStubPDF = ({ employee, period, store, companyInfo }) => {
-    if (!employee || !period) return null;
 
-    const logoUrl = "/Logo Logic Group Management.png";
-    const primaryColor = "#303a7f";
-    const secondaryColor = "#6bbdb7";
+// ─── Generador vectorial de Recibos de Pago (PDF exacto, mismo enfoque del Reporte VWH) ───
+// Dibuja el recibo programáticamente con jsPDF: texto real seleccionable, nitidez
+// infinita, geometría controlada y sin depender del DOM, del scroll ni de html2canvas.
+const PS_NAVY = [48, 58, 127];            // #303a7f
+const PS_TEAL = [107, 189, 183];          // #6bbdb7
+const PS_GRIS_ETIQUETA = [148, 163, 184]; // #94a3b8
+const PS_GRIS_TEXTO = [100, 116, 139];    // #64748b
+const PS_FONDO_TARJETA = [248, 250, 252]; // #f8fafc
+const PS_LINEA = [241, 245, 249];         // #f1f5f9
+const PS_TEXTO = [51, 51, 51];            // #333333
 
-    const totalEarnings = (parseFloat(employee.earningsW1) || 0) + (parseFloat(employee.earningsW2) || 0) + (parseFloat(employee.peEarnings) || 0) + (parseFloat(employee.csgEarnings) || 0) + (parseFloat(employee.adminEarnings) || 0) + (parseFloat(employee.sueldoFijo) || 0);
+// Normaliza el texto para la fuente estándar del PDF (latin/ansi)
+const psNormalizarPdf = (texto) => String(texto ?? '')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, '-');
 
-    // Lógica para calcular rangos de fechas por semana
-    const [startStr, endStr] = (period.range || "").split(" - ");
-    const parseDate = (s) => {
-        if (!s) return new Date();
-        const [m, d, y] = s.split('/');
-        return new Date(y, m - 1, d);
-    };
+// Respaldo del logo en Base64 (se descarga, reescala a máx. 700px y convierte a
+// JPEG una sola vez). El PNG original (3091x1296, ~0.7MB) incrustado sin comprimir
+// inflaba cada PDF a más de 15MB; con este reescalado queda en apenas unos KB.
+let _psLogoBase64 = null;
+const psCargarLogo = async () => {
+    if (_psLogoBase64 !== null) return _psLogoBase64;
+    try {
+        const resp = await fetch('/Logo Logic Group Management.png');
+        if (!resp.ok) throw new Error('Logo no disponible');
+        const blob = await resp.blob();
 
-    const startDate = parseDate(startStr);
-    const w1End = new Date(startDate);
-    w1End.setDate(startDate.getDate() + 6);
-    const w2Start = new Date(startDate);
-    w2Start.setDate(startDate.getDate() + 7);
-    const w2End = parseDate(endStr);
+        // Decodificar la imagen
+        const bitmap = await createImageBitmap(blob);
 
-    const formatShort = (date) => {
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        return `${months[date.getMonth()]} ${String(date.getDate()).padStart(2, '0')}`;
-    };
+        // Reescalar: ancho máximo 700px (sobra para un logo de 15mm de alto en el PDF)
+        const escala = Math.min(1, 700 / bitmap.width);
+        const ancho = Math.max(1, Math.round(bitmap.width * escala));
+        const alto = Math.max(1, Math.round(bitmap.height * escala));
 
-    const w1Range = startStr ? `(${formatShort(startDate)} - ${formatShort(w1End)})` : "";
-    const w2Range = startStr ? `(${formatShort(w2Start)} - ${formatShort(w2End)})` : "";
-    const today = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+        // Dibujar sobre lienzo blanco (el JPEG no soporta transparencia y la página es blanca)
+        const canvas = document.createElement('canvas');
+        canvas.width = ancho;
+        canvas.height = alto;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, ancho, alto);
+        ctx.drawImage(bitmap, 0, 0, ancho, alto);
+        bitmap.close();
 
-    return (
-        <div
-            id={`pay-stub-${(employee.stubId || employee.codigo).replace(/[^a-zA-Z0-9]/g, '_')}`}
-            style={{
-                width: '800px',
-                padding: '40px',
-                backgroundColor: '#ffffff',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-                color: '#333333',
-                position: 'absolute',
-                left: '-9999px',
-                top: '-9999px'
-            }}
-        >
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px', borderBottom: `2px solid ${secondaryColor}`, paddingBottom: '20px' }}>
-                <div>
-                    <img src={logoUrl} alt="Logic Group Management" style={{ height: '60px', marginBottom: '10px' }} />
-                    <p style={{ margin: 0, fontSize: '10px', fontWeight: '900', color: primaryColor, letterSpacing: '2px', textTransform: 'uppercase' }}>Logic Group Management</p>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                    <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: primaryColor, textTransform: 'uppercase', letterSpacing: '-1px' }}>Payment Advice</h1>
-                    <p style={{ margin: '5px 0 0', fontSize: '12px', fontWeight: '700', color: secondaryColor }}>{today}</p>
-                </div>
-            </div>
-
-            {/* Info Section */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '40px' }}>
-                <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '15px' }}>
-                    <p style={{ margin: '0 0 5px', fontSize: '9px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Employee</p>
-                    <p style={{ margin: '0 0 5px', fontSize: '16px', fontWeight: '900', color: primaryColor }}>{employee.nombre}</p>
-                    <p style={{ margin: 0, fontSize: '11px', fontWeight: '700', color: '#64748b' }}>ID: {employee.codigo} | {employee.cargo || 'Associate'}</p>
-                </div>
-                <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '15px' }}>
-                    <p style={{ margin: '0 0 5px', fontSize: '9px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>EMPLOYEE ADDRESS</p>
-                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '900', color: primaryColor, lineHeight: '1.2' }}>{employee.address || 'N/A'}</p>
-                </div>
-            </div>
-
-            {/* Earnings Table */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '40px' }}>
-                <thead>
-                    <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
-                        <th style={{ textAlign: 'left', padding: '12px 10px', fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase' }}>Description</th>
-                        <th style={{ textAlign: 'right', padding: '12px 10px', fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase' }}>Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {/* Semana 1 */}
-                    {parseFloat(employee.hoursW1) > 0 && (
-                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>Professional Services - Week 1 {w1Range}</td>
-                            <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.earningsW1).toFixed(2)}</td>
-                        </tr>
-                    )}
-                    {/* Semana 2 */}
-                    {parseFloat(employee.hoursW2) > 0 && (
-                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>Professional Services - Week 2 {w2Range}</td>
-                            <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.earningsW2).toFixed(2)}</td>
-                        </tr>
-                    )}
-                    {/* Proyectos Especiales */}
-                    {parseFloat(employee.peEarnings) > 0 && (
-                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>Special / Additional Projects</td>
-                            <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.peEarnings).toFixed(2)}</td>
-                        </tr>
-                    )}
-                    {/* Servicios CSG */}
-                    {parseFloat(employee.csgEarnings) > 0 && (
-                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>CSG Cleaning Services</td>
-                            <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.csgEarnings).toFixed(2)}</td>
-                        </tr>
-                    )}
-                    {/* Nómina Administrativa */}
-                    {parseFloat(employee.adminEarnings) > 0 && (
-                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>Administrative Services LGM</td>
-                            <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.adminEarnings).toFixed(2)}</td>
-                        </tr>
-                    )}
-                    {/* Supervisor Fixed Salary */}
-                    {parseFloat(employee.sueldoFijo) > 0 && (
-                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '15px 10px', fontSize: '12px', fontWeight: '700' }}>Biweekly Fixed Salary (Supervisor)</td>
-                            <td style={{ textAlign: 'right', padding: '15px 10px', fontSize: '12px', fontWeight: '900', color: primaryColor }}>${parseFloat(employee.sueldoFijo).toFixed(2)}</td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
-
-            {/* Summary */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <div style={{ width: '300px', backgroundColor: primaryColor, color: '#ffffff', padding: '25px', borderRadius: '20px', boxShadow: '0 10px 20px rgba(48,58,127,0.2)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>Net Payment</span>
-                        <span style={{ fontSize: '20px', fontWeight: '900' }}>${totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Footer */}
-            <div style={{ marginTop: '40px', textAlign: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '20px' }}>
-                <p style={{ margin: 0, fontSize: '10px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '2px' }}>This is an official payment advice issued by Logic Group Management</p>
-                <p style={{ margin: '5px 0 0', fontSize: '9px', fontWeight: '500', color: '#cbd5e1' }}>Generated automatically by LogicPay by AdWiser © 2026</p>
-
-                <div style={{ marginTop: '30px', padding: '15px', backgroundColor: '#f8fafc', borderRadius: '10px', textAlign: 'justify' }}>
-                    <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.4', color: '#94a3b8', fontStyle: 'italic' }}>
-                        <strong>CONFIDENTIALITY NOTE:</strong> This e-mail message, including any attachments, is for the sole use of the intended recipient(s) and may contain confidential and privileged information or may otherwise be protected by law. Any unauthorized review, use, disclosure or distribution is prohibited. If you are not the intended recipient, please contact the sender by reply e-mail and destroy all copies of the original message and any attachments.
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
+        // Exportar como JPEG comprimido
+        _psLogoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+    } catch (e) {
+        _psLogoBase64 = '';
+    }
+    return _psLogoBase64;
 };
 
-// Función para generar el PDF en Base64
-const generatePayStubPDF = async (stubId) => {
-    const element = document.getElementById(`pay-stub-${stubId.replace(/[^a-zA-Z0-9]/g, '_')}`);
-    if (!element) return null;
+// Construye el objeto empleado con la misma forma que consumía la plantilla original.
+// usarFallbackPe=true replica el cálculo residual de Proyectos Especiales del Consolidado Global.
+const buildPayStubEmployee = (emp, usarFallbackPe = false) => ({
+    ...emp,
+    codigo: emp.id ? String(emp.id).split('_')[1] : emp.codigo,
+    stubId: emp.id || emp.stubId,
+    hoursW1: emp.semana1,
+    earningsW1: (parseFloat(emp.semana1) || 0) * (parseFloat(emp.rate) || 0),
+    hoursW2: emp.semana2,
+    earningsW2: (parseFloat(emp.semana2) || 0) * (parseFloat(emp.rate) || 0),
+    peEarnings: emp.peEarnings || (usarFallbackPe
+        ? (emp.totalPay - ((Number(emp.semana1) + Number(emp.semana2)) * emp.rate) - (Number(emp.csgEarnings) || 0) - (Number(emp.adminEarnings) || 0))
+        : 0),
+    csgEarnings: emp.csgEarnings || 0,
+    adminEarnings: emp.adminEarnings || 0,
+    sueldoFijo: emp.sueldoFijo || 0
+});
+
+// Función para generar el PDF vectorial del recibo en Base64
+const generatePayStubPDF = async (employee, period) => {
+    if (!employee || !period) return null;
 
     try {
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            backgroundColor: '#ffffff',
-            logging: false,
-            useCORS: true
-        });
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const imgProps = pdf.getImageProperties(imgData);
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        const logoBase64 = await psCargarLogo();
 
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        // ─── Cálculos (misma lógica que la plantilla original) ───
+        const totalEarnings = (parseFloat(employee.earningsW1) || 0)
+            + (parseFloat(employee.earningsW2) || 0)
+            + (parseFloat(employee.peEarnings) || 0)
+            + (parseFloat(employee.csgEarnings) || 0)
+            + (parseFloat(employee.adminEarnings) || 0)
+            + (parseFloat(employee.sueldoFijo) || 0);
+
+        const [startStr, endStr] = (period.range || "").split(" - ");
+        const parseDate = (s) => {
+            if (!s) return new Date();
+            const [m, d, y] = s.split('/');
+            return new Date(y, m - 1, d);
+        };
+        const startDate = parseDate(startStr);
+        const w1End = new Date(startDate);
+        w1End.setDate(startDate.getDate() + 6);
+        const w2Start = new Date(startDate);
+        w2Start.setDate(startDate.getDate() + 7);
+        const w2End = parseDate(endStr);
+        const formatShort = (date) => {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${months[date.getMonth()]} ${String(date.getDate()).padStart(2, '0')}`;
+        };
+        const w1Range = startStr ? `(${formatShort(startDate)} - ${formatShort(w1End)})` : "";
+        const w2Range = startStr ? `(${formatShort(w2Start)} - ${formatShort(w2End)})` : "";
+        const today = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+
+        // Filas de ingresos (mismas condiciones visibles de la plantilla original)
+        const filas = [];
+        if (parseFloat(employee.hoursW1) > 0) filas.push({ desc: `Professional Services - Week 1 ${w1Range}`, total: parseFloat(employee.earningsW1) || 0 });
+        if (parseFloat(employee.hoursW2) > 0) filas.push({ desc: `Professional Services - Week 2 ${w2Range}`, total: parseFloat(employee.earningsW2) || 0 });
+        if (parseFloat(employee.peEarnings) > 0) filas.push({ desc: 'Special / Additional Projects', total: parseFloat(employee.peEarnings) || 0 });
+        if (parseFloat(employee.csgEarnings) > 0) filas.push({ desc: 'CSG Cleaning Services', total: parseFloat(employee.csgEarnings) || 0 });
+        if (parseFloat(employee.adminEarnings) > 0) filas.push({ desc: 'Administrative Services LGM', total: parseFloat(employee.adminEarnings) || 0 });
+        if (parseFloat(employee.sueldoFijo) > 0) filas.push({ desc: 'Biweekly Fixed Salary (Supervisor)', total: parseFloat(employee.sueldoFijo) || 0 });
+
+        // ─── Dibujo vectorial del documento (A4) ───
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const ancho = 210;
+        const margenX = 14;
+        const anchoUtil = ancho - margenX * 2;
+        const fuente = 'helvetica';
+        const norm = (t) => psNormalizarPdf(t);
+
+        // Fondo blanco
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(0, 0, ancho, 297, 'F');
+
+        let y = 16;
+
+        // Encabezado: logo + razón social (izquierda) y título + fecha (derecha)
+        if (logoBase64) {
+            try {
+                const props = pdf.getImageProperties(logoBase64);
+                const logoH = 15;
+                const logoW = (props.width * logoH) / props.height;
+                pdf.addImage(logoBase64, 'JPEG', margenX, y, logoW, logoH);
+            } catch (e) {
+                // Logo inválido: se continúa sin él
+            }
+        } else {
+            pdf.setFillColor(...PS_NAVY);
+            vwhRectRedondeado(pdf, margenX, y, 15, 15, 3);
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFont(fuente, 'bold');
+            pdf.setFontSize(7.5);
+            pdf.text('LGM', margenX + 7.5, y + 9.5, { align: 'center' });
+        }
+        pdf.setTextColor(...PS_NAVY);
+        pdf.setFont(fuente, 'bold');
+        pdf.setFontSize(8.5);
+        pdf.text('LOGIC GROUP MANAGEMENT', margenX, y + 20.5, { charSpace: 0.6 });
+
+        pdf.setFontSize(17);
+        pdf.text('PAYMENT ADVICE', ancho - margenX, y + 7, { align: 'right', charSpace: -0.2 });
+        pdf.setTextColor(...PS_TEAL);
+        pdf.setFont(fuente, 'normal');
+        pdf.setFontSize(9);
+        pdf.text(today, ancho - margenX, y + 13, { align: 'right' });
+
+        y += 25;
+        pdf.setDrawColor(...PS_TEAL);
+        pdf.setLineWidth(0.6);
+        pdf.line(margenX, y, ancho - margenX, y);
+        y += 9;
+
+        // Tarjetas informativas: datos del empleado y dirección
+        const cardW = (anchoUtil - 6) / 2;
+        const nombreLineas = pdf.splitTextToSize(norm(employee.nombre), cardW - 10);
+        const addrLineas = pdf.splitTextToSize(norm(employee.address || 'N/A'), cardW - 10);
+        const cardH = Math.max(24, 17 + Math.max(nombreLineas.length, addrLineas.length) * 5);
+        const dibujarTarjeta = (x, etiqueta, valorLineas, sub) => {
+            pdf.setFillColor(...PS_FONDO_TARJETA);
+            vwhRectRedondeado(pdf, x, y, cardW, cardH, 4);
+            pdf.setTextColor(...PS_GRIS_ETIQUETA);
+            pdf.setFont(fuente, 'bold');
+            pdf.setFontSize(6.8);
+            pdf.text(norm(etiqueta), x + 5, y + 7, { charSpace: 0.5 });
+            pdf.setTextColor(...PS_NAVY);
+            pdf.setFontSize(11);
+            pdf.text(valorLineas, x + 5, y + 13.5);
+            if (sub) {
+                pdf.setTextColor(...PS_GRIS_TEXTO);
+                pdf.setFont(fuente, 'normal');
+                pdf.setFontSize(8);
+                pdf.text(norm(sub), x + 5, y + cardH - 3.5);
+            }
+        };
+        dibujarTarjeta(margenX, 'EMPLOYEE', nombreLineas, `ID: ${employee.codigo || 'N/A'} | ${employee.cargo || 'Associate'}`);
+        dibujarTarjeta(margenX + cardW + 6, 'EMPLOYEE ADDRESS', addrLineas, null);
+        y += cardH + 10;
+
+        // Tabla de ingresos
+        pdf.setTextColor(...PS_GRIS_ETIQUETA);
+        pdf.setFont(fuente, 'bold');
+        pdf.setFontSize(7.5);
+        pdf.text('DESCRIPTION', margenX + 2.5, y, { charSpace: 0.4 });
+        pdf.text('TOTAL', ancho - margenX - 2.5, y, { align: 'right', charSpace: 0.4 });
+        pdf.setDrawColor(...PS_LINEA);
+        pdf.setLineWidth(0.7);
+        pdf.line(margenX, y + 2.5, ancho - margenX, y + 2.5);
+        y += 10;
+
+        filas.forEach((fila) => {
+            const descLineas = pdf.splitTextToSize(norm(fila.desc), anchoUtil - 30);
+            const rowH = Math.max(9, descLineas.length * 4.6 + 4.4);
+            pdf.setFont(fuente, 'normal');
+            pdf.setTextColor(...PS_TEXTO);
+            pdf.setFontSize(9);
+            pdf.text(descLineas, margenX + 2.5, y + 5.5);
+            pdf.setFont(fuente, 'bold');
+            pdf.setTextColor(...PS_NAVY);
+            pdf.text(`$${fila.total.toFixed(2)}`, ancho - margenX - 2.5, y + 5.5, { align: 'right' });
+            pdf.setDrawColor(...PS_LINEA);
+            pdf.setLineWidth(0.3);
+            pdf.line(margenX, y + rowH, ancho - margenX, y + rowH);
+            y += rowH;
+        });
+        y += 8;
+
+        // Caja de pago neto
+        const boxW = 80;
+        const boxX = ancho - margenX - boxW;
+        pdf.setFillColor(...PS_NAVY);
+        vwhRectRedondeado(pdf, boxX, y, boxW, 18, 5);
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont(fuente, 'bold');
+        pdf.setFontSize(9);
+        pdf.text('NET PAYMENT', boxX + 6, y + 11.5, { charSpace: 0.5 });
+        pdf.setFontSize(14.5);
+        pdf.text(`$${totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, boxX + boxW - 6, y + 12, { align: 'right' });
+        y += 32;
+
+        // Pie de página
+        pdf.setDrawColor(...PS_LINEA);
+        pdf.setLineWidth(0.4);
+        pdf.line(margenX, y, ancho - margenX, y);
+        y += 8;
+        pdf.setFont(fuente, 'bold');
+        pdf.setTextColor(...PS_GRIS_ETIQUETA);
+        pdf.setFontSize(7.5);
+        pdf.text('THIS IS AN OFFICIAL PAYMENT ADVICE ISSUED BY LOGIC GROUP MANAGEMENT', ancho / 2, y, { align: 'center', charSpace: 0.4 });
+        pdf.setFont(fuente, 'normal');
+        pdf.setTextColor(203, 213, 225);
+        pdf.setFontSize(7);
+        pdf.text('Generated automatically by LogicPay by AdWiser \u00A9 2026', ancho / 2, y + 5, { align: 'center' });
+        y += 12;
+
+        // Nota de confidencialidad
+        const confLineas = pdf.splitTextToSize(
+            'CONFIDENTIALITY NOTE: This e-mail message, including any attachments, is for the sole use of the intended recipient(s) and may contain confidential and privileged information or may otherwise be protected by law. Any unauthorized review, use, disclosure or distribution is prohibited. If you are not the intended recipient, please contact the sender by reply e-mail and destroy all copies of the original message and any attachments.',
+            anchoUtil - 12
+        );
+        const confH = confLineas.length * 4.2 + 9;
+        pdf.setFillColor(...PS_FONDO_TARJETA);
+        vwhRectRedondeado(pdf, margenX, y, anchoUtil, confH, 2.5);
+        pdf.setTextColor(...PS_GRIS_ETIQUETA);
+        pdf.setFont(fuente, 'italic');
+        pdf.setFontSize(8);
+        pdf.text(confLineas, margenX + 6, y + 7);
+
         return pdf.output('datauristring').split(',')[1];
     } catch (error) {
         console.error("Error generando PDF:", error);
@@ -11590,9 +11661,9 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             setSendingProgress(prev => ({ ...prev, current: i + 1, logs: [`Generando recibo para ${emp.nombre}...`, ...prev.logs] }));
 
             try {
-                const pdfResult = await generatePayStubPDF(emp.id);
+                const pdfResult = await generatePayStubPDF(buildPayStubEmployee(emp), period);
                 if (pdfResult?.error) throw new Error(pdfResult.error);
-                if (!pdfResult) throw new Error("Elemento no encontrado en el DOM");
+                if (!pdfResult || typeof pdfResult !== 'string') throw new Error("No se pudo generar el PDF");
                 const pdfBase64 = pdfResult;
 
                 const emailPayload = {
@@ -11640,9 +11711,9 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         }));
 
         try {
-            const pdfResult = await generatePayStubPDF(emp.id);
+            const pdfResult = await generatePayStubPDF(buildPayStubEmployee(emp), period);
             if (pdfResult?.error) throw new Error(pdfResult.error);
-            if (!pdfResult) throw new Error("Elemento no encontrado en el DOM");
+            if (!pdfResult || typeof pdfResult !== 'string') throw new Error("No se pudo generar el PDF");
             const pdfBase64 = pdfResult;
 
             const emailPayload = {
@@ -11670,7 +11741,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     const handlePreviewPayStub = async (emp) => {
         setNotificationModal({ isOpen: true, type: 'loading', message: `Preparando vista previa de ${emp.nombre}...` });
         try {
-            const pdfBase64 = await generatePayStubPDF(emp.id);
+            const pdfBase64 = await generatePayStubPDF(buildPayStubEmployee(emp), period);
             if (!pdfBase64 || typeof pdfBase64 !== 'string') throw new Error("Error al generar el PDF");
 
             const pdfBlob = await (await fetch(`data:application/pdf;base64,${pdfBase64}`)).blob();
@@ -12509,32 +12580,6 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     </div>
                 </div>
             )}
-
-            {/* Plantillas Invisibles para html2canvas (Fuera de modales para asegurar renderizado) */}
-            <div className="absolute left-[-9999px] top-0 pointer-events-none select-none overflow-visible">
-                {[...biweeklyEmployees, ...addedSupervisors].map(emp => (
-                    <PayStubPDF
-                        key={`stub-tpl-${emp.id}`}
-                        employee={{
-                            nombre: emp.nombre,
-                            codigo: emp.id.split('_')[1],
-                            stubId: emp.id,
-                            cargo: emp.cargo,
-                            rate: emp.rate,
-                            sueldoFijo: emp.sueldoFijo || 0,
-                            hoursW1: emp.semana1,
-                            earningsW1: (parseFloat(emp.semana1) || 0) * (parseFloat(emp.rate) || 0),
-                            hoursW2: emp.semana2,
-                            earningsW2: (parseFloat(emp.semana2) || 0) * (parseFloat(emp.rate) || 0),
-                            peHours: emp.pe,
-                            peEarnings: emp.peEarnings,
-                            address: emp.address
-                        }}
-                        period={period}
-                        store={period.store}
-                    />
-                ))}
-            </div>
 
             {/* MODAL: Vista Previa de Recibo de Pago (PDF) */}
             {previewPdf.isOpen && (
