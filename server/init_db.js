@@ -218,6 +218,33 @@ CREATE TABLE IF NOT EXISTS Gastos_Miscelaneos (
     "created_at" TEXT
 );
 
+-- Tabla Nomina_Ajustes (ajustes manuales de pago por empleado en la vista Nómina Completa)
+CREATE TABLE IF NOT EXISTS Nomina_Ajustes (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "Periodo" TEXT NOT NULL,
+    "Empleado_Nombre" TEXT NOT NULL,
+    "Empleado_Codigo" TEXT NOT NULL,
+    "Ajuste" REAL NOT NULL DEFAULT 0,
+    "Comentario" TEXT,
+    "Actualizado_Por" TEXT,
+    "Fecha_Actualizacion" TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_nomina_ajustes_periodo ON Nomina_Ajustes (Periodo);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_nomina_ajustes_empleado ON Nomina_Ajustes (Periodo, Empleado_Nombre, Empleado_Codigo);
+
+-- Tabla Nomina_Empleados_Manuales (filas manuales agregadas a la nómina en la vista Nómina Completa)
+CREATE TABLE IF NOT EXISTS Nomina_Empleados_Manuales (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "Periodo" TEXT NOT NULL,
+    "Empleado_Nombre" TEXT NOT NULL,
+    "Empleado_Codigo" TEXT NOT NULL,
+    "Monto" REAL NOT NULL DEFAULT 0,
+    "Agregado_Por" TEXT,
+    "Fecha_Agregado" TEXT,
+    UNIQUE (Periodo, Empleado_Nombre, Empleado_Codigo)
+);
+
 -- Tabla Saldos_Pendientes
 CREATE TABLE IF NOT EXISTS Saldos_Pendientes (
     "id" INTEGER PRIMARY KEY AUTOINCREMENT,

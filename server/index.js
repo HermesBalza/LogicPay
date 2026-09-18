@@ -944,6 +944,129 @@ app.post('/api/sync-saldos-pendientes', (req, res) => {
 });
 
 // ---------------------------------------------------------------------
+// Ajustes de Nómina (vista Nómina Completa)
+// ---------------------------------------------------------------------
+app.get('/api/nomina-ajustes', (req, res) => {
+  try {
+    const periodo = (req.query.periodo || '').trim();
+    if (!periodo) {
+      return res.status(400).json({ error: 'Parámetro "periodo" requerido' });
+    }
+    const rows = db.prepare(`SELECT Periodo, Empleado_Nombre, Empleado_Codigo, Ajuste, Comentario, Actualizado_Por, Fecha_Actualizacion FROM Nomina_Ajustes WHERE Periodo = ?`).all(periodo);
+    res.json(rows);
+  } catch (error) {
+    console.error('[Nomina Ajustes] Error al obtener:', error.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.post('/api/nomina-ajustes', (req, res) => {
+  try {
+    const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const { periodo, ajustes, usuario } = payload || {};
+    if (!periodo || typeof periodo !== 'string') {
+      return res.status(400).json({ error: 'Campo "periodo" requerido' });
+    }
+    if (!Array.isArray(ajustes)) {
+      return res.status(400).json({ error: 'Campo "ajustes" debe ser un arreglo' });
+    }
+    const limiteMonto = 50000;
+    const upsert = db.prepare(`
+      INSERT INTO Nomina_Ajustes (Periodo, Empleado_Nombre, Empleado_Codigo, Ajuste, Comentario, Actualizado_Por, Fecha_Actualizacion)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(Periodo, Empleado_Nombre, Empleado_Codigo) DO UPDATE SET
+        Ajuste = excluded.Ajuste,
+        Comentario = excluded.Comentario,
+        Actualizado_Por = excluded.Actualizado_Por,
+        Fecha_Actualizacion = excluded.Fecha_Actualizacion
+    `);
+    const eliminar = db.prepare(`DELETE FROM Nomina_Ajustes WHERE Periodo = ? AND Empleado_Nombre = ? AND Empleado_Codigo = ?`);
+    const fecha = new Date().toISOString();
+    const tx = db.transaction(() => {
+      for (const a of ajustes) {
+        const nombre = String(a.nombre || '').trim();
+        const codigo = String(a.codigo ?? '').trim();
+        if (!nombre) continue;
+        const valor = Math.max(-limiteMonto, Math.min(limiteMonto, Number(a.ajuste) || 0));
+        if (Math.abs(valor) < 0.005) {
+          eliminar.run(periodo, nombre, codigo);
+        } else {
+          upsert.run(periodo, nombre, codigo, valor, String(a.comentario || '').trim() || null, usuario || null, fecha);
+        }
+      }
+    });
+    tx();
+    auditLog(null, usuario, 'Guardar Ajustes de Nómina', 'Nomina_Ajustes', periodo, { cantidad: ajustes.length });
+    const rows = db.prepare(`SELECT Periodo, Empleado_Nombre, Empleado_Codigo, Ajuste, Comentario, Actualizado_Por, Fecha_Actualizacion FROM Nomina_Ajustes WHERE Periodo = ?`).all(periodo);
+    res.json({ success: true, ajustes: rows });
+  } catch (error) {
+    console.error('[Nomina Ajustes] Error al guardar:', error.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ---------------------------------------------------------------------
+// Empleados manuales de Nómina (vista Nómina Completa)
+// ---------------------------------------------------------------------
+app.get('/api/nomina-empleados-manuales', (req, res) => {
+  try {
+    const periodo = (req.query.periodo || '').trim();
+    if (!periodo) {
+      return res.status(400).json({ error: 'Parámetro "periodo" requerido' });
+    }
+    const rows = db.prepare(`SELECT id, Periodo, Empleado_Nombre, Empleado_Codigo, Monto, Agregado_Por, Fecha_Agregado FROM Nomina_Empleados_Manuales WHERE Periodo = ? ORDER BY id`).all(periodo);
+    res.json(rows);
+  } catch (error) {
+    console.error('[Nomina Manuales] Error al obtener:', error.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.post('/api/nomina-empleados-manuales', (req, res) => {
+  try {
+    const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const { periodo, agregar, eliminar, usuario } = payload || {};
+    if (!periodo || typeof periodo !== 'string') {
+      return res.status(400).json({ error: 'Campo "periodo" requerido' });
+    }
+    const upsert = db.prepare(`
+      INSERT INTO Nomina_Empleados_Manuales (Periodo, Empleado_Nombre, Empleado_Codigo, Monto, Agregado_Por, Fecha_Agregado)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(Periodo, Empleado_Nombre, Empleado_Codigo) DO UPDATE SET
+        Monto = excluded.Monto,
+        Agregado_Por = excluded.Agregado_Por,
+        Fecha_Agregado = excluded.Fecha_Agregado
+    `);
+    const borrar = db.prepare(`DELETE FROM Nomina_Empleados_Manuales WHERE Periodo = ? AND Empleado_Nombre = ? AND Empleado_Codigo = ?`);
+    const fecha = new Date().toISOString();
+    const tx = db.transaction(() => {
+      for (const e of (Array.isArray(agregar) ? agregar : [])) {
+        const nombre = String(e.nombre || '').trim();
+        const codigo = String(e.codigo ?? '').trim();
+        if (!nombre) continue;
+        const monto = Math.max(0, Math.min(50000, Number(e.monto) || 0));
+        upsert.run(periodo, nombre, codigo, monto, usuario || null, fecha);
+      }
+      for (const e of (Array.isArray(eliminar) ? eliminar : [])) {
+        const nombre = String(e.nombre || '').trim();
+        const codigo = String(e.codigo ?? '').trim();
+        if (!nombre) continue;
+        borrar.run(periodo, nombre, codigo);
+      }
+    });
+    tx();
+    const agregadosN = Array.isArray(agregar) ? agregar.length : 0;
+    const eliminadosN = Array.isArray(eliminar) ? eliminar.length : 0;
+    auditLog(null, usuario, 'Empleados manuales de Nómina', 'Nomina_Empleados_Manuales', periodo, { agregados: agregadosN, eliminados: eliminadosN });
+    const rows = db.prepare(`SELECT id, Periodo, Empleado_Nombre, Empleado_Codigo, Monto, Agregado_Por, Fecha_Agregado FROM Nomina_Empleados_Manuales WHERE Periodo = ? ORDER BY id`).all(periodo);
+    res.json({ success: true, empleados: rows });
+  } catch (error) {
+    console.error('[Nomina Manuales] Error al guardar:', error.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ---------------------------------------------------------------------
 // Historial de Actividad (Audit Log)
 // ---------------------------------------------------------------------
 app.get('/api/audit-log', (req, res) => {

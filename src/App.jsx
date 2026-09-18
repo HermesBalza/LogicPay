@@ -77,6 +77,7 @@ import {
     Briefcase,
     Database,
     Pencil,
+    Ban,
     PawPrint,
     Youtube,
     Cloud,
@@ -9628,7 +9629,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
             const email = emp.email_tax;
             setSendingProgress(prev => ({ ...prev, current: i + 1, logs: [`Generando recibo para ${emp.nombre}...`, ...prev.logs] }));
             try {
-                const pdfResult = await generatePayStubPDF(buildPayStubEmployee(emp, true), selectedPeriod);
+                const pdfResult = await generatePayStubPDF(buildPayStubEmployee(empConAjuste(emp), true), selectedPeriod);
                 if (pdfResult?.error) throw new Error(pdfResult.error);
                 if (!pdfResult || typeof pdfResult !== 'string') throw new Error("No se pudo generar el PDF");
                 await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`, attachments: [{ name: `Recibo_${emp.nombre.replace(/\s+/g, '_')}.pdf`, type: 'application/pdf', base64: pdfResult }] });
@@ -9652,7 +9653,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
         if (!email) return alert("Email no encontrado.");
         setNotificationModal({ isOpen: true, type: 'loading', message: `Enviando a ${emp.nombre}...` });
         try {
-            const pdfBase64 = await generatePayStubPDF(buildPayStubEmployee(emp, true), selectedPeriod);
+            const pdfBase64 = await generatePayStubPDF(buildPayStubEmployee(empConAjuste(emp), true), selectedPeriod);
             await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`, attachments: [{ name: `Recibo_${emp.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
             fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => { });
             setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
@@ -9734,7 +9735,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                                                         <>
                                                             <button onClick={async () => {
                                                                 setNotificationModal({ isOpen: true, type: 'loading', message: `Generando PDF...` });
-                                                                const pdf = await generatePayStubPDF(buildPayStubEmployee(emp, true), selectedPeriod);
+                                                                const pdf = await generatePayStubPDF(buildPayStubEmployee(empConAjuste(emp), true), selectedPeriod);
                                                                 if (pdf) {
                                                                     const blob = await (await fetch(`data:application/pdf;base64,${pdf}`)).blob();
                                                                     setPreviewPdf({ isOpen: true, url: URL.createObjectURL(blob), name: emp.nombre, email: emp.email_tax || '', pdfBase64: pdf, period: selectedPeriod?.range || '' });
@@ -10802,6 +10803,15 @@ const buildPayStubEmployee = (emp, usarFallbackPe = false) => ({
     sueldoFijo: emp.sueldoFijo || 0
 });
 
+// helper: adjunta el ajuste manual de nómina (si existe) al empleado para el recibo de pago
+const empConAjuste = (emp) => {
+    const reg = nominaAjustesGlobal.get(emp.id);
+    if (!reg || Math.abs(Number(reg.ajuste) || 0) < 0.005) return emp;
+    return { ...emp, payAdjustment: Number(reg.ajuste), ajusteComentario: reg.comentario || '' };
+};
+// Mapa global de ajustes por periodo (nombre_codigo -> {ajuste, comentario}); se rellena en cada carga de periodo
+const nominaAjustesGlobal = new Map();
+
 // Función para generar el PDF vectorial del recibo en Base64
 const generatePayStubPDF = async (employee, period) => {
     if (!employee || !period) return null;
@@ -10815,7 +10825,8 @@ const generatePayStubPDF = async (employee, period) => {
             + (parseFloat(employee.peEarnings) || 0)
             + (parseFloat(employee.csgEarnings) || 0)
             + (parseFloat(employee.adminEarnings) || 0)
-            + (parseFloat(employee.sueldoFijo) || 0);
+            + (parseFloat(employee.sueldoFijo) || 0)
+            + (parseFloat(employee.payAdjustment) || 0);
 
         const [startStr, endStr] = (period.range || "").split(" - ");
         const parseDate = (s) => {
@@ -10844,7 +10855,10 @@ const generatePayStubPDF = async (employee, period) => {
         if (parseFloat(employee.peEarnings) > 0) filas.push({ desc: 'Special / Additional Projects', total: parseFloat(employee.peEarnings) || 0 });
         if (parseFloat(employee.csgEarnings) > 0) filas.push({ desc: 'CSG Cleaning Services', total: parseFloat(employee.csgEarnings) || 0 });
         if (parseFloat(employee.adminEarnings) > 0) filas.push({ desc: 'Administrative Services LGM', total: parseFloat(employee.adminEarnings) || 0 });
-        if (parseFloat(employee.sueldoFijo) > 0) filas.push({ desc: 'Biweekly Fixed Salary (Supervisor)', total: parseFloat(employee.sueldoFijo) || 0 });
+        if (parseFloat(employee.sueldoFijo) > 0) filas.push({ desc: employee.esManual ? 'Manual Payment' : 'Biweekly Fixed Salary (Supervisor)', total: parseFloat(employee.sueldoFijo) || 0 });
+        // Ajuste manual de nómina (suma o resta al pago total)
+        const ajustePayStub = parseFloat(employee.payAdjustment) || 0;
+        if (Math.abs(ajustePayStub) > 0.004) filas.push({ desc: employee.ajusteComentario ? `Pay Adjustment - ${employee.ajusteComentario}` : 'Pay Adjustment', total: ajustePayStub });
 
         // ─── Dibujo vectorial del documento (A4) ───
         const pdf = new jsPDF('p', 'mm', 'a4');
@@ -10942,7 +10956,7 @@ const generatePayStubPDF = async (employee, period) => {
             pdf.text(descLineas, margenX + 2.5, y + 5.5);
             pdf.setFont(fuente, 'bold');
             pdf.setTextColor(...PS_NAVY);
-            pdf.text(`$${fila.total.toFixed(2)}`, ancho - margenX - 2.5, y + 5.5, { align: 'right' });
+            pdf.text(`${fila.total < 0 ? '-$' : '$'}${Math.abs(fila.total).toFixed(2)}`, ancho - margenX - 2.5, y + 5.5, { align: 'right' });
             pdf.setDrawColor(...PS_LINEA);
             pdf.setLineWidth(0.3);
             pdf.line(margenX, y + rowH, ancho - margenX, y + rowH);
@@ -11073,6 +11087,49 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [dailyDetailsData, setDailyDetailsData] = useState({});
     const [rawEntriesData, setRawEntriesData] = useState({});
+
+    // ─── Ajustes de Nómina (vista Nómina Completa) ───
+    const [ajustesNomina, setAjustesNomina] = useState({}); // { [empId]: { ajuste, comentario } }
+    const [ajustesEdit, setAjustesEdit] = useState({}); // borrador en modo edición
+    const [modoEdicionNomina, setModoEdicionNomina] = useState(false);
+    const [guardandoAjustes, setGuardandoAjustes] = useState(false);
+    const [cargandoAjustes, setCargandoAjustes] = useState(false);
+
+    // ─── Empleados manuales de Nómina (solo vista Nómina Completa) ───
+    const [manualesNomina, setManualesNomina] = useState([]); // [{ nombre, codigo, monto }]
+    const [agregandoManual, setAgregandoManual] = useState(false);
+    const [manualInputNombre, setManualInputNombre] = useState('');
+    const [manualInputMonto, setManualInputMonto] = useState('');
+    const [manualSelectedId, setManualSelectedId] = useState('');
+    const [showManualSuggestions, setShowManualSuggestions] = useState(false);
+    const [guardandoManuales, setGuardandoManuales] = useState(false);
+
+    const esVistaNominaCompleta = period?.store === '__NOMINA_COMPLETA__';
+
+    // Normaliza un valor escrito (+52, -30, 52, $52, 1,250.5) a número con signo. Sin signo = positivo.
+    const parsearAjuste = (txt) => {
+        let s = String(txt ?? '').trim().replace(/[$,\s]/g, '');
+        if (!s || s === '+' || s === '-') return 0;
+        const m = s.match(/^([+-]?)(\d*\.?\d*)$/);
+        if (!m || m[2] === '' || m[2] === '.') return null; // inválido
+        const num = parseFloat(m[2]);
+        if (isNaN(num)) return null;
+        const val = m[1] === '-' ? -num : num;
+        return Math.max(-50000, Math.min(50000, val));
+    };
+
+    // Formatea para la celda: +$52.00 en verde / −$30.00 en rojo
+    const fmtAjuste = (num) => {
+        const n = Number(num) || 0;
+        if (Math.abs(n) < 0.005) return { texto: '—', color: 'text-gray-300' };
+        return {
+            texto: `${n > 0 ? '+' : '-'}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            color: n > 0 ? 'text-emerald-600' : 'text-red-600'
+        };
+    };
+
+    // Total con ajuste de un empleado (para pantalla, exportes y recibos)
+    const totalConAjuste = (emp) => calculatePagoTotal(emp) + (Number(ajustesNomina[emp.id]?.ajuste) || 0);
 
     const handleCommentChange = (index, value) => {
         setBiweeklyEmployees(prev => {
@@ -11581,12 +11638,39 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         if (isSalariedSupervisor(emp)) {
             return Number(emp.sueldoFijo || 0);
         }
+        if (emp?.esManual) {
+            return Number(emp.sueldoFijo || 0);
+        }
         const baseEarnings = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
         return baseEarnings + (emp.peEarnings || 0);
     };
 
-    const subtotalNomina = [...biweeklyEmployees, ...addedSupervisors].reduce((acc, emp) => acc + calculatePagoTotal(emp), 0);
-    const totalFinal = subtotalNomina;
+    // Empleados manuales como filas de nómina (solo vista Nómina Completa): monto fijo editado por el asistente
+    const todosNomina = useMemo(() => ([
+        ...biweeklyEmployees,
+        ...addedSupervisors,
+        ...manualesNomina.map((m, i) => ({
+            id: `${m.nombre.toLowerCase()}_${m.codigo}`,
+            nombre: m.nombre,
+            semana1: null,
+            semana2: null,
+            pe: 0,
+            peEarnings: 0,
+            rate: 0,
+            sueldoFijo: m.monto,
+            cargo: 'Empleado Manual',
+            comments: m.manualMontoTexto ? `Monto manual: ${m.manualMontoTexto}` : '',
+            esManual: true,
+            _manualIdx: i
+        }))
+    ]), [biweeklyEmployees, addedSupervisors, manualesNomina]);
+
+    const subtotalNomina = todosNomina.reduce((acc, emp) => acc + calculatePagoTotal(emp), 0);
+    // Totales con ajustes (vista Nómina Completa)
+    const totalAjustes = todosNomina.reduce((acc, emp) => acc + (Number(ajustesNomina[emp.id]?.ajuste) || 0), 0);
+    const cantidadAjustes = todosNomina.filter(emp => Math.abs(Number(ajustesNomina[emp.id]?.ajuste) || 0) >= 0.005).length;
+    const totalConAjusteGlobal = subtotalNomina + totalAjustes;
+    const totalFinal = totalConAjusteGlobal;
 
     // FASE 9.8: Verificar si la nómina ya fue procesada (Persistencia en Variables de Nomina_Detalle)
     const isAlreadyProcessed = (nominaDetailData || []).some(d =>
@@ -11603,7 +11687,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         const entregaDate = new Date(finY, finM - 1, (finD || 0) + 6);
         const entrega = `${String(entregaDate.getFullYear()).slice(-2)}${pad(entregaDate.getMonth() + 1)}${pad(entregaDate.getDate())}`;
         const biweekNum = Math.ceil(period.w1?.weekNumInYear / 2) || '';
-        const allEntries = [...biweeklyEmployees, ...addedSupervisors];
+        const allEntries = todosNomina;
         const traceBase = `${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
         const rows = [];
         allEntries.forEach(emp => {
@@ -11618,7 +11702,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             rows.push({
                 routing,
                 account,
-                amountCents: Math.round(Number(calculatePagoTotal(emp) || 0) * 100),
+                amountCents: Math.max(0, Math.round(Number(calculatePagoTotal(emp) + (Number(ajustesNomina[emp.id]?.ajuste) || 0) || 0) * 100)),
                 idNumber: String(dbEmp?.id_number || dbEmp?.codigo_empleado || '').replace(/,/g, ''),
                 payeeName: String(dbEmp?.payee_name || '').replace(/,/g, '').trim(),
                 trxnCode: (dbEmp?.account_type !== 'savings') ? '22' : '32',
@@ -11641,7 +11725,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
     // ─── LÓGICA DE ENVÍO DE RECIBOS DE PAGO (PAY STUBS) ───────────────────
     const handleSendAllPayStubs = async () => {
-        const recipients = [...biweeklyEmployees, ...addedSupervisors].filter(emp => {
+        const recipients = todosNomina.filter(emp => {
             const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
             return dbEmp && (dbEmp.email_tax || dbEmp.correo);
         });
@@ -11661,7 +11745,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             setSendingProgress(prev => ({ ...prev, current: i + 1, logs: [`Generando recibo para ${emp.nombre}...`, ...prev.logs] }));
 
             try {
-                const pdfResult = await generatePayStubPDF(buildPayStubEmployee(emp), period);
+                const pdfResult = await generatePayStubPDF(buildPayStubEmployee(empConAjuste(emp)), period);
                 if (pdfResult?.error) throw new Error(pdfResult.error);
                 if (!pdfResult || typeof pdfResult !== 'string') throw new Error("No se pudo generar el PDF");
                 const pdfBase64 = pdfResult;
@@ -11711,7 +11795,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         }));
 
         try {
-            const pdfResult = await generatePayStubPDF(buildPayStubEmployee(emp), period);
+            const pdfResult = await generatePayStubPDF(buildPayStubEmployee(empConAjuste(emp)), period);
             if (pdfResult?.error) throw new Error(pdfResult.error);
             if (!pdfResult || typeof pdfResult !== 'string') throw new Error("No se pudo generar el PDF");
             const pdfBase64 = pdfResult;
@@ -11741,7 +11825,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     const handlePreviewPayStub = async (emp) => {
         setNotificationModal({ isOpen: true, type: 'loading', message: `Preparando vista previa de ${emp.nombre}...` });
         try {
-            const pdfBase64 = await generatePayStubPDF(buildPayStubEmployee(emp), period);
+            const pdfBase64 = await generatePayStubPDF(buildPayStubEmployee(empConAjuste(emp)), period);
             if (!pdfBase64 || typeof pdfBase64 !== 'string') throw new Error("Error al generar el PDF");
 
             const pdfBlob = await (await fetch(`data:application/pdf;base64,${pdfBase64}`)).blob();
@@ -11823,6 +11907,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                         <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
                                         <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
                                         <td class="p-4 border-r-2 border-gray-100 text-right font-black text-gray-200 text-xs">-</td>
+                                        ${esVistaNominaCompleta ? '<td class="p-4 border-r-2 border-gray-100 text-right font-black text-gray-200 text-xs">-</td>' : ''}
+                                        ${esVistaNominaCompleta ? '<td class="p-4 border-r-2 border-gray-100 text-right font-black text-gray-200 text-xs">-</td>' : ''}
                                         <td class="p-4 text-center font-bold text-gray-200 text-xs">-</td>
                                     `;
                                     tableBody.appendChild(emptyRow);
@@ -11863,8 +11949,178 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         }
     };
 
+    // ─── Carga y guardado de ajustes (solo vista Nómina Completa) ───
+    useEffect(() => {
+        if (!esVistaNominaCompleta || !period?.range) return;
+        const periodo = period.range.replace(/\s+/g, ' ').trim();
+        setCargandoAjustes(true);
+        fetch(`/api/nomina-ajustes?periodo=${encodeURIComponent(periodo)}`)
+            .then(r => r.json())
+            .then(rows => {
+                const mapa = {};
+                (Array.isArray(rows) ? rows : []).forEach(r => {
+                    const key = `${String(r.Empleado_Nombre || '').trim().toLowerCase()}_${String(r.Empleado_Codigo || '').trim()}`;
+                    mapa[key] = { ajuste: Number(r.Ajuste) || 0, comentario: r.Comentario || '', por: r.Actualizado_Por || '', fecha: r.Fecha_Actualizacion || '' };
+                });
+                setAjustesNomina(mapa);
+                // Publicar en el mapa global para los recibos de pago (Pay Stubs)
+                nominaAjustesGlobal.clear();
+                Object.entries(mapa).forEach(([k, v]) => nominaAjustesGlobal.set(k, v));
+            })
+            .catch(err => console.error('[Ajustes Nómina] Error al cargar:', err))
+            .finally(() => setCargandoAjustes(false));
+        fetch(`/api/nomina-empleados-manuales?periodo=${encodeURIComponent(periodo)}`)
+            .then(r => r.json())
+            .then(rows => {
+                const lista = (Array.isArray(rows) ? rows : []).map(r => ({ nombre: String(r.Empleado_Nombre || '').trim(), codigo: String(r.Empleado_Codigo || '').trim(), monto: Number(r.Monto) || 0 }));
+                setManualesNomina(lista);
+            })
+            .catch(err => console.error('[Empleados Manuales] Error al cargar:', err));
+    }, [esVistaNominaCompleta, period?.range]);
+
+    const iniciarEdicionAjustes = () => {
+        const borrador = {};
+        Object.entries(ajustesNomina).forEach(([k, v]) => {
+            borrador[k] = { texto: v.ajuste ? `${v.ajuste > 0 ? '+' : ''}${v.ajuste}` : '', comentario: v.comentario || '' };
+        });
+        setAjustesEdit(borrador);
+        setModoEdicionNomina(true);
+    };
+
+    const cancelarEdicionAjustes = () => {
+        setAjustesEdit({});
+        setModoEdicionNomina(false);
+    };
+
+    const guardarAjustesNomina = async () => {
+        setGuardandoAjustes(true);
+        try {
+            const negativos = [];
+            const lista = [];
+            const todos = todosNomina;
+            const ids = new Set(todos.map(e => e.id));
+            // Ajustes de empleados visibles
+            Object.entries(ajustesEdit).forEach(([k, v]) => {
+                if (!ids.has(k)) return;
+                const emp = todos.find(e => e.id === k);
+                if (emp?.esManual) return; // los manuales no participan de ajustes
+                const val = parsearAjuste(v.texto);
+                if (val === null) return; // inválido: ignorar
+                const codigo = String(k.split('_')[1] || '');
+                if (Math.abs(val) >= 0.005) {
+                    lista.push({ nombre: emp.nombre, codigo, ajuste: val, comentario: (v.comentario || '').trim() });
+                    if (calculatePagoTotal(emp) + val < -0.005) negativos.push(emp.nombre);
+                } else if (Math.abs(Number(ajustesNomina[k]?.ajuste) || 0) >= 0.005) {
+                    // Celda vacía o en 0: enviar instrucción para eliminar el ajuste guardado en BD
+                    lista.push({ nombre: emp.nombre, codigo, ajuste: 0, comentario: '' });
+                }
+            });
+            // Ajustes de empleados que ya no están en la lista actual: se eliminan
+            Object.keys(ajustesNomina).forEach(k => {
+                if (!ids.has(k) && Math.abs(Number(ajustesNomina[k]?.ajuste) || 0) >= 0.005) {
+                    lista.push({ nombre: String(k).split('_')[0], codigo: String(k).split('_')[1] || '', ajuste: 0, comentario: '' });
+                }
+            });
+            if (negativos.length > 0) {
+                alert(`Los siguientes empleados quedarían con total negativo:\n\n${negativos.join('\n')}\n\nCorrige los ajustes antes de guardar.`);
+                return;
+            }
+            const periodo = period.range.replace(/\s+/g, ' ').trim();
+            const resp = await fetch('/api/nomina-ajustes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ periodo, ajustes: lista, usuario: user?.nombre || user?.rol || '' })
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) throw new Error(data.error || 'Error del servidor');
+            const mapa = {};
+            (data.ajustes || []).forEach(r => {
+                const key = `${String(r.Empleado_Nombre || '').trim().toLowerCase()}_${String(r.Empleado_Codigo || '').trim()}`;
+                mapa[key] = { ajuste: Number(r.Ajuste) || 0, comentario: r.Comentario || '', por: r.Actualizado_Por || '', fecha: r.Fecha_Actualizacion || '' };
+            });
+            setAjustesNomina(mapa);
+            nominaAjustesGlobal.clear();
+            Object.entries(mapa).forEach(([k, v]) => nominaAjustesGlobal.set(k, v));
+            setAjustesEdit({});
+            setModoEdicionNomina(false);
+        } catch (error) {
+            console.error('[Ajustes Nómina] Error al guardar:', error);
+            alert(`No se pudieron guardar los ajustes: ${error.message}`);
+        } finally {
+            setGuardandoAjustes(false);
+        }
+    };
+
+    // ─── Carga y guardado de empleados manuales (solo vista Nómina Completa) ───
+    const guardarManuales = async (nuevos, aEliminar) => {
+        setGuardandoManuales(true);
+        try {
+            const periodo = period.range.replace(/\s+/g, ' ').trim();
+            const resp = await fetch('/api/nomina-empleados-manuales', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ periodo, agregar: nuevos || [], eliminar: aEliminar || [], usuario: user?.nombre || user?.rol || '' })
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) throw new Error(data.error || 'Error del servidor');
+            const lista = (data.empleados || []).map(r => ({ nombre: String(r.Empleado_Nombre || '').trim(), codigo: String(r.Empleado_Codigo || '').trim(), monto: Number(r.Monto) || 0 }));
+            setManualesNomina(lista);
+            return lista;
+        } catch (error) {
+            console.error('[Empleados Manuales] Error al guardar:', error);
+            alert(`No se pudieron guardar los cambios: ${error.message}`);
+            return null;
+        } finally {
+            setGuardandoManuales(false);
+        }
+    };
+
+    const handleAgregarManual = async () => {
+        const nombre = manualInputNombre.trim().toUpperCase();
+        if (!nombre) return;
+        if (manualesNomina.some(m => m.nombre.toUpperCase() === nombre)) {
+            alert('Ese empleado manual ya está en la lista.');
+            return;
+        }
+        if ([...biweeklyEmployees, ...addedSupervisors].some(emp => emp.nombre.toUpperCase() === nombre)) {
+            alert('Ese empleado ya está en la nómina de este periodo.');
+            return;
+        }
+        const monto = parseFloat(String(manualInputMonto).replace(/[$,\s]/g, '')) || 0;
+        const codigo = manualSelectedId || `MAN_${Date.now()}`;
+        const res = await guardarManuales([{ nombre, codigo, monto }], []);
+        if (!res) return;
+        setManualInputNombre('');
+        setManualInputMonto('');
+        setManualSelectedId('');
+        setAgregandoManual(false);
+        setShowManualSuggestions(false);
+    };
+
+    const handleEliminarManual = async (nombre) => {
+        const reg = manualesNomina.find(m => m.nombre === nombre);
+        if (!reg) return;
+        if (!window.confirm(`¿Eliminar a "${nombre}" de la nómina manual de este periodo?`)) return;
+        await guardarManuales([], [{ nombre: reg.nombre, codigo: reg.codigo }]);
+    };
+
+    const handleMontoManual = async (nombre, texto) => {
+        const val = parseFloat(String(texto).replace(/[$,\s]/g, ''));
+        const reg = manualesNomina.find(m => m.nombre === nombre);
+        if (!reg) return;
+        await guardarManuales([{ nombre: reg.nombre, codigo: reg.codigo, monto: isNaN(val) ? 0 : val }], []);
+    };
+
+    // Handlers de edición de celdas de ajuste (modo edición)
+    const handleAjusteCell = (empId, texto) => {
+        setAjustesEdit(prev => ({ ...prev, [empId]: { texto, comentario: prev[empId]?.comentario || '' } }));
+    };
+    const handleAjusteComment = (empId, comentario) => {
+        setAjustesEdit(prev => ({ ...prev, [empId]: { texto: prev[empId]?.texto || '', comentario } }));
+    };
+
     const handleExportExcel = () => {
-        const allEntries = [...biweeklyEmployees, ...addedSupervisors];
+        const allEntries = todosNomina;
         const rows = allEntries.map(emp => ({
             'Name': emp.nombre,
             'SEMANA 1': emp.semana1 !== null ? Number(emp.semana1) : 0,
@@ -11873,9 +12129,11 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             'TOTAL': calculateTotalHrs(emp),
             'RATE': Number(emp.rate).toFixed(2),
             'PAGO TOTAL': Number(calculatePagoTotal(emp)).toFixed(2),
+            'AJUSTE': Number(ajustesNomina[emp.id]?.ajuste || 0).toFixed(2),
+            'TOTAL CON AJUSTE': Number(calculatePagoTotal(emp) + (Number(ajustesNomina[emp.id]?.ajuste) || 0)).toFixed(2),
             'COMMENTS': emp.comments || ''
         }));
-        const totalFinal = rows.reduce((sum, r) => sum + parseFloat(r['PAGO TOTAL']), 0);
+        const totalConAjustes = rows.reduce((sum, r) => sum + parseFloat(r['TOTAL CON AJUSTE']), 0);
         rows.push({
             'Name': `Total: ${allEntries.length} empleados`,
             'SEMANA 1': '',
@@ -11883,7 +12141,9 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             'P.E': '',
             'TOTAL': '',
             'RATE': 'TOTAL NÓMINA:',
-            'PAGO TOTAL': totalFinal.toFixed(2),
+            'PAGO TOTAL': totalConAjustes.toFixed(2),
+            'AJUSTE': '',
+            'TOTAL CON AJUSTE': totalConAjustes.toFixed(2),
             'COMMENTS': ''
         });
         const ws = XLSX.utils.json_to_sheet(rows);
@@ -11958,6 +12218,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                         <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
                                         <td class="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-200 text-xs">-</td>
                                         <td class="p-4 border-r-2 border-gray-100 text-right font-black text-gray-200 text-xs">-</td>
+                                        ${esVistaNominaCompleta ? '<td class="p-4 border-r-2 border-gray-100 text-right font-black text-gray-200 text-xs">-</td>' : ''}
+                                        ${esVistaNominaCompleta ? '<td class="p-4 border-r-2 border-gray-100 text-right font-black text-gray-200 text-xs">-</td>' : ''}
                                         <td class="p-4 text-center font-bold text-gray-200 text-xs">-</td>
                                     `;
                                     tableBody.appendChild(emptyRow);
@@ -12035,7 +12297,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     document.body.removeChild(a);
                                     URL.revokeObjectURL(url);
                                 }}
-                                disabled={[...biweeklyEmployees, ...addedSupervisors].length === 0}
+                                disabled={todosNomina.length === 0}
                                 className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 <Download size={16} /> CSV
@@ -12102,6 +12364,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[70px]">TOTAL</th>
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[75px]">RATE</th>
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-right border-r border-white/10 w-[120px]">PAGO TOTAL</th>
+                                    {esVistaNominaCompleta && (
+                                        <th className="p-4 text-[10px] font-black uppercase tracking-widest text-right border-r border-white/10 w-[110px]">AJUSTE</th>
+                                    )}
+                                    {esVistaNominaCompleta && (
+                                        <th className="p-4 text-[10px] font-black uppercase tracking-widest text-right border-r border-white/10 w-[130px]">TOTAL CON AJUSTE</th>
+                                    )}
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center w-[275px]">COMMENTS</th>
                                 </tr>
                             </thead>
@@ -12119,6 +12387,45 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-black text-[#303a7f] text-xs tabular-nums">{totalHours.toFixed(2)}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-[#6bbdb7] text-xs tabular-nums">${Number(emp.rate).toFixed(2)}</td>
                                             <td className="p-4 border-r-2 border-gray-100 text-right font-black text-[#303a7f] text-xs tabular-nums bg-opacity-30">${pagoTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            {esVistaNominaCompleta && (() => {
+                                                const regAjuste = ajustesNomina[emp.id];
+                                                const fmt = fmtAjuste(regAjuste?.ajuste || 0);
+                                                const borrador = ajustesEdit[emp.id];
+                                                const valEdit = modoEdicionNomina && borrador ? parsearAjuste(borrador.texto) : null;
+                                                const fmtEdit = fmtAjuste(valEdit || 0);
+                                                const totalAj = modoEdicionNomina ? pagoTotal + (valEdit || 0) : pagoTotal + (Number(regAjuste?.ajuste) || 0);
+                                                return (
+                                                    <>
+                                                        <td className="p-4 border-r-2 border-gray-100 text-right text-xs font-black tabular-nums align-middle">
+                                                            {modoEdicionNomina ? (
+                                                                <div className="flex flex-col items-end gap-1">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={borrador?.texto ?? ''}
+                                                                        onChange={(e) => handleAjusteCell(emp.id, e.target.value)}
+                                                                        placeholder="+52 / -30"
+                                                                        className={`w-24 text-right border-2 rounded-lg px-2 py-1 text-[11px] font-black outline-none ${(valEdit === null && (borrador?.texto ?? '').trim() !== '') ? 'border-red-400 bg-red-50 text-red-600' : 'border-brand-primary/20 focus:border-[#6bbdb7] bg-white text-[#303a7f]'}`}
+                                                                    />
+                                                                    <input
+                                                                        type="text"
+                                                                        value={borrador?.comentario ?? ''}
+                                                                        onChange={(e) => handleAjusteComment(emp.id, e.target.value)}
+                                                                        placeholder="Motivo (opcional)"
+                                                                        className="w-32 text-right border border-gray-200 rounded-md px-2 py-0.5 text-[8px] font-bold outline-none focus:border-[#6bbdb7] bg-gray-50 text-gray-600"
+                                                                    />
+                                                                    {borrador?.comentario ? <span className="text-[8px] text-amber-600 font-bold leading-tight max-w-[120px]">{borrador.comentario}</span> : null}
+                                                                </div>
+                                                            ) : (
+                                                                <span title={regAjuste?.comentario || ''} className={fmt.color}>{fmt.texto}</span>
+                                                            )}
+                                                        </td>
+                                                        <td className={`p-4 border-r-2 border-gray-100 text-right font-black text-xs tabular-nums ${totalAj < -0.005 ? 'text-red-600' : 'text-[#303a7f]'}`}>
+                                                            ${(Math.max(totalAj, 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            {valEdit !== null && Math.abs(valEdit) >= 0.005 && <span className={`ml-1 text-[8px] font-bold ${valEdit > 0 ? 'text-emerald-500' : 'text-red-500'}`}>{fmtEdit.texto}</span>}
+                                                        </td>
+                                                    </>
+                                                );
+                                            })()}
                                             {/* Campo de comentario — bloqueado en modo solo lectura una vez que la nómina ha sido confirmada.
                                                 Doble protección: readOnly bloquea el DOM y el guardia en onChange evita cualquier modificación de estado. */}
                                             <td className={`p-4 px-2 py-1 transition-colors ${emp.comments ? 'bg-amber-100' : 'bg-transparent'}`}>
@@ -12175,6 +12482,46 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                                     `$${Number(emp.sueldoFijo || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                                 )}
                                             </td>
+                                            {esVistaNominaCompleta && (() => {
+                                                const regAjuste = ajustesNomina[emp.id];
+                                                const fmt = fmtAjuste(regAjuste?.ajuste || 0);
+                                                const borrador = ajustesEdit[emp.id];
+                                                const valEdit = modoEdicionNomina && borrador ? parsearAjuste(borrador.texto) : null;
+                                                const fmtEdit = fmtAjuste(valEdit || 0);
+                                                const base = Number(emp.sueldoFijo || 0);
+                                                const totalAj = modoEdicionNomina ? base + (valEdit || 0) : base + (Number(regAjuste?.ajuste) || 0);
+                                                return (
+                                                    <>
+                                                        <td className="p-4 border-r-2 border-gray-100 text-right text-xs font-black tabular-nums align-middle">
+                                                            {modoEdicionNomina ? (
+                                                                <div className="flex flex-col items-end gap-1">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={borrador?.texto ?? ''}
+                                                                        onChange={(e) => handleAjusteCell(emp.id, e.target.value)}
+                                                                        placeholder="+52 / -30"
+                                                                        className={`w-24 text-right border-2 rounded-lg px-2 py-1 text-[11px] font-black outline-none ${(valEdit === null && (borrador?.texto ?? '').trim() !== '') ? 'border-red-400 bg-red-50 text-red-600' : 'border-brand-primary/20 focus:border-[#6bbdb7] bg-white text-[#303a7f]'}`}
+                                                                    />
+                                                                    <input
+                                                                        type="text"
+                                                                        value={borrador?.comentario ?? ''}
+                                                                        onChange={(e) => handleAjusteComment(emp.id, e.target.value)}
+                                                                        placeholder="Motivo (opcional)"
+                                                                        className="w-32 text-right border border-gray-200 rounded-md px-2 py-0.5 text-[8px] font-bold outline-none focus:border-[#6bbdb7] bg-gray-50 text-gray-600"
+                                                                    />
+                                                                    {borrador?.comentario ? <span className="text-[8px] text-amber-600 font-bold leading-tight max-w-[120px]">{borrador.comentario}</span> : null}
+                                                                </div>
+                                                            ) : (
+                                                                <span title={regAjuste?.comentario || ''} className={fmt.color}>{fmt.texto}</span>
+                                                            )}
+                                                        </td>
+                                                        <td className={`p-4 border-r-2 border-gray-100 text-right font-black text-xs tabular-nums ${totalAj < -0.005 ? 'text-red-600' : 'text-[#303a7f]'}`}>
+                                                            ${(Math.max(totalAj, 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            {valEdit !== null && Math.abs(valEdit) >= 0.005 && <span className={`ml-1 text-[8px] font-bold ${valEdit > 0 ? 'text-emerald-500' : 'text-red-500'}`}>{fmtEdit.texto}</span>}
+                                                        </td>
+                                                    </>
+                                                );
+                                            })()}
                                             <td className={`p-4 px-2 py-1 transition-colors ${emp.comments ? 'bg-amber-100' : 'bg-transparent'}`}>
                                                 <textarea
                                                     value={emp.comments || ''}
@@ -12191,6 +12538,159 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                         </tr>
                                     );
                                 })}
+
+                                {esVistaNominaCompleta && manualesNomina.map((m, idx) => {
+                                    return (
+                                        <tr key={`manual-${idx}`} className="group transition-colors bg-amber-50/30 hover:bg-amber-50/60">
+                                            <td className="p-4 border-r-2 border-gray-100 font-black text-[#303a7f] text-xs uppercase tracking-tight flex items-center justify-between">
+                                                <span className="flex items-center gap-1.5">
+                                                    {m.nombre}
+                                                    <span className="text-[7px] font-black text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full tracking-widest">MANUAL</span>
+                                                </span>
+                                                {!isAlreadyProcessed && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleEliminarManual(m.nombre)}
+                                                        disabled={guardandoManuales}
+                                                        className="text-red-500 hover:text-red-700 text-[9px] font-black uppercase tracking-wider ml-2"
+                                                    >
+                                                        Eliminar
+                                                    </button>
+                                                )}
+                                            </td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-400 text-xs">-</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-400 text-xs">-</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-400 italic text-xs">-</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-black text-gray-400 text-xs">-</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-center font-bold text-gray-400 text-xs">-</td>
+                                            <td className="p-4 border-r-2 border-gray-100 text-right font-black text-[#303a7f] text-xs tabular-nums">
+                                                {!isAlreadyProcessed ? (
+                                                    <div className="flex items-center justify-end bg-white border-2 border-brand-primary/20 rounded-xl px-2 py-1 shadow-sm w-24 ml-auto">
+                                                        <span className="text-[#6bbdb7] font-black mr-1 text-[10px]">$</span>
+                                                        <input
+                                                            type="text"
+                                                            value={m.monto ? String(m.monto) : ''}
+                                                            onChange={(e) => handleMontoManual(m.nombre, e.target.value)}
+                                                            disabled={guardandoManuales}
+                                                            className="w-full bg-transparent border-none text-[10px] font-bold outline-none text-right p-0"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    `$${Number(m.monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                                )}
+                                            </td>
+                                            {(() => {
+                                                const manualKey = `${m.nombre.toLowerCase()}_${m.codigo}`;
+                                                const regAjuste = ajustesNomina[manualKey];
+                                                const fmt = fmtAjuste(regAjuste?.ajuste || 0);
+                                                const borrador = ajustesEdit[manualKey];
+                                                const valEdit = modoEdicionNomina && borrador ? parsearAjuste(borrador.texto) : null;
+                                                const fmtEdit = fmtAjuste(valEdit || 0);
+                                                const totalAj = m.monto + (modoEdicionNomina ? (valEdit || 0) : (Number(regAjuste?.ajuste) || 0));
+                                                return (
+                                                    <>
+                                                        <td className="p-4 border-r-2 border-gray-100 text-right text-xs font-black tabular-nums align-middle">
+                                                            {modoEdicionNomina ? (
+                                                                <div className="flex flex-col items-end gap-1">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={borrador?.texto ?? ''}
+                                                                        onChange={(e) => handleAjusteCell(manualKey, e.target.value)}
+                                                                        placeholder="+52 / -30"
+                                                                        className={`w-24 text-right border-2 rounded-lg px-2 py-1 text-[11px] font-black outline-none ${(valEdit === null && (borrador?.texto ?? '').trim() !== '') ? 'border-red-400 bg-red-50 text-red-600' : 'border-brand-primary/20 focus:border-[#6bbdb7] bg-white text-[#303a7f]'}`}
+                                                                    />
+                                                                    <input
+                                                                        type="text"
+                                                                        value={borrador?.comentario ?? ''}
+                                                                        onChange={(e) => handleAjusteComment(manualKey, e.target.value)}
+                                                                        placeholder="Motivo (opcional)"
+                                                                        className="w-32 text-right border border-gray-200 rounded-md px-2 py-0.5 text-[8px] font-bold outline-none focus:border-[#6bbdb7] bg-gray-50 text-gray-600"
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <span title={regAjuste?.comentario || ''} className={fmt.color}>{fmt.texto}</span>
+                                                            )}
+                                                        </td>
+                                                        <td className={`p-4 border-r-2 border-gray-100 text-right font-black text-xs tabular-nums ${totalAj < -0.005 ? 'text-red-600' : 'text-[#303a7f]'}`}>
+                                                            ${(Math.max(totalAj, 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            {valEdit !== null && Math.abs(valEdit) >= 0.005 && <span className={`ml-1 text-[8px] font-bold ${valEdit > 0 ? 'text-emerald-500' : 'text-red-500'}`}>{fmtEdit.texto}</span>}
+                                                        </td>
+                                                    </>
+                                                );
+                                            })()}
+                                            <td className="p-4 text-center font-bold text-gray-400 italic text-xs">Pago manual</td>
+                                        </tr>
+                                    );
+                                })}
+
+                                {esVistaNominaCompleta && agregandoManual && !isAlreadyProcessed && (
+                                    <tr className="bg-amber-50/40 border-t-2 border-dashed border-amber-400/40">
+                                        <td className="p-4" colSpan="6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-72 relative">
+                                                    <label className="text-[8px] text-amber-600 font-black uppercase tracking-widest block mb-1">Nombre del Empleado</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Escriba o seleccione..."
+                                                        value={manualInputNombre}
+                                                        onChange={(e) => {
+                                                            setManualInputNombre(e.target.value);
+                                                            setShowManualSuggestions(true);
+                                                        }}
+                                                        onFocus={() => setShowManualSuggestions(true)}
+                                                        onBlur={() => setTimeout(() => setShowManualSuggestions(false), 150)}
+                                                        className="w-full bg-white border-2 border-amber-400/30 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-amber-400 transition-all"
+                                                    />
+                                                    {showManualSuggestions && (
+                                                        <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-[200] max-h-40 overflow-y-auto">
+                                                            {employees
+                                                                .filter(e => String(e.nombre || '').toLowerCase().includes(manualInputNombre.toLowerCase()))
+                                                                .slice(0, 30)
+                                                                .map((e, sIdx) => (
+                                                                    <div
+                                                                        key={sIdx}
+                                                                        onMouseDown={() => {
+                                                                            setManualInputNombre(e.nombre);
+                                                                            setManualSelectedId(String(e.codigo_empleado || ''));
+                                                                            setShowManualSuggestions(false);
+                                                                        }}
+                                                                        className="px-4 py-2 hover:bg-amber-50 text-xs font-bold text-gray-700 cursor-pointer transition-colors"
+                                                                    >
+                                                                        {e.nombre} (ID: {e.codigo_empleado})
+                                                                    </div>
+                                                                ))
+                                                            }
+                                                            {employees.filter(e => String(e.nombre || '').toLowerCase().includes(manualInputNombre.toLowerCase())).length === 0 && (
+                                                                <div className="px-4 py-2 text-gray-400 text-[10px] font-bold">Sin coincidencias en Personal</div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="w-32">
+                                                    <label className="text-[8px] text-amber-600 font-black uppercase tracking-widest block mb-1">Pago ($)</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="0.00"
+                                                        value={manualInputMonto}
+                                                        onChange={(e) => setManualInputMonto(e.target.value)}
+                                                        className="w-full bg-white border-2 border-amber-400/30 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-amber-400 transition-all text-right"
+                                                    />
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={handleAgregarManual}
+                                                    disabled={guardandoManuales || !manualInputNombre.trim()}
+                                                    className="px-6 py-2.5 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                                                >
+                                                    {guardandoManuales ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <UserPlus size={14} />}
+                                                    Agregar
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
 
                                 {!isAlreadyProcessed && period.store !== '__NOMINA_COMPLETA__' && (
                                     <tr className="bg-teal-50/10 border-t-2 border-dashed border-teal-500/20">
@@ -12301,14 +12801,25 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                                 <tr className="bg-[#303a7f] text-white font-black">
                                     <td className="p-5 text-left text-[10px] uppercase tracking-widest bg-[#252a5e]">
-                                        Total Personal: {[...biweeklyEmployees, ...addedSupervisors].length}
+                                        Total Personal: {todosNomina.length}
                                     </td>
-                                    <td colSpan="5" className="p-5 text-right text-[12px] uppercase tracking-[0.4em]">TOTAL DE NÓMINA:</td>
+                                    <td colSpan={esVistaNominaCompleta ? "7" : "5"} className="p-5 text-right text-[12px] uppercase tracking-[0.4em]">TOTAL DE NÓMINA:</td>
                                     <td className="p-5 text-right text-lg tabular-nums border-r border-white/10">
-                                        ${totalFinal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        ${totalConAjusteGlobal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </td>
                                     <td className="p-5 bg-white/5"></td>
                                 </tr>
+                                {totalAjustes !== 0 && (
+                                    <tr className="bg-[#252a5e] text-white font-black">
+                                        <td className="p-4 text-left text-[9px] uppercase tracking-widest bg-[#1e2249]" colSpan={esVistaNominaCompleta ? "8" : "6"}>
+                                            Total de Ajustes ({cantidadAjustes} empleado{cantidadAjustes === 1 ? '' : 's'}):
+                                        </td>
+                                        <td className={`p-4 text-right text-sm tabular-nums border-r border-white/10 ${totalAjustes > 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                                            {totalAjustes > 0 ? '+' : '-'}${Math.abs(totalAjustes).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="p-4 bg-white/5"></td>
+                                    </tr>
+                                )}
                             </tfoot>
                         </table>
                     </div>
@@ -12317,16 +12828,56 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     <div data-html2canvas-ignore className="mt-12 flex justify-end items-center gap-4 border-t-2 border-gray-50 pt-10">
                         <button
                             onClick={() => setIsDetailsModalOpen(true)}
-                            disabled={[...biweeklyEmployees, ...addedSupervisors].length === 0}
+                            disabled={todosNomina.length === 0}
                             className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-white text-[#6bbdb7] border-2 border-[#6bbdb7] hover:bg-[#6bbdb7] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             <FileText size={16} />
                             Detalles de Nómina
                         </button>
+                        {esVistaNominaCompleta && (
+                            <button
+                                onClick={() => setAgregandoManual(prev => !prev)}
+                                disabled={isAlreadyProcessed || guardandoManuales}
+                                className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-white text-amber-600 border-2 border-amber-300 hover:bg-amber-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                {agregandoManual ? <X size={16} /> : <UserPlus size={16} />}
+                                {agregandoManual ? 'Cerrar' : 'Agregar Empleado'}
+                            </button>
+                        )}
+                        {esVistaNominaCompleta && !modoEdicionNomina && (
+                            <button
+                                onClick={iniciarEdicionAjustes}
+                                disabled={guardandoAjustes || cargandoAjustes || todosNomina.length === 0}
+                                className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-white text-[#303a7f] border-2 border-[#303a7f]/30 hover:bg-[#303a7f] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <Pencil size={16} />
+                                Editar Nómina
+                            </button>
+                        )}
+                        {esVistaNominaCompleta && modoEdicionNomina && (
+                            <>
+                                <button
+                                    onClick={guardarAjustesNomina}
+                                    disabled={guardandoAjustes}
+                                    className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    {guardandoAjustes ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={16} />}
+                                    {guardandoAjustes ? 'Guardando...' : 'Guardar Ajustes'}
+                                </button>
+                                <button
+                                    onClick={cancelarEdicionAjustes}
+                                    disabled={guardandoAjustes}
+                                    className="px-6 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 bg-white text-gray-500 border-2 border-gray-200 hover:bg-gray-50 disabled:opacity-40"
+                                >
+                                    <Ban size={16} />
+                                    Cancelar
+                                </button>
+                            </>
+                        )}
                         {user?.rol !== 'Operador de Pagos' && (
                             <button
                                 onClick={() => setIsConfirmModalOpen(true)}
-                                disabled={isSaving || isAlreadyProcessed || [...biweeklyEmployees, ...addedSupervisors].length === 0}
+                                disabled={isSaving || isAlreadyProcessed || todosNomina.length === 0}
                                 className={`px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl ${isSaving
                                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                     : isAlreadyProcessed
@@ -12357,7 +12908,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     document.body.removeChild(a);
                                     URL.revokeObjectURL(url);
                                 }}
-                                disabled={[...biweeklyEmployees, ...addedSupervisors].length === 0}
+                                disabled={todosNomina.length === 0}
                                 className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 <Download size={16} /> CSV
@@ -12385,7 +12936,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                         <button
                                             onClick={() => {
                                                 setIsConfirmModalOpen(false);
-                                                onConfirmPayroll([...biweeklyEmployees, ...addedSupervisors]);
+                                                onConfirmPayroll(todosNomina);
                                             }}
                                             className="flex-1 py-4 bg-[#303a7f] hover:bg-[#252a5e] text-white font-black rounded-2xl transition-all shadow-lg shadow-blue-900/20 uppercase text-[10px] tracking-widest active:scale-95 flex justify-center items-center gap-2"
                                         >
@@ -12448,7 +12999,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             {/* Lista de Empleados */}
                             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar border-r border-gray-50">
                                 <div className="mb-6 flex items-center justify-between">
-                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest">Destinatarios ({[...biweeklyEmployees, ...addedSupervisors].length})</h4>
+                                    <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-widest">Destinatarios ({todosNomina.length})</h4>
                                     <div className="flex gap-2">
                                         <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-full border border-green-100">
                                             <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
@@ -12458,7 +13009,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                 </div>
 
                                 <div className="space-y-3">
-                                    {[...biweeklyEmployees, ...addedSupervisors].map(emp => {
+                                    {todosNomina.map(emp => {
                                         const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
                                         const email = dbEmp?.email_tax || dbEmp?.correo;
                                         const isSent = sentPayStubs[emp.id];
@@ -12672,7 +13223,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
             {/* MODAL: Detalles de Nómina */}
             {isDetailsModalOpen && (() => {
-                const allEmployees = [...biweeklyEmployees, ...addedSupervisors];
+                const allEmployees = todosNomina;
                 const dayNamesShort = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
                 const chewyShift = period._isChewyPayroll ? -1 : 0;
                 const buildPeriodDays = (startStr) => {
