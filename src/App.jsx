@@ -8831,6 +8831,48 @@ const SupervisorTableModal = ({ isOpen, onClose, data, fechaDesde, getFormattedD
 };
 
 const TaxCenterView = ({ employees, stores, csgNominaData, adminPayrollHistory, nominaDetailData, onOpenPayrollAdvice }) => {
+    // Opción A: nominaDetailData llega YA con ajustes/manuales aplicados (derivado en App).
+    // Aquí solo extraemos los ajustes por periodo (para recibos) y acotamos el Box 1 a $0.
+    const nominaAjustesTax = useMemo(() => {
+        const mapa = new Map();
+        (Array.isArray(nominaDetailData) ? nominaDetailData : []).forEach(reg => {
+            const payload = reg.Data_JSON || reg.data_json;
+            if (!payload) return;
+            try {
+                const filas = typeof payload === 'string' ? JSON.parse(payload) : payload;
+                if (!Array.isArray(filas)) return;
+                const per = nominaNormalizarPeriodo(reg.Periodo || reg.periodo);
+                filas.forEach(f => {
+                    const adj = Number(f.ajuste_lgm);
+                    if (Number.isFinite(adj) && Math.abs(adj) >= 0.005) {
+                        mapa.set(`${per}|${nominaClaveEmpleado(f.empleado || f.nombre, f.id || f.codigo)}`, { ajuste: adj, comentario: f.ajuste_comentario || '' });
+                    }
+                });
+            } catch (e) { }
+        });
+        return mapa;
+    }, [nominaDetailData]);
+
+    // Box 1 acotado a $0 (el IRS no acepta montos negativos); el valor real queda en los datos para auditoría
+    const nominaDetalleFiscal = useMemo(() => (Array.isArray(nominaDetailData) ? nominaDetailData : []).map(reg => {
+        const payload = reg.Data_JSON || reg.data_json;
+        if (!payload) return reg;
+        try {
+            const filas = typeof payload === 'string' ? JSON.parse(payload) : payload;
+            if (!Array.isArray(filas) || !filas.some(f => f && Number(f.total_lgm) < 0)) return reg;
+            const per = nominaNormalizarPeriodo(reg.Periodo || reg.periodo);
+            const corregidas = filas.map(f => {
+                if (f && Number(f.total_lgm) < 0) {
+                    const regA = nominaAjustesTax.get(`${per}|${nominaClaveEmpleado(f.empleado || f.nombre, f.id || f.codigo)}`);
+                    return { ...f, total_lgm: 0, ajuste_lgm: (regA && regA.ajuste !== undefined) ? regA.ajuste : (Number(f.ajuste_lgm) || 0), ajuste_comentario: f.ajuste_comentario || (regA ? regA.comentario : '') || '', box1_acotado: true };
+                }
+                return f;
+            });
+            const nuevo = JSON.stringify(corregidas);
+            return { ...reg, ...(reg.Data_JSON !== undefined ? { Data_JSON: nuevo } : { data_json: nuevo }) };
+        } catch (e) { return reg; }
+    }), [nominaDetailData, nominaAjustesTax]);
+
     const [fiscalYear, setFiscalYear] = useState(() => {
         const curYear = new Date().getFullYear();
         return curYear >= 2026 ? curYear : 2026;
@@ -8947,9 +8989,9 @@ const TaxCenterView = ({ employees, stores, csgNominaData, adminPayrollHistory, 
             return new Date(dateStr);
         };
 
-        // A. Registrar periodos bisemanales de KBS (nominaDetailData)
-        if (nominaDetailData && Array.isArray(nominaDetailData)) {
-            nominaDetailData.forEach(record => {
+        // A. Registrar periodos bisemanales de KBS (nominaDetalleFiscal: con ajustes aplicados y Box 1 acotado a $0)
+        if (nominaDetalleFiscal && Array.isArray(nominaDetalleFiscal)) {
+            nominaDetalleFiscal.forEach(record => {
                 try {
                     if (!record || !(record.Periodo || record.periodo) || !(record.Data_JSON || record.data_json)) return;
                     const year = getYearFromPeriod(record.Periodo || record.periodo);
@@ -9146,7 +9188,7 @@ const TaxCenterView = ({ employees, stores, csgNominaData, adminPayrollHistory, 
             rows: Object.values(data),
             periods: sortedPeriods
         };
-    }, [fiscalYear, csgNominaData, adminPayrollHistory, nominaDetailData, employees]);
+    }, [fiscalYear, csgNominaData, adminPayrollHistory, nominaDetailData, nominaDetalleFiscal, employees]);
 
     const filteredRows = useMemo(() => {
         return reportData.rows
@@ -9418,6 +9460,64 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
         }
     }, [isOpen, nominaHistoryData, allPeriods, selectedPeriod]);
 
+    // Mapa de ajustes del periodo seleccionado (para recibos): nombre_codigo -> { ajuste, comentario }
+    const nominaAjustesPeriodo = useMemo(() => {
+        const mapa = new Map();
+        const per = nominaNormalizarPeriodo(selectedPeriod?.range);
+        if (!per) return mapa;
+        (Array.isArray(nominaDetailData) ? nominaDetailData : []).forEach(reg => {
+            if (nominaNormalizarPeriodo(reg.Periodo || reg.periodo) !== per) return;
+            const payload = reg.Data_JSON || reg.data_json;
+            if (!payload) return;
+            try {
+                const filas = typeof payload === 'string' ? JSON.parse(payload) : payload;
+                if (!Array.isArray(filas)) return;
+                filas.forEach(f => {
+                    const adj = Number(f.ajuste_lgm);
+                    if (Number.isFinite(adj) && Math.abs(adj) >= 0.005) {
+                        mapa.set(nominaClaveEmpleado(f.empleado || f.nombre, f.id || f.codigo), { ajuste: adj, comentario: f.ajuste_comentario || '' });
+                    }
+                });
+            } catch (e) { }
+        });
+        return mapa;
+    }, [selectedPeriod, nominaDetailData]);
+
+    // Empleados manuales del periodo seleccionado (Nómina Completa) como filas de Pay Advices
+    const manualesPeriodoConsolidado = useMemo(() => {
+        const per = nominaNormalizarPeriodo(selectedPeriod?.range);
+        if (!per) return [];
+        const salida = [];
+        (Array.isArray(nominaDetailData) ? nominaDetailData : []).forEach(reg => {
+            if (nominaNormalizarPeriodo(reg.Periodo || reg.periodo) !== per) return;
+            const payload = reg.Data_JSON || reg.data_json;
+            if (!payload) return;
+            try {
+                const filas = typeof payload === 'string' ? JSON.parse(payload) : payload;
+                if (!Array.isArray(filas)) return;
+                filas.forEach(f => {
+                    if (!f || !f.es_manual) return;
+                    salida.push({
+                        id: `${String(f.empleado || '').trim().toLowerCase()}_${String(f.id || '').trim()}`,
+                        nombre: f.empleado,
+                        semana1: null,
+                        semana2: null,
+                        pe: 0,
+                        csgEarnings: 0,
+                        adminEarnings: 0,
+                        totalPay: Number(f.total_lgm) || 0,
+                        sueldoFijo: Number(f.total_lgm) || 0,
+                        rate: 0,
+                        cargo: f.cargo || 'Empleado Manual',
+                        address: '',
+                        stores: ['Nómina Manual']
+                    });
+                });
+            } catch (e) { }
+        });
+        return salida;
+    }, [selectedPeriod, nominaDetailData]);
+
     // --- Lógica de Consolidación Global (Usando Nomina_Detalle + CSG_Nomina) ---
     useEffect(() => {
         if (!selectedPeriod || (!nominaDetailData.length && !csgNominaData.length)) return;
@@ -9606,16 +9706,21 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
             };
         });
 
+        // Empleados manuales (Nómina Completa) entran al consolidado como filas propias
+        (manualesPeriodoConsolidado || []).forEach(m => {
+            if (!consolidated.some(c => c.id === m.id)) consolidated.push(m);
+        });
+
         consolidated.sort((a, b) => a.nombre.localeCompare(b.nombre));
         setBiweeklyEmployees(consolidated);
-    }, [selectedPeriod, nominaDetailData, csgNominaData, employees, adminPayrollHistory, adminEmployees]);
+    }, [selectedPeriod, nominaDetailData, nominaAjustesPeriodo, manualesPeriodoConsolidado, csgNominaData, employees, adminPayrollHistory, adminEmployees]);
 
     const filteredEmployees = useMemo(() => {
         return biweeklyEmployees.filter(emp =>
             emp.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
             emp.id.toLowerCase().includes(searchTerm.toLowerCase())
         );
-    }, [biweeklyEmployees, searchTerm]);
+    }, [biweeklyEmployees, searchTerm, manualesPeriodoConsolidado]);
 
     const handleSendAll = async () => {
         const recipients = biweeklyEmployees.filter(emp => emp.email_tax);
@@ -10811,6 +10916,196 @@ const empConAjuste = (emp) => {
 };
 // Mapa global de ajustes por periodo (nombre_codigo -> {ajuste, comentario}); se rellena en cada carga de periodo
 const nominaAjustesGlobal = new Map();
+
+// ─── Opción A: Superposición de ajustes en la LECTURA ───
+// Los datos crudos (horas × rate) permanecen intactos en BD; los ajustes de Nomina_Ajustes y los
+// empleados manuales de Nomina_Empleados_Manuales se aplican al presentar los datos a los
+// consumidores globales (1099-NEC, Dashboard, Resumen de Ingresos y Gastos, Facturación, WOS).
+
+const nominaClaveEmpleado = (nombre, codigo) => `${String(nombre || '').trim().toLowerCase()}_${String(codigo ?? '').trim()}`;
+
+const nominaNormalizarPeriodo = (p) => String(p || '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+// Parsea "MM/DD/YYYY - MM/DD/YYYY" a fechas límite
+const nominaRangoPeriodo = (periodoStr) => {
+    const parts = String(periodoStr || '').split(/[—–-]/);
+    if (parts.length < 2) return null;
+    const parseFecha = (s) => {
+        const p = String(s || '').trim().split('/');
+        if (p.length !== 3) return null;
+        const d = new Date(parseInt(p[2]), parseInt(p[0]) - 1, parseInt(p[1]));
+        return isNaN(d.getTime()) ? null : d;
+    };
+    const start = parseFecha(parts[0]);
+    const end = parseFecha(parts[parts.length - 1]);
+    if (!start || !end) return null;
+    return { start, end };
+};
+
+// Aplica ajustes + empleados manuales sobre los registros de Nomina_Detalle (granularidad bisemanal).
+// Regla determinista: el ajuste se aplica UNA sola vez por (Periodo, Empleado) — en la primera fila
+// del periodo — para que empleados multi-tienda no reciban el ajuste duplicado.
+const aplicarAjustesANominaDetalle = (registros, ajustes, manuales) => {
+    const lista = Array.isArray(registros) ? registros : [];
+    const listaAjustes = Array.isArray(ajustes) ? ajustes : [];
+    const listaManuales = Array.isArray(manuales) ? manuales : [];
+    if (listaAjustes.length === 0 && listaManuales.length === 0) return lista;
+
+    const mapaAjustes = new Map();
+    listaAjustes.forEach(a => {
+        const per = nominaNormalizarPeriodo(a.Periodo || a.periodo);
+        if (!per) return;
+        mapaAjustes.set(`${per}|${nominaClaveEmpleado(a.Empleado_Nombre, a.Empleado_Codigo)}`, Number(a.Ajuste) || 0);
+    });
+    const mapaManuales = new Map();
+    listaManuales.forEach(m => {
+        const per = nominaNormalizarPeriodo(m.Periodo || m.periodo);
+        if (!per) return;
+        if (!mapaManuales.has(per)) mapaManuales.set(per, []);
+        mapaManuales.get(per).push({
+            nombre: String(m.Empleado_Nombre || '').trim(),
+            codigo: String(m.Empleado_Codigo || '').trim(),
+            monto: Number(m.Monto) || 0
+        });
+    });
+    if (mapaAjustes.size === 0 && mapaManuales.size === 0) return lista;
+
+    // Pre-cálculo: primer registro (por orden) que contiene a cada empleado dentro de cada periodo,
+    // para que el ajuste se aplique UNA sola vez aunque el empleado aparezca en varias tiendas.
+    const primeraFilaPorEmpleado = new Map();
+    const primerRegistroPorPeriodo = new Map();
+    lista.forEach((reg, idx) => {
+        const per = nominaNormalizarPeriodo(reg.Periodo || reg.periodo);
+        if (!per) return;
+        if (!primerRegistroPorPeriodo.has(per)) primerRegistroPorPeriodo.set(per, idx);
+        const payloadPre = reg.Data_JSON !== undefined ? reg.Data_JSON : reg.data_json;
+        if (!payloadPre) return;
+        try {
+            const filasPre = typeof payloadPre === 'string' ? JSON.parse(payloadPre) : payloadPre;
+            if (!Array.isArray(filasPre)) return;
+            filasPre.forEach(f => {
+                if (!f) return;
+                const k = `${per}|${nominaClaveEmpleado(f.empleado || f.nombre, f.id || f.codigo)}`;
+                if (!primeraFilaPorEmpleado.has(k)) primeraFilaPorEmpleado.set(k, idx);
+            });
+        } catch (e) { }
+    });
+
+    return lista.map((reg, idx) => {
+        const perKey = nominaNormalizarPeriodo(reg.Periodo || reg.periodo);
+        const payload = reg.Data_JSON !== undefined ? reg.Data_JSON : reg.data_json;
+        if (!payload) return reg;
+        let filas;
+        try {
+            filas = typeof payload === 'string' ? JSON.parse(payload) : payload;
+            if (!Array.isArray(filas)) return reg; // Data_JSON de objeto (ej. horas_por_cargo): sin filas de empleado
+        } catch (e) { return reg; }
+
+        let cambio = false;
+        const nuevas = filas.map(f => {
+            const k = `${perKey}|${nominaClaveEmpleado(f.empleado || f.nombre, f.id || f.codigo)}`;
+            if (!mapaAjustes.has(k) || primeraFilaPorEmpleado.get(k) !== idx) return f;
+            cambio = true;
+            const nf = { ...f };
+            nf.total_lgm = (parseFloat(f.total_lgm) || 0) + mapaAjustes.get(k);
+            if (nf.total_kbs !== undefined) {
+                nf.margen = (parseFloat(nf.total_kbs) || 0) - (parseFloat(nf.total_lgm) || 0);
+            }
+            return nf;
+        });
+        // Los manuales del periodo se inyectan UNA sola vez (en el primer registro del periodo)
+        if (primerRegistroPorPeriodo.get(perKey) === idx) {
+            (mapaManuales.get(perKey) || []).forEach(m => {
+                if (primeraFilaPorEmpleado.has(`${perKey}|${nominaClaveEmpleado(m.nombre, m.codigo)}`)) return; // ya está en la nómina del periodo
+                cambio = true;
+                nuevas.push({
+                    empleado: m.nombre,
+                    id: m.codigo,
+                    cargo: 'Empleado Manual',
+                    w1: 0, w2: 0, pe: 0,
+                    total_hrs: 0,
+                    total_lgm: m.monto,
+                    total_kbs: 0,
+                    margen: -m.monto,
+                    comments: 'Empleado agregado manualmente',
+                    rate: 0,
+                    rate_kbs: 0,
+                    pe_earnings: 0,
+                    es_manual: true
+                });
+            });
+        }
+        if (!cambio) return reg;
+        const nuevoPayload = JSON.stringify(nuevas);
+        return { ...reg, ...(reg.Data_JSON !== undefined ? { Data_JSON: nuevoPayload } : { data_json: nuevoPayload }) };
+    });
+};
+
+// Aplica ajustes + manuales sobre Nomina_Historico (granularidad semanal WK-...).
+// El ajuste bisemanal se PRORRATEA entre sus filas semanales en proporción al monto LGM de cada una,
+// y los empleados manuales se suman al periodo con el mismo prorrateo.
+const aplicarAjustesANominaHistorico = (registros, ajustes, manuales) => {
+    const lista = Array.isArray(registros) ? registros : [];
+    const listaAjustes = Array.isArray(ajustes) ? ajustes : [];
+    const listaManuales = Array.isArray(manuales) ? manuales : [];
+    if (listaAjustes.length === 0 && listaManuales.length === 0) return lista;
+
+    // Bisemana -> monto total de ajuste
+    const ajustesPorPeriodo = new Map();
+    listaAjustes.forEach(a => {
+        const rango = nominaRangoPeriodo(a.Periodo || a.periodo);
+        if (!rango) return;
+        ajustesPorPeriodo.set(rango, (ajustesPorPeriodo.get(rango) || 0) + (Number(a.Ajuste) || 0));
+    });
+    // Bisemana -> monto total de manuales (se reparte igual entre las semanas)
+    const manualesPorPeriodo = new Map();
+    listaManuales.forEach(m => {
+        const rango = nominaRangoPeriodo(m.Periodo || m.periodo);
+        if (!rango) return;
+        manualesPorPeriodo.set(rango, (manualesPorPeriodo.get(rango) || 0) + (Number(m.Monto) || 0));
+    });
+    if (ajustesPorPeriodo.size === 0 && manualesPorPeriodo.size === 0) return lista;
+
+    const dentroDe = (fila, rango) => {
+        const rf = nominaRangoPeriodo(`${fila.fecha_inicio || ''} - ${fila.fecha_fin || ''}`);
+        return rf && rf.start >= rango.start && rf.end <= rango.end;
+    };
+
+    // Pre-cálculo del delta prorrateado de cada fila semanal (proporcional a su Pago_LGM;
+    // si la fila no tiene monto se reparte en partes iguales; la última fila absorbe centavos)
+    const deltasPorIndice = new Map();
+    const asignarDelta = (rango, monto) => {
+        if (Math.abs(monto) < 0.005) return;
+        const indices = [];
+        lista.forEach((h, i) => { if (dentroDe(h, rango)) indices.push(i); });
+        if (indices.length === 0) return;
+        const totalLGM = indices.reduce((s, i) => s + (Number(lista[i].Pago_LGM) || 0), 0);
+        if (totalLGM > 0.005) {
+            let acumulado = 0;
+            indices.forEach((idx, n) => {
+                if (n === indices.length - 1) {
+                    deltasPorIndice.set(idx, (deltasPorIndice.get(idx) || 0) + (monto - acumulado));
+                } else {
+                    const parte = ((Number(lista[idx].Pago_LGM) || 0) / totalLGM) * monto;
+                    acumulado += parte;
+                    deltasPorIndice.set(idx, (deltasPorIndice.get(idx) || 0) + parte);
+                }
+            });
+        } else {
+            const parte = monto / indices.length;
+            indices.forEach(idx => deltasPorIndice.set(idx, (deltasPorIndice.get(idx) || 0) + parte));
+        }
+    };
+    ajustesPorPeriodo.forEach((monto, rango) => asignarDelta(rango, monto));
+    manualesPorPeriodo.forEach((monto, rango) => asignarDelta(rango, monto));
+    if (deltasPorIndice.size === 0) return lista;
+
+    return lista.map((h, i) => {
+        const delta = deltasPorIndice.get(i);
+        if (delta === undefined || Math.abs(delta) < 0.005) return h;
+        return { ...h, Pago_LGM: (Number(h.Pago_LGM) || 0) + delta };
+    });
+};
 
 // Función para generar el PDF vectorial del recibo en Base64
 const generatePayStubPDF = async (employee, period) => {
@@ -12043,6 +12338,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             Object.entries(mapa).forEach(([k, v]) => nominaAjustesGlobal.set(k, v));
             setAjustesEdit({});
             setModoEdicionNomina(false);
+            // Opción A: recarga la superposición global (1099-NEC, Dashboard, Resumen, Facturación)
+            if (typeof window.refrescarAjustesGlobalesNomina === 'function') window.refrescarAjustesGlobalesNomina();
         } catch (error) {
             console.error('[Ajustes Nómina] Error al guardar:', error);
             alert(`No se pudieron guardar los ajustes: ${error.message}`);
@@ -12065,6 +12362,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             if (!resp.ok || !data.success) throw new Error(data.error || 'Error del servidor');
             const lista = (data.empleados || []).map(r => ({ nombre: String(r.Empleado_Nombre || '').trim(), codigo: String(r.Empleado_Codigo || '').trim(), monto: Number(r.Monto) || 0 }));
             setManualesNomina(lista);
+            // Opción A: recarga la superposición global (1099-NEC, Dashboard, Resumen, Facturación)
+            if (typeof window.refrescarAjustesGlobalesNomina === 'function') window.refrescarAjustesGlobalesNomina();
             return lista;
         } catch (error) {
             console.error('[Empleados Manuales] Error al guardar:', error);
@@ -19056,8 +19355,36 @@ function App() {
         if (saved) try { return JSON.parse(saved); } catch (e) { return null; }
         return null;
     });
-    const [nominaHistoryData, setNominaHistoryData] = useState([]); // FASE 9: Historial Persistente
-    const [nominaDetailData, setNominaDetailData] = useState([]); // FASE 9.5: Detalle Consolidado (Comentarios)
+    // FASE 9/9.5 (crudos): estos estados guardan los datos SIN ajustes; los consumidores globales
+    // reciben las versiones derivadas con ajustes/manuales aplicados (memos de abajo).
+    const [nominaHistoryDataRaw, setNominaHistoryDataRaw] = useState([]);
+    const [nominaDetailDataRaw, setNominaDetailDataRaw] = useState([]);
+    const [ajustesGlobales, setAjustesGlobales] = useState([]);
+    const [manualesGlobales, setManualesGlobales] = useState([]);
+
+    // Carga global de ajustes y empleados manuales (Opción A: superposición en lectura)
+    useEffect(() => {
+        let activo = true;
+        const cargar = () => {
+            fetch('/api/nomina-ajustes').then(r => r.ok ? r.json() : []).then(rows => {
+                if (activo) setAjustesGlobales(Array.isArray(rows) ? rows : []);
+            }).catch(() => { });
+            fetch('/api/nomina-empleados-manuales').then(r => r.ok ? r.json() : []).then(rows => {
+                if (activo) setManualesGlobales(Array.isArray(rows) ? rows : []);
+            }).catch(() => { });
+        };
+        cargar();
+        window.refrescarAjustesGlobalesNomina = cargar;
+        return () => { activo = false; };
+    }, []);
+
+    // Datos con ajustes/manuales aplicados (1099-NEC, Dashboard, Resumen, Facturación, WOS, Pay Advices)
+    const nominaDetailData = useMemo(() =>
+        aplicarAjustesANominaDetalle(nominaDetailDataRaw, ajustesGlobales, manualesGlobales),
+        [nominaDetailDataRaw, ajustesGlobales, manualesGlobales]);
+    const nominaHistoryData = useMemo(() =>
+        aplicarAjustesANominaHistorico(nominaHistoryDataRaw, ajustesGlobales, manualesGlobales),
+        [nominaHistoryDataRaw, ajustesGlobales, manualesGlobales]);
     const [selectedHistoryStore, setSelectedHistoryStore] = useState(
         user?.rol === 'Operador de Pagos' ? '__NOMINA_COMPLETA__' : (sessionStorage.getItem('selectedHistoryStore') || '')
     );
@@ -19414,7 +19741,7 @@ function App() {
                         // Formato legado {id: week, field, val} de BillingView → mantener lógica original.
                         const { id: week, field, val } = task;
                         // FIX Bug #2: Normalizar apóstrofe antes de comparar para evitar fallos de find().
-                        let existing = nominaHistoryData.find(h =>
+                        let existing = nominaHistoryDataRaw.find(h =>
                             String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
                             String(h.codigo).replace(/^'+/, '').trim() === String(week).replace(/^'+/, '').trim()
                         );
@@ -20023,6 +20350,38 @@ function App() {
                     Fecha_Confirmacion: new Date().toLocaleString()
                 };
             });
+
+            // Los empleados agregados manualmente (Nómina Completa) entran en Nomina_Detalle
+            // para que aparezcan en la 1099-NEC, el Consolidado y los totales globales.
+            if (String(selectedBiweeklyPeriod.store || '').trim() === '__NOMINA_COMPLETA__') {
+                const periodoClave = nominaNormalizarPeriodo(selectedBiweeklyPeriod.range);
+                const yaEnDetalle = new Set(nominaDetalleRows.map(r => `${String(r.Empleado).trim().toLowerCase()}_${String(r.ID_Empleado).trim()}`));
+                (manualesGlobales || []).filter(m => nominaNormalizarPeriodo(m.Periodo || m.periodo) === periodoClave).forEach(m => {
+                    const nombreM = String(m.Empleado_Nombre || m.nombre || '').trim();
+                    const codigoM = String(m.Empleado_Codigo || m.codigo || '').trim();
+                    const clave = `${nombreM.toLowerCase()}_${codigoM}`;
+                    if (yaEnDetalle.has(clave) || !nombreM) return;
+                    nominaDetalleRows.push({
+                        Periodo: selectedBiweeklyPeriod.range,
+                        Tienda: selectedBiweeklyPeriod.store,
+                        Empleado: nombreM,
+                        ID_Empleado: codigoM,
+                        Cargo: 'Empleado Manual',
+                        Horas_W1: 0,
+                        Horas_W2: 0,
+                        Horas_PE: 0,
+                        Total_Horas: 0,
+                        Total_LGM: Number(m.Monto ?? m.monto) || 0,
+                        Total_KBS: 0,
+                        Margen: -(Number(m.Monto ?? m.monto) || 0),
+                        Comentarios: 'Empleado agregado manualmente',
+                        Rate_LGM: 0,
+                        Rate_KBS: 0,
+                        PE_Earnings: 0,
+                        Fecha_Confirmacion: new Date().toLocaleString()
+                    });
+                });
+            }
 
             setConfirmPayrollProgress(30);
             setConfirmPayrollStep("Estructurando archivos JSON optimizados...");
@@ -21338,7 +21697,7 @@ function App() {
             }
 
             // Recargar o actualizar el estado local para reflejarlo en la UI
-            setNominaHistoryData(prev => {
+            setNominaHistoryDataRaw(prev => {
                 let updated = [...prev];
                 savedRecords.forEach(rec => {
                     updated = updated.filter(h => !(String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === rec.fecha_inicio));
@@ -21749,9 +22108,9 @@ function App() {
 
     // Re-hidratación de Nómina (Engine View)
     useEffect(() => {
-        if (activeTab === 'payroll' && payrollView === 'engine' && selectedHistoryStore && fechaDesde && nominaHistoryData.length > 0 && !isHistoricalDataLoaded) {
+        if (activeTab === 'payroll' && payrollView === 'engine' && selectedHistoryStore && fechaDesde && nominaHistoryDataRaw.length > 0 && !isHistoricalDataLoaded) {
             const targetStart = normalizeDate(fechaDesde);
-            const hData = nominaHistoryData.find(h =>
+            const hData = nominaHistoryDataRaw.find(h =>
                 String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() &&
                 normalizeDate(h.fecha_inicio) === targetStart
             );
@@ -22100,7 +22459,7 @@ function App() {
                 remaining -= pago;
 
                 // Actualizar estado local para feedback inmediato.
-                setNominaHistoryData(prev => prev.map(h =>
+                setNominaHistoryDataRaw(prev => prev.map(h =>
                     (String(h.nombre).trim().toLowerCase() === String(record.nombre).trim().toLowerCase() &&
                         String(h.codigo).replace(/^'+/, '').trim() === String(record.codigo).replace(/^'+/, '').trim())
                         ? { ...h, "pago": pago, "fecha de pago": paymentDate, "wos": wosNumber }
@@ -22183,7 +22542,7 @@ function App() {
                 if (record) {
                     const prevPago = parseFloat(record.Pago || record.pago || 0) || 0;
                     const accPago = prevPago + paymentAmount;
-                    setNominaHistoryData(prev => prev.map(h =>
+                    setNominaHistoryDataRaw(prev => prev.map(h =>
                         String(h.codigo || '').replace(/^'+/, '').trim() === saldoRef
                             ? { ...h, "pago": accPago, "fecha de pago": paymentDate, "wos": wosNumber }
                             : h
@@ -22476,7 +22835,7 @@ function App() {
         try {
             const data = await fetchTableData(NOMINA_HISTORY_API_URL);
             if (!data.length) {
-                setNominaHistoryData([]);
+                setNominaHistoryDataRaw([]);
                 return;
             }
             const loaded = data.map(obj => {
@@ -22496,7 +22855,7 @@ function App() {
                 }
                 return obj;
             });
-            setNominaHistoryData(loaded);
+            setNominaHistoryDataRaw(loaded);
         } catch (error) {
             console.error('[LogicPay] Error cargando Nomina_Historico:', error);
         }
@@ -22506,7 +22865,7 @@ function App() {
         try {
             const data = await fetchTableData(NOMINA_DETAIL_API_URL);
             if (!data.length) {
-                setNominaDetailData([]);
+                setNominaDetailDataRaw([]);
                 return;
             }
             const loaded = data.map(obj => {
@@ -22522,7 +22881,7 @@ function App() {
                 }
                 return obj;
             });
-            setNominaDetailData(loaded);
+            setNominaDetailDataRaw(loaded);
         } catch (error) {
             console.error('[LogicPay] Error cargando Nomina_Detalle:', error);
         }
@@ -23506,7 +23865,7 @@ function App() {
                                     "Status": "Due"
                                 };
 
-                                setNominaHistoryData(prev => [...prev, newRow]);
+                                setNominaHistoryDataRaw(prev => [...prev, newRow]);
 
                                 billingPendingSaveRef.current.push({
                                     __prebuilt: true,
@@ -23528,7 +23887,7 @@ function App() {
                             }
                         } else {
                             // Lógica original para el resto de las tiendas (actualizar semana)
-                            setNominaHistoryData(prev => prev.map(h => {
+                            setNominaHistoryDataRaw(prev => prev.map(h => {
                                 if (String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && String(h.codigo) === String(vwhRecordId)) {
                                     const updatedHist = { ...h };
                                     updatedHist['fecha rad.'] = autoDate;
@@ -24786,13 +25145,12 @@ function App() {
                                         loadSpecialProjectsForPeriod(selectedHistoryStore, periodRange);
                                     }
                                     setPayrollView('engine');
-                                }}
-                                stores={stores}
-                                selectedStore={selectedHistoryStore}
-                                onSelectStore={setSelectedHistoryStore}
-                                historyData={nominaHistoryData}
-                                processedBiweeks={processedBiweeks}
-                                nominaDetailData={nominaDetailData}
+                                }}                stores={stores}
+                selectedStore={selectedHistoryStore}
+                onSelectStore={setSelectedHistoryStore}
+                historyData={nominaHistoryData}
+                processedBiweeks={processedBiweeks}
+                nominaDetailData={nominaDetailDataRaw}
                                 payrollDrafts={payrollDrafts}
                                 onOpenBilling={(year) => { setBillingFilterYear(year); setIsBillingModalOpen(true); }}
                                 onOpenWOS={() => setIsWOSOpen(true)}
@@ -25724,7 +26082,7 @@ function App() {
                 onSelectStore={setSelectedHistoryStore}
                 historyData={nominaHistoryData}
                 processedBiweeks={processedBiweeks}
-                nominaDetailData={nominaDetailData}
+                nominaDetailData={nominaDetailDataRaw}
                 payrollDrafts={payrollDrafts}
                 onOpenBilling={() => setIsBillingModalOpen(true)}
                 onOpenWOS={() => setIsWOSOpen(true)}
@@ -25787,7 +26145,7 @@ function App() {
                             isSyncing={isSyncingBilling}
                             onUpdateManual={async (week, field, val) => {
                                 // 1. Actualización Local Inmediata (creando fila al vuelo si no existe para AZPEN)
-                                setNominaHistoryData(prev => {
+                                setNominaHistoryDataRaw(prev => {
                                     const hasRow = prev.some(h => String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && String(h.codigo) === String(week));
                                     if (!hasRow && String(week).startsWith('Q-')) {
                                         const parts = String(week).split('-');
@@ -26255,8 +26613,8 @@ function App() {
             {isBiweeklyManagementOpen && (
                 <BiweeklyPayrollManagementView
                     period={selectedBiweeklyPeriod}
-                    nominaHistoryData={nominaHistoryData}
-                    nominaDetailData={nominaDetailData}
+                    nominaHistoryData={nominaHistoryDataRaw}
+                    nominaDetailData={nominaDetailDataRaw}
                     processedBiweeks={processedBiweeks}
                     setIsPEModalOpen={setIsPEModalOpen}
                     setPayrollStore={setPayrollStore}
@@ -26278,8 +26636,8 @@ function App() {
             <PayrollAdvicesGlobalView
                 isOpen={isPayrollAdviceOpen}
                 onClose={() => setIsPayrollAdviceOpen(false)}
-                nominaHistoryData={nominaHistoryData}
-                nominaDetailData={nominaDetailData}
+                nominaHistoryData={nominaHistoryDataRaw}
+                nominaDetailData={nominaDetailDataRaw}
                 csgNominaData={csgNominaData}
                 employees={employees}
                 stores={stores}
@@ -26668,7 +27026,7 @@ function App() {
                     setUpsFilterWeek(null); // Resetear filtro al cerrar
                 }}
                 stores={stores}
-                nominaHistoryData={nominaHistoryData}
+                nominaHistoryData={nominaHistoryDataRaw}
                 filterWeek={upsFilterWeek}
                 fechaDesde={fechaDesde}
                 fechaHasta={fechaHasta}

@@ -949,10 +949,12 @@ app.post('/api/sync-saldos-pendientes', (req, res) => {
 app.get('/api/nomina-ajustes', (req, res) => {
   try {
     const periodo = (req.query.periodo || '').trim();
-    if (!periodo) {
-      return res.status(400).json({ error: 'Parámetro "periodo" requerido' });
+    if (periodo) {
+      const rows = db.prepare(`SELECT Periodo, Empleado_Nombre, Empleado_Codigo, Ajuste, Comentario, Actualizado_Por, Fecha_Actualizacion FROM Nomina_Ajustes WHERE Periodo = ?`).all(periodo);
+      return res.json(rows);
     }
-    const rows = db.prepare(`SELECT Periodo, Empleado_Nombre, Empleado_Codigo, Ajuste, Comentario, Actualizado_Por, Fecha_Actualizacion FROM Nomina_Ajustes WHERE Periodo = ?`).all(periodo);
+    // Sin periodo: devolver todos los ajustes (consumo global: 1099-NEC, Dashboard, Resumen, Facturación)
+    const rows = db.prepare(`SELECT Periodo, Empleado_Nombre, Empleado_Codigo, Ajuste, Comentario, Actualizado_Por, Fecha_Actualizacion FROM Nomina_Ajustes`).all();
     res.json(rows);
   } catch (error) {
     console.error('[Nomina Ajustes] Error al obtener:', error.message);
@@ -1011,10 +1013,12 @@ app.post('/api/nomina-ajustes', (req, res) => {
 app.get('/api/nomina-empleados-manuales', (req, res) => {
   try {
     const periodo = (req.query.periodo || '').trim();
-    if (!periodo) {
-      return res.status(400).json({ error: 'Parámetro "periodo" requerido' });
+    if (periodo) {
+      const rows = db.prepare(`SELECT id, Periodo, Empleado_Nombre, Empleado_Codigo, Monto, Agregado_Por, Fecha_Agregado FROM Nomina_Empleados_Manuales WHERE Periodo = ? ORDER BY id`).all(periodo);
+      return res.json(rows);
     }
-    const rows = db.prepare(`SELECT id, Periodo, Empleado_Nombre, Empleado_Codigo, Monto, Agregado_Por, Fecha_Agregado FROM Nomina_Empleados_Manuales WHERE Periodo = ? ORDER BY id`).all(periodo);
+    // Sin periodo: devolver todos los manuales (consumo global: 1099-NEC, Consolidado, Resumen)
+    const rows = db.prepare(`SELECT id, Periodo, Empleado_Nombre, Empleado_Codigo, Monto, Agregado_Por, Fecha_Agregado FROM Nomina_Empleados_Manuales ORDER BY id`).all();
     res.json(rows);
   } catch (error) {
     console.error('[Nomina Manuales] Error al obtener:', error.message);
