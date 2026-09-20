@@ -11601,12 +11601,70 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
     );
 };
 
-const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, onConfirm, isProcessing }) => {
+// MODAL DE PREVIEW DE PLANILLAS (móvil): acepta carga por explorador, arrastrar y soltar (Drag & Drop)
+// y pegado directo desde el portapapeles (Ctrl+V) mientras el modal esté abierto.
+const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, onConfirm, onAddFiles, isProcessing }) => {
+    const fileInputRef = useRef(null);
+    const dragCounter = useRef(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const [justPastedIds, setJustPastedIds] = useState([]);
+
+    // PORTAPAPELES: intercepta imágenes pegadas (Ctrl+V) solo mientras el modal está abierto
+    useEffect(() => {
+        if (!isOpen) return;
+        const handlePaste = (e) => {
+            const images = Array.from(e.clipboardData?.items || [])
+                .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+                .map(item => item.getAsFile())
+                .filter(Boolean);
+            if (images.length > 0 && onAddFiles) {
+                e.preventDefault();
+                const newIds = onAddFiles(images) || [];
+                if (newIds.length > 0) {
+                    setJustPastedIds(prev => [...prev, ...newIds]);
+                    setTimeout(() => setJustPastedIds(prev => prev.filter(id => !newIds.includes(id))), 1800);
+                }
+            }
+        };
+        document.addEventListener('paste', handlePaste);
+        return () => document.removeEventListener('paste', handlePaste);
+    }, [isOpen, onAddFiles]);
+
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-0 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-full h-full flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+            <div
+                className="relative bg-white w-full max-w-full h-full flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500"
+                onDragEnter={(e) => { e.preventDefault(); dragCounter.current++; setIsDragging(true); }}
+                onDragOver={(e) => e.preventDefault()}
+                onDragLeave={(e) => { e.preventDefault(); dragCounter.current--; if (dragCounter.current <= 0) { dragCounter.current = 0; setIsDragging(false); } }}
+                onDrop={(e) => {
+                    e.preventDefault();
+                    dragCounter.current = 0;
+                    setIsDragging(false);
+                    if (e.dataTransfer?.files?.length && onAddFiles) onAddFiles(e.dataTransfer.files);
+                }}
+            >
+                {/* Overlay visual durante el arrastre */}
+                {isDragging && (
+                    <div className="absolute inset-0 z-30 bg-[#6bbdb7]/10 backdrop-blur-sm border-4 border-dashed border-[#6bbdb7] flex flex-col items-center justify-center gap-3 pointer-events-none animate-in fade-in duration-200">
+                        <Upload size={32} className="text-[#6bbdb7]" />
+                        <p className="text-sm font-black text-[#303a7f] uppercase tracking-widest">Suelta las imágenes aquí</p>
+                    </div>
+                )}
+
+                {/* Input de archivos oculto (disparado desde la dropzone y las tarjetas) */}
+                <input
+                    ref={fileInputRef}
+                    type="file" multiple accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                        if (e.target.files?.length && onAddFiles) onAddFiles(e.target.files);
+                        e.target.value = null;
+                    }}
+                />
+
                 {/* Header */}
                 <div className="p-4 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent shrink-0">
                     <div className="flex items-center gap-3">
@@ -11617,6 +11675,11 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
                             <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-0.5">Fotos de Planillas</h3>
                             <p className="text-[#6bbdb7] text-[8px] font-black uppercase tracking-widest opacity-80 truncate max-w-[200px]">De Imágenes a Excel</p>
                         </div>
+                        {files.length > 0 && (
+                            <span className="px-2 py-1 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-lg text-[9px] font-black uppercase tracking-widest animate-in zoom-in duration-300">
+                                {files.length}
+                            </span>
+                        )}
                     </div>
                     <button
                         onClick={onClose}
@@ -11628,38 +11691,79 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-4 bg-[#fcfdfe] custom-scrollbar">
-                    <div className="grid grid-cols-1 gap-6">
-                        {files.map((item, idx) => (
-                            <div key={item.id} className="bg-white rounded-[2.5rem] border-2 border-gray-100 shadow-sm overflow-hidden group hover:border-[#6bbdb7]/30 transition-all">
-                                <div className="relative aspect-[4/3] bg-gray-100 flex items-center justify-center overflow-hidden">
-                                    <img src={item.preview} className="w-full h-full object-contain" alt="Preview" />
-
-                                    {/* Badge con Nombre de Archivo */}
-                                    <div className="absolute top-4 left-4 right-14 bg-[#303a7f]/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/20 shadow-lg">
-                                        <p className="text-[9px] font-black text-white uppercase tracking-widest truncate">
-                                            {item.file.name}
-                                        </p>
-                                    </div>
-
-                                    <button
-                                        onClick={() => onRemove(item.id)}
-                                        className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100 active:scale-90"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                                <div className="p-6">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 px-1">Instrucciones o Comentarios</label>
-                                    <textarea
-                                        value={item.comment}
-                                        onChange={(e) => onCommentChange(item.id, e.target.value)}
-                                        placeholder="Ej: Solo esta fecha 02/25. No tomar en cuenta a Juan Pérez..."
-                                        className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl p-4 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7]/30 focus:bg-white transition-all h-24 resize-none placeholder:text-gray-200"
-                                    />
-                                </div>
+                    {files.length === 0 ? (
+                        /* ESTADO VACÍO: Zona de carga (clic, arrastrar o pegar) */
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-full h-64 border-[3px] border-dashed border-gray-200 rounded-[2.5rem] bg-white hover:border-[#6bbdb7] hover:bg-teal-50/30 transition-all group flex flex-col items-center justify-center gap-4 active:scale-[0.98]"
+                        >
+                            <div className="w-16 h-16 rounded-3xl bg-[#303a7f]/5 text-[#303a7f] group-hover:bg-[#6bbdb7]/10 group-hover:text-[#6bbdb7] flex items-center justify-center transition-all">
+                                <Camera size={28} />
                             </div>
-                        ))}
-                    </div>
+                            <p className="text-sm font-black text-[#303a7f] uppercase tracking-widest">Toca para seleccionar fotos</p>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">desde tu galería o cámara</p>
+                            <div className="flex items-center gap-2 px-4 py-1.5 bg-gray-50 border border-gray-100 rounded-lg">
+                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Tip:</span>
+                                <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-[9px] font-black text-[#303a7f] shadow-sm">Ctrl+V</kbd>
+                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">para pegar una captura</span>
+                            </div>
+                        </button>
+                    ) : (
+                        /* LISTA DE TARJETAS CON IMÁGENES CARGADAS */
+                        <div className="grid grid-cols-1 gap-6">
+                            {files.map((item, idx) => (
+                                <div key={item.id} className={`bg-white rounded-[2.5rem] border-2 shadow-sm overflow-hidden group transition-all ${justPastedIds.includes(item.id) ? 'border-[#6bbdb7] ring-2 ring-[#6bbdb7]/40' : 'border-gray-100 hover:border-[#6bbdb7]/30'}`}>
+                                    <div className="relative aspect-[4/3] bg-gray-100 flex items-center justify-center overflow-hidden">
+                                        <img src={item.preview} className="w-full h-full object-contain" alt="Preview" />
+
+                                        {/* Badge con Nombre de Archivo */}
+                                        <div className="absolute top-4 left-4 right-14 bg-[#303a7f]/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/20 shadow-lg">
+                                            <p className="text-[9px] font-black text-white uppercase tracking-widest truncate">
+                                                {item.file.name}
+                                            </p>
+                                        </div>
+
+                                        {/* Badge de imagen pegada desde el portapapeles */}
+                                        {justPastedIds.includes(item.id) && (
+                                            <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-[#6bbdb7] text-white rounded-lg shadow-lg flex items-center gap-2 animate-in zoom-in duration-300">
+                                                <CheckCircle size={12} />
+                                                <span className="text-[8px] font-black uppercase tracking-widest">Pegada del portapapeles</span>
+                                            </div>
+                                        )}
+
+                                        <button
+                                            onClick={() => onRemove(item.id)}
+                                            className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100 active:scale-90"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                    <div className="p-6">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 px-1">Instrucciones o Comentarios</label>
+                                        <textarea
+                                            value={item.comment}
+                                            onChange={(e) => onCommentChange(item.id, e.target.value)}
+                                            placeholder="Ej: Solo esta fecha 02/25. No tomar en cuenta a Juan Pérez..."
+                                            className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl p-4 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7]/30 focus:bg-white transition-all h-24 resize-none placeholder:text-gray-200"
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* Tarjeta: Añadir más imágenes */}
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="h-32 rounded-[2.5rem] border-[3px] border-dashed border-gray-200 bg-white hover:border-[#6bbdb7] hover:bg-teal-50/30 transition-all flex flex-col items-center justify-center gap-2 group active:scale-[0.98]"
+                            >
+                                <div className="w-12 h-12 rounded-2xl bg-[#303a7f]/5 text-[#303a7f] group-hover:bg-[#6bbdb7]/10 group-hover:text-[#6bbdb7] flex items-center justify-center transition-all">
+                                    <Plus size={22} />
+                                </div>
+                                <p className="text-[10px] font-black text-gray-400 group-hover:text-[#303a7f] uppercase tracking-widest transition-colors">Añadir más fotos</p>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer */}
@@ -18971,6 +19075,17 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
         }
     }, [variablesLoaded]);
 
+    // FASE 8: Helper centralizado para agregar imágenes al Digitalizador (explorador, arrastrar y soltar o portapapeles)
+    const addSheetFiles = useCallback((filesList) => {
+        const selected = Array.from(filesList || []).filter(f => f && f.type && f.type.startsWith('image/'));
+        if (selected.length === 0) return [];
+        const newItems = selected.map(file => ({
+            id: Math.random().toString(36).substr(2, 9), file: file, preview: URL.createObjectURL(file), comment: ''
+        }));
+        setSheetFiles(prev => [...prev, ...newItems]);
+        return newItems.map(n => n.id);
+    }, []);
+
     const processSheetImagesWithAI = async () => {
         if (!sheetFiles.length) {
             showError("Faltan imágenes o clave de API para procesar.");
@@ -21640,31 +21755,14 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
                                             {sheetFiles.length > 0 && <CheckCircle size={14} className="text-[#6bbdb7] animate-in zoom-in duration-300" />}
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <div className="relative flex-1">
-                                                <button
-                                                    disabled={!payrollStore}
-                                                    style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (sheetFiles.length > 0 ? '#6bbdb7' : '#303a7f') }}
-                                                    className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all duration-200 shadow-sm active:scale-95 enabled:hover:-translate-y-0.5 enabled:hover:shadow-md enabled:hover:brightness-110 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2`}
-                                                >
-                                                    {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos Subidas') : 'Subir Fotos'}
-                                                </button>
-                                                <input
-                                                    type="file" multiple disabled={!payrollStore}
-                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
-                                                    onChange={(e) => {
-                                                        const selected = Array.from(e.target.files);
-                                                        if (selected.length > 0) {
-                                                            const newItems = selected.map(file => ({
-                                                                id: Math.random().toString(36).substr(2, 9), file: file, preview: URL.createObjectURL(file), comment: ''
-                                                            }));
-                                                            setSheetFiles(prev => [...prev, ...newItems]);
-                                                            setIsSheetPreviewOpen(true);
-                                                        }
-                                                        e.target.value = null;
-                                                    }}
-                                                    accept="image/*"
-                                                />
-                                            </div>
+                                            <button
+                                                onClick={() => setIsSheetPreviewOpen(true)}
+                                                disabled={!payrollStore}
+                                                style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (sheetFiles.length > 0 ? '#6bbdb7' : '#303a7f') }}
+                                                className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all duration-200 shadow-sm active:scale-95 enabled:hover:-translate-y-0.5 enabled:hover:shadow-md enabled:hover:brightness-110 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2`}
+                                            >
+                                                {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos Subidas') : 'Subir Fotos'}
+                                            </button>
                                         </div>
                                     </div>
 
@@ -22903,6 +23001,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             <SheetPreviewModal
                 isOpen={isSheetPreviewOpen}
                 files={sheetFiles}
+                onAddFiles={addSheetFiles}
                 onClose={() => {
                     setSheetFiles([]);
                     setIsSheetPreviewOpen(false);

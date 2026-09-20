@@ -14034,12 +14034,73 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
     );
 };
 
-const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, onConfirm, isProcessing }) => {
+// MODAL DE PREVIEW DE PLANILLAS: acepta carga por explorador de archivos, arrastrar y soltar (Drag & Drop)
+// y pegado directo desde el portapapeles (Ctrl+V) mientras el modal esté abierto.
+const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, onConfirm, onAddFiles, isProcessing }) => {
+    const fileInputRef = useRef(null);
+    const gridEndRef = useRef(null);
+    const dragCounter = useRef(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const [justPastedIds, setJustPastedIds] = useState([]);
+
+    // PORTAPAPELES: intercepta imágenes pegadas (Ctrl+V) solo mientras el modal está abierto
+    useEffect(() => {
+        if (!isOpen) return;
+        const handlePaste = (e) => {
+            const images = Array.from(e.clipboardData?.items || [])
+                .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+                .map(item => item.getAsFile())
+                .filter(Boolean);
+            if (images.length > 0 && onAddFiles) {
+                e.preventDefault();
+                const newIds = onAddFiles(images) || [];
+                if (newIds.length > 0) {
+                    // Feedback visual: destello teal en las tarjetas pegadas + scroll hacia ellas
+                    setJustPastedIds(prev => [...prev, ...newIds]);
+                    setTimeout(() => setJustPastedIds(prev => prev.filter(id => !newIds.includes(id))), 1800);
+                    setTimeout(() => gridEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150);
+                }
+            }
+        };
+        document.addEventListener('paste', handlePaste);
+        return () => document.removeEventListener('paste', handlePaste);
+    }, [isOpen, onAddFiles]);
+
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-[#303a7f]/20 animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-5xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500">
+            <div
+                className="relative bg-white w-full max-w-5xl h-[85vh] rounded-[3rem] shadow-[0_32px_120px_-20px_rgba(48,58,127,0.3)] border-2 border-[#6bbdb7]/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-12 duration-500"
+                onDragEnter={(e) => { e.preventDefault(); dragCounter.current++; setIsDragging(true); }}
+                onDragOver={(e) => e.preventDefault()}
+                onDragLeave={(e) => { e.preventDefault(); dragCounter.current--; if (dragCounter.current <= 0) { dragCounter.current = 0; setIsDragging(false); } }}
+                onDrop={(e) => {
+                    e.preventDefault();
+                    dragCounter.current = 0;
+                    setIsDragging(false);
+                    if (e.dataTransfer?.files?.length && onAddFiles) onAddFiles(e.dataTransfer.files);
+                }}
+            >
+                {/* Overlay visual durante el arrastre */}
+                {isDragging && (
+                    <div className="absolute inset-0 z-30 bg-[#6bbdb7]/10 backdrop-blur-sm border-4 border-dashed border-[#6bbdb7] rounded-[3rem] flex flex-col items-center justify-center gap-3 pointer-events-none animate-in fade-in duration-200">
+                        <Upload size={32} className="text-[#6bbdb7]" />
+                        <p className="text-sm font-black text-[#303a7f] uppercase tracking-widest">Suelta las imágenes aquí</p>
+                    </div>
+                )}
+
+                {/* Input de archivos oculto (disparado desde la dropzone y las tarjetas) */}
+                <input
+                    ref={fileInputRef}
+                    type="file" multiple accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                        if (e.target.files?.length && onAddFiles) onAddFiles(e.target.files);
+                        e.target.value = null;
+                    }}
+                />
+
                 {/* Header */}
                 <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-transparent">
                     <div className="flex items-center gap-5">
@@ -14050,6 +14111,11 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
                             <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Previsualización de Planillas</h3>
                             <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-80">Añade comentarios para ayudar a la IA con infomación</p>
                         </div>
+                        {files.length > 0 && (
+                            <span className="px-3 py-1.5 bg-[#6bbdb7]/10 text-[#6bbdb7] rounded-lg text-[10px] font-black uppercase tracking-widest animate-in zoom-in duration-300">
+                                {files.length} {files.length === 1 ? 'imagen' : 'imágenes'}
+                            </span>
+                        )}
                     </div>
                     <button
                         onClick={onClose}
@@ -14061,60 +14127,117 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-8 bg-[#fcfdfe] custom-scrollbar">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {files.map((item, idx) => (
-                            <div key={item.id} className="bg-white rounded-[2.5rem] border-2 border-gray-100 shadow-sm overflow-hidden group hover:border-[#6bbdb7]/30 transition-all">
-                                <div className="relative aspect-[4/3] bg-gray-100 flex items-center justify-center overflow-hidden">
-                                    <img src={item.preview} className="w-full h-full object-contain" alt="Preview" />
+                    {files.length === 0 ? (
+                        /* ESTADO VACÍO: Zona de carga (clic, arrastrar o pegar) */
+                        <div className="h-full min-h-[280px] flex items-center justify-center py-4">
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-full max-w-xl h-full min-h-[260px] border-[3px] border-dashed border-gray-200 rounded-[2.5rem] bg-white hover:border-[#6bbdb7] hover:bg-teal-50/30 hover:shadow-sm transition-all group flex flex-col items-center justify-center gap-4 active:scale-[0.98]"
+                            >
+                                <div className="w-16 h-16 rounded-3xl bg-[#303a7f]/5 text-[#303a7f] group-hover:bg-[#6bbdb7]/10 group-hover:text-[#6bbdb7] flex items-center justify-center transition-all">
+                                    <Camera size={28} />
+                                </div>
+                                <p className="text-sm font-black text-[#303a7f] uppercase tracking-widest">Arrastra tus imágenes aquí</p>
+                                <span className="px-6 py-2.5 bg-[#303a7f] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg group-hover:bg-[#252a5e] group-hover:brightness-110 transition-all">o haz clic para seleccionar archivos</span>
+                                <div className="flex items-center gap-2 mt-1 px-4 py-1.5 bg-gray-50 border border-gray-100 rounded-lg">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Tip:</span>
+                                    <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-[9px] font-black text-[#303a7f] shadow-sm">Ctrl</kbd>
+                                    <span className="text-[9px] font-black text-gray-400">+</span>
+                                    <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-[9px] font-black text-[#303a7f] shadow-sm">V</kbd>
+                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">para pegar una captura de pantalla</span>
+                                </div>
+                            </button>
+                        </div>
+                    ) : (
+                        /* GRID DE TARJETAS CON IMÁGENES CARGADAS */
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {files.map((item, idx) => (
+                                <div key={item.id} className={`bg-white rounded-[2.5rem] border-2 shadow-sm overflow-hidden group transition-all ${justPastedIds.includes(item.id) ? 'border-[#6bbdb7] ring-2 ring-[#6bbdb7]/40' : 'border-gray-100 hover:border-[#6bbdb7]/30'}`}>
+                                    <div className="relative aspect-[4/3] bg-gray-100 flex items-center justify-center overflow-hidden">
+                                        <img src={item.preview} className="w-full h-full object-contain" alt="Preview" />
 
-                                    {/* Badge con Nombre de Archivo */}
-                                    <div className="absolute top-4 left-4 right-14 bg-[#303a7f]/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/20 shadow-lg">
-                                        <p className="text-[9px] font-black text-white uppercase tracking-widest truncate">
-                                            {item.file.name}
-                                        </p>
+                                        {/* Badge con Nombre de Archivo */}
+                                        <div className="absolute top-4 left-4 right-14 bg-[#303a7f]/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/20 shadow-lg">
+                                            <p className="text-[9px] font-black text-white uppercase tracking-widest truncate">
+                                                {item.file.name}
+                                            </p>
+                                        </div>
+
+                                        {/* Badge de imagen pegada desde el portapapeles */}
+                                        {justPastedIds.includes(item.id) && (
+                                            <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-[#6bbdb7] text-white rounded-lg shadow-lg flex items-center gap-2 animate-in zoom-in duration-300">
+                                                <CheckCircle size={12} />
+                                                <span className="text-[8px] font-black uppercase tracking-widest">Pegada del portapapeles</span>
+                                            </div>
+                                        )}
+
+                                        <button
+                                            onClick={() => onRemove(item.id)}
+                                            className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100 active:scale-90"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
                                     </div>
+                                    <div className="p-6">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 px-1">Instrucciones o Comentarios</label>
+                                        <textarea
+                                            value={item.comment}
+                                            onChange={(e) => onCommentChange(item.id, e.target.value)}
+                                            placeholder="Ej: Solo esta fecha 02/25. No tomar en cuenta a Juan Pérez..."
+                                            className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl p-4 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7]/30 focus:bg-white transition-all h-24 resize-none placeholder:text-gray-200"
+                                        />
+                                    </div>
+                                </div>
+                            ))}
 
-                                    <button
-                                        onClick={() => onRemove(item.id)}
-                                        className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100 active:scale-90"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
+                            {/* Tarjeta: Añadir más imágenes */}
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="min-h-[280px] rounded-[2.5rem] border-[3px] border-dashed border-gray-200 bg-white hover:border-[#6bbdb7] hover:bg-teal-50/30 hover:shadow-sm transition-all flex flex-col items-center justify-center gap-3 group active:scale-[0.98]"
+                            >
+                                <div className="w-12 h-12 rounded-2xl bg-[#303a7f]/5 text-[#303a7f] group-hover:bg-[#6bbdb7]/10 group-hover:text-[#6bbdb7] flex items-center justify-center transition-all">
+                                    <Plus size={22} />
                                 </div>
-                                <div className="p-6">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 px-1">Instrucciones o Comentarios</label>
-                                    <textarea
-                                        value={item.comment}
-                                        onChange={(e) => onCommentChange(item.id, e.target.value)}
-                                        placeholder="Ej: Solo esta fecha 02/25. No tomar en cuenta a Juan Pérez..."
-                                        className="w-full bg-[#f9f9f9] border-2 border-gray-100 rounded-2xl p-4 text-xs font-bold text-[#303a7f] outline-none focus:border-[#6bbdb7]/30 focus:bg-white transition-all h-24 resize-none placeholder:text-gray-200"
-                                    />
+                                <p className="text-[10px] font-black text-gray-400 group-hover:text-[#303a7f] uppercase tracking-widest transition-colors">Añadir más fotos</p>
+                                <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-lg">
+                                    <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-[8px] font-black text-[#303a7f] shadow-sm">Ctrl+V</kbd>
+                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">o arrastra aquí</span>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
+                            </button>
+                            <div ref={gridEndRef} />
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer */}
-                <div className="p-8 border-t-2 border-gray-50 flex items-center justify-end gap-4 bg-white">
-                    <button
-                        onClick={onClose}
-                        className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-100 transition-all active:scale-95"
-                    >
-                        Cancelar
-                    </button>
-                    <button
-                        onClick={onConfirm}
-                        disabled={isProcessing || files.length === 0}
-                        className="px-12 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400"
-                    >
-                        {isProcessing ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <Send size={18} />
-                        )}
-                        {isProcessing ? 'Procesando...' : 'Enviar Imágenes'}
-                    </button>
+                <div className="p-8 border-t-2 border-gray-50 flex items-center justify-between gap-4 bg-white">
+                    <div className="hidden sm:flex items-center gap-2 text-gray-300">
+                        <Paperclip size={12} />
+                        <span className="text-[9px] font-bold uppercase tracking-widest">Arrastra imágenes o pégalas con</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded text-[9px] font-black text-[#303a7f]">Ctrl+V</kbd>
+                    </div>
+                    <div className="flex items-center gap-4 ml-auto">
+                        <button
+                            onClick={onClose}
+                            className="px-8 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-100 transition-all active:scale-95"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={onConfirm}
+                            disabled={isProcessing || files.length === 0}
+                            className="px-12 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400"
+                        >
+                            {isProcessing ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <Send size={18} />
+                            )}
+                            {isProcessing ? 'Procesando...' : 'Enviar Imágenes'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -22157,6 +22280,17 @@ function App() {
         }
     }, [variablesLoaded]);
 
+    // FASE 8: Helper centralizado para agregar imágenes al Digitalizador (explorador, arrastrar y soltar o portapapeles)
+    const addSheetFiles = useCallback((filesList) => {
+        const selected = Array.from(filesList || []).filter(f => f && f.type && f.type.startsWith('image/'));
+        if (selected.length === 0) return [];
+        const newItems = selected.map(file => ({
+            id: Math.random().toString(36).substr(2, 9), file: file, preview: URL.createObjectURL(file), comment: ''
+        }));
+        setSheetFiles(prev => [...prev, ...newItems]);
+        return newItems.map(n => n.id);
+    }, []);
+
     const processSheetImagesWithAI = async () => {
         if (!sheetFiles.length) {
             showError("Faltan imágenes o clave de API para procesar.");
@@ -25251,31 +25385,14 @@ function App() {
                                                         {sheetFiles.length > 0 && <CheckCircle size={14} className="text-[#6bbdb7] animate-in zoom-in duration-300" />}
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <div className="relative flex-1">
-                                                            <button
-                                                                disabled={!payrollStore}
-                                                                style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (sheetFiles.length > 0 ? '#6bbdb7' : '#303a7f') }}
-                                                                className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all duration-200 shadow-sm active:scale-95 enabled:hover:-translate-y-0.5 enabled:hover:shadow-md enabled:hover:brightness-110 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2`}
-                                                            >
-                                                                {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos Subidas') : 'Subir Fotos'}
-                                                            </button>
-                                                            <input
-                                                                type="file" multiple disabled={!payrollStore}
-                                                                className="absolute inset-0 opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
-                                                                onChange={(e) => {
-                                                                    const selected = Array.from(e.target.files);
-                                                                    if (selected.length > 0) {
-                                                                        const newItems = selected.map(file => ({
-                                                                            id: Math.random().toString(36).substr(2, 9), file: file, preview: URL.createObjectURL(file), comment: ''
-                                                                        }));
-                                                                        setSheetFiles(prev => [...prev, ...newItems]);
-                                                                        setIsSheetPreviewOpen(true);
-                                                                    }
-                                                                    e.target.value = null;
-                                                                }}
-                                                                accept="image/*"
-                                                            />
-                                                        </div>
+                                                        <button
+                                                            onClick={() => setIsSheetPreviewOpen(true)}
+                                                            disabled={!payrollStore}
+                                                            style={{ backgroundColor: !payrollStore ? '#f3f4f6' : (sheetFiles.length > 0 ? '#6bbdb7' : '#303a7f') }}
+                                                            className={`w-full py-2.5 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all duration-200 shadow-sm active:scale-95 enabled:hover:-translate-y-0.5 enabled:hover:shadow-md enabled:hover:brightness-110 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none flex items-center justify-center gap-2`}
+                                                        >
+                                                            {sheetFiles.length > 0 ? (isProcessingSheets ? 'Procesando...' : 'Fotos Subidas') : 'Subir Fotos'}
+                                                        </button>
                                                     </div>
                                                 </div>
 
@@ -26656,6 +26773,7 @@ function App() {
             <SheetPreviewModal
                 isOpen={isSheetPreviewOpen}
                 files={sheetFiles}
+                onAddFiles={addSheetFiles}
                 onClose={() => {
                     setSheetFiles([]);
                     setIsSheetPreviewOpen(false);
