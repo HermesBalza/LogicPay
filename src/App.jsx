@@ -82,7 +82,8 @@ import {
     Youtube,
     Cloud,
     RefreshCw,
-    Link
+    Link,
+    Undo2
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -11361,7 +11362,7 @@ const isSalariedSupervisor = (emp) => {
     return cargo === 'supervisor' && Number(emp?.sueldoFijo || 0) > 0;
 };
 
-const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, onConfirmPayroll, onBack, user }) => {
+const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, onConfirmPayroll, onDesconfirmarPayroll, onBack, user }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [addedSupervisors, setAddedSupervisors] = useState([]);
@@ -11375,6 +11376,9 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [notificationModal, setNotificationModal] = useState({ isOpen: false, type: 'loading', message: '' });
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [isDesconfirmModalOpen, setIsDesconfirmModalOpen] = useState(false);
+    const [isDesconfirming, setIsDesconfirming] = useState(false);
+    const [isDesconfirmFinished, setIsDesconfirmFinished] = useState(false);
     const [isPayStubModalOpen, setIsPayStubModalOpen] = useState(false);
     const [sendingProgress, setSendingProgress] = useState({ current: 0, total: 0, status: 'idle', logs: [] });
     const [sentPayStubs, setSentPayStubs] = useState({}); // { [empId]: true }
@@ -13193,6 +13197,20 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             </button>
                         )}
 
+                        {/* Botón Desconfirmar — visible solo cuando la nómina está confirmada.
+                            Elimina el registro de Nomina_Detalle y la pantalla vuelve a estado editable. */}
+                        {isAlreadyProcessed && user?.rol !== 'Operador de Pagos' && (
+                            <button
+                                onClick={() => setIsDesconfirmModalOpen(true)}
+                                disabled={isDesconfirming}
+                                className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-white text-amber-600 border-2 border-amber-300 hover:bg-amber-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="Elimina la confirmación y libera la nómina para edición"
+                            >
+                                <Undo2 size={16} />
+                                Desconfirmar
+                            </button>
+                        )}
+
                         {period.store === '__NOMINA_COMPLETA__' && user?.rol !== 'Operador de Pagos' && (
                             <button
                                 onClick={() => {
@@ -13242,6 +13260,75 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                             <CheckCircle size={14} /> Aprobar
                                         </button>
                                     </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {isDesconfirmModalOpen && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#f9f9f9]/80 backdrop-blur-sm p-4 text-left">
+                                <div className="w-full max-w-md bg-white rounded-[2rem] p-8 shadow-2xl border border-gray-100 flex flex-col items-center animate-in zoom-in-95 duration-300">
+                                    <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center mb-6 shadow-inner border border-amber-100">
+                                        <Undo2 size={32} className="text-amber-500" />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-[#303a7f] mb-2 text-center tracking-tight uppercase">¿Desconfirmar Nómina?</h3>
+                                    <p className="text-center text-gray-500 text-sm font-medium mb-8 leading-relaxed">
+                                        Se eliminará la confirmación de la nómina bisemanal <strong className="text-[#303a7f] font-black">{period.range}</strong> y podrá editarse nuevamente.<br /><br />
+                                        Recuerda volver a <strong className="text-[#303a7f] font-black">Confirmar la Nómina</strong> al terminar la edición.
+                                    </p>
+                                    <div className="flex gap-4 w-full">
+                                        <button
+                                            onClick={() => setIsDesconfirmModalOpen(false)}
+                                            className="flex-1 py-4 bg-gray-50 hover:bg-gray-100 text-gray-600 font-black rounded-2xl transition-all border border-gray-200 uppercase text-[10px] tracking-widest active:scale-95"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsDesconfirmModalOpen(false);
+                                                setIsDesconfirmFinished(false);
+                                                setIsDesconfirming(true);
+                                                Promise.resolve(onDesconfirmarPayroll())
+                                                    .then(ok => {
+                                                        setIsDesconfirming(false);
+                                                        if (ok) setIsDesconfirmFinished(true);
+                                                    })
+                                                    .catch(() => setIsDesconfirming(false));
+                                            }}
+                                            className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-2xl transition-all shadow-lg shadow-amber-900/20 uppercase text-[10px] tracking-widest active:scale-95 flex justify-center items-center gap-2"
+                                        >
+                                            <Undo2 size={14} /> Desconfirmar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {isDesconfirming && (
+                            <div className="fixed inset-0 z-[110] flex items-center justify-center bg-[#f9f9f9]/80 backdrop-blur-sm p-4">
+                                <div className="w-full max-w-md bg-white rounded-[2rem] p-10 shadow-2xl border border-gray-100 flex flex-col items-center animate-in zoom-in-95 duration-300">
+                                    <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center mb-6 shadow-inner border border-amber-100">
+                                        <div className="w-8 h-8 border-4 border-amber-200 border-t-amber-500 rounded-full animate-spin" />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-[#303a7f] mb-2 text-center tracking-tight uppercase">Desconfirmando Nómina</h3>
+                                    <p className="text-center text-gray-500 text-sm font-medium leading-relaxed">Estamos eliminando la confirmación y liberando la nómina. Por favor espere.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {isDesconfirmFinished && (
+                            <div className="fixed inset-0 z-[110] flex items-center justify-center bg-[#f9f9f9]/80 backdrop-blur-sm p-4">
+                                <div className="w-full max-w-md bg-white rounded-[2rem] p-10 shadow-2xl border border-gray-100 flex flex-col items-center animate-in zoom-in-95 duration-300">
+                                    <div className="w-16 h-16 rounded-full bg-[#6bbdb7]/10 flex items-center justify-center mb-6 shadow-inner border border-[#6bbdb7]/30">
+                                        <CheckCircle size={32} className="text-[#6bbdb7]" />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-[#303a7f] mb-2 text-center tracking-tight uppercase">¡Nómina Desconfirmada!</h3>
+                                    <p className="text-center text-gray-500 text-sm font-medium mb-8 leading-relaxed">La nómina volvió a estado editable. La pantalla se actualizará ahora.</p>
+                                    <button
+                                        onClick={() => window.location.reload()}
+                                        className="w-full py-4 bg-[#303a7f] hover:bg-[#252a5e] text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-blue-900/10 transition-all active:scale-95"
+                                    >
+                                        Ok
+                                    </button>
                                 </div>
                             </div>
                         )}
@@ -20596,6 +20683,33 @@ function App() {
         }
     };
 
+    // --- DESCONFIRMAR NÓMINA BISEMANAL ---
+    // Elimina el registro de consolidación en Nomina_Detalle. Como el estado "confirmada" es
+    // derivado de la existencia de ese registro, la pantalla bisemanal se desbloquea sola
+    // (el botón verde vuelve a "Confirmar Nómina" y la edición se habilita).
+    // El DELETE del servidor elimina todos los registros con ese ID_Consolidacion (también duplicados).
+    const handleDesconfirmarPayroll = async () => {
+        if (!selectedBiweeklyPeriod) return false;
+        const { store, range } = selectedBiweeklyPeriod;
+        const consolidationId = `${store}_${range}`.replace(/\s+/g, '_');
+        const registros = (nominaDetailDataRaw || []).filter(d =>
+            String(d.ID_Consolidacion || d.id_consolidacion || '').trim() === consolidationId
+        );
+        if (registros.length === 0) {
+            showError("No se encontró la consolidación de esta nómina en Nomina_Detalle. Nada que desconfirmar.");
+            return false;
+        }
+        try {
+            await syncToDatabase('delete', { ID_Consolidacion: consolidationId }, 'Nomina_Detalle', true, ['ID_Consolidacion'], false, 'Desconfirmó', 'Nómina Bisemanal', `${store} (${range})`);
+            await fetchNominaDetail();
+            return true;
+        } catch (error) {
+            console.error('[Desconfirmar Nómina] Error:', error);
+            showError("Hubo un problema al desconfirmar la nómina. La nómina permanece confirmada. Verifique la conexión e intente nuevamente.");
+            return false;
+        }
+    };
+
     const handleStoreMassImport = async (file) => {
         if (!file) return;
         setIsLoading(true);
@@ -26950,6 +27064,7 @@ function App() {
                     setSpecialProjectsData={setSpecialProjectsData}
                     employees={employees}
                     onConfirmPayroll={handleConfirmPayroll}
+                    onDesconfirmarPayroll={handleDesconfirmarPayroll}
                     user={user}
                     onBack={() => {
                         setIsBiweeklyManagementOpen(false);
