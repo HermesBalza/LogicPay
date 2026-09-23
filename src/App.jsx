@@ -19554,6 +19554,7 @@ function App() {
     const [isConfirmClearWeekModalOpen, setIsConfirmClearWeekModalOpen] = useState(false);
     const [isZeroRateModalOpen, setIsZeroRateModalOpen] = useState(false);
     const [zeroRateEmployees, setZeroRateEmployees] = useState([]);
+    const [isConfirmReopenModalOpen, setIsConfirmReopenModalOpen] = useState(false);
     const [isHoursReportEmailModalOpen, setIsHoursReportEmailModalOpen] = useState(false);
     const [isSendingHoursReport, setIsSendingHoursReport] = useState(false);
     const [hoursReportPdfBase64, setHoursReportPdfBase64] = useState(null);
@@ -21921,6 +21922,133 @@ function App() {
         }
     };
 
+    // --- REAPERTURA DE SEMANA APROBADA ---
+    // Flujo transaccional: primero se asegura el snapshot en 'payroll_drafts' (Variables)
+    // y solo si el guardado es exitoso se elimina de 'Nomina_Historico'. Así jamás se
+    // pierde información: si algo falla, la semana permanece aprobada (estado seguro).
+    const handleReopenWeek = async () => {
+        if (!payrollStore || !fechaDesde || !fechaHasta) return;
+        setIsLoading(true);
+        try {
+            const normalizadoDesde = normalizeDate(fechaDesde);
+            const exactMatch = (rec) =>
+                String(rec.nombre || '').trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                normalizeDate(rec.fecha_inicio) === normalizadoDesde;
+
+            // 1) Localizar el registro (o registros, si la semana está dividida A/B) en el historial
+            const recordA = (nominaHistoryDataRaw || []).find(exactMatch);
+            if (!recordA) {
+                showError("No se encontró el registro de la semana en el Historial de Nómina.");
+                return;
+            }
+            const splitInfo = getSplitInfo(fechaDesde);
+            const recordB = splitInfo.hasSplit
+                ? (nominaHistoryDataRaw || []).find(rec =>
+                    String(rec.nombre || '').trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
+                    normalizeDate(rec.fecha_inicio) === normalizeDate(splitInfo.dateBStart))
+                : null;
+            const recordsToDelete = [recordA, recordB].filter(Boolean);
+
+            // 2) Validar el snapshot antes de tocar nada
+            let payload = null;
+            try { payload = JSON.parse(recordA.data_json || '{}'); } catch (e) {
+                console.error('[Reopen] Error parseando data_json del historial:', e);
+            }
+            if (!payload || !Array.isArray(payload.semanaTableData)) {
+                showError("El registro histórico no contiene datos válidos de la tabla. No se puede reabrir la semana.");
+                return;
+            }
+
+            // SALVAGUARDA: Bloquear la reapertura si la semana pertenece a una Nómina Bisemanal
+            // ya confirmada (Nomina_Detalle). Detección por SUPERPOSICIÓN de fechas: la quincena
+            // confirmada cubre 2 semanas (la semana puede ser la Semana 1 o la 2), por lo que se
+            // comparan rangos de fechas en lugar de IDs de consolidación exactos.
+            const parseMDY = (s) => {
+                const p = String(s || '').trim().split('/');
+                if (p.length !== 3) return null;
+                const d = new Date(Number(p[2]), Number(p[0]) - 1, Number(p[1]));
+                return isNaN(d.getTime()) ? null : d;
+            };
+            const semStart = parseMDY(fechaDesde);
+            const semEnd = parseMDY(fechaHasta);
+            const tiendaNorm = String(payrollStore || '').trim().toLowerCase();
+            const periodoConfirmado = (nominaDetailDataRaw || []).find(d => {
+                const tiendaReg = String(d.Tienda || d.tienda || '').trim().toLowerCase();
+                // La Nómina Completa consolida todas las tiendas de un período
+                if (tiendaReg !== tiendaNorm && tiendaReg !== '__nomina_completa__') return false;
+                const partes = String(d.Periodo || d.periodo || '').replace(/[—–-]/g, '-').split('-');
+                if (partes.length !== 2) return false;
+                const iniPer = parseMDY(partes[0]);
+                const finPer = parseMDY(partes[1]);
+                if (!iniPer || !finPer || !semStart || !semEnd) return false;
+                // Superposición de rangos: [semStart, semEnd] ∩ [iniPer, finPer] ≠ ∅
+                return semStart <= finPer && semEnd >= iniPer;
+            });
+            if (periodoConfirmado) {
+                const rangoConfirmado = String(periodoConfirmado.Periodo || periodoConfirmado.periodo || '').trim();
+                showError(`No se puede reabrir esta semana: pertenece a la Nómina Bisemanal ya confirmada (${rangoConfirmado}). Debe eliminar o anular esa confirmación primero.`);
+                return;
+            }
+
+            // 3) Construir el borrador desde el snapshot (estructura compatible con payroll_drafts)
+            const draftKey = `${payrollStore}_${fechaDesde}_${fechaHasta}`.replace(/\s+/g, '_');
+            const newDraft = {
+                semanaTableData: payload.semanaTableData || [],
+                biometricTableData: payload.biometricTableData || [],
+                rawBiometricData: payload.rawBiometricData || [],
+                payrollResults: payload.payrollResults || []
+            };
+
+            // 4) PRIMERO: asegurar el borrador en Variables (paso crítico, validado estrictamente)
+            const updatedDrafts = { ...payrollDrafts, [draftKey]: newDraft };
+            await syncVariableToDatabaseStrict('payroll_drafts', JSON.stringify(updatedDrafts));
+
+            // 5) SEGUNDO: solo si el guardado fue exitoso, eliminar del historial (por id si existe, si no por llaves)
+            for (const rec of recordsToDelete) {
+                const recData = rec.id !== undefined && rec.id !== null
+                    ? { id: rec.id }
+                    : { nombre: rec.nombre, fecha_inicio: rec.fecha_inicio };
+                const matchKeys = rec.id !== undefined && rec.id !== null ? ['id'] : ['nombre', 'fecha_inicio'];
+                await syncToDatabase('delete', recData, 'Nomina_Historico', true, matchKeys, true);
+            }
+
+            // 6) Actualizar estado local (el candado se libera solo al desaparecer del historial)
+            setPayrollDrafts(updatedDrafts);
+            setNominaHistoryDataRaw(prev => prev.filter(rec => !recordsToDelete.some(del =>
+                String(del.nombre || '').trim().toLowerCase() === String(rec.nombre || '').trim().toLowerCase() &&
+                normalizeDate(del.fecha_inicio) === normalizeDate(rec.fecha_inicio)
+            )));
+            setIsWeeklyApproved(false);
+            setIsHistoricalDataLoaded(false);
+            setEarningsTableData([]);
+            setKbsBillingTableData([]);
+
+            // 7) Auditoría
+            fetch('/api/audit-log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user?.id,
+                    userName: user?.nombre,
+                    accion: 'reabrió Semana de',
+                    entidad: payrollStore,
+                    entidadNombre: `${fechaDesde} - ${fechaHasta}`
+                })
+            }).catch(() => { });
+
+            // 8) Modal de éxito (el botón 'Ok' del Status Modal refresca la pantalla)
+            setStatusModalType("success");
+            setStatusModalTitle("Semana Reabierta");
+            setStatusModalMessage("Semana reabierta exitosamente. Los datos están disponibles en borrador para su edición.");
+            setIsStatusModalOpen(true);
+        } catch (error) {
+            console.error('[Payroll] Error al reabrir semana:', error);
+            showError("No se pudo reabrir la semana. La semana permanece aprobada y sus datos intactos. Verifique la conexión e intente nuevamente.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     // --- FUNCIÓN INTERNA DE IA (Para ser llamada automáticamente) ---
     const runAICrossoverInternal = async (comment = '') => {
         setIsProcessingIA(true);
@@ -23577,6 +23705,34 @@ function App() {
                 userId: u?.id, userName: u?.nombre
             })
         }).catch(err => console.error(`[LogicPay] Error localizando Variable ${key}:`, err));
+    };
+
+    // Variante ESTRICTA de syncVariableToDatabase: valida la respuesta del servidor (HTTP ok + success:true)
+    // y lanza excepción en caso contrario. Se usa cuando el guardado debe confirmarse antes de continuar.
+    const syncVariableToDatabaseStrict = async (key, value, auditUser = null) => {
+        const payload = {
+            key: key,
+            value: typeof value === 'object' ? JSON.stringify(value) : String(value)
+        };
+        const u = auditUser || user;
+        const resp = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+                action: 'upsert', data: payload, sheetName: 'Variables', matchKeys: ['key'],
+                userId: u?.id, userName: u?.nombre
+            })
+        });
+        if (!resp.ok) {
+            const errorText = await resp.text().catch(() => '');
+            throw new Error(`Error ${resp.status} al guardar Variable '${key}': ${errorText}`);
+        }
+        let result = {};
+        try { result = await resp.json(); } catch (e) { /* Respuesta sin cuerpo JSON: se asume exitosa */ }
+        if (result && result.success === false) {
+            throw new Error(result.error || `Error al guardar Variable '${key}'`);
+        }
+        return result;
     };
 
     const filteredStores = stores
@@ -25901,6 +26057,21 @@ function App() {
                                                             {isCurrentWeekApproved ? 'Semana Aprobada' : 'Aprobar Semana'}
                                                         </button>
 
+                                                        {/* Botón Reabrir Semana — visible solo cuando la semana está aprobada.
+                                                            Migra el snapshot de Nomina_Historico a payroll_drafts (Variables)
+                                                            y elimina el historial, liberando la semana para su edición. */}
+                                                        {isCurrentWeekApproved && (
+                                                            <button
+                                                                onClick={() => setIsConfirmReopenModalOpen(true)}
+                                                                disabled={isLoading}
+                                                                className="px-8 py-3 bg-white text-amber-600 border-2 border-amber-200 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2 hover:bg-amber-50 hover:border-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                title="Migra los datos al borrador y libera la semana para edición"
+                                                            >
+                                                                <Unlock size={14} />
+                                                                Reabrir Semana
+                                                            </button>
+                                                        )}
+
                                                         {isZeroRateModalOpen && (
                                                             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#f9f9f9]/80 backdrop-blur-sm p-4">
                                                                 <div className="w-full max-w-lg bg-white rounded-[2rem] p-8 shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-300">
@@ -25972,6 +26143,43 @@ function App() {
                                                                             className="flex-1 py-4 bg-[#303a7f] hover:bg-[#252a5e] text-white font-black rounded-2xl transition-all shadow-lg shadow-blue-900/20 uppercase text-[10px] tracking-widest active:scale-95 flex justify-center items-center gap-2"
                                                                         >
                                                                             <CheckCircle size={14} /> Aprobar
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {isConfirmReopenModalOpen && (
+                                                            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#f9f9f9]/80 backdrop-blur-sm p-4">
+                                                                <div className="w-full max-w-md bg-white rounded-[2rem] p-8 shadow-2xl border border-gray-100 flex flex-col items-center animate-in zoom-in-95 duration-300">
+                                                                    <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center mb-6 shadow-inner border border-amber-100">
+                                                                        <Unlock size={32} className="text-amber-500" />
+                                                                    </div>
+                                                                    <h3 className="text-2xl font-black text-[#303a7f] mb-2 text-center tracking-tight">¿REABRIR SEMANA?</h3>
+                                                                    <p className="text-center text-gray-500 text-sm font-medium mb-8 leading-relaxed">
+                                                                        Los datos de la semana pasarán de forma segura al <strong className="text-[#303a7f] font-black">borrador</strong> y la semana <strong className="text-amber-500 font-black">volverá a estado editable</strong>.<br /><br />
+                                                                        Recuerda volver a <strong className="text-[#303a7f] font-black">Aprobar la Semana</strong> al terminar la edición.
+                                                                    </p>
+                                                                    <div className="flex gap-4 w-full">
+                                                                        <button
+                                                                            onClick={() => setIsConfirmReopenModalOpen(false)}
+                                                                            className="flex-1 py-4 bg-gray-50 hover:bg-gray-100 text-gray-600 font-black rounded-2xl transition-all border border-gray-200 uppercase text-[10px] tracking-widest active:scale-95"
+                                                                        >
+                                                                            Cancelar
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setIsConfirmReopenModalOpen(false);
+                                                                                // Modal de proceso: "Reabriendo Semana..." (sin botón hasta terminar)
+                                                                                setStatusModalType("processing");
+                                                                                setStatusModalTitle("Reabriendo Semana");
+                                                                                setStatusModalMessage("Estamos migrando los datos al borrador y actualizando el historial. Por favor espere.");
+                                                                                setIsStatusModalOpen(true);
+                                                                                handleReopenWeek();
+                                                                            }}
+                                                                            className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-2xl transition-all shadow-lg shadow-amber-900/20 uppercase text-[10px] tracking-widest active:scale-95 flex justify-center items-center gap-2"
+                                                                        >
+                                                                            <Unlock size={14} /> Reabrir
                                                                         </button>
                                                                     </div>
                                                                 </div>
@@ -26933,6 +27141,10 @@ function App() {
                                 onClick={() => {
                                     setIsStatusModalOpen(false);
                                     if (statusModalMessage.includes("Cálculo Semanal procesado")) {
+                                        window.location.reload();
+                                    }
+                                    if (statusModalMessage.includes("Semana reabierta")) {
+                                        // Refresco total al reabrir semana (mismo comportamiento que al aprobar)
                                         window.location.reload();
                                     }
                                     if (statusModalMessage.includes("data del supervisor")) {
