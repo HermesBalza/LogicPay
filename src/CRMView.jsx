@@ -622,7 +622,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     const isContratado = formCandidato.estado === 'Contratado';
     return (
       <ModalOverlay onClose={() => { setSelectedCandidato(null); setShowNewCandidato(false); }} className="max-w-none w-screen h-screen max-h-none rounded-none shadow-none -m-4">
-        <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
+        <div className="px-4 md:px-8 py-4 md:py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <UserPlus size={20} /> Candidato
           </h3>
@@ -766,7 +766,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     const isEditing = !!selectedProveedor;
     return (
       <ModalOverlay onClose={() => { setSelectedProveedor(null); setShowNewProveedor(false); }} className="max-w-none w-screen h-screen max-h-none rounded-none shadow-none -m-4">
-        <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
+        <div className="px-4 md:px-8 py-4 md:py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <Building2 size={20} /> {isEditing ? 'Proveedor' : 'Nuevo Proveedor'}
           </h3>
@@ -847,7 +847,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     if (!showBuscarProveedores) return null;
     return (
       <ModalOverlay onClose={() => { setShowBuscarProveedores(false); setResultadosBusqueda([]); }} className="max-w-none w-screen h-screen max-h-none rounded-none shadow-none -m-4">
-        <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
+        <div className="px-4 md:px-8 py-4 md:py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <Globe size={20} /> Buscar Proveedores
           </h3>
@@ -958,13 +958,13 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     const selectedProviderName = selectedProyecto?.proveedor_seleccionado_id ? getProveedorById(selectedProyecto.proveedor_seleccionado_id)?.nombre : null;
     return (
       <ModalOverlay onClose={() => { setSelectedProyecto(null); setShowNewProyecto(false); }}>
-        <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
+        <div className="px-4 md:px-8 py-4 md:py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <Briefcase size={20} /> {isEditing ? 'Editar Proyecto' : 'Nuevo Proyecto'}
           </h3>
           <button onClick={() => { setSelectedProyecto(null); setShowNewProyecto(false); }} className="p-2 rounded-xl transition-all btn-close-danger"><X size={18} /></button>
         </div>
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
           <div className="space-y-4">
             <input className={inputCls} placeholder="Nombre del proyecto *" value={formProyecto.nombre} onChange={e => setFormProyecto(f => ({ ...f, nombre: e.target.value }))} />
             <div className="grid grid-cols-2 gap-4">
@@ -1080,13 +1080,13 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     const isEditing = !!selectedCotizacion;
     return (
       <ModalOverlay onClose={() => { setShowNewCotizacion(false); setSelectedCotizacion(null); }}>
-        <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
+        <div className="px-4 md:px-8 py-4 md:py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <DollarSign size={20} /> {isEditing ? 'Editar Cotización' : 'Nueva Cotización'}
           </h3>
           <button onClick={() => { setShowNewCotizacion(false); setSelectedCotizacion(null); }} className="p-2 rounded-xl transition-all btn-close-danger"><X size={18} /></button>
         </div>
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
           <div className="space-y-4">
             <div>
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Proveedor</label>
@@ -1159,13 +1159,13 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
     if (!showRegistrarLlamada) return null;
     return (
       <ModalOverlay onClose={() => setShowRegistrarLlamada(false)}>
-        <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
+        <div className="px-4 md:px-8 py-4 md:py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <Phone size={20} /> Registrar Llamada
           </h3>
           <button onClick={() => setShowRegistrarLlamada(false)} className="p-2 rounded-xl transition-all btn-close-danger"><X size={18} /></button>
         </div>
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
           <div className="space-y-4">
             <div>
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Tipo de Interacción</label>

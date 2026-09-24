@@ -118,8 +118,6 @@ import AdminExpensesView from './AdminExpensesView.jsx';
 import NotificationBell from './NotificationBell.jsx';
 import PixelCat from './PixelCat.jsx';
 
-const MobileShell = React.lazy(() => import('./mobile/MobileShell'));
-
 // ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
 // La API Key debe ser ingresada en la sección de Ajustes para evitar filtraciones.
 // ─── BASE DE DATOS: SQLite via API local (escritura) ───────────────

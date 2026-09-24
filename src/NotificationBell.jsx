@@ -152,7 +152,7 @@ export default function NotificationBell({ onSelectCandidato, onSelectProveedor 
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
           <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm animate-in fade-in duration-300" />
           <div
-            className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col min-h-[85vh] max-h-[85vh] overflow-hidden"
+            className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col h-[85vh] max-h-[85vh] overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">

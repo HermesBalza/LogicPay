@@ -100,8 +100,6 @@ import AdminExpensesView from './AdminExpensesView.jsx';
 import NotificationBell from './NotificationBell.jsx';
 import PixelCat from './PixelCat.jsx';
 
-const MobileShell = React.lazy(() => import('./mobile/MobileShell'));
-
 // ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
 // La API Key debe ser ingresada en la sección de Ajustes para evitar filtraciones.
 // ─── BASE DE DATOS: SQLite via API local (escritura) ───────────────
@@ -692,7 +690,7 @@ const LoginView = ({ onLogin }) => {
                 className="absolute bottom-[-5%] left-[-10%] w-[500px] h-[500px] blur-[100px] rounded-full"
             />
 
-            <div className={`w-full max-w-md p-10 bg-white/80 backdrop-blur-2xl rounded-[3rem] border border-white/20 shadow-2xl shadow-blue-900/10 transition-all duration-500 animate-in fade-in zoom-in-95 ${error ? 'border-red-200 animate-shake' : ''}`}>
+            <div className={`w-full max-w-md p-6 sm:p-10 bg-white/80 backdrop-blur-2xl rounded-[3rem] border border-white/20 shadow-2xl shadow-blue-900/10 transition-all duration-500 animate-in fade-in zoom-in-95 ${error ? 'border-red-200 animate-shake' : ''}`}>
                 <div className="flex flex-col items-center mb-10">
                     <img
                         src="/Logo Logic Group Management.png"
@@ -840,7 +838,7 @@ ${systemContext || "Contexto cargando..."}
                 </button>
             ) : (
                 /* VENTANA DE CHAT */
-                <div className="mr-4 w-80 h-[500px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-[#3a2c22]/10 flex flex-col animate-in zoom-in-95 slide-in-from-right-10 duration-300 overflow-hidden">
+                <div className="mr-4 w-[min(20rem,calc(100vw-2rem))] h-[500px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-[#3a2c22]/10 flex flex-col animate-in zoom-in-95 slide-in-from-right-10 duration-300 overflow-hidden">
                     {/* Header */}
                     <div
                         style={{ background: 'linear-gradient(135deg, #3a2c22 0%, #2a1f18 100%)' }}
@@ -4436,7 +4434,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
     return (
         <div className="fixed inset-0 z-[120] bg-[#fdfdfe] flex flex-col overflow-hidden animate-in fade-in duration-500">
-            <header className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
+            <header className="px-4 md:px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
                 <div className="flex items-center gap-4">
                     <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform rotate-0 hover:-rotate-3 transition-transform duration-500">
                         <LayoutGrid size={20} />
@@ -4500,7 +4498,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             </header>
 
             {/* Compact Metadata Bar (Cintillo de Información) */}
-            <div className="bg-white border-b-2 border-brand-primary/5 px-12 py-5 shadow-sm relative z-20">
+            <div className="bg-white border-b-2 border-brand-primary/5 px-4 md:px-12 py-5 shadow-sm relative z-20">
                 <div className="max-w-[1800px] mx-auto flex flex-wrap items-center gap-x-12 gap-y-4">
                     {/* WOS Number Section */}
                     <div className="flex items-center gap-4 pr-10 border-r-2 border-gray-50">
@@ -4823,7 +4821,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             {/* Modal de Detalles a Pantalla Completa */}
             {isWOSDetailOpen && (
                 <div className="fixed inset-0 z-[150] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
-                    <header className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between sticky top-0 bg-white z-20 shadow-sm">
+                    <header className="px-4 md:px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between sticky top-0 bg-white z-20 shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="p-3 bg-gradient-to-br from-[#6bbdb7] to-teal-600 text-white rounded-xl shadow-lg shadow-teal-900/10">
                                 <List size={20} />
@@ -5126,7 +5124,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             {isWOSBugOpen && (
                 <div className="fixed inset-0 z-[200] bg-white flex flex-col animate-in slide-in-from-bottom duration-700">
                     {/* Cabecera del Reporte de Errores */}
-                    <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
+                    <div className="px-4 md:px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-lg shadow-orange-900/10">
                                 <Bug size={20} />
@@ -5271,7 +5269,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                     </div>
 
                     {/* Footer del Reporte */}
-                    <div className="px-12 py-6 border-t font-black text-[10px] text-gray-400 bg-white flex justify-between uppercase tracking-widest">
+                    <div className="px-4 md:px-12 py-6 border-t font-black text-[10px] text-gray-400 bg-white flex justify-between uppercase tracking-widest">
                         <span>AdWisers - LogicPay</span>
                         <span className="text-orange-500 animate-pulse">● Discrepancias en WOS</span>
                         <span>{new Date().toLocaleString()}</span>
@@ -5282,7 +5280,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             {/* VENTANA EMERGENTE: FACTURACIONES EN $0.00 */}
             {isWOSZeroModalOpen && (
                 <div className="fixed inset-0 z-[260] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
-                    <header className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between sticky top-0 bg-white z-20 shadow-sm">
+                    <header className="px-4 md:px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between sticky top-0 bg-white z-20 shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-lg shadow-orange-900/10">
                                 <Trash2 size={20} />
@@ -5334,7 +5332,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                     </div>
 
                     {/* Footer */}
-                    <div className="px-12 py-6 border-t font-black text-[10px] text-gray-400 bg-white flex justify-between uppercase tracking-widest">
+                    <div className="px-4 md:px-12 py-6 border-t font-black text-[10px] text-gray-400 bg-white flex justify-between uppercase tracking-widest">
                         <span>AdWisers - LogicPay</span>
                         <span className="text-orange-500 animate-pulse">● Facturaciones en $0.00</span>
                         <span>{new Date().toLocaleString()}</span>
@@ -5345,7 +5343,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             {/* VENTANA EMERGENTE: MATCH MANUAL */}
             {isManualMatchModalOpen && manualMatchTarget && (
                 <div className="fixed inset-0 z-[250] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
-                    <header className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between sticky top-0 bg-white z-20 shadow-sm">
+                    <header className="px-4 md:px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between sticky top-0 bg-white z-20 shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="p-3 bg-gradient-to-br from-[#6bbdb7] to-teal-600 text-white rounded-xl shadow-lg shadow-teal-900/10">
                                 <Link size={20} />
@@ -5377,7 +5375,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         </div>
                     </header>
 
-                    <div className="px-12 py-4 bg-gray-50 border-b border-gray-100 flex items-center gap-4">
+                    <div className="px-4 md:px-12 py-4 bg-gray-50 border-b border-gray-100 flex items-center gap-4">
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Filtrar Tienda:</span>
                         <select
                             value={manualMatchStoreFilter}
@@ -7336,7 +7334,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                 <div className="px-10 py-8 border-t-2 border-gray-50 bg-gray-50/10 flex justify-end shrink-0">
                     <button
                         onClick={onClose}
-                        className="px-12 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 btn-close-danger"
+                        className="px-6 md:px-12 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 btn-close-danger"
                     >
                         Cerrar Manual
                     </button>
@@ -8698,7 +8696,7 @@ const VWHTableModal = (props) => {
     return (
         <div className="fixed inset-0 z-[300] bg-white animate-in fade-in duration-500 overflow-hidden flex flex-col">
             {/* Header Flotante (Botones de Control Superiores) */}
-            <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-40 shadow-sm" data-html2canvas-ignore="true">
+            <div className="px-4 md:px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-40 shadow-sm" data-html2canvas-ignore="true">
                 <div className="flex items-center gap-4">
                     <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform rotate-0 hover:-rotate-3 transition-transform duration-500">
                         <Receipt size={20} />
@@ -9863,7 +9861,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
 
     return (
         <div className="fixed inset-0 z-[500] bg-[#f9f9f9] flex flex-col animate-in fade-in duration-500 overflow-hidden">
-            <header className="px-12 py-6 bg-white border-b-2 border-gray-100 flex items-center justify-between shadow-sm">
+            <header className="px-4 md:px-12 py-6 bg-white border-b-2 border-gray-100 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-6">
                     <div className="p-3 bg-[#303a7f] text-white rounded-xl shadow-xl shadow-blue-900/20"><Mail size={20} /></div>
                     <div className="flex flex-col">
@@ -10403,7 +10401,7 @@ const EmployeeVerificationModal = ({ isOpen, onClose, results, onAddAll, stores,
                                 return !r.resolvedEmployee && !r.isExcluded;
                             }).length > 0}
                             onClick={handleFinalize}
-                            className={`px-12 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-3 ${localResults.filter(r => {
+                            className={`px-6 md:px-12 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-3 ${localResults.filter(r => {
                                 if (massImportMode && r.type === 'new') return false;
                                 return !r.resolvedEmployee && !r.isExcluded;
                             }).length > 0
@@ -12784,7 +12782,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             </div>
                         </div>
                     )}
-                    {/* Table */}
+                    {/* Table (solo escritorio; en móvil se reemplaza por tarjetas) */}
+                    {!isMobileView && (
                     <div className="overflow-x-auto rounded-[2rem] border-[3px] border-gray-100">
                         <table className="w-full text-left border-collapse">
                             <thead>
@@ -12806,7 +12805,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                 </tr>
                             </thead>
                             <tbody className="divide-y-2 divide-gray-50">
-                                {biweeklyEmployees.map((emp, idx) => {
+                                {!isMobileView && biweeklyEmployees.map((emp, idx) => {
                                     const totalHours = calculateTotalHrs(emp);
                                     const pagoTotal = calculatePagoTotal(emp);
 
@@ -12874,7 +12873,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     );
                                 })}
 
-                                {addedSupervisors.map((emp, idx) => {
+                                {!isMobileView && addedSupervisors.map((emp, idx) => {
                                     return (
                                         <tr key={`sup-${idx}`} className={`group transition-colors ${emp.rowColor} hover:brightness-95`}>
                                             <td className="p-4 border-r-2 border-gray-100 font-black text-[#303a7f] text-xs uppercase tracking-tight flex items-center justify-between">
@@ -12971,7 +12970,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     );
                                 })}
 
-                                {esVistaNominaCompleta && manualesNomina.map((m, idx) => {
+                                {esVistaNominaCompleta && !isMobileView && manualesNomina.map((m, idx) => {
                                     return (
                                         <tr key={`manual-${idx}`} className="group transition-colors bg-amber-50/30 hover:bg-amber-50/60">
                                             <td className="p-4 border-r-2 border-gray-100 font-black text-[#303a7f] text-xs uppercase tracking-tight flex items-center justify-between">
@@ -13055,7 +13054,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     );
                                 })}
 
-                                {esVistaNominaCompleta && agregandoManual && !isAlreadyProcessed && (
+                                {esVistaNominaCompleta && agregandoManual && !isAlreadyProcessed && !isMobileView && (
                                     <tr className="bg-amber-50/40 border-t-2 border-dashed border-amber-400/40">
                                         <td className="p-4" colSpan="6">
                                             <div className="flex items-center gap-4">
@@ -13124,7 +13123,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     </tr>
                                 )}
 
-                                {!isAlreadyProcessed && period.store !== '__NOMINA_COMPLETA__' && (
+                                {!isAlreadyProcessed && period.store !== '__NOMINA_COMPLETA__' && !isMobileView && (
                                     <tr className="bg-teal-50/10 border-t-2 border-dashed border-teal-500/20">
                                         <td className="p-4" colSpan="6">
                                             <div className="flex items-center gap-4">
@@ -13255,9 +13254,422 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             </tfoot>
                         </table>
                     </div>
+                    )}
+
+                    {/* VISTA DE TARJETAS (solo móvil): misma información y mismos handlers que la tabla */}
+                    {isMobileView && (
+                        <div className="space-y-3">
+                            {biweeklyEmployees.map((emp, idx) => {
+                                const totalHours = calculateTotalHrs(emp);
+                                const pagoTotal = calculatePagoTotal(emp);
+                                return (
+                                    <div key={`card-${idx}`} className={`rounded-2xl border-2 border-gray-100 p-4 ${emp.rowColor || 'bg-white'}`}>
+                                        <div className="flex items-start justify-between gap-2 mb-3">
+                                            <p className="font-black text-[#303a7f] text-xs uppercase tracking-tight leading-tight">{emp.nombre}</p>
+                                            <span className="text-right font-black text-[#303a7f] text-sm tabular-nums shrink-0">${pagoTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                        </div>
+                                        <div className="grid grid-cols-4 gap-2 mb-3">
+                                            <div className="bg-white/80 rounded-xl px-1 py-1.5 text-center border border-gray-100">
+                                                <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">SEM 1</p>
+                                                <p className="text-xs font-bold text-gray-500 tabular-nums">{emp.semana1 !== null ? Number(emp.semana1).toFixed(2) : '-'}</p>
+                                            </div>
+                                            <div className="bg-white/80 rounded-xl px-1 py-1.5 text-center border border-gray-100">
+                                                <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">SEM 2</p>
+                                                <p className="text-xs font-bold text-gray-500 tabular-nums">{emp.semana2 !== null ? Number(emp.semana2).toFixed(2) : '-'}</p>
+                                            </div>
+                                            <div className="bg-white/80 rounded-xl px-1 py-1.5 text-center border border-gray-100">
+                                                <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">P.E</p>
+                                                <p className={`text-xs font-bold tabular-nums ${emp.pe === 0 ? 'text-gray-400 italic' : 'text-amber-600'}`}>{emp.pe === 0 ? '-' : emp.pe.toFixed(2)}</p>
+                                            </div>
+                                            <div className="bg-white/80 rounded-xl px-1 py-1.5 text-center border border-gray-100">
+                                                <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">TOTAL</p>
+                                                <p className="text-xs font-black text-[#303a7f] tabular-nums">{totalHours.toFixed(2)}</p>
+                                            </div>
+                                            <div className="bg-white/80 rounded-xl px-1 py-1.5 text-center border border-gray-100">
+                                                <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">RATE</p>
+                                                <p className="text-xs font-bold text-[#6bbdb7] tabular-nums">${Number(emp.rate).toFixed(2)}</p>
+                                            </div>
+                                            {esVistaNominaCompleta && (() => {
+                                                const regAjuste = ajustesNomina[emp.id];
+                                                const fmt = fmtAjuste(regAjuste?.ajuste || 0);
+                                                const borrador = ajustesEdit[emp.id];
+                                                const valEdit = modoEdicionNomina && borrador ? parsearAjuste(borrador.texto) : null;
+                                                const fmtEdit = fmtAjuste(valEdit || 0);
+                                                const totalAj = modoEdicionNomina ? pagoTotal + (valEdit || 0) : pagoTotal + (Number(regAjuste?.ajuste) || 0);
+                                                return (
+                                                    <>
+                                                        <div className="bg-white/80 rounded-xl px-1 py-1.5 text-center border border-gray-100">
+                                                            <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">AJUSTE</p>
+                                                            {modoEdicionNomina ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={borrador?.texto ?? ''}
+                                                                    onChange={(e) => handleAjusteCell(emp.id, e.target.value)}
+                                                                    placeholder="+52/-30"
+                                                                    className={`w-full text-center border-2 rounded-lg px-1 py-0.5 text-[10px] font-black outline-none ${(valEdit === null && (borrador?.texto ?? '').trim() !== '') ? 'border-red-400 bg-red-50 text-red-600' : 'border-brand-primary/20 focus:border-[#6bbdb7] bg-white text-[#303a7f]'}`}
+                                                                />
+                                                            ) : (
+                                                                <span className={`text-xs font-black ${fmt.color}`}>{fmt.texto}</span>
+                                                            )}
+                                                            {modoEdicionNomina && (
+                                                                <input
+                                                                    type="text"
+                                                                    value={borrador?.comentario ?? ''}
+                                                                    onChange={(e) => handleAjusteComment(emp.id, e.target.value)}
+                                                                    placeholder="Motivo"
+                                                                    className="w-full text-center border border-gray-200 rounded-md px-1 py-0.5 text-[8px] font-bold outline-none focus:border-[#6bbdb7] bg-gray-50 text-gray-600 mt-1"
+                                                                />
+                                                            )}
+                                                        </div>
+                                                        <div className="bg-white/80 rounded-xl px-1 py-1.5 text-center border border-gray-100">
+                                                            <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">C/AJUSTE</p>
+                                                            <p className={`text-xs font-black tabular-nums ${totalAj < -0.005 ? 'text-red-600' : 'text-[#303a7f]'}`}>${(Math.max(totalAj, 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                                            {valEdit !== null && Math.abs(valEdit) >= 0.005 && <span className={`text-[8px] font-bold ${valEdit > 0 ? 'text-emerald-500' : 'text-red-500'}`}>{fmtEdit.texto}</span>}
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+                                        <textarea
+                                            value={emp.comments || ''}
+                                            onChange={(e) => !isAlreadyProcessed && handleCommentChange(idx, e.target.value)}
+                                            readOnly={isAlreadyProcessed}
+                                            rows={Math.max(1, (emp.comments || '').split('\n').length)}
+                                            className={`w-full rounded-xl px-3 py-2 text-[10px] font-bold outline-none resize-none leading-tight ${isAlreadyProcessed ? 'cursor-not-allowed bg-white/50' : 'bg-white/80'} ${emp.comments ? 'text-amber-600' : 'text-gray-500 placeholder-gray-300'}`}
+                                            placeholder={isAlreadyProcessed ? '' : 'Añadir comentario...'}
+                                        />
+                                    </div>
+                                );
+                            })}
+
+                            {addedSupervisors.map((emp, idx) => (
+                                <div key={`supcard-${idx}`} className={`rounded-2xl border-2 border-gray-100 p-4 ${emp.rowColor || 'bg-white'}`}>
+                                    <div className="flex items-center justify-between gap-2 mb-3">
+                                        <p className="font-black text-[#303a7f] text-xs uppercase tracking-tight">{emp.nombre}</p>
+                                        {!isAlreadyProcessed && period.store !== '__NOMINA_COMPLETA__' && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setAddedSupervisors(prev => prev.filter((_, i) => i !== idx))}
+                                                className="text-red-500 hover:text-red-700 text-[9px] font-black uppercase tracking-wider"
+                                            >
+                                                Eliminar
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="bg-white/80 rounded-xl px-2 py-2 border border-gray-100">
+                                            <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest text-center">SUELDO FIJO</p>
+                                            {!isAlreadyProcessed ? (
+                                                <div className="flex items-center justify-center bg-white border-2 border-brand-primary/20 rounded-xl px-2 py-1 shadow-sm mt-1">
+                                                    <span className="text-[#6bbdb7] font-black mr-1 text-[10px]">$</span>
+                                                    <input
+                                                        type="number"
+                                                        value={emp.sueldoFijo || ''}
+                                                        onChange={(e) => {
+                                                            const val = parseFloat(e.target.value) || 0;
+                                                            setAddedSupervisors(prev => prev.map((item, i) => i === idx ? { ...item, sueldoFijo: val } : item));
+                                                        }}
+                                                        className="w-full bg-transparent border-none text-[10px] font-bold outline-none text-right p-0"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs font-black text-[#303a7f] tabular-nums text-center mt-1">${Number(emp.sueldoFijo || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                            )}
+                                        </div>
+                                        {esVistaNominaCompleta && (() => {
+                                            const regAjuste = ajustesNomina[emp.id];
+                                            const fmt = fmtAjuste(regAjuste?.ajuste || 0);
+                                            const borrador = ajustesEdit[emp.id];
+                                            const valEdit = modoEdicionNomina && borrador ? parsearAjuste(borrador.texto) : null;
+                                            const fmtEdit = fmtAjuste(valEdit || 0);
+                                            const base = Number(emp.sueldoFijo || 0);
+                                            const totalAj = modoEdicionNomina ? base + (valEdit || 0) : base + (Number(regAjuste?.ajuste) || 0);
+                                            return (
+                                                <>
+                                                    <div className="bg-white/80 rounded-xl px-2 py-2 border border-gray-100">
+                                                        <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest text-center">AJUSTE</p>
+                                                        {modoEdicionNomina ? (
+                                                            <input
+                                                                type="text"
+                                                                value={borrador?.texto ?? ''}
+                                                                onChange={(e) => handleAjusteCell(emp.id, e.target.value)}
+                                                                placeholder="+52/-30"
+                                                                className={`w-full text-center border-2 rounded-lg px-1 py-0.5 text-[10px] font-black outline-none mt-1 ${(valEdit === null && (borrador?.texto ?? '').trim() !== '') ? 'border-red-400 bg-red-50 text-red-600' : 'border-brand-primary/20 focus:border-[#6bbdb7] bg-white text-[#303a7f]'}`}
+                                                            />
+                                                        ) : (
+                                                            <p className={`text-xs font-black text-center mt-1 ${fmt.color}`}>{fmt.texto}</p>
+                                                        )}
+                                                    </div>
+                                                    <div className="bg-white/80 rounded-xl px-2 py-2 border border-gray-100">
+                                                        <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest text-center">C/AJUSTE</p>
+                                                        <p className={`text-xs font-black tabular-nums text-center ${totalAj < -0.005 ? 'text-red-600' : 'text-[#303a7f]'}`}>${(Math.max(totalAj, 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                                        {valEdit !== null && Math.abs(valEdit) >= 0.005 && <span className={`text-[8px] font-bold ${valEdit > 0 ? 'text-emerald-500' : 'text-red-500'}`}>{fmtEdit.texto}</span>}
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                    <textarea
+                                        value={emp.comments || ''}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setAddedSupervisors(prev => prev.map((item, i) => i === idx ? { ...item, comments: val } : item));
+                                        }}
+                                        readOnly={isAlreadyProcessed}
+                                        rows={Math.max(1, (emp.comments || '').split('\n').length)}
+                                        className={`mt-3 w-full rounded-xl px-3 py-2 text-[10px] font-bold outline-none resize-none leading-tight ${isAlreadyProcessed ? 'cursor-not-allowed bg-white/50' : 'bg-white/80'} ${emp.comments ? 'text-amber-600' : 'text-gray-500 placeholder-gray-300'}`}
+                                        placeholder={isAlreadyProcessed ? '' : 'Añadir comentario...'}
+                                    />
+                                </div>
+                            ))}
+
+                            {esVistaNominaCompleta && manualesNomina.map((m, idx) => {
+                                const manualKey = `${m.nombre.toLowerCase()}_${m.codigo}`;
+                                const regAjuste = ajustesNomina[manualKey];
+                                const fmt = fmtAjuste(regAjuste?.ajuste || 0);
+                                const borrador = ajustesEdit[manualKey];
+                                const valEdit = modoEdicionNomina && borrador ? parsearAjuste(borrador.texto) : null;
+                                const fmtEdit = fmtAjuste(valEdit || 0);
+                                const totalAj = m.monto + (modoEdicionNomina ? (valEdit || 0) : (Number(regAjuste?.ajuste) || 0));
+                                return (
+                                    <div key={`manualcard-${idx}`} className="rounded-2xl border-2 border-gray-100 bg-amber-50/30 p-4">
+                                        <div className="flex items-center justify-between gap-2 mb-3">
+                                            <p className="font-black text-[#303a7f] text-xs uppercase tracking-tight flex items-center gap-1.5">
+                                                {m.nombre}
+                                                <span className="text-[7px] font-black text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full tracking-widest">MANUAL</span>
+                                            </p>
+                                            {!isAlreadyProcessed && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleEliminarManual(m.nombre)}
+                                                    disabled={guardandoManuales}
+                                                    className="text-red-500 hover:text-red-700 text-[9px] font-black uppercase tracking-wider"
+                                                >
+                                                    Eliminar
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="bg-white/80 rounded-xl px-2 py-2 border border-gray-100">
+                                                <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest text-center">PAGO</p>
+                                                {!isAlreadyProcessed ? (
+                                                    <input
+                                                        type="text"
+                                                        value={m.monto ? String(m.monto) : ''}
+                                                        onChange={(e) => handleMontoManual(m.nombre, e.target.value)}
+                                                        disabled={guardandoManuales}
+                                                        className="w-full bg-white border-2 border-brand-primary/20 rounded-xl px-2 py-1 text-[10px] font-bold outline-none text-right mt-1"
+                                                    />
+                                                ) : (
+                                                    <p className="text-xs font-black text-[#303a7f] tabular-nums text-center mt-1">${Number(m.monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                                )}
+                                            </div>
+                                            <div className="bg-white/80 rounded-xl px-2 py-2 border border-gray-100">
+                                                <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest text-center">AJUSTE</p>
+                                                {modoEdicionNomina ? (
+                                                    <input
+                                                        type="text"
+                                                        value={borrador?.texto ?? ''}
+                                                        onChange={(e) => handleAjusteCell(manualKey, e.target.value)}
+                                                        placeholder="+52/-30"
+                                                        className={`w-full text-center border-2 rounded-lg px-1 py-0.5 text-[10px] font-black outline-none mt-1 ${(valEdit === null && (borrador?.texto ?? '').trim() !== '') ? 'border-red-400 bg-red-50 text-red-600' : 'border-brand-primary/20 focus:border-[#6bbdb7] bg-white text-[#303a7f]'}`}
+                                                    />
+                                                ) : (
+                                                    <p className={`text-xs font-black text-center mt-1 ${fmt.color}`}>{fmt.texto}</p>
+                                                )}
+                                            </div>
+                                            <div className="bg-white/80 rounded-xl px-2 py-2 border border-gray-100 col-span-2">
+                                                <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest text-center">TOTAL CON AJUSTE</p>
+                                                <p className={`text-xs font-black tabular-nums text-center ${totalAj < -0.005 ? 'text-red-600' : 'text-[#303a7f]'}`}>${(Math.max(totalAj, 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                                {valEdit !== null && Math.abs(valEdit) >= 0.005 && <p className={`text-[8px] font-bold text-center ${valEdit > 0 ? 'text-emerald-500' : 'text-red-500'}`}>{fmtEdit.texto}</p>}
+                                            </div>
+                                        </div>
+                                        <p className="mt-2 text-center font-bold text-gray-400 italic text-[10px]">Pago manual</p>
+                                    </div>
+                                );
+                            })}
+
+                            {esVistaNominaCompleta && agregandoManual && !isAlreadyProcessed && (
+                                <div className="rounded-2xl border-2 border-dashed border-amber-400/40 bg-amber-50/40 p-4 space-y-3">
+                                    <div>
+                                        <label className="text-[8px] text-amber-600 font-black uppercase tracking-widest block mb-1">Nombre del Empleado</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Escriba o seleccione..."
+                                            value={manualInputNombre}
+                                            onChange={(e) => {
+                                                setManualInputNombre(e.target.value);
+                                                setShowManualSuggestions(true);
+                                            }}
+                                            onFocus={() => setShowManualSuggestions(true)}
+                                            onBlur={() => setTimeout(() => setShowManualSuggestions(false), 150)}
+                                            className="w-full bg-white border-2 border-amber-400/30 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-amber-400 transition-all"
+                                        />
+                                        {showManualSuggestions && (
+                                            <div className="mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-[200] max-h-40 overflow-y-auto">
+                                                {employees
+                                                    .filter(e => String(e.nombre || '').toLowerCase().includes(manualInputNombre.toLowerCase()))
+                                                    .slice(0, 30)
+                                                    .map((e, sIdx) => (
+                                                        <div
+                                                            key={sIdx}
+                                                            onMouseDown={() => {
+                                                                setManualInputNombre(e.nombre);
+                                                                setManualSelectedId(String(e.codigo_empleado || ''));
+                                                                setShowManualSuggestions(false);
+                                                            }}
+                                                            className="px-4 py-2 hover:bg-amber-50 text-xs font-bold text-gray-700 cursor-pointer transition-colors"
+                                                        >
+                                                            {e.nombre} (ID: {e.codigo_empleado})
+                                                        </div>
+                                                    ))
+                                                }
+                                                {employees.filter(e => String(e.nombre || '').toLowerCase().includes(manualInputNombre.toLowerCase())).length === 0 && (
+                                                    <div className="px-4 py-2 text-gray-400 text-[10px] font-bold">Sin coincidencias en Personal</div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-amber-600 font-black uppercase tracking-widest block mb-1">Pago ($)</label>
+                                        <input
+                                            type="text"
+                                            placeholder="0.00"
+                                            value={manualInputMonto}
+                                            onChange={(e) => setManualInputMonto(e.target.value)}
+                                            className="w-full bg-white border-2 border-amber-400/30 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-amber-400 transition-all text-right"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleAgregarManual}
+                                        disabled={guardandoManuales || !manualInputNombre.trim()}
+                                        className="w-full px-6 py-2.5 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        {guardandoManuales ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <UserPlus size={14} />}
+                                        Agregar
+                                    </button>
+                                </div>
+                            )}
+
+                            {!isAlreadyProcessed && period.store !== '__NOMINA_COMPLETA__' && (
+                                <div className="rounded-2xl border-2 border-dashed border-teal-500/20 bg-teal-50/10 p-4 space-y-3">
+                                    <div>
+                                        <label className="text-[8px] text-teal-600 font-black uppercase tracking-widest block mb-1">Nombre del Supervisor</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Escriba o seleccione..."
+                                            value={superInputName}
+                                            onChange={(e) => {
+                                                setSuperInputName(e.target.value);
+                                                setShowSuperSuggestions(true);
+                                            }}
+                                            onFocus={() => setShowSuperSuggestions(true)}
+                                            className="w-full bg-white border-2 border-teal-500/20 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-teal-500 transition-all"
+                                        />
+                                        {showSuperSuggestions && (
+                                            <div className="mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-[200] max-h-40 overflow-y-auto">
+                                                {employees
+                                                    .filter(e => {
+                                                        const isSuper = String(e.cargo).toLowerCase().includes('super');
+                                                        const matchesName = String(e.nombre).toLowerCase().includes(superInputName.toLowerCase());
+                                                        return isSuper && matchesName;
+                                                    })
+                                                    .map((e, sIdx) => (
+                                                        <div
+                                                            key={sIdx}
+                                                            onClick={() => {
+                                                                setSuperInputName(e.nombre);
+                                                                setSuperSelectedId(e.codigo_empleado);
+                                                                setShowSuperSuggestions(false);
+                                                            }}
+                                                            className="px-4 py-2 hover:bg-teal-50 text-xs font-bold text-gray-700 cursor-pointer transition-colors"
+                                                        >
+                                                            {e.nombre} (ID: {e.codigo_empleado})
+                                                        </div>
+                                                    ))
+                                                }
+                                                {employees.filter(e => String(e.cargo).toLowerCase().includes('super')).length === 0 && (
+                                                    <div className="px-4 py-2 text-gray-400 text-[10px] font-bold">No hay supervisores en personal</div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <label className="text-[8px] text-teal-600 font-black uppercase tracking-widest block mb-1">Sueldo Fijo ($)</label>
+                                        <input
+                                            type="number"
+                                            placeholder="0.00"
+                                            value={superInputSalary}
+                                            onChange={(e) => setSuperInputSalary(e.target.value)}
+                                            className="w-full bg-white border-2 border-teal-500/20 rounded-xl px-3 py-2 text-xs font-bold text-[#303a7f] outline-none focus:border-teal-500 transition-all text-right"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!superInputName.trim()) return;
+                                            const name = superInputName.trim().toUpperCase();
+                                            const salary = parseFloat(superInputSalary) || 0;
+                                            const code = superSelectedId || `SUP_${Date.now()}`;
+
+                                            // Evitar duplicados
+                                            if ([...biweeklyEmployees, ...addedSupervisors].some(emp => emp.nombre.toUpperCase() === name)) {
+                                                alert("Este supervisor ya está en la lista.");
+                                                return;
+                                            }
+
+                                            const newSuper = {
+                                                id: `${name.toLowerCase()}_${code}`,
+                                                nombre: name,
+                                                semana1: null,
+                                                semana2: null,
+                                                pe: 0,
+                                                peEarnings: 0,
+                                                rate: 0,
+                                                sueldoFijo: salary,
+                                                cargo: 'Supervisor',
+                                                comments: '',
+                                                rowColor: 'bg-teal-50/40 border-l-4 border-teal-500',
+                                                isSupervisor: true
+                                            };
+
+                                            setAddedSupervisors(prev => [...prev, newSuper]);
+
+                                            // Reset inputs
+                                            setSuperInputName('');
+                                            setSuperInputSalary('');
+                                            setSuperSelectedId('');
+                                            setShowSuperSuggestions(false);
+                                        }}
+                                        className="w-full px-6 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95"
+                                    >
+                                        Agregar
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Totales (equivalente al tfoot de la tabla) */}
+                            <div className="bg-[#303a7f] text-white rounded-2xl p-4 flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-[8px] font-black uppercase tracking-widest text-white/50">Total Personal: {todosNomina.length}</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest">TOTAL DE NÓMINA</p>
+                                </div>
+                                <p className="text-lg font-black tabular-nums">${totalConAjusteGlobal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            </div>
+                            {totalAjustes !== 0 && (
+                                <div className="bg-[#252a5e] text-white rounded-2xl p-3 flex items-center justify-between gap-3">
+                                    <p className="text-[9px] font-black uppercase tracking-widest">Total de Ajustes ({cantidadAjustes} empleado{cantidadAjustes === 1 ? '' : 's'})</p>
+                                    <p className={`text-sm font-black tabular-nums ${totalAjustes > 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                                        {totalAjustes > 0 ? '+' : '-'}${Math.abs(totalAjustes).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Action Bar */}
-                    <div data-html2canvas-ignore className="mt-12 flex justify-end items-center gap-4 border-t-2 border-gray-50 pt-10">
+                    <div data-html2canvas-ignore className="mt-12 flex flex-wrap justify-end items-center gap-4 border-t-2 border-gray-50 pt-10">
                         <button
                             onClick={() => setIsDetailsModalOpen(true)}
                             disabled={todosNomina.length === 0}
@@ -14044,17 +14456,27 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
     const availableYears = Array.from({ length: 15 }, (_, i) => 2026 + i);
     const filteredPeriods = biweeklyPeriods.filter(p => p.filterYear === selectedYear);
 
+    // Vista móvil responsiva (local a este componente; no afecta escritorio)
+    const [isMobileView, setIsMobileView] = useState(() => window.innerWidth < 768);
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 767px)');
+        const apply = () => setIsMobileView(mq.matches);
+        apply();
+        mq.addEventListener('change', apply);
+        return () => mq.removeEventListener('change', apply);
+    }, []);
+
     return (
         <div className={`${inline ? 'w-full flex-1 flex flex-col' : 'fixed inset-0 z-[100] bg-[#f9f9f9] flex flex-col'} overflow-hidden animate-in fade-in duration-500`}>
             {/* Header - Only show if not inline */}
             {!inline && (
-                <header className="px-12 py-8 bg-white border-b-2 border-gray-100 flex items-center justify-between sticky top-0 z-20">
+                <header className={`bg-white border-b-2 border-gray-100 flex items-center justify-between sticky top-0 z-20 ${isMobileView ? 'px-4 py-4' : 'px-12 py-8'}`}>
                     <div className="flex items-center gap-5">
                         <div className="p-4 bg-[#303a7f] text-white rounded-2xl shadow-lg shadow-blue-900/20">
                             <History size={28} />
                         </div>
                         <div>
-                            <h2 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Historial de Nómina</h2>
+                            <h2 className={`${isMobileView ? 'text-xl' : 'text-3xl'} font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1`}>Historial de Nómina</h2>
                             <p className="text-[#6bbdb7] font-black uppercase text-xs tracking-widest">Calendario de Semanas</p>
                         </div>
                     </div>
@@ -14068,7 +14490,7 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
             )}
 
             {/* Store & Year Selector */}
-            <div className={`bg-white border-b-2 border-gray-50 px-12 py-4 flex flex-col md:flex-row gap-8 items-end custom-scrollbar sticky ${inline ? 'top-0' : 'top-[108px]'} z-10`}>
+            <div className={`bg-white border-b-2 border-gray-50 ${isMobileView ? 'px-4 py-3' : 'px-12 py-4'} flex flex-col md:flex-row gap-8 items-end custom-scrollbar sticky ${inline ? 'top-0' : (isMobileView ? 'top-[72px]' : 'top-[108px]')} z-10`}>
                 <div className="flex-shrink-0 w-full md:w-80 border-r-0 md:border-r-2 md:border-gray-50 pr-0 md:pr-6">
                     <label className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-2">Consultar / Procesar Tienda</label>
                     <div className="relative group">
@@ -14144,9 +14566,9 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
             </div>
 
             {/* Content Container */}
-            <div className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-10 custom-scrollbar">
                 <div className="max-w-[1600px] mx-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                    <div className={`grid ${isMobileView ? 'grid-cols-2 gap-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5'}`}>
                         {filteredPeriods.map((p) => {
                             const bothProcessed = isWeekProcessed(p.w1.start) && isWeekProcessed(p.w2.start);
                             const chewyRange = getChewyRange(p.w1.start, p.w2.end);
@@ -14449,7 +14871,7 @@ const SheetPreviewModal = ({ isOpen, files, onClose, onRemove, onCommentChange, 
                         <button
                             onClick={onConfirm}
                             disabled={isProcessing || files.length === 0}
-                            className="px-12 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400"
+                            className="px-6 md:px-12 py-4 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 disabled:bg-gray-200 disabled:shadow-none disabled:text-gray-400"
                         >
                             {isProcessing ? (
                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -15923,7 +16345,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                     </button>
                     <button
                         onClick={handleDownloadPDF}
-                        className="px-12 py-4 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl shadow-teal-900/20 hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3"
+                        className="px-6 md:px-12 py-4 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl shadow-teal-900/20 hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3"
                     >
                         <Download size={18} />
                         Descargar PDF
@@ -19372,7 +19794,7 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
     return (
         <div className="fixed inset-0 z-[600] bg-white animate-in fade-in duration-500 overflow-hidden flex flex-col">
             {/* Header Flotante (Botones de Control Superiores) - Estilo VWH */}
-            <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-40 shadow-sm" data-html2canvas-ignore="true">
+            <div className="px-4 md:px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-40 shadow-sm" data-html2canvas-ignore="true">
                 <div className="flex items-center gap-4">
                     <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
                         <Layers size={20} />
@@ -19643,7 +20065,16 @@ function App() {
 
     const [user, setUser] = useState(() => { try { const saved = sessionStorage.getItem('user'); return saved ? JSON.parse(saved) : null; } catch { return null; } });
     const [catEnabled, setCatEnabled] = useState(() => localStorage.getItem('pixelCatEnabled') === 'true');
-    const [isMobile] = useState(() => window.innerWidth < 768 || /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent));
+    // Vista móvil responsiva: mismo código de escritorio adaptado a pantallas < 768px.
+    // No altera el escritorio: solo activa clases condicionales cuando la ventana es pequeña.
+    const [isMobileView, setIsMobileView] = useState(() => window.innerWidth < 768);
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 767px)');
+        const apply = () => setIsMobileView(mq.matches);
+        apply();
+        mq.addEventListener('change', apply);
+        return () => mq.removeEventListener('change', apply);
+    }, []);
 
     const userCanEdit = user?.rol !== 'Operador de Pagos';
     const userCanEditPersonal = true;
@@ -24208,18 +24639,11 @@ function App() {
 
     if (!variablesLoaded || isSyncingEmployeeCSV) return <SplashLoader />;
     if (!user) return <LoginView onLogin={handleLogin} />;
-    if (user && isMobile) {
-        return (
-            <React.Suspense fallback={<div className="h-screen w-full flex items-center justify-center bg-[#f9f9f9]"><div className="animate-spin w-6 h-6 border-2 border-brand-primary border-t-transparent rounded-full" /></div>}>
-                <MobileShell user={user} onLogout={() => { setUser(null); sessionStorage.clear(); }} />
-            </React.Suspense>
-        );
-    }
 
     return (
         <div
             style={{ backgroundColor: '#f9f9f9' }}
-            className="flex h-screen w-full text-[#333333] overflow-hidden font-sans selection:bg-[#6bbdb7]/20"
+            className={`flex h-screen w-full text-[#333333] overflow-hidden font-sans selection:bg-[#6bbdb7]/20 ${isMobileView ? 'flex-col' : ''}`}
         >
 
             {editingStore && (
@@ -25131,7 +25555,7 @@ function App() {
             )}
 
             {/* Logo y Status Bar Superior */}
-            <header id="main-header" className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-b-2 border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
+            <header id="main-header" className={`fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-b-2 border-gray-100 ${isMobileView ? 'px-3 py-2' : 'px-6 py-3'} flex items-center justify-between shadow-sm`}>
                 <div className="flex items-center gap-6">
                     <img
                         src="/Logo Logic Group Management.png"
@@ -25260,11 +25684,32 @@ function App() {
             {/* Main Content Area con padding ajustado para top y bottom navs */}
             <main
                 ref={mainContentRef}
-                className="flex-1 h-screen overflow-y-auto px-2 pt-24 pb-44 lg:px-6 relative"
+                className={`flex-1 h-screen overflow-y-auto relative ${isMobileView ? 'px-2 pt-16 pb-24' : 'px-2 pt-24 pb-44 lg:px-6'}`}
             >
 
                 {/* Navigation Inferior Minimalista (Franja Completa) */}
-                <nav className="fixed bottom-0 inset-x-0 z-50 bg-[#303a7f] border-t border-white/10 p-2 flex items-center justify-center gap-2 shadow-[0_-10px_40px_rgba(48,58,127,0.2)]">
+                <nav className={`fixed bottom-0 inset-x-0 z-50 bg-[#303a7f] border-t border-white/10 ${isMobileView ? 'p-1' : 'p-2'} flex items-center justify-center ${isMobileView ? 'gap-1' : 'gap-2'} shadow-[0_-10px_40px_rgba(48,58,127,0.2)]`}>
+                    {/* Barra inferior estilo app (solo móvil): iconos + etiqueta en cuadrícula */}
+                    {isMobileView && (
+                        <div className="grid grid-cols-5 gap-1 w-full">
+                            {navItems.map((item) => (
+                                <button
+                                    key={`mob-${item.id}`}
+                                    onClick={() => {
+                                        setActiveTab(item.id);
+                                        if (item.id === 'payroll') setPayrollView('history');
+                                    }}
+                                    className={`flex flex-col items-center justify-center gap-1 py-1.5 px-0.5 rounded-xl transition-all duration-300 ${activeTab === item.id
+                                        ? 'bg-white text-[#303a7f] shadow-md'
+                                        : 'text-white/40 active:bg-white/5'
+                                        }`}
+                                >
+                                    <item.icon size={17} />
+                                    <span className="text-[7px] font-black uppercase tracking-tight leading-none text-center truncate w-full">{item.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
                     {/* Database status al extremo izquierdo */}
                     <div className="absolute left-6 hidden xl:flex items-center gap-3 px-4 py-2 bg-white/5 rounded-2xl border border-white/10 transition-all duration-500 hover:bg-white/10">
                         <div className={`w-2 h-2 rounded-full ${isLoading || dbStatus === 'sincronizando' ? 'bg-[#6bbdb7] animate-pulse' : dbStatus === 'conectado' ? 'bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.4)]' : 'bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.4)]'}`} />
@@ -25272,14 +25717,14 @@ function App() {
                             {isLoading || dbStatus === 'sincronizando' ? 'Sincronizando...' : dbStatus === 'conectado' ? 'Online' : 'Offline'}
                         </span>
                     </div>
-                    {navItems.map((item) => (
+                    {!isMobileView && navItems.map((item) => (
                         <button
                             key={item.id}
                             onClick={() => {
                                 setActiveTab(item.id);
                                 if (item.id === 'payroll') setPayrollView('history');
                             }}
-                            className={`flex items-center gap-2.5 px-6 py-2.5 rounded-[1.5rem] transition-all duration-300 relative group ${activeTab === item.id
+                            className={`flex items-center gap-2.5 ${isMobileView ? 'px-3 py-2' : 'px-6 py-2.5'} rounded-[1.5rem] transition-all duration-300 relative group ${activeTab === item.id
                                 ? 'bg-white text-[#303a7f] shadow-lg scale-105'
                                 : 'text-white/40 hover:text-white hover:bg-white/5'
                                 }`}
@@ -25331,7 +25776,7 @@ function App() {
 
                     {activeTab === 'stores' && (
                         <>
-                            <div className="flex flex-col md:flex-row gap-4 mb-10 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className={`flex flex-col ${isMobileView ? '' : 'md:flex-row'} gap-4 mb-6 md:mb-10 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500`}>
                                 <div className="relative flex-1 group h-11">
                                     <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={20} />
                                     <input
@@ -25417,7 +25862,7 @@ function App() {
                             </div>
 
                             {storesViewMode === 'grid' ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+                                <div className={`grid grid-cols-1 ${isMobileView ? 'sm:grid-cols-2' : 'md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'} gap-3 md:gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100`}>
                                     {filteredStores.map((store, i) => (
                                         <StoreCard key={i} store={store} employees={employees} onEdit={userCanEdit ? setEditingStore : () => { }} />
                                     ))}
@@ -25458,7 +25903,7 @@ function App() {
 
                     {activeTab === 'employees' && (
                         <>
-                            <div className="flex flex-col md:flex-row gap-4 mb-10 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className={`flex flex-col ${isMobileView ? '' : 'md:flex-row'} gap-4 mb-6 md:mb-10 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500`}>
                                 <div className="relative flex-1 group h-11">
                                     <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#303a7f] transition-colors" size={20} />
                                     <input
@@ -25560,7 +26005,7 @@ function App() {
                             </div>
 
                             {personalViewMode === 'grid' ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+                                <div className={`grid grid-cols-1 ${isMobileView ? 'sm:grid-cols-2' : 'md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'} gap-3 md:gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100`}>
                                     {employees.filter(e => e.nombre.toLowerCase().includes(employeeSearchTerm.toLowerCase())).map((employee, i) => (
                                         <EmployeeCard key={i} employee={employee} onEdit={userCanEditPersonal ? setEditingEmployee : () => { }} />
                                     ))}
@@ -26721,7 +27166,7 @@ function App() {
             {isBillingModalOpen && (
                 <div className="fixed inset-0 z-[200] bg-white animate-in fade-in duration-500 overflow-hidden flex flex-col">
                     {/* Header Premium de Facturación */}
-                    <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
+                    <div className="px-4 md:px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform rotate-0 hover:-rotate-3 transition-transform duration-500">
                                 <Receipt size={20} />
@@ -26994,7 +27439,7 @@ function App() {
 
                 return (
                     <div className="fixed inset-0 z-[250] bg-white animate-in fade-in duration-300 overflow-hidden flex flex-col">
-                        <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
+                        <div className="px-4 md:px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-gradient-to-br from-[#f59e0b] to-[#d97706] text-white rounded-xl shadow-lg shadow-amber-900/20">
                                     <AlertTriangle size={20} />

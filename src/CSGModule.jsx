@@ -975,7 +975,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, syncToDat
                         </div>
                     </div>
 
-                    <div className="mt-10 mb-6 flex justify-end px-12">
+                    <div className="mt-10 mb-6 flex justify-end px-4 md:px-12">
                         <button
                             onClick={handleConfirm}
                             disabled={isConfirmed || isSyncing || isValidating}
@@ -1355,7 +1355,7 @@ const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wos
 
     return createPortal(
         <div className="fixed inset-0 z-[1000] bg-[#fdfdfe] flex flex-col overflow-hidden animate-in fade-in duration-500 rounded-none">
-            <header className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
+            <header className="px-4 md:px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
                 <div className="flex items-center gap-4">
                     <div className="p-3 bg-gradient-to-br from-[#303a7f] to-[#1e234d] text-white rounded-xl shadow-lg shadow-blue-900/10 transform rotate-0 hover:-rotate-3 transition-transform duration-500">
                         <LayoutGrid size={20} />
@@ -1406,7 +1406,7 @@ const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wos
             </header>
 
             {/* Information Bar */}
-            <div className="bg-white border-b-2 border-brand-primary/5 px-12 py-5 shadow-sm relative z-20">
+            <div className="bg-white border-b-2 border-brand-primary/5 px-4 md:px-12 py-5 shadow-sm relative z-20">
                 <div className="max-w-[1800px] mx-auto flex flex-wrap items-center gap-x-12 gap-y-4">
                     <div className="flex items-center gap-4 pr-10 border-r-2 border-gray-50">
                         <div className="flex flex-col">
@@ -1623,7 +1623,7 @@ const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wos
             {/* Modal de Detalles a Pantalla Completa */}
             {isWosDetailOpen && (
                 <div className="fixed inset-0 z-[150] bg-white flex flex-col animate-in slide-in-from-bottom duration-500">
-                    <header className="px-12 py-6 border-b-2 border-gray-50 flex items-center justify-between sticky top-0 bg-white z-20">
+                    <header className="px-4 md:px-12 py-6 border-b-2 border-gray-50 flex items-center justify-between sticky top-0 bg-white z-20">
                         <div className="flex items-center gap-4">
                             <div className="p-3 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10">
                                 <FileText size={20} />
@@ -1655,7 +1655,7 @@ const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wos
                         </button>
                     </header>
 
-                    <div className="flex-1 overflow-auto p-12 bg-[#f9fafc]">
+                    <div className="flex-1 overflow-auto p-4 md:p-12 bg-[#f9fafc]">
                         <div className="max-w-[1300px] mx-auto bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 overflow-hidden border border-gray-100">
                             <table className="w-full text-left border-collapse table-fixed">
                                 <thead>
@@ -1755,7 +1755,7 @@ const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wos
             {/* Modal de Discrepancias (Bicho 🐞) CSG */}
             {isWOSBugOpen && (
                 <div className="fixed inset-0 z-[200] bg-white flex flex-col animate-in slide-in-from-bottom duration-700">
-                    <div className="px-12 py-6 border-b-4 border-orange-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
+                    <div className="px-4 md:px-12 py-6 border-b-4 border-orange-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
                         <div className="flex items-center gap-6">
                             <div className="p-4 bg-orange-500 text-white rounded-2xl shadow-xl shadow-orange-200 animate-pulse">
                                 <Bug size={28} />
