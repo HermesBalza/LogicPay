@@ -168,6 +168,72 @@ const isWeekMonSun = (storeName) => {
 };
 const isWalgreensDallas = (name) => String(name).trim().toLowerCase() === 'walgreens dallas';
 
+// ─── RESOLUTOR CENTRAL ÚNICO DE EMPLEADOS ───────────────────────────────────
+// El código de empleado NO es único entre tiendas (viene de los sistemas biométricos
+// de cada sitio). Todas las búsquedas de empleados deben pasar por aquí para garantizar
+// que se resuelva SIEMPRE el registro correcto: primero respetando la tienda, y solo
+// recurriendo a la búsqueda global cuando la coincidencia es inequívoca.
+const normalizeEmployeeCode = (code) => String(code ?? '').replace(/^'+/, '').trim().toLowerCase();
+const normalizeEmployeeName = (name) => String(name ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+const normalizeStoreName = (store) => String(store ?? '').trim().toLowerCase();
+
+// Devuelve SIEMPRE un objeto: { employee, status }.
+//   status 'exact'    → código + nombre + tienda (la coincidencia perfecta).
+//   status 'global'   → código + nombre sin tienda (solo si es inequívoca: empleados
+//                       multi-tienda viven en un único registro con tienda única).
+//   status 'ambiguous'→ hay varios candidatos indistinguibles; NO se adivina.
+//   status 'none'     → no existe coincidencia.
+const resolveEmployeeFromList = (employees, { codigo, nombre, tienda }) => {
+    const list = employees || [];
+    const normCode = normalizeEmployeeCode(codigo);
+    const normName = normalizeEmployeeName(nombre);
+    const normStore = normalizeStoreName(tienda);
+
+    // PASO 1: código + nombre + tienda (la vía correcta casi siempre)
+    if (normStore) {
+        const exact = list.find(e =>
+            normalizeEmployeeCode(e.codigo_empleado) === normCode &&
+            normalizeEmployeeName(e.nombre) === normName &&
+            normalizeStoreName(e.tienda) === normStore
+        );
+        if (exact) return { employee: exact, status: 'exact' };
+    }
+
+    // PASO 2: código + nombre global. Solo se acepta si el resultado es inequívoco.
+    if (normCode && normName) {
+        const globalMatches = list.filter(e =>
+            normalizeEmployeeCode(e.codigo_empleado) === normCode &&
+            normalizeEmployeeName(e.nombre) === normName
+        );
+        if (globalMatches.length === 1) return { employee: globalMatches[0], status: 'global' };
+        if (globalMatches.length > 1) return { employee: null, status: 'ambiguous', matches: globalMatches };
+    }
+
+    // PASO 3: solo nombre global (inequívoco) — para filas que llegan sin código.
+    if (normName && !normCode) {
+        const nameMatches = list.filter(e => normalizeEmployeeName(e.nombre) === normName);
+        if (nameMatches.length === 1) return { employee: nameMatches[0], status: 'global' };
+        if (nameMatches.length > 1) return { employee: null, status: 'ambiguous', matches: nameMatches };
+    }
+
+    return { employee: null, status: 'none' };
+};
+
+// Variante estricta para dinero (NACHA / Recibos de Pago / datos bancarios):
+// jamás resuelve por código solo; exige nombre, y si el código existe pero hay
+// ambigüedad, devuelve null para no arriesgar cuentas de otra persona.
+const resolveEmployeeForMoney = (employees, { codigo, nombre, tienda }) => {
+    const normName = normalizeEmployeeName(nombre);
+    if (!normName) return null;
+    const res = resolveEmployeeFromList(employees, { codigo, nombre, tienda });
+    if (res.status === 'exact' || res.status === 'global') return res.employee;
+    if (res.status === 'ambiguous' && normalizeStoreName(tienda)) {
+        return (res.matches || []).find(e => normalizeStoreName(e.tienda) === normalizeStoreName(tienda)) || null;
+    }
+    return null;
+};
+// ────────────────────────────────────────────────────────────────────────────
+
 // Parsea una fila CSV respetando campos entre comillas
 const parseCSVRow = (row) => {
     const result = [];
@@ -7836,10 +7902,12 @@ const computeVWHReportRows = ({ reportData, payrollStore, employees, start, end,
     let total = 0;
 
     reportData.forEach(emp => {
-        const employeeInfo = employees.find(e =>
-            String(e.codigo_empleado).trim() === String(emp.codigo).replace(/^'+/, '').trim() &&
-            String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()
-        );
+        // Resolutor Central: respetar la tienda del reporte VWH
+        const employeeInfo = resolveEmployeeFromList(employees, {
+            codigo: String(emp.codigo).replace(/^'+/, '').trim(),
+            nombre: emp.nombre,
+            tienda: payrollStore
+        }).employee;
         const hasCargoMixtoVWH = isDallas && emp.cargo_por_dia && Object.values(emp.cargo_por_dia).some(d => d.cargo !== emp.cargo);
         if (hasCargoMixtoVWH) {
             const cargosUnicosVWH = [...new Set(Object.values(emp.cargo_por_dia).map(d => d.cargo))];
@@ -8194,10 +8262,12 @@ const VWHTableModal = (props) => {
             reportData.forEach(emp => {
                 const hasCargoMixtoVWH = isWalgreensDallas(payrollStore) && emp.cargo_por_dia && Object.values(emp.cargo_por_dia).some(d => d.cargo !== emp.cargo);
                 if (hasCargoMixtoVWH) {
-                    const employeeInfo = employees.find(e =>
-                        String(e.codigo_empleado).trim() === String(emp.codigo).replace(/^'+/, '').trim() &&
-                        String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()
-                    );
+                    // Resolutor Central: respetar la tienda
+                    const employeeInfo = resolveEmployeeFromList(employees, {
+                        codigo: String(emp.codigo).replace(/^'+/, '').trim(),
+                        nombre: emp.nombre,
+                        tienda: payrollStore
+                    }).employee;
                     const cargosUnicosVWH = [...new Set(Object.values(emp.cargo_por_dia).map(d => d.cargo))];
                     cargosUnicosVWH.forEach(cargoName => {
                         let cargoTotal = 0;
@@ -8243,10 +8313,12 @@ const VWHTableModal = (props) => {
                             empTotalFragment += hhmmToDecimal(emp[days[i]]?.final || 0);
                         }
                     }
-                    const employeeInfo = employees.find(e =>
-                        String(e.codigo_empleado).trim() === String(emp.codigo).replace(/^'+/, '').trim() &&
-                        String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()
-                    );
+                    // Resolutor Central: respetar la tienda
+                    const employeeInfo = resolveEmployeeFromList(employees, {
+                        codigo: String(emp.codigo).replace(/^'+/, '').trim(),
+                        nombre: emp.nombre,
+                        tienda: payrollStore
+                    }).employee;
                     processedData.push({ ...emp, fragmentTotal: empTotalFragment, rateKBS: employeeInfo?.rateKBS || 0 });
                 }
             });
@@ -8321,10 +8393,8 @@ const VWHTableModal = (props) => {
             );
             if (histRow && histRow.rate) return histRow.rate;
         }
-        // Fuente única de verdad: Rate Personal KBS del Empleado
-        const employeeInfo = employees.find(e =>
-            String(e.nombre).trim().toLowerCase() === String(nombre || '').trim().toLowerCase()
-        );
+        // Fuente única de verdad: Rate Personal KBS del Empleado (respetando la tienda)
+        const employeeInfo = resolveEmployeeFromList(employees, { nombre }).employee;
         return employeeInfo?.rateKBS || 0;
     };
 
@@ -8360,10 +8430,11 @@ const VWHTableModal = (props) => {
         reportData.forEach(emp => {
             const hasCargoMixtoVWH = isWalgreensDallas(payrollStore) && emp.cargo_por_dia && Object.values(emp.cargo_por_dia).some(d => d.cargo !== emp.cargo);
             if (hasCargoMixtoVWH) {
-                const employeeInfo = employees.find(e =>
-                    String(e.codigo_empleado).trim() === String(emp.codigo).replace(/^'+/, '').trim() &&
-                    String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()
-                );
+                const employeeInfo = resolveEmployeeFromList(employees, {
+                    codigo: String(emp.codigo).replace(/^'+/, '').trim(),
+                    nombre: emp.nombre,
+                    tienda: payrollStore
+                }).employee;
                 const cargosUnicosVWH = [...new Set(Object.values(emp.cargo_por_dia).map(d => d.cargo))];
                 cargosUnicosVWH.forEach(cargoName => {
                     let cargoTotal = 0;
@@ -8411,10 +8482,11 @@ const VWHTableModal = (props) => {
                     }
                 }
                 currentTotal += empTotalFragment;
-                const employeeInfo = employees.find(e =>
-                    String(e.codigo_empleado).trim() === String(emp.codigo).replace(/^'+/, '').trim() &&
-                    String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()
-                );
+                const employeeInfo = resolveEmployeeFromList(employees, {
+                    codigo: String(emp.codigo).replace(/^'+/, '').trim(),
+                    nombre: emp.nombre,
+                    tienda: payrollStore
+                }).employee;
                 processedData.push({ ...emp, fragmentTotal: empTotalFragment, rateKBS: employeeInfo?.rateKBS || 0 });
             }
         });
@@ -9209,7 +9281,11 @@ const TaxCenterView = ({ employees, stores, csgNominaData, adminPayrollHistory, 
 
     const handleExportExcel = () => {
         const exportData = filteredRows.map(row => {
-            const dbEmp = employees.find(e => e.codigo_empleado === row.id) || {};
+            // Resolutor Central (variante dinero): nombre + código para datos fiscales
+            const dbEmp = resolveEmployeeForMoney(employees, {
+                codigo: row.id,
+                nombre: row.nombre
+            }) || {};
 
             const baseRow = {
                 'Payer Type': dbEmp.payer_type || 'Individual',
@@ -9354,7 +9430,11 @@ const TaxCenterView = ({ employees, stores, csgNominaData, adminPayrollHistory, 
                                 </tr>
                             ) : (
                                 filteredRows.map((row) => {
-                                    const dbEmp = employees.find(e => e.codigo_empleado === row.id) || {};
+                                    // Resolutor Central (variante dinero): nombre + código
+                                    const dbEmp = resolveEmployeeForMoney(employees, {
+                                        codigo: row.id,
+                                        nombre: row.nombre
+                                    }) || {};
                                     return (
                                         <tr key={row.id} className="hover:bg-blue-50/20 transition-colors group">
                                             <td className="p-6 sticky left-0 bg-white group-hover:bg-blue-50/20 z-10 border-r-2 border-gray-50 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.05)]">
@@ -9554,10 +9634,11 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                     const empId = `${String(nombreEmp).trim().toLowerCase()}_${String(idEmp).trim()}`;
 
                     if (!empMap[empId]) {
-                        const dbEmp = employees.find(e =>
-                            String(e.nombre).trim().toLowerCase() === String(nombreEmp).trim().toLowerCase() ||
-                            String(e.codigo_empleado).trim() === String(idEmp).trim()
-                        );
+                        // Resolutor Central: nombre primero, código como refuerzo
+                        const dbEmp = resolveEmployeeForMoney(employees, {
+                            codigo: idEmp,
+                            nombre: nombreEmp
+                        });
                         const fullAddress = dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '';
                         const rate = dbEmp ? Number(dbEmp.pay_rate || dbEmp.rate || 0) : 0;
 
@@ -9609,10 +9690,11 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                     const empId = `${String(nombreEmp).trim().toLowerCase()}_${String(idEmp).trim()}`;
 
                     if (!empMap[empId]) {
-                        const dbEmp = employees.find(e =>
-                            String(e.nombre).trim().toLowerCase() === String(nombreEmp).trim().toLowerCase() ||
-                            String(e.codigo_empleado).trim() === String(idEmp).trim()
-                        );
+                        // Resolutor Central: nombre primero, código como refuerzo
+                        const dbEmp = resolveEmployeeForMoney(employees, {
+                            codigo: idEmp,
+                            nombre: nombreEmp
+                        });
                         const fullAddress = dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '';
                         const rate = dbEmp ? Number(dbEmp.pay_rate || dbEmp.rate || 0) : 0;
 
@@ -9695,7 +9777,11 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
             // Resolver correo buscando en ambas bases
             let email = emp.email_tax;
             if (!email) {
-                const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim() || String(e.nombre).trim().toLowerCase() === String(emp.id.split('_')[0]).trim().toLowerCase());
+                // Resolutor Central: nombre primero para no cruzar correos entre homónimos
+                const dbEmp = resolveEmployeeForMoney(employees, {
+                    codigo: String(emp.id.split('_')[1] || '').trim(),
+                    nombre: String(emp.id.split('_')[0] || '').trim()
+                });
                 const adminEmp = adminEmployees?.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim() || String(e.nombre).trim().toLowerCase() === String(emp.id.split('_')[0]).trim().toLowerCase());
                 email = dbEmp?.email_tax || dbEmp?.correo || adminEmp?.email || null;
             }
@@ -11452,7 +11538,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             try {
                 const savedData = JSON.parse(loadedExistingDetail.Data_JSON || loadedExistingDetail.data_json);
                 const loaded = savedData.map(row => {
-                    const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(row.empleado).trim().toLowerCase());
+                    // Resolutor Central: dirección/rates del registro correcto (nombre + código)
+                    const dbEmp = resolveEmployeeForMoney(employees, {
+                        codigo: row.id,
+                        nombre: row.empleado,
+                        tienda: period.store
+                    });
                     const fullAddress = dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '';
                     return {
                         id: row.id ? `${row.empleado.toLowerCase()}_${row.id}` : `sup_${row.empleado.toLowerCase()}`,
@@ -11499,7 +11590,11 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         const key = String(row.empleado || '').trim().toLowerCase();
                         if (!key) return;
                         if (!empMap[key]) {
-                            const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === key);
+                            // Resolutor Central: nombre + código dentro de la Nómina Completa
+                            const dbEmp = resolveEmployeeForMoney(employees, {
+                                codigo: row.id,
+                                nombre: row.empleado
+                            });
                             empMap[key] = {
                                 id: key + '_' + (row.id || ''),
                                 nombre: row.empleado,
@@ -11673,7 +11768,11 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 items.forEach(item => {
                     (item.employees || []).forEach(row => {
                         if (row.employeeName) {
-                            const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(row.employeeName).trim().toLowerCase());
+                            // Resolutor Central: respetar la tienda del Proyecto Especial
+                            const dbEmp = resolveEmployeeFromList(employees, {
+                                nombre: row.employeeName,
+                                tienda: record.tienda || record.Tienda
+                            }).employee;
                             const code = dbEmp ? dbEmp.codigo_empleado : 'EXT';
                             const empId = `${String(row.employeeName).trim().toLowerCase()}_${code}`;
                             const peTienda = record.tienda || record.Tienda || 'Proyecto Especial';
@@ -11838,7 +11937,11 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 cargo = 'Externo/PE';
             }
 
-            const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === finalNombre.trim().toLowerCase());
+            // Resolutor Central: nombre + código del empId consolidado
+            const dbEmp = resolveEmployeeForMoney(employees, {
+                codigo: String(id.split('_')[1] || '').trim(),
+                nombre: finalNombre
+            });
             const fullAddress = dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '';
 
             return {
@@ -11992,7 +12095,14 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         allEntries.forEach(emp => {
             const empCode = String(emp.id.split('_')[1] || '').trim();
             const empName = String(emp.nombre || '').trim().toLowerCase();
-            const dbEmp = employees.find(e => {
+            // Resolutor Central (variante dinero): el nombre SIEMPRE es obligatorio.
+            // Nunca se resuelve por código solo — el riesgo es dar el depósito
+            // bancario de otra persona cuando hay códigos duplicados entre tiendas.
+            const dbEmp = resolveEmployeeForMoney(employees, {
+                codigo: empCode,
+                nombre: empName,
+                tienda: period.store
+            }) || employees.find(e => {
                 const nombreBD = [e.first_name, e.last_name].filter(Boolean).join(' ').trim().toLowerCase();
                 return nombreBD === empName && String(e.codigo_empleado || '').trim() === empCode;
             });
@@ -12025,7 +12135,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     // ─── LÓGICA DE ENVÍO DE RECIBOS DE PAGO (PAY STUBS) ───────────────────
     const handleSendAllPayStubs = async () => {
         const recipients = todosNomina.filter(emp => {
-            const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+            // Resolutor Central (variante dinero): nombre + código, nunca código solo
+            const dbEmp = resolveEmployeeForMoney(employees, {
+                codigo: String(emp.id.split('_')[1] || '').trim(),
+                nombre: emp.nombre,
+                tienda: period.store
+            });
             return dbEmp && (dbEmp.email_tax || dbEmp.correo);
         });
 
@@ -12038,7 +12153,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
         for (let i = 0; i < recipients.length; i++) {
             const emp = recipients[i];
-            const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+            // Resolutor Central (variante dinero): nombre + código, nunca código solo
+            const dbEmp = resolveEmployeeForMoney(employees, {
+                codigo: String(emp.id.split('_')[1] || '').trim(),
+                nombre: emp.nombre,
+                tienda: period.store
+            });
             const email = dbEmp.email_tax || dbEmp.correo;
 
             setSendingProgress(prev => ({ ...prev, current: i + 1, logs: [`Generando recibo para ${emp.nombre}...`, ...prev.logs] }));
@@ -12078,7 +12198,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     };
 
     const handleSendIndividualPayStub = async (emp) => {
-        const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+        // Resolutor Central (variante dinero): nombre + código, nunca código solo
+        const dbEmp = resolveEmployeeForMoney(employees, {
+            codigo: String(emp.id.split('_')[1] || '').trim(),
+            nombre: emp.nombre,
+            tienda: period.store
+        });
         const email = dbEmp?.email_tax || dbEmp?.correo;
 
         if (!email) {
@@ -13396,7 +13521,12 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                                 <div className="space-y-3">
                                     {todosNomina.map(emp => {
-                                        const dbEmp = employees.find(e => String(e.codigo_empleado).trim() === String(emp.id.split('_')[1]).trim());
+                                        // Resolutor Central (variante dinero): nombre + código
+                                        const dbEmp = resolveEmployeeForMoney(employees, {
+                                            codigo: String(emp.id.split('_')[1] || '').trim(),
+                                            nombre: emp.nombre,
+                                            tienda: period.store
+                                        });
                                         const email = dbEmp?.email_tax || dbEmp?.correo;
                                         const isSent = sentPayStubs[emp.id];
 
@@ -20198,14 +20328,34 @@ function App() {
 
             const normNombre = normalizeName(nombre);
 
-            // 1. Exact Match (ID + Name)
-            const exactMatch = currentEmployees.find(e =>
+            // RESOLUTOR CENTRAL: la coincidencia respetando la tienda tiene prioridad.
+            // Si existen DOS o más empleados con el mismo código + nombre (en tiendas
+            // distintas), NO se auto-verifica: se envía al Centro de Resolución para que
+            // el usuario elija la identidad correcta (esto corregía el bug de Nirvana:
+            // el sistema tomaba el primer registro alfabético, aunque fuera de otra tienda).
+            const codeNameMatches = currentEmployees.filter(e =>
                 String(e.codigo_empleado ?? '').trim().toLowerCase() === codigo.toLowerCase() &&
                 normalizeName(e.nombre) === normNombre
             );
 
-            if (exactMatch) {
+            if (codeNameMatches.length === 1) {
+                const exactMatch = codeNameMatches[0];
                 return { type: 'verified', employee: exactMatch, excelRow: { nombre, codigo, cargo } };
+            }
+
+            if (codeNameMatches.length > 1) {
+                // Duplicado real: hay varias personas con mismo código + nombre.
+                // Pre-seleccionamos el de la tienda que se está procesando, pero la
+                // decisión final la toma el usuario en el Centro de Resolución.
+                const preferred = currentEmployees.find(e =>
+                    String(e.codigo_empleado ?? '').trim().toLowerCase() === codigo.toLowerCase() &&
+                    normalizeName(e.nombre) === normNombre &&
+                    String(e.tienda || '').trim().toLowerCase() === String(payrollStore || '').trim().toLowerCase()
+                );
+                const orderedMatches = preferred
+                    ? [preferred, ...codeNameMatches.filter(m => m !== preferred)]
+                    : codeNameMatches;
+                return { type: 'ambiguous', matches: orderedMatches, excelRow: { nombre, codigo, cargo } };
             }
 
             // 2. Name Match (Fuzzy/Normalized)
@@ -20516,7 +20666,12 @@ function App() {
         try {
             // 1. Preparar datos para Nomina_Detalle
             const nominaDetalleRows = biweeklyEmployees.map(emp => {
-                const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase());
+                // Resolutor Central: rates del registro correcto (nombre + código + tienda)
+                const dbEmp = resolveEmployeeForMoney(employees, {
+                    codigo: String(emp.id.split('_')[1] || '').trim(),
+                    nombre: emp.nombre,
+                    tienda: selectedBiweeklyPeriod?.store
+                });
                 const isSup = isSalariedSupervisor(emp);
                 const totalHrs = isSup ? 0 : Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0);
                 const baseEarnings = isSup ? (Number(emp.sueldoFijo) || 0) : (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
@@ -21205,10 +21360,12 @@ function App() {
                     const cargosUnicos = [...new Set(group.map(r => r.cargo))];
                     const defaultCargo = group[0].cargo;
                     const rawCodigo = String(group[0].codigo || '').replace(/^'+/, '').trim();
-                    const employeeInfo = employees.find(e =>
-                        String(e.codigo_empleado).replace(/^'+/, '').trim() === rawCodigo &&
-                        String(e.nombre).trim().toLowerCase() === String(group[0].nombre).trim().toLowerCase()
-                    );
+                    // Resolutor Central: respetar la tienda que se está procesando
+                    const employeeInfo = resolveEmployeeFromList(employees, {
+                        codigo: rawCodigo,
+                        nombre: group[0].nombre,
+                        tienda: payrollStore
+                    }).employee;
                     const cargoConfigurado = employeeInfo?.cargo || defaultCargo;
                     const merged = {
                         ...group[0],
@@ -21288,10 +21445,12 @@ function App() {
                         const cargosUnicos = [...new Set(rows.map(r => r.cargo))];
                         const defaultCargo = rows[0].cargo;
                         const rawCodigo = String(rows[0].codigo || '').replace(/^'+/, '').trim();
-                        const employeeInfo = employees.find(e =>
-                            String(e.codigo_empleado).replace(/^'+/, '').trim() === rawCodigo &&
-                            String(e.nombre).trim().toLowerCase() === String(rows[0].nombre).trim().toLowerCase()
-                        );
+                        // Resolutor Central: respetar la tienda que se está procesando
+                        const employeeInfo = resolveEmployeeFromList(employees, {
+                            codigo: rawCodigo,
+                            nombre: rows[0].nombre,
+                            tienda: payrollStore
+                        }).employee;
                         const cargoConfigurado = employeeInfo?.cargo || defaultCargo;
                         const merged = {
                             ...rows[0],
@@ -21659,10 +21818,12 @@ function App() {
                 const cargoKey = cargoLower.includes('shift') ? 'shift_lead' :
                     cargoLower.includes('utility') ? 'utility' : 'janitorial';
 
-                const employeeInfo = employees.find(e =>
-                    e.codigo_empleado.toString().trim() === emp.codigo.toString().trim() &&
-                    e.nombre.toString().trim().toLowerCase() === emp.nombre.toString().trim().toLowerCase()
-                );
+                // Resolutor Central: evita tomar rates de un homónimo de otra tienda
+                const employeeInfo = resolveEmployeeFromList(employees, {
+                    codigo: emp.codigo,
+                    nombre: emp.nombre,
+                    tienda: payrollStore
+                }).employee;
 
                 const rateLSG = employeeInfo?.rateLGM || 0;
                 const rateKBS = employeeInfo?.rateKBS || 0;
@@ -21724,10 +21885,12 @@ function App() {
             let firstDatesMap = {};
             const employeesWithoutDate = [];
             semanaTableData.forEach(empRow => {
-                const emp = employees.find(e =>
-                    e.codigo_empleado.toString().trim() === empRow.codigo.toString().trim() &&
-                    e.nombre.toString().trim().toLowerCase() === empRow.nombre.toString().trim().toLowerCase()
-                );
+                // Resolutor Central: el registro correcto es el de esta tienda
+                const emp = resolveEmployeeFromList(employees, {
+                    codigo: empRow.codigo,
+                    nombre: empRow.nombre,
+                    tienda: payrollStore
+                }).employee;
                 if (emp && !emp.fecha_ingreso) {
                     employeesWithoutDate.push({ nombre: emp.nombre, codigo_empleado: emp.codigo_empleado });
                 }
@@ -21747,10 +21910,12 @@ function App() {
 
             for (let i = 0; i < semanaTableData.length; i++) {
                 const empRow = semanaTableData[i];
-                const employee = employees.find(e =>
-                    e.codigo_empleado.toString().trim() === empRow.codigo.toString().trim() &&
-                    e.nombre.toString().trim().toLowerCase() === empRow.nombre.toString().trim().toLowerCase()
-                );
+                // Resolutor Central: nunca escribir locationHistory en el registro de otra tienda
+                const employee = resolveEmployeeFromList(employees, {
+                    codigo: empRow.codigo,
+                    nombre: empRow.nombre,
+                    tienda: payrollStore
+                }).employee;
 
                 if (employee) {
                     // --- Lógica de Historial de Ubicaciones ---
@@ -21859,10 +22024,12 @@ function App() {
                     const cargoKey = cargoLower.includes('shift') ? 'shift_lead' :
                         cargoLower.includes('utility') ? 'utility' : 'janitorial';
 
-                    const employeeInfo = employees.find(e =>
-                        e.codigo_empleado.toString().trim() === emp.codigo.toString().trim() &&
-                        e.nombre.toString().trim().toLowerCase() === emp.nombre.toString().trim().toLowerCase()
-                    );
+                    // Resolutor Central: respetar la tienda de la semana aprobada
+                    const employeeInfo = resolveEmployeeFromList(employees, {
+                        codigo: emp.codigo,
+                        nombre: emp.nombre,
+                        tienda: payrollStore
+                    }).employee;
 
                     const rateLSG = employeeInfo?.rateLGM || 0;
                     const rateKBS = employeeInfo?.rateKBS || 0;
@@ -21953,10 +22120,12 @@ function App() {
                 }
             });
             semanaTableData.forEach(row => {
-                const match = employees.find(e =>
-                    String(e.codigo_empleado || '').toString().trim() === String(row.codigo || '').toString().trim() &&
-                    String(e.nombre || '').toString().trim().toLowerCase() === String(row.nombre || '').toString().trim().toLowerCase()
-                );
+                // Resolutor Central: conciliar con el registro de esta tienda
+                const match = resolveEmployeeFromList(employees, {
+                    codigo: String(row.codigo || '').replace(/^'+/, '').trim(),
+                    nombre: row.nombre,
+                    tienda: payrollStore
+                }).employee;
                 if (match) rosterByCode.set(String(match.codigo_empleado).trim(), match);
             });
             const empleadosTienda = [...rosterByCode.values()];
@@ -22271,12 +22440,13 @@ function App() {
                         });
                     }
                     return aiData.rows.map(aiRow => {
-                        const empInfo = employees.find(e =>
-                            String(e.codigo_empleado).trim() === aiRow.nombre.toString().trim() &&
-                            String(e.tienda || '').trim().toLowerCase() === String(payrollStore).trim().toLowerCase()
-                        ) || employees.find(e =>
-                            String(e.codigo_empleado).trim() === aiRow.nombre.toString().trim()
-                        );
+                        // Resolutor Central: tienda primero, luego global inequívoco
+                        const empInfo = resolveEmployeeFromList(employees, {
+                            codigo: aiRow.nombre,
+                            tienda: payrollStore
+                        }).employee || resolveEmployeeFromList(employees, {
+                            codigo: aiRow.nombre
+                        }).employee;
                         const base = (day) => aiRow[day] || '0';
                         return {
                             nombre: empInfo?.nombre || aiRow.nombre,
@@ -24367,10 +24537,12 @@ function App() {
                             modalSemanaData.forEach(row => {
                                 const empId = `${String(row.nombre).trim().toLowerCase()}_${String(row.codigo).replace(/^'+/, '').trim()}`;
                                 const lgmRow = (modalEarningsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
-                                const employeeInfo = employees.find(e =>
-                                    String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
-                                    String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
-                                );
+                                // Resolutor Central: respetar la tienda de la semana
+                                const employeeInfo = resolveEmployeeFromList(employees, {
+                                    codigo: String(row.codigo).replace(/^'+/, '').trim(),
+                                    nombre: row.nombre,
+                                    tienda: payrollStore
+                                }).employee;
 
                                 const hasCargoMixtoExcel = row.cargo_por_dia && Object.values(row.cargo_por_dia).some(d => d.cargo !== row.cargo);
 
@@ -24499,10 +24671,12 @@ function App() {
                                         const kbsRow = (modalKbsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
                                         const lgmRow = (modalEarningsData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).replace(/^'+/, '').trim()}` === empId);
 
-                                        const employeeInfo = employees.find(e =>
-                                            String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
-                                            String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
-                                        );
+                                        // Resolutor Central: respetar la tienda de la semana
+                                        const employeeInfo = resolveEmployeeFromList(employees, {
+                                            codigo: String(row.codigo).replace(/^'+/, '').trim(),
+                                            nombre: row.nombre,
+                                            tienda: payrollStore
+                                        }).employee;
 
                                         let kbsTotal, lgmTotal;
                                         if (row.cargo_por_dia) {
@@ -24638,10 +24812,12 @@ function App() {
                                                         const displayRows = [];
                                                         const daysList3 = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
                                                         modalSemanaData.forEach((row, origIdx) => {
-                                                            const employeeInfo = employees.find(e =>
-                                                                String(e.codigo_empleado).trim() === String(row.codigo).replace(/^'+/, '').trim() &&
-                                                                String(e.nombre).trim().toLowerCase() === String(row.nombre).trim().toLowerCase()
-                                                            );
+                                                            // Resolutor Central: respetar la tienda de la semana
+                                                            const employeeInfo = resolveEmployeeFromList(employees, {
+                                                                codigo: String(row.codigo).replace(/^'+/, '').trim(),
+                                                                nombre: row.nombre,
+                                                                tienda: payrollStore
+                                                            }).employee;
                                                             const hasCargoMixtoRow = row.cargo_por_dia && Object.values(row.cargo_por_dia).some(d => d.cargo !== row.cargo);
 
                                                             if (hasCargoMixtoRow) {
@@ -26141,10 +26317,12 @@ function App() {
                                                             onClick={() => {
                                                                 const employeesWithZeroRates = semanaTableData
                                                                     .map(emp => {
-                                                                        const employee = employees.find(e =>
-                                                                            String(e.codigo_empleado).trim() === String(emp.codigo).replace(/^'+/, '').trim() &&
-                                                                            String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase()
-                                                                        );
+                                                                        // Resolutor Central: rates de la tienda correcta
+                                                                        const employee = resolveEmployeeFromList(employees, {
+                                                                            codigo: String(emp.codigo).replace(/^'+/, '').trim(),
+                                                                            nombre: emp.nombre,
+                                                                            tienda: payrollStore
+                                                                        }).employee;
                                                                         return {
                                                                             nombre: emp.nombre,
                                                                             codigo: emp.codigo,
