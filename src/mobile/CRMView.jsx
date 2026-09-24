@@ -626,7 +626,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <UserPlus size={20} /> Candidato
           </h3>
-          <button onClick={() => { setSelectedCandidato(null); setShowNewCandidato(false); }} className="p-2 rounded-xl transition-all btn-close-danger"><X size={18} /></button>
+          <button onClick={() => { setSelectedCandidato(null); setShowNewCandidato(false); }} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
         <div className="flex-1 flex overflow-hidden">
           <div id="candidato-sidebar" className="flex shrink-0" style={{ width: sidebarWidth, minWidth: '20%' }}>
@@ -770,7 +770,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <Building2 size={20} /> {isEditing ? 'Proveedor' : 'Nuevo Proveedor'}
           </h3>
-          <button onClick={() => { setSelectedProveedor(null); setShowNewProveedor(false); }} className="p-2 rounded-xl transition-all btn-close-danger"><X size={18} /></button>
+          <button onClick={() => { setSelectedProveedor(null); setShowNewProveedor(false); }} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
         <div className="flex-1 flex overflow-hidden">
           <div id="proveedor-sidebar" className="flex shrink-0" style={{ width: sidebarWidth, minWidth: '20%' }}>
@@ -851,7 +851,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <Globe size={20} /> Buscar Proveedores
           </h3>
-          <button onClick={() => { setShowBuscarProveedores(false); setResultadosBusqueda([]); }} className="p-2 rounded-xl transition-all btn-close-danger"><X size={18} /></button>
+          <button onClick={() => { setShowBuscarProveedores(false); setResultadosBusqueda([]); }} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
         <div className="flex-1 flex overflow-hidden">
           <div id="buscar-proveedor-sidebar" className="flex shrink-0" style={{ width: sidebarWidth, minWidth: '20%' }}>
@@ -962,7 +962,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <Briefcase size={20} /> {isEditing ? 'Editar Proyecto' : 'Nuevo Proyecto'}
           </h3>
-          <button onClick={() => { setSelectedProyecto(null); setShowNewProyecto(false); }} className="p-2 rounded-xl transition-all btn-close-danger"><X size={18} /></button>
+          <button onClick={() => { setSelectedProyecto(null); setShowNewProyecto(false); }} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
           <div className="space-y-4">
@@ -1084,7 +1084,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <DollarSign size={20} /> {isEditing ? 'Editar Cotización' : 'Nueva Cotización'}
           </h3>
-          <button onClick={() => { setShowNewCotizacion(false); setSelectedCotizacion(null); }} className="p-2 rounded-xl transition-all btn-close-danger"><X size={18} /></button>
+          <button onClick={() => { setShowNewCotizacion(false); setSelectedCotizacion(null); }} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
           <div className="space-y-4">
@@ -1163,7 +1163,7 @@ export default function CRMView({ currentUser, pendingCandidatoId, onClearPendin
           <h3 className="text-lg font-black text-[#303a7f] uppercase tracking-tighter flex items-center gap-3">
             <Phone size={20} /> Registrar Llamada
           </h3>
-          <button onClick={() => setShowRegistrarLlamada(false)} className="p-2 rounded-xl transition-all btn-close-danger"><X size={18} /></button>
+          <button onClick={() => setShowRegistrarLlamada(false)} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
           <div className="space-y-4">
