@@ -11990,6 +11990,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         const traceBase = `${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
         const rows = [];
         allEntries.forEach(emp => {
+            // Excluir del archivo NACHA a los empleados con pago final $0
+            // (montos negativos también se excluyen: el ACH los ajustaría a 0).
+            const amountCents = Math.max(0, Math.round(Number(calculatePagoTotal(emp) + (Number(ajustesNomina[emp.id]?.ajuste) || 0) || 0) * 100));
+            if (amountCents <= 0) return;
             const empCode = String(emp.id.split('_')[1] || '').trim();
             const empName = String(emp.nombre || '').trim().toLowerCase();
             const dbEmp = employees.find(e => {
@@ -12001,7 +12005,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             rows.push({
                 routing,
                 account,
-                amountCents: Math.max(0, Math.round(Number(calculatePagoTotal(emp) + (Number(ajustesNomina[emp.id]?.ajuste) || 0) || 0) * 100)),
+                amountCents,
                 idNumber: String(dbEmp?.id_number || dbEmp?.codigo_empleado || '').replace(/,/g, ''),
                 payeeName: String(dbEmp?.payee_name || '').replace(/,/g, '').trim(),
                 trxnCode: (dbEmp?.account_type !== 'savings') ? '22' : '32',
