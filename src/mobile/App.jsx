@@ -488,7 +488,8 @@ const csvRowToEmployee = (flat) => {
         account_num: findValue(['account_num']) || '',
         account_type: (findValue(['account_type']) || '').toLowerCase() === 'savings' ? 'savings' : 'checking',
         payee_name: findValue(['payee_name']) || '',
-        id_number: (findValue(['codigo_empleado', 'codigo_emple']) || '').toString().replace(/^'/, ''),
+        // ID Number: prioriza el valor manual guardado (titular de la cuenta); si no existe, usa el código del empleado
+        id_number: (findValue(['id_number']) || findValue(['codigo_empleado', 'codigo_emple']) || '').toString().replace(/^'/, ''),
         imagen: findValue(['imagen']) || '',
         // --- Campos 1099 ---
         payer_type: findValue(['payer_type', 'Payer Type']) || 'Individual',
@@ -4997,12 +4998,14 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                     </div>
                                     <div className="group">
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">ID Number</label>
+                                        {/* ID Number editable: permite capturar el ID del titular de la cuenta (depósitos a terceros); si se deja vacío, se usa el código del empleado */}
                                         <input
                                             type="text"
-                                            value={editedEmployee.codigo_empleado || ''}
-                                            readOnly
-                                            placeholder="Automático"
-                                            className="w-full bg-gray-100 text-gray-400 rounded-xl p-3 outline-none font-bold text-xs cursor-not-allowed"
+                                            value={isEditing ? (editedEmployee.id_number || '') : (editedEmployee.id_number || editedEmployee.codigo_empleado || '')}
+                                            onChange={(e) => updateField('id_number', e.target.value)}
+                                            readOnly={!isEditing}
+                                            placeholder="ID del titular de la cuenta (Ej: 5688)"
+                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs`}
                                         />
                                     </div>
                                 </div>
@@ -20317,7 +20320,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             account_num: updatedEmployee.account_num || '',
             account_type: updatedEmployee.account_type || 'checking',
             payee_name: updatedEmployee.payee_name || '',
-            id_number: updatedEmployee.codigo_empleado || '',
+            id_number: updatedEmployee.id_number || updatedEmployee.codigo_empleado || '', // Respeta la edición manual del ID Number (fallback: código de empleado)
             // Mapeo de llaves (Nombres de Columnas Exactos)
             'Rate KBS': updatedEmployee.rateKBS || 0,
             'Rate LGM': updatedEmployee.rateLGM || 0,
@@ -20370,7 +20373,7 @@ function App({ user: externalUser, onLogout: externalOnLogout }) {
             account_num: newEmp.account_num || '',
             account_type: newEmp.account_type || 'checking',
             payee_name: newEmp.payee_name || '',
-            id_number: newEmp.codigo_empleado || '',
+            id_number: newEmp.id_number || newEmp.codigo_empleado || '', // Respeta el ID Number manual del formulario (fallback: código de empleado)
             'Rate KBS': newEmp.rateKBS || newEmp.rate_kbs || 0,
             'Rate LGM': newEmp.rateLGM || newEmp.rate_lgm || 0,
             'Rate CSG': newEmp.rate_csg || 0,
