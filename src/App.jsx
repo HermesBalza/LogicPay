@@ -8322,6 +8322,280 @@ const generateAttendancePdfVectorial = ({ rows, payrollStore, kbsId, start, end,
     return pdf;
 };
 
+// ─── Invoice de Proyecto Especial: PDF vectorial de página continua ───
+// Mismo diseño, tipografía, colores y sistema del Reporte VWH (generateVWHPdfDocument),
+// pero con el contenido del invoice de proyecto especial: items, observaciones y totales.
+const generateSpecialProjectInvoicePdf = ({ project, totalKBS, kbsId = '---', employees = [] }) => {
+    const fuente = 'helvetica';
+    const margenX = 12;
+    const anchoUtil = 210 - (margenX * 2);
+
+    // Resolver código del empleado desde employeeCode de la fila o desde la BD global
+    const resolveEmployeeCode = (emp) => {
+        if (emp.employeeCode) return emp.employeeCode;
+        const found = employees.find(e => String(e.nombre || '').trim().toLowerCase() === String(emp.employeeName || '').trim().toLowerCase());
+        return found?.codigo_empleado || '';
+    };
+
+    // ── Página continua: medición previa del contenido (misma técnica del VWH) ──
+    const pdfMedidor = new jsPDF('p', 'mm', 'a4');
+    const lineH = 4.2;
+
+    // Medir textos del resumen
+    const siteValue = vwhNormalizarPdf(project.tienda || '').toUpperCase();
+    const siteValueMed = pdfMedidor.splitTextToSize(siteValue, 42);
+    const projectNameValue = vwhNormalizarPdf(project.proyecto || project.nombre || '').toUpperCase();
+    const projectNameMed = pdfMedidor.splitTextToSize(projectNameValue, 42);
+
+    // Preparar filas de items (empleados + proveedores)
+    const itemsFilas = [];
+    (project.employees || []).forEach(emp => {
+        const nombreTxt = vwhNormalizarPdf(emp.employeeName || '').toUpperCase();
+        const nombreLineas = pdfMedidor.splitTextToSize(nombreTxt, 55);
+        const descTxt = vwhNormalizarPdf(resolveEmployeeCode(emp)).toUpperCase();
+        const descLineas = pdfMedidor.splitTextToSize(descTxt, 55);
+        const hours = parseFloat(emp.hours) || 0;
+        const rate = parseFloat(emp.rateKBS) || 0;
+        const rowTotal = hours * rate;
+        const rowH = Math.max(9.5, lineH * (nombreLineas.length + descLineas.length)) + 3;
+        itemsFilas.push({ nombreLineas, descLineas, hours: hours.toFixed(2), rate: rate.toFixed(2), total: rowTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), rowH, isEmployee: true });
+    });
+    (project.providers || []).forEach(p => {
+        const nombreTxt = vwhNormalizarPdf(project.proyecto || project.nombre || '').toUpperCase();
+        const nombreLineas = pdfMedidor.splitTextToSize(nombreTxt, 55);
+        const rate = parseFloat(p.rateKBS) || 0;
+        const rowH = Math.max(9.5, lineH * nombreLineas.length) + 3;
+        itemsFilas.push({ nombreLineas, descLineas: [], hours: '1', rate: rate.toFixed(2), total: rate.toLocaleString('en-US', { minimumFractionDigits: 2 }), rowH, isEmployee: false });
+    });
+
+    // Rellenar filas vacías hasta 5
+    const minRows = 5;
+    while (itemsFilas.length < minRows) {
+        itemsFilas.push({ nombreLineas: [''], descLineas: [], hours: '', rate: '', total: '', rowH: 12, isEmployee: false, isEmpty: true });
+    }
+
+    const sumaRowH = itemsFilas.reduce((s, d) => s + d.rowH, 0);
+
+    // Medir observaciones
+    const hasObservaciones = !!(project.comentarios && String(project.comentarios).trim());
+    const obsTxt = hasObservaciones ? `"${vwhNormalizarPdf(project.comentarios)}"` : '';
+    const obsLineas = hasObservaciones ? pdfMedidor.splitTextToSize(obsTxt, anchoUtil - 16) : [];
+    const obsBlockH = hasObservaciones ? (8 + obsLineas.length * lineH + 5) : 0;
+
+    // Calcular altura total del documento
+    const alturaTotal = 14
+        + 18  // encabezado (badge + título + subtítulo)
+        + 5   // espacio
+        + Math.max(7, siteValueMed.length * 3.8) + 5  // banda resumen 1
+        + 7   // línea separadora
+        + Math.max(7, projectNameMed.length * 3.8) + 5 // banda resumen 2
+        + 7   // línea separadora
+        + 8.5 // cabecera de tabla
+        + sumaRowH // filas
+        + obsBlockH // observaciones (si existen)
+        + 12 + 9 + 7 + 11; // subtotal + barra total + pie
+
+    const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: [210, alturaTotal] });
+    if (alturaTotal < 210) {
+        pdf.internal.pageSize.setWidth(210);
+        pdf.internal.pageSize.setHeight(alturaTotal);
+    }
+
+    // Fondo y acento superior de página (idéntico al VWH)
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(0, 0, 210, alturaTotal, 'F');
+    pdf.setFillColor(...VWH_TEAL);
+    pdf.rect(0, 0, 140, 1.8, 'F');
+    pdf.setFillColor(...VWH_NAVY);
+    pdf.rect(140, 0, 70, 1.8, 'F');
+
+    let y = 14;
+
+    // Encabezado: badge INV + título + subtítulo (mismo diseño del VWH)
+    pdf.setFillColor(...VWH_NAVY);
+    vwhRectRedondeado(pdf, margenX, y, 12, 12, 3.5);
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont(fuente, 'bold');
+    pdf.setFontSize(7.5);
+    pdf.text('INV', margenX + 6, y + 7.6, { align: 'center' });
+
+    pdf.setTextColor(...VWH_NAVY);
+    pdf.setFontSize(15);
+    pdf.text(vwhNormalizarPdf('SPECIAL PROJECT INVOICE'), margenX + 15.5, y + 5);
+
+    const subtitulo = vwhNormalizarPdf(`${project.tienda || ''} | Invoice: #${project.invoice || ''}`).toUpperCase();
+    const subLineas = pdf.splitTextToSize(subtitulo, anchoUtil - 16);
+    pdf.setTextColor(...VWH_TEAL);
+    pdf.setFontSize(7);
+    pdf.text(subLineas, margenX + 15.5, y + 9.8);
+    y += 18;
+
+    // Banda resumen 1: SITE NAME / KBS ID / VENDOR NAME / TOTAL AMOUNT
+    const colX = [margenX + 2, margenX + 48, margenX + 88, margenX + 140];
+    pdf.setFontSize(6.2);
+    pdf.setTextColor(170, 175, 185);
+    pdf.text('SITE NAME', colX[0], y);
+    pdf.text('KBS ID', colX[1], y);
+    pdf.text('VENDOR NAME', colX[2], y);
+    pdf.text('TOTAL AMOUNT', colX[3], y);
+    y += 5;
+
+    pdf.setTextColor(...VWH_NAVY);
+    pdf.setFontSize(8);
+    pdf.text(siteValueMed, colX[0], y);
+    pdf.text(vwhNormalizarPdf(kbsId || '').toUpperCase() || '---', colX[1], y);
+    pdf.text('LOGIC GROUP MANAGEMENT', colX[2], y);
+    pdf.setTextColor(...VWH_TEAL);
+    pdf.setFontSize(15);
+    pdf.text(`$${totalKBS.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, colX[3], y);
+    y += Math.max(7, siteValueMed.length * 3.8) + 5;
+
+    pdf.setDrawColor(...VWH_GRIS_LINEA);
+    pdf.setLineWidth(0.5);
+    pdf.line(margenX, y, 210 - margenX, y);
+    y += 7;
+
+    // Banda resumen 2: PROJECT NAME / INVOICE DATE / BILL TO: KBS
+    const colX2 = [margenX + 2, margenX + 70, margenX + 140];
+    pdf.setFontSize(6.2);
+    pdf.setTextColor(170, 175, 185);
+    pdf.text('PROJECT NAME', colX2[0], y);
+    pdf.text('INVOICE DATE', colX2[1], y);
+    pdf.text('BILL TO:', colX2[2], y);
+    y += 5;
+
+    pdf.setTextColor(...VWH_NAVY);
+    pdf.setFontSize(8);
+    pdf.text(projectNameMed, colX2[0], y);
+    pdf.text(vwhNormalizarPdf(formatDate(project.fecha) || '').toUpperCase() || '---', colX2[1], y);
+    pdf.text('KBS', colX2[2], y);
+    y += Math.max(7, projectNameMed.length * 3.8) + 5;
+
+    pdf.setDrawColor(...VWH_GRIS_LINEA);
+    pdf.setLineWidth(0.5);
+    pdf.line(margenX, y, 210 - margenX, y);
+    y += 7;
+
+    // Encabezado de la tabla (barra navy, mismo estilo del VWH)
+    pdf.setFillColor(...VWH_NAVY);
+    vwhRectRedondeado(pdf, margenX, y, anchoUtil, 8.5, 2.5);
+    pdf.rect(margenX, y + 4.25, anchoUtil, 4.25, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont(fuente, 'bold');
+    pdf.setFontSize(6.2);
+    pdf.text('DESCRIPTION', margenX + 3, y + 5.5);
+    pdf.text('QT/HOURS', margenX + 80, y + 5.5, { align: 'center' });
+    pdf.text('UNIT PRICE', margenX + 115, y + 5.5, { align: 'center' });
+    pdf.text('TOTAL', 210 - margenX - 3, y + 5.5, { align: 'right' });
+    y += 8.5;
+
+    // Filas del invoice (altura ya medida; página continua sin saltos)
+    itemsFilas.forEach(({ nombreLineas, descLineas, hours, rate, total, rowH, isEmployee, isEmpty }, idx) => {
+        // Franja alterna suave
+        if (idx % 2 === 1) {
+            pdf.setFillColor(249, 250, 252);
+            pdf.rect(margenX, y, anchoUtil, rowH, 'F');
+        }
+
+        if (!isEmpty) {
+            // Description: nombre navy + descripción teal (empleados) o solo nombre (proveedores)
+            const blockH = (nombreLineas.length + descLineas.length) * lineH;
+            const descY = y + (rowH - blockH) / 2 + 3.2;
+            pdf.setTextColor(...VWH_NAVY);
+            pdf.setFont(fuente, 'bold');
+            pdf.setFontSize(6.8);
+            pdf.text(nombreLineas, margenX + 3, descY);
+            if (descLineas.length > 0) {
+                pdf.setTextColor(...VWH_TEAL);
+                pdf.setFont(fuente, 'normal');
+                pdf.setFontSize(5.2);
+                pdf.text(descLineas, margenX + 3, descY + nombreLineas.length * lineH);
+            }
+
+            // QT/Hours (centro)
+            pdf.setTextColor(...VWH_NAVY);
+            pdf.setFont(fuente, 'bold');
+            pdf.setFontSize(7);
+            pdf.text(hours, margenX + 80, y + rowH / 2 + 1.2, { align: 'center' });
+
+            // Unit Price (centro, teal)
+            pdf.setTextColor(...VWH_TEAL);
+            pdf.setFont(fuente, 'bold');
+            pdf.setFontSize(7);
+            pdf.text(`$${rate}`, margenX + 115, y + rowH / 2 + 1.2, { align: 'center' });
+
+            // Total (derecha, navy)
+            pdf.setTextColor(...VWH_NAVY);
+            pdf.setFont(fuente, 'bold');
+            pdf.setFontSize(7);
+            pdf.text(total, 210 - margenX - 3, y + rowH / 2 + 1.2, { align: 'right' });
+        }
+
+        // Separador de fila
+        pdf.setDrawColor(...VWH_GRIS_LINEA);
+        pdf.setLineWidth(0.2);
+        pdf.line(margenX, y + rowH, margenX + anchoUtil, y + rowH);
+
+        y += rowH;
+    });
+
+    // Observaciones / Notes (solo si hay comentarios)
+    if (hasObservaciones) {
+        y += 5;
+        pdf.setFillColor(245, 245, 245);
+        vwhRectRedondeado(pdf, margenX, y, anchoUtil, obsBlockH - 5, 3);
+        pdf.setTextColor(...VWH_TEAL);
+        pdf.setFont(fuente, 'bold');
+        pdf.setFontSize(6.2);
+        pdf.text('OBSERVATIONS / NOTES', margenX + 5, y + 5);
+        pdf.setTextColor(...VWH_NAVY);
+        pdf.setFont(fuente, 'italic');
+        pdf.setFontSize(6);
+        pdf.text(obsLineas, margenX + 5, y + 10);
+        y += obsBlockH;
+    }
+
+    // Subtotal
+    y += 3;
+    pdf.setTextColor(170, 175, 185);
+    pdf.setFont(fuente, 'bold');
+    pdf.setFontSize(6.2);
+    pdf.text('SUBTOTAL', 210 - margenX - 62, y);
+    pdf.setTextColor(...VWH_NAVY);
+    pdf.setFont(fuente, 'bold');
+    pdf.setFontSize(8);
+    pdf.text(`$${totalKBS.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 210 - margenX - 3, y, { align: 'right' });
+    y += 5;
+
+    // Barra de total (idéntica al VWH)
+    pdf.setFillColor(...VWH_NAVY);
+    vwhRectRedondeado(pdf, margenX, y, anchoUtil, 12, 2.5);
+    pdf.rect(margenX, y, anchoUtil, 6, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont(fuente, 'bold');
+    pdf.setFontSize(11.5);
+    pdf.text(`$${totalKBS.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, margenX + anchoUtil - 62, y + 8.2, { align: 'right' });
+    pdf.setFontSize(6.8);
+    pdf.text('TOTAL AMOUNT', margenX + anchoUtil - 5, y + 7.6, { align: 'right' });
+    y += 12;
+
+    // Pie del reporte (idéntico al VWH)
+    y += 9;
+    pdf.setDrawColor(...VWH_GRIS_LINEA);
+    pdf.setLineWidth(0.4);
+    pdf.line(margenX + 4, y, 210 - margenX - 4, y);
+    y += 7;
+    pdf.setFillColor(...VWH_NAVY);
+    pdf.rect(margenX + 4, y - 3.2, 5, 5, 'F');
+    pdf.setTextColor(130, 138, 160);
+    pdf.setFont(fuente, 'bold');
+    pdf.setFontSize(6);
+    pdf.text('ADWISERS LOGICPAY', margenX + 12, y + 0.6);
+    pdf.text('LOGIC GROUP MANAGEMENT LLC.', 210 - margenX - 4, y + 0.6, { align: 'right' });
+
+    return pdf;
+};
+
 const VWHTableModal = (props) => {
     const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId, employees = [], isRadicated = false, onOpenUPSConsolidated, historyKbsData = [], user } = props;
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
@@ -15124,7 +15398,7 @@ const SpecialProjectCard = React.memo(({ project, employees, stores, proveedores
 
     // Auto-rellenar Rate KBS y LGM al seleccionar un empleado
     const handleSelectEmployee = (rowId, emp) => {
-        const updates = { employeeName: emp.nombre };
+        const updates = { employeeName: emp.nombre, employeeCode: emp.codigo_empleado || '' };
         // Fuente única de verdad: Rate Personal del Empleado
         if (emp.rateKBS) updates.rateKBS = emp.rateKBS;
         if (emp.rateLGM) updates.rateLogic = emp.rateLGM;
@@ -15837,7 +16111,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
     );
 };
 
-const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {}, onEmailSent, stores = [], isRadicated = false, user }) => {
+const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {}, onEmailSent, stores = [], isRadicated = false, user, employees = [] }) => {
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -15848,10 +16122,14 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
 
     const isActuallySent = !!isRadicated;
 
-    const handleSendEmail = async (emailData) => {
-        const element = reportRef.current;
-        if (!element) return;
+    // Resolver código del empleado desde employeeCode de la fila o desde la BD global
+    const resolveEmployeeCode = (emp) => {
+        if (emp.employeeCode) return emp.employeeCode;
+        const found = employees.find(e => String(e.nombre || '').trim().toLowerCase() === String(emp.employeeName || '').trim().toLowerCase());
+        return found?.codigo_empleado || '';
+    };
 
+    const handleSendEmail = async (emailData) => {
         setIsSendingEmail(true);
         setNotificationModal({
             isOpen: true,
@@ -15860,20 +16138,12 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
         });
 
         try {
-            const canvas = await html2canvas(element, {
-                scale: 1.5,
-                useCORS: true,
-                logging: false,
-                backgroundColor: "#ffffff",
-                windowWidth: 1000
-            });
+            const empTotal = (project.employees || []).reduce((acc, row) => acc + (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0), 0);
+            const provTotal = (project.providers || []).reduce((acc, row) => acc + (parseFloat(row.rateKBS) || 0), 0);
+            const total = empTotal + provTotal;
+            const kbsId = stores.find(s => normalizeKey(s.nombre) === normalizeKey(project.tienda || project.Tienda || project.nombre))?.codigo || '---';
 
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const imgWidth = 210;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-
+            const pdf = generateSpecialProjectInvoicePdf({ project, totalKBS: total, kbsId, employees });
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
             await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: [{ name: `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
@@ -15892,7 +16162,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
             console.error('Error enviando factura por email:', error);
             setNotificationModal({
                 isOpen: true,
-                type: 'success',
+                type: 'error',
                 message: "Error crítico al procesar el envío de la factura. Verifique la conexión."
             });
         } finally {
@@ -15901,24 +16171,13 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
     };
 
     const handleDownloadPDF = async () => {
-        const element = reportRef.current;
-        if (!element) return;
-
         try {
-            const canvas = await html2canvas(element, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: "#ffffff",
-                windowWidth: 1000
-            });
+            const empTotal = (project.employees || []).reduce((acc, row) => acc + (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0), 0);
+            const provTotal = (project.providers || []).reduce((acc, row) => acc + (parseFloat(row.rateKBS) || 0), 0);
+            const total = empTotal + provTotal;
+            const kbsId = stores.find(s => normalizeKey(s.nombre) === normalizeKey(project.tienda || project.Tienda || project.nombre))?.codigo || '---';
 
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const imgWidth = 210;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            const pdf = generateSpecialProjectInvoicePdf({ project, totalKBS: total, kbsId, employees });
             pdf.save(`Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`);
         } catch (error) {
             console.error('Error generating Invoice PDF:', error);
@@ -15992,7 +16251,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                                         <tr key={i}>
                                             <td className="p-5">
                                                 <div className="font-bold text-[#303a7f] text-xs uppercase">{emp.employeeName}</div>
-                                                <div className="text-[9px] text-[#6bbdb7] font-bold uppercase tracking-tight mt-0.5">{project.descripcion || 'Servicio Profesional Special Project'}</div>
+                                                <div className="text-[9px] text-[#6bbdb7] font-bold uppercase tracking-tight mt-0.5">{resolveEmployeeCode(emp)}</div>
                                             </td>
                                             <td className="p-5 text-center font-bold text-[#303a7f] text-sm tabular-nums">{parseFloat(emp.hours).toFixed(2)}</td>
                                             <td className="p-5 text-center font-bold text-[#6bbdb7] text-sm tabular-nums">${parseFloat(emp.rateKBS).toFixed(2)}</td>
@@ -27659,6 +27918,7 @@ function App() {
                 project={selectedSpecialProjectInvoice}
                 emailsSent={peEmailsSent}
                 stores={stores}
+                employees={employees}
                 isRadicated={(() => {
                     const h = specialProjectsHistoryData.find(h => {
                         const hId = String(h.correlativo || h.Correlativo || '').trim();
