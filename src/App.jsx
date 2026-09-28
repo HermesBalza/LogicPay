@@ -8142,6 +8142,186 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
     return pdf;
 };
 
+// ─── Reporte de Asistencia Semanal: PDF vectorial de página continua ───
+// Mismo diseño, tipografía, colores y sistema del Reporte VWH (generateVWHPdfDocument),
+// pero con el contenido de la asistencia semanal: empleado × días × horas.
+const generateAttendancePdfVectorial = ({ rows, payrollStore, kbsId, start, end, isMonSun, hhmmToDecimal }) => {
+    const fuente = 'helvetica';
+    const margenX = 12;
+    const anchoUtil = 210 - (margenX * 2);
+    const diasCabecera = isMonSun ? ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] : ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    const diasClave = isMonSun
+        ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
+        : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+
+    // ── Página continua: medición previa del contenido (misma técnica del VWH) ──
+    const pdfMedidor = new jsPDF('p', 'mm', 'a4'); // instancia auxiliar: solo métricas de texto
+    const lineH = 4.2;
+    const subLineasMed = pdfMedidor.splitTextToSize(vwhNormalizarPdf(`${payrollStore} | Period: ${start} - ${end}`).toUpperCase(), anchoUtil - 16);
+    const siteValueMed = pdfMedidor.splitTextToSize(vwhNormalizarPdf(payrollStore).toUpperCase(), 42);
+    const datosFilas = (rows || []).map((row) => {
+        const nombreLineas = pdfMedidor.splitTextToSize(vwhNormalizarPdf(row.nombre || '').toUpperCase(), 38);
+        const subTxt = vwhNormalizarPdf(`${row.cargo || '---'} | ID: ${String(row.codigo || '').replace(/^'+/, '')}`).toUpperCase();
+        const subLineas = pdfMedidor.splitTextToSize(subTxt, 40);
+        const rowH = Math.max(9.5, lineH * (nombreLineas.length + subLineas.length)) + 3;
+        const horasDia = diasClave.map(d => hhmmToDecimal(row[d]?.final || 0));
+        return { row, nombreLineas, subLineas, rowH, horasDia };
+    });
+    const sumaRowH = datosFilas.reduce((s, d) => s + d.rowH, 0);
+    const totalSemanal = datosFilas.reduce((s, d) => s + d.horasDia.reduce((a, b) => a + b, 0), 0);
+    const alturaTotal = 14
+        + 18 + Math.max(0, subLineasMed.length - 1) * 3.2
+        + 5
+        + Math.max(7, siteValueMed.length * 3.8) + 5
+        + 7
+        + 8.5
+        + sumaRowH
+        + 12 + 9 + 7 + 11; // barra de total + espacio + línea del pie + contenido del pie y margen inferior
+
+    const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: [210, alturaTotal] });
+    // jsPDF intercambia ancho y alto cuando la altura es menor que el ancho; se fuerza la dimensión real
+    if (alturaTotal < 210) {
+        pdf.internal.pageSize.setWidth(210);
+        pdf.internal.pageSize.setHeight(alturaTotal);
+    }
+
+    // Fondo y acento superior de página (idéntico al VWH)
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(0, 0, 210, alturaTotal, 'F');
+    pdf.setFillColor(...VWH_TEAL);
+    pdf.rect(0, 0, 140, 1.8, 'F');
+    pdf.setFillColor(...VWH_NAVY);
+    pdf.rect(140, 0, 70, 1.8, 'F');
+
+    let y = 14;
+
+    // Encabezado: ícono + título + subtítulo (mismo diseño del VWH)
+    pdf.setFillColor(...VWH_NAVY);
+    vwhRectRedondeado(pdf, margenX, y, 12, 12, 3.5);
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont(fuente, 'bold');
+    pdf.setFontSize(7.5);
+    pdf.text('HRS', margenX + 6, y + 7.6, { align: 'center' });
+
+    pdf.setTextColor(...VWH_NAVY);
+    pdf.setFontSize(15);
+    pdf.text(vwhNormalizarPdf('WEEKLY ATTENDANCE REPORT'), margenX + 15.5, y + 5);
+
+    pdf.setTextColor(...VWH_TEAL);
+    pdf.setFontSize(7);
+    pdf.text(subLineasMed, margenX + 15.5, y + 9.8);
+    y += 18 + Math.max(0, subLineasMed.length - 1) * 3.2;
+
+    // Resumen informativo (Site / KBS ID / Vendor / Total)
+    const colX = [margenX + 2, margenX + 48, margenX + 88, margenX + 140];
+    pdf.setFontSize(6.2);
+    pdf.setTextColor(170, 175, 185);
+    pdf.text('SITE NAME', colX[0], y);
+    pdf.text('KBS ID', colX[1], y);
+    pdf.text('VENDOR NAME', colX[2], y);
+    pdf.text('TOTAL HOURS', colX[3], y);
+    y += 5;
+
+    pdf.setTextColor(...VWH_NAVY);
+    pdf.setFontSize(8);
+    pdf.text(siteValueMed, colX[0], y);
+    pdf.text(String(kbsId), colX[1], y);
+    pdf.text('LOGIC GROUP MANAGEMENT', colX[2], y);
+    pdf.setTextColor(...VWH_TEAL);
+    pdf.setFontSize(15);
+    pdf.text(totalSemanal.toFixed(2), colX[3], y);
+    y += Math.max(7, siteValueMed.length * 3.8) + 5;
+
+    pdf.setDrawColor(...VWH_GRIS_LINEA);
+    pdf.setLineWidth(0.5);
+    pdf.line(margenX, y, 210 - margenX, y);
+    y += 7;
+
+    // Encabezado de la tabla (barra azul, mismo estilo del VWH)
+    pdf.setFillColor(...VWH_NAVY);
+    vwhRectRedondeado(pdf, margenX, y, anchoUtil, 8.5, 2.5);
+    pdf.rect(margenX, y + 4.25, anchoUtil, 4.25, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont(fuente, 'bold');
+    pdf.setFontSize(6.2);
+    pdf.text('EMPLOYEE / POSITION', margenX + 3, y + 5.5);
+    diasCabecera.forEach((d, i) => {
+        pdf.text(d, margenX + 52 + (i * 17) + 8.5, y + 5.5, { align: 'center' });
+    });
+    pdf.text('TOTAL', 210 - margenX - 3, y + 5.5, { align: 'right' });
+    y += 8.5;
+
+    // Filas del reporte (altura ya medida; página continua sin saltos)
+    datosFilas.forEach(({ nombreLineas, subLineas, rowH, horasDia }, idx) => {
+        // Franja alterna suave
+        if (idx % 2 === 1) {
+            pdf.setFillColor(249, 250, 252);
+            pdf.rect(margenX, y, anchoUtil, rowH, 'F');
+        }
+
+        // Employee / Position: nombre navy + línea de cargo e ID (bloque centrado verticalmente)
+        const blockH = (nombreLineas.length + subLineas.length) * lineH;
+        const empY = y + (rowH - blockH) / 2 + 3.2;
+        pdf.setTextColor(...VWH_NAVY);
+        pdf.setFont(fuente, 'bold');
+        pdf.setFontSize(6.8);
+        pdf.text(nombreLineas, margenX + 3, empY);
+        pdf.setTextColor(...VWH_GRIS_TXT);
+        pdf.setFont(fuente, 'normal');
+        pdf.setFontSize(5.2);
+        pdf.text(subLineas, margenX + 3, empY + nombreLineas.length * lineH);
+
+        // Horas por día (decimales, como el VWH)
+        pdf.setTextColor(...VWH_GRIS_TXT);
+        pdf.setFont(fuente, 'normal');
+        pdf.setFontSize(6);
+        horasDia.forEach((h, i) => {
+            pdf.text(h > 0 ? h.toFixed(2) : '-', margenX + 52 + (i * 17) + 8.5, y + rowH / 2 + 1.2, { align: 'center' });
+        });
+
+        // Total de la fila
+        pdf.setTextColor(...VWH_NAVY);
+        pdf.setFont(fuente, 'bold');
+        pdf.setFontSize(7);
+        pdf.text(horasDia.reduce((a, b) => a + b, 0).toFixed(2), 210 - margenX - 3, y + rowH / 2 + 1.2, { align: 'right' });
+
+        // Separador de fila
+        pdf.setDrawColor(...VWH_GRIS_LINEA);
+        pdf.setLineWidth(0.2);
+        pdf.line(margenX, y + rowH, margenX + anchoUtil, y + rowH);
+
+        y += rowH;
+    });
+
+    // Barra de total (idéntica al VWH)
+    pdf.setFillColor(...VWH_NAVY);
+    vwhRectRedondeado(pdf, margenX, y, anchoUtil, 12, 2.5);
+    pdf.rect(margenX, y, anchoUtil, 6, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont(fuente, 'bold');
+    pdf.setFontSize(11.5);
+    pdf.text(totalSemanal.toFixed(2), margenX + anchoUtil - 62, y + 8.2, { align: 'right' });
+    pdf.setFontSize(6.8);
+    pdf.text('TOTAL WEEKLY HOURS', margenX + anchoUtil - 5, y + 7.6, { align: 'right' });
+    y += 12;
+
+    // Pie del reporte (idéntico al VWH)
+    y += 9;
+    pdf.setDrawColor(...VWH_GRIS_LINEA);
+    pdf.setLineWidth(0.4);
+    pdf.line(margenX + 4, y, 210 - margenX - 4, y);
+    y += 7;
+    pdf.setFillColor(...VWH_NAVY);
+    pdf.rect(margenX + 4, y - 3.2, 5, 5, 'F');
+    pdf.setTextColor(130, 138, 160);
+    pdf.setFont(fuente, 'bold');
+    pdf.setFontSize(6);
+    pdf.text('ADWISERS LOGICPAY', margenX + 12, y + 0.6);
+    pdf.text('LOGIC GROUP MANAGEMENT LLC.', 210 - margenX - 4, y + 0.6, { align: 'right' });
+
+    return pdf;
+};
+
 const VWHTableModal = (props) => {
     const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId, employees = [], isRadicated = false, onOpenUPSConsolidated, historyKbsData = [], user } = props;
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
@@ -21517,7 +21697,6 @@ function App() {
     };
 
     const handleOpenHoursReportEmail = async () => {
-        if (!attendanceReportRef.current) return;
         setHoursReportPdfBase64(null); // Limpiar estado previo para nueva generación
 
         setStatusModalTitle("Generando Reporte Premium");
@@ -21526,24 +21705,16 @@ function App() {
         setIsStatusModalOpen(true);
 
         try {
-            // Capturar la versión "Printable" del reporte (oculta en el UI pero disponible para captura)
-            const element = attendanceReportRef.current;
-            const canvas = await html2canvas(element, {
-                scale: 1.5, // Optimización de peso manteniendo legibilidad profesional
-                useCORS: true,
-                backgroundColor: '#ffffff',
-                logging: false,
-                windowWidth: 1200 // Ancho fijo para consistencia de layout
+            // PDF vectorial de página continua con el mismo diseño del Reporte VWH
+            const pdf = generateAttendancePdfVectorial({
+                rows: semanaTableData,
+                payrollStore,
+                kbsId: stores.find(s => s.nombre === payrollStore)?.codigo || '---',
+                start: fechaDesde,
+                end: fechaHasta,
+                isMonSun: isWeekMonSun(payrollStore),
+                hhmmToDecimal
             });
-
-            const imgData = canvas.toDataURL('image/png');
-            const pdfWidth = 297; // Ancho estándar A4 horizontal (mm)
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-            // Usar formato personalizado [ancho, alto] para que la página se ajuste al contenido real
-            const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
-
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
 
             const base64 = pdf.output('datauristring').split(',')[1];
             setHoursReportPdfBase64(base64);
