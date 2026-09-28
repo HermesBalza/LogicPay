@@ -123,6 +123,13 @@ try { db.exec(`ALTER TABLE Personal ADD COLUMN account_type TEXT DEFAULT 'checki
 try { db.exec(`ALTER TABLE Personal ADD COLUMN payee_name TEXT`); } catch (_) {}
 try { db.exec(`ALTER TABLE Personal ADD COLUMN id_number TEXT`); } catch (_) {}
 
+// Migración segura: columnas bancarias de Personal_Admin
+try { db.exec(`ALTER TABLE Personal_Admin ADD COLUMN routing_num TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE Personal_Admin ADD COLUMN account_num TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE Personal_Admin ADD COLUMN account_type TEXT DEFAULT 'checking'`); } catch (_) {}
+try { db.exec(`ALTER TABLE Personal_Admin ADD COLUMN payee_name TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE Personal_Admin ADD COLUMN id_number TEXT`); } catch (_) {}
+
 // Migración de datos: cuenta_bancaria → account_num
 try { db.exec(`UPDATE Personal SET account_num = cuenta_bancaria WHERE (account_num IS NULL OR account_num = '') AND cuenta_bancaria IS NOT NULL AND cuenta_bancaria != ''`); } catch (_) {}
 

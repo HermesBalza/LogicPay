@@ -574,6 +574,11 @@ const csvRowToAdminEmployee = (flat) => ({
     frecuencia_pago: flat.frecuencia_pago || 'Quincenal',
     metodo_pago: flat.metodo_pago || '',
     cuenta_bancaria: (flat.cuenta_bancaria || '').replace(/^'/, ''),
+    routing_num: (flat.routing_num || '').replace(/^'/, ''),
+    account_num: (flat.account_num || '').replace(/^'/, ''),
+    account_type: flat.account_type || 'checking',
+    payee_name: flat.payee_name || '',
+    id_number: (flat.id_number || '').replace(/^'/, ''),
     email: flat.email || '',
     imagen: flat.imagen || '',
     fecha_ingreso: flat.fecha_ingreso || '',
@@ -17130,6 +17135,11 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
         frecuencia_pago: 'Quincenal',
         metodo_pago: 'Direct Deposit',
         cuenta_bancaria: '',
+        routing_num: '',
+        account_num: '',
+        account_type: 'checking',
+        payee_name: '',
+        id_number: '',
         email: '',
         fecha_ingreso: '',
         tin: '',
@@ -17322,11 +17332,36 @@ const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
                         <section className="bg-white rounded-[2rem] p-10 shadow-xl shadow-blue-900/5 border-2 border-gray-50">
                             <h3 className="text-xl font-black text-[#333333] tracking-tighter mb-8 flex items-center gap-3">
                                 <div className="bg-gray-100 p-2 rounded-lg"><CreditCard className="text-[#303a7f]" size={18} /></div>
-                                Información Bancaria
+                                Información Bancaria (Para Pago ACH)
                             </h3>
-                            <div>
-                                <label className={labelCls}>Detalles de Cuenta</label>
-                                <textarea rows="3" placeholder="Número de cuenta, Routing, Banco..." value={newEmp.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className={inputCls + " resize-none"}></textarea>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className={labelCls}>Routing Number</label>
+                                    <input type="text" placeholder="Ej: 021000021" value={newEmp.routing_num} onChange={(e) => updateField('routing_num', e.target.value)} className={inputCls} maxLength={9} inputMode="numeric" />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Número de Cuenta</label>
+                                    <input type="text" placeholder="Ej: 123456789" value={newEmp.account_num} onChange={(e) => updateField('account_num', e.target.value)} className={inputCls} inputMode="numeric" />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Tipo de Cuenta</label>
+                                    <select value={newEmp.account_type} onChange={(e) => updateField('account_type', e.target.value)} className={inputCls}>
+                                        <option value="checking">Checking</option>
+                                        <option value="savings">Savings</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Nombre del Titular</label>
+                                    <input type="text" placeholder="Nombre como aparece en el banco" value={newEmp.payee_name} onChange={(e) => updateField('payee_name', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>ID Number (SSN/ITIN/EIN)</label>
+                                    <input type="text" placeholder="Últimos 4 dígitos o ID completo" value={newEmp.id_number} onChange={(e) => updateField('id_number', e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Detalles Adicionales (Opcional)</label>
+                                    <input type="text" placeholder="Banco, notas..." value={newEmp.cuenta_bancaria} onChange={(e) => updateField('cuenta_bancaria', e.target.value)} className={inputCls} />
+                                </div>
                             </div>
                         </section>
                     </div>
@@ -17406,6 +17441,11 @@ const AdminPayrollView = ({
                 email: emp.email,
                 metodo_pago: emp.metodo_pago,
                 cuenta_bancaria: emp.cuenta_bancaria,
+                routing_num: emp.routing_num || '',
+                account_num: emp.account_num || '',
+                account_type: emp.account_type || 'checking',
+                payee_name: emp.payee_name || '',
+                id_number: emp.id_number || '',
                 salario_base: emp.salario_quincenal,
                 ajuste: 0,
                 total: emp.salario_quincenal,
@@ -17423,34 +17463,20 @@ const AdminPayrollView = ({
         return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
     };
 
-    // Generar opciones de quincenas (bisemanas de 14 días) desde el 28 de Diciembre 2025
-    const generateBiweeklyOptions = () => {
+    // Generar opciones de meses desde Enero del año actual hasta el mes actual
+    const generateMonthlyOptions = () => {
         const options = [];
-        const startDate = new Date(2025, 11, 28); // 28 de Dic 2025 (Mes 11)
         const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth(); // 0-ene, 11-dic
 
-        const MS_PER_DAY = 24 * 60 * 60 * 1000;
-        const MS_PER_BIWEEK = 14 * MS_PER_DAY;
+        const monthNames = [
+            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+        ];
 
-        // Calculamos cuántas bisemanas han pasado desde el inicio
-        const diffMS = now.getTime() - startDate.getTime();
-        const currentBiweekIndex = Math.floor(diffMS / MS_PER_BIWEEK);
-
-        // Generamos las últimas 12 bisemanas (desde la actual hacia atrás)
-        for (let i = 0; i < 12; i++) {
-            const idx = currentBiweekIndex - i;
-            if (idx < 0) break;
-
-            const pStart = new Date(startDate.getTime() + idx * MS_PER_BIWEEK);
-            const pEnd = new Date(pStart.getTime() + 13 * MS_PER_DAY);
-
-            const fmt = (d) => {
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${m}/${day}/${d.getFullYear()}`;
-            };
-
-            options.push(`${fmt(pStart)} — ${fmt(pEnd)}`);
+        for (let m = currentMonth; m >= 0; m--) {
+            options.push(`${monthNames[m]} ${currentYear}`);
         }
         return options;
     };
@@ -17466,6 +17492,11 @@ const AdminPayrollView = ({
             email: emp.email,
             metodo_pago: emp.metodo_pago,
             cuenta_bancaria: emp.cuenta_bancaria,
+            routing_num: emp.routing_num || '',
+            account_num: emp.account_num || '',
+            account_type: emp.account_type || 'checking',
+            payee_name: emp.payee_name || '',
+            id_number: emp.id_number || '',
             salario_base: emp.salario_quincenal,
             ajuste: 0,
             total: emp.salario_quincenal,
@@ -17507,7 +17538,12 @@ const AdminPayrollView = ({
                     salario_base: r.salario_base,
                     ajuste: r.ajuste,
                     total: r.total,
-                    metodo_pago: r.metodo_pago
+                    metodo_pago: r.metodo_pago,
+                    routing_num: r.routing_num || '',
+                    account_num: r.account_num || '',
+                    account_type: r.account_type || 'checking',
+                    payee_name: r.payee_name || '',
+                    id_number: r.id_number || ''
                 })),
                 total_nomina: payrollRows.reduce((acc, r) => acc + (r.total || 0), 0)
             };
@@ -17531,6 +17567,53 @@ const AdminPayrollView = ({
         } finally {
             setIsConfirming(false);
         }
+    };
+
+    // Generar CSV NACHA para nómina administrativa
+    const generateAdminNachaCSV = (record) => {
+        const pad = (n) => String(n).padStart(2, '0');
+        const now = new Date();
+        const fileDate = `${String(now.getFullYear()).slice(-2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+        const fileTime = pad(now.getHours()) + pad(now.getMinutes());
+        const traceBase = `${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+
+        const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const monthIdx = monthNames.findIndex(m => record.periodo.startsWith(m));
+        const year = parseInt(record.periodo.split(' ').pop()) || now.getFullYear();
+        const entregaDate = new Date(year, monthIdx + 1, 0); // último día del mes
+        const entrega = `${String(entregaDate.getFullYear()).slice(-2)}${pad(entregaDate.getMonth() + 1)}${pad(entregaDate.getDate())}`;
+
+        const rows = [];
+        (record.empleados || []).forEach(emp => {
+            const amountCents = Math.round((emp.total || 0) * 100);
+            if (amountCents <= 0) return;
+
+            // Usar datos del registro si existen, sino buscar en adminEmployees
+            const routing = String(emp.routing_num || '').replace(/\D/g, '') || String(adminEmployees.find(e => e.nombre === emp.nombre)?.routing_num || '').replace(/\D/g, '');
+            const account = String(emp.account_num || '').replace(/\D/g, '') || String(adminEmployees.find(e => e.nombre === emp.nombre)?.account_num || '').replace(/\D/g, '');
+            const accountType = emp.account_type || adminEmployees.find(e => e.nombre === emp.nombre)?.account_type || 'checking';
+            const trxnCode = (accountType === 'savings') ? '32' : '22';
+            const idNumber = String(emp.id_number || '').replace(/,/g, '') || String(adminEmployees.find(e => e.nombre === emp.nombre)?.id_number || adminEmployees.find(e => e.nombre === emp.nombre)?.codigo_empleado || '').replace(/,/g, '');
+            const payeeName = String(emp.payee_name || '').replace(/,/g, '').trim() || String(adminEmployees.find(e => e.nombre === emp.nombre)?.payee_name || emp.nombre || '').replace(/,/g, '').trim();
+
+            rows.push({ routing, account, amountCents, idNumber, payeeName, trxnCode });
+        });
+
+        if (rows.length === 0) return null;
+
+        const totalCreditCents = rows.reduce((sum, r) => sum + r.amountCents, 0);
+        const csv = [];
+        csv.push('Indicator,File ID (Modifier),File creation date,File creation time,Total trxn,Total ACH credit amount,Total ACH debit amount,Batch Count,,');
+        csv.push(`1,A,${fileDate},${fileTime},${rows.length},${totalCreditCents},0,1,,`);
+        csv.push('Indicator,Service class code,Chase Acct,SEC Code,Entry description,Delivery by date,Batch credit amount,Batch debit amount,Batch number,Trxn in Batch');
+        csv.push(`5,220,826336130,PPD,PAYROLL,${entrega},${totalCreditCents},0,100,${rows.length}`);
+        csv.push('Indicator,Trxn Code,Routing Num,Acct number,Trxn amount,ID Number,Payee name,Trxn ID,Addenda,');
+        rows.forEach((r, idx) => {
+            const traceId = `100${traceBase}${String(idx + 1).padStart(4, '0')}`;
+            csv.push(`6,${r.trxnCode},${r.routing},${r.account},${r.amountCents},${r.idNumber},${r.payeeName},${traceId},,`);
+        });
+        return csv.join('\n');
     };
 
     const filteredEmployees = adminEmployees.filter(e =>
@@ -17853,14 +17936,14 @@ const AdminPayrollView = ({
                     {/* Selector de período */}
                     <div className="bg-white rounded-[2rem] border-2 border-gray-50 shadow-sm p-6 mb-6">
                         <div className="w-full">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Período Bisemanal</label>
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Período Mensual</label>
                             <select
                                 value={selectedPeriod}
                                 onChange={e => setSelectedPeriod(e.target.value)}
                                 className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl px-4 py-3 outline-none focus:border-[#303a7f]/10 text-xs transition-all"
                             >
-                                <option value="">— Seleccionar Bisemana —</option>
-                                {generateBiweeklyOptions().map((opt, i) => (
+                                <option value="">— Seleccionar Mes —</option>
+                                {generateMonthlyOptions().map((opt, i) => (
                                     <option key={i} value={opt}>{opt}</option>
                                 ))}
                             </select>
@@ -17918,7 +18001,7 @@ const AdminPayrollView = ({
 
                                 {/* Footer de totales */}
                                 <div className="bg-[#303a7f] px-6 py-4 flex items-center justify-between">
-                                    <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Total Nómina Bisemanal</span>
+                                    <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Total Nómina Mensual</span>
                                     <span className="text-2xl font-black text-white tracking-tighter">{fmtCurrency(totalNomina)}</span>
                                 </div>
                             </div>
@@ -17956,9 +18039,30 @@ const AdminPayrollView = ({
                                             <p className="text-xs font-black text-[#303a7f] uppercase tracking-tight">{record.periodo}</p>
                                             <p className="text-[9px] font-bold text-gray-400 mt-0.5">Confirmado: {record.fecha_confirmacion}</p>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Pagado</p>
-                                            <p className="text-xl font-black text-[#6bbdb7]">{fmtCurrency(record.total_nomina)}</p>
+                                        <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={() => {
+                                                    const csv = generateAdminNachaCSV(record);
+                                                    if (!csv) { alert('No hay empleados con datos bancarios completos para este período.'); return; }
+                                                    const blob = new Blob([csv], { type: 'text/csv' });
+                                                    const url = URL.createObjectURL(blob);
+                                                    const a = document.createElement('a');
+                                                    a.href = url;
+                                                    a.download = `Admin_ACH_${record.periodo.replace(/\s+/g, '_').replace(/,/g, '')}.csv`;
+                                                    document.body.appendChild(a);
+                                                    a.click();
+                                                    document.body.removeChild(a);
+                                                    URL.revokeObjectURL(url);
+                                                }}
+                                                className="px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-900/20"
+                                            >
+                                                <Download size={14} />
+                                                CSV NACHA
+                                            </button>
+                                            <div className="text-right">
+                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Pagado</p>
+                                                <p className="text-xl font-black text-[#6bbdb7]">{fmtCurrency(record.total_nomina)}</p>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="px-6 py-3 flex flex-wrap gap-3">
