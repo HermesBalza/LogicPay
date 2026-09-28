@@ -463,6 +463,39 @@ const csvRowToStore = (flat) => ({
     }
 });
 
+// ─── CUENTAS COMPARTIDAS: agrupación de pagos para el CSV NACHA (Chase Bank) ───
+// Regla de negocio: dos o más empleados de la misma nómina bisemanal se combinan en UNA sola
+// transacción del CSV únicamente si los datos de "Control de Nómina y Fechas" coinciden al 100%
+// (Routing Num + Acct Number + Account Type + Payee Name + ID Number: datos del titular de la cuenta).
+const llaveCuentaDesdeDb = (dbEmp) => ([
+    String(dbEmp?.routing_num || '').replace(/\D/g, ''),
+    String(dbEmp?.account_num || '').replace(/\D/g, ''),
+    (dbEmp?.account_type !== 'savings') ? '22' : '32',
+    String(dbEmp?.id_number || dbEmp?.codigo_empleado || '').replace(/,/g, '').trim().replace(/\s+/g, ' ').toLowerCase(),
+    String(dbEmp?.payee_name || '').replace(/,/g, '').trim().replace(/\s+/g, ' ').toLowerCase()
+].join('|'));
+
+const llaveCuentaDesdeFila = (fila) => ([
+    String(fila.routing || '').replace(/\D/g, ''),
+    String(fila.account || '').replace(/\D/g, ''),
+    String(fila.trxnCode || '').trim(),
+    String(fila.idNumber || '').trim().replace(/\s+/g, ' ').toLowerCase(),
+    String(fila.payeeName || '').trim().replace(/\s+/g, ' ').toLowerCase()
+].join('|'));
+
+// Combina las filas con la misma llave bancaria en una sola transacción (monto sumado en centavos);
+// los totales de cabecera del CSV se recalculan con las filas resultantes.
+const agruparPagosNacha = (filas) => {
+    const grupos = new Map();
+    for (const fila of filas) {
+        const llave = llaveCuentaDesdeFila(fila);
+        const existente = grupos.get(llave);
+        if (existente) { existente.amountCents += fila.amountCents; continue; }
+        grupos.set(llave, { ...fila });
+    }
+    return [...grupos.values()];
+};
+
 const csvRowToEmployee = (flat) => {
     // Buscar llaves que puedan estar truncadas o con variantes
     const findValue = (keys) => {
@@ -10369,6 +10402,22 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         }
     };
 
+    // Llaves bancarias de la lista descargable (biweeklyEmployees + addedSupervisors): alimentan el badge
+    // "Cuenta Compartida" y garantizan que lo visible en pantalla coincide con lo que combina el CSV NACHA
+    const llavesBancariasNomina = useMemo(() => {
+        const mapa = new Map();
+        for (const emp of [...biweeklyEmployees, ...addedSupervisors]) {
+            const empCode = String(emp.id.split('_')[1] || '').trim();
+            const empName = String(emp.nombre || '').trim().toLowerCase();
+            const dbEmp = employees.find(e => {
+                const nombreBD = [e.first_name, e.last_name].filter(Boolean).join(' ').trim().toLowerCase();
+                return nombreBD === empName && String(e.codigo_empleado || '').trim() === empCode;
+            });
+            if (dbEmp) mapa.set(emp.id, llaveCuentaDesdeDb(dbEmp));
+        }
+        return mapa;
+    }, [biweeklyEmployees, addedSupervisors, employees]);
+
     const generateNachaCSV = () => {
         const pad = (n) => String(n).padStart(2, '0');
         const now = new Date();
@@ -10401,14 +10450,15 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 addenda: biweekNum ? `Payroll BW${biweekNum}` : ''
             });
         });
-        const totalCreditCents = rows.reduce((sum, r) => sum + r.amountCents, 0);
+        const filasFinales = agruparPagosNacha(rows); // Combina cuentas compartidas al 100% en una sola transacción
+        const totalCreditCents = filasFinales.reduce((sum, r) => sum + r.amountCents, 0);
         const csv = [];
         csv.push('Indicator,File ID (Modifier),File creation date,File creation time,Total trxn,Total ACH credit amount,Total ACH debit amount,Batch Count,,');
-        csv.push(`1,A,${fileDate},${fileTime},${rows.length},${totalCreditCents},0,1,,`);
+        csv.push(`1,A,${fileDate},${fileTime},${filasFinales.length},${totalCreditCents},0,1,,`);
         csv.push('Indicator,Service class code,Chase Acct,SEC Code,Entry description,Delivery by date,Batch credit amount,Batch debit amount,Batch number,Trxn in Batch');
-        csv.push(`5,220,826336130,PPD,PAYROLL,${entrega},${totalCreditCents},0,100,${rows.length}`);
+        csv.push(`5,220,826336130,PPD,PAYROLL,${entrega},${totalCreditCents},0,100,${filasFinales.length}`);
         csv.push('Indicator,Trxn Code,Routing Num,Acct number,Trxn amount,ID Number,Payee name,Trxn ID,Addenda,');
-        rows.forEach((r, idx) => {
+        filasFinales.forEach((r, idx) => {
             const traceId = `100${traceBase}${String(idx + 1).padStart(4, '0')}`;
             csv.push(`6,${r.trxnCode},${r.routing},${r.account},${r.amountCents},${r.idNumber},${r.payeeName},${traceId},${r.addenda},`);
         });
@@ -10581,7 +10631,22 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                                     return (
                                         <tr key={idx} className={`group transition-colors ${emp.rowColor} hover:brightness-95`}>
-                                            <td className="p-1.5 border-r-2 border-gray-100 font-black text-[#303a7f] text-[10px] uppercase tracking-tight">{emp.nombre}</td>
+                                            <td className="p-1.5 border-r-2 border-gray-100 font-black text-[#303a7f] text-[10px] uppercase tracking-tight">
+                                                {emp.nombre}
+                                                {(() => {
+                                                    // Badge: comparte cuenta bancaria al 100% con otro empleado de esta misma lista descargable
+                                                    const llave = llavesBancariasNomina.get(emp.id);
+                                                    if (!llave) return null;
+                                                    const repeticiones = [...llavesBancariasNomina.values()].filter(v => v === llave).length;
+                                                    if (repeticiones < 2) return null;
+                                                    return (
+                                                        <span
+                                                            title={`Cuenta compartida al 100% con otro empleado de esta nómina: se descargará como una sola transacción en el CSV (ID Number: ${llave.split('|')[3] || 's/n'})`}
+                                                            className="ml-1 inline-flex px-1.5 py-0.5 rounded-full bg-[#6bbdb7]/15 text-[#4a9d97] text-[7px] font-black uppercase tracking-widest border border-[#6bbdb7]/30 align-middle"
+                                                        >Compartida</span>
+                                                    );
+                                                })()}
+                                            </td>
                                             <td className="p-1.5 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-[10px] tabular-nums">{emp.semana1 !== null ? Number(emp.semana1).toFixed(2) : '-'}</td>
                                             <td className="p-1.5 border-r-2 border-gray-100 text-center font-bold text-gray-500 text-[10px] tabular-nums">{emp.semana2 !== null ? Number(emp.semana2).toFixed(2) : '-'}</td>
                                             <td className={`p-1.5 border-r-2 border-gray-100 text-center font-bold text-[10px] tabular-nums ${emp.pe === 0 ? 'text-gray-400 italic' : 'bg-amber-100 text-amber-600'}`}>{emp.pe === 0 ? '-' : emp.pe.toFixed(2)}</td>
