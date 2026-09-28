@@ -7923,18 +7923,51 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
     const fuente = 'helvetica';
     const margenX = 12;
     const anchoUtil = 210 - (margenX * 2);
-    const limiteInferior = 282;
 
     const { rows, total } = isAZPEN
         ? { rows: [], total: 0 }
         : computeVWHReportRows({ reportData: data, payrollStore, employees, start, end, isMonSun, hhmmToDecimal });
 
-    const pdf = new jsPDF('p', 'mm', 'a4');
+    // ── Página continua: se mide el contenido antes de dibujar para que la altura
+    // del documento se adapte exactamente al reporte (sin división en hojas) ──
+    const pdfMedidor = new jsPDF('p', 'mm', 'a4'); // instancia auxiliar: solo métricas de texto
+    const lineH = 4.2; // alto de cada línea de texto dentro de las celdas
+    const subLineasMed = pdfMedidor.splitTextToSize(vwhNormalizarPdf(`${payrollStore} | Period: ${start} - ${end}`).toUpperCase(), anchoUtil - 16);
+    const siteValueMed = pdfMedidor.splitTextToSize(vwhNormalizarPdf(payrollStore).toUpperCase(), 42);
+    const filas = isAZPEN ? [null] : rows.filter(r => r.horas > 0);
+    const datosFilas = filas.map((row) => {
+        const siteLineas = pdfMedidor.splitTextToSize(vwhNormalizarPdf(payrollStore).toUpperCase(), 32);
+        const nombreTxt = isAZPEN ? 'Janitorial and Maintenance Services' : vwhNormalizarPdf(row.nombre).toUpperCase();
+        const nombreLineas = pdfMedidor.splitTextToSize(nombreTxt, 38);
+        const jobTxt = isAZPEN ? '---' : vwhNormalizarPdf(row.cargo || '---').toUpperCase();
+        const jobLineas = pdfMedidor.splitTextToSize(jobTxt, 18);
+        const dateLineas = pdfMedidor.splitTextToSize(vwhNormalizarPdf(`${start}-${end}`), 26);
+        const rowH = Math.max(9.5, lineH * siteLineas.length, lineH * nombreLineas.length, lineH * jobLineas.length, lineH * dateLineas.length) + 3;
+        return { row, siteLineas, nombreLineas, jobLineas, dateLineas, rowH };
+    });
+    const sumaRowH = datosFilas.reduce((s, d) => s + d.rowH, 0);
+    // Encabezado (14 + 18...) + resumen + separador + cabecera de tabla + filas + barra de total + pie
+    const alturaTotal = 14
+        + 18 + Math.max(0, subLineasMed.length - 1) * 3.2
+        + 5
+        + Math.max(7, siteValueMed.length * 3.8) + 5
+        + 7
+        + 8.5
+        + sumaRowH
+        + 12 + 9 + 7 + 11; // barra de total + espacio + línea del pie + contenido del pie y margen inferior
+
+    const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: [210, alturaTotal] });
+    // jsPDF intercambia ancho y alto cuando la altura es menor que el ancho (reportes cortos);
+    // se fuerza la dimensión real para garantizar que el ancho sea siempre 210mm
+    if (alturaTotal < 210) {
+        pdf.internal.pageSize.setWidth(210);
+        pdf.internal.pageSize.setHeight(alturaTotal);
+    }
 
     // Fondo y acento superior de página
     const dibujarFondo = () => {
         pdf.setFillColor(255, 255, 255);
-        pdf.rect(0, 0, 210, 297, 'F');
+        pdf.rect(0, 0, 210, alturaTotal, 'F');
         pdf.setFillColor(...VWH_TEAL);
         pdf.rect(0, 0, 140, 1.8, 'F');
         pdf.setFillColor(...VWH_NAVY);
@@ -8011,28 +8044,11 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
     };
     dibujarTablaHeader();
 
-    // Filas del reporte
-    const filas = isAZPEN ? [null] : rows.filter(r => r.horas > 0);
-    filas.forEach((row, idx) => {
+    // Filas del reporte (altura ya medida; página continua sin saltos)
+    datosFilas.forEach(({ row, siteLineas, nombreLineas, jobLineas, dateLineas, rowH }, idx) => {
         // Retícula con anchos máximos por columna: ninguna celda invade a su vecina
-        const siteLineas = pdf.splitTextToSize(vwhNormalizarPdf(payrollStore).toUpperCase(), 32);
-        const nombreTxt = isAZPEN ? 'Janitorial and Maintenance Services' : vwhNormalizarPdf(row.nombre).toUpperCase();
-        const nombreLineas = pdf.splitTextToSize(nombreTxt, 38);
-        const jobTxt = isAZPEN ? '---' : vwhNormalizarPdf(row.cargo || '---').toUpperCase();
-        const jobLineas = pdf.splitTextToSize(jobTxt, 18);
-        const dateLineas = pdf.splitTextToSize(vwhNormalizarPdf(`${start}-${end}`), 26);
-        const lineH = 4.2;
-        const rowH = Math.max(9.5, lineH * siteLineas.length, lineH * nombreLineas.length, lineH * jobLineas.length, lineH * dateLineas.length) + 3;
         // Línea base vertical centrada según la cantidad de líneas de cada celda
         const baseY = (lineas) => y + (rowH - (lineas.length - 1) * lineH) / 2 + 1.5;
-
-        // Salto de página con redibujado del contexto
-        if (y + rowH > limiteInferior) {
-            pdf.addPage();
-            dibujarFondo();
-            y = 14;
-            dibujarTablaHeader();
-        }
 
         // Franja alterna suave
         if (idx % 2 === 1) {
@@ -8098,11 +8114,6 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
     });
 
     // Barra de total
-    if (y + 12 > limiteInferior) {
-        pdf.addPage();
-        dibujarFondo();
-        y = 14;
-    }
     pdf.setFillColor(...VWH_NAVY);
     vwhRectRedondeado(pdf, margenX, y, anchoUtil, 12, 2.5);
     pdf.rect(margenX, y, anchoUtil, 6, 'F');
