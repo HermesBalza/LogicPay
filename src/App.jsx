@@ -1051,7 +1051,8 @@ const DashboardView = ({
     const filteredNomina = useMemo(() => nominaHistoryData.filter(h => {
         const passDate = isDateInRange(h.Fecha_Envio || h.Timestamp || h.Periodo);
         const passStore = (selectedStore === 'Todas' || h.Tienda === selectedStore) && (selectedState === 'Todos' || storeStateMap[h.Tienda] === selectedState);
-        return passDate && passStore;
+        const esWK_AZPEN = String(h.nombre || '').toUpperCase().includes('AZPEN') && String(h.codigo || '').startsWith('WK-');
+        return passDate && passStore && !esWK_AZPEN;
     }), [nominaHistoryData, dateFrom, dateTo, selectedStore, selectedState, storeStateMap]);
 
     const hhmmToDecimal = (hhmm) => {
@@ -1257,7 +1258,8 @@ const DashboardView = ({
     const cobradoNomina = nominaHistoryData.filter(h => {
         const passDate = isDateInRange(h.fecha_fin || h.Fecha_Envio || h.Timestamp || h.Periodo);
         const passStore = (selectedStore === 'Todas' || h.Tienda === selectedStore) && (selectedState === 'Todos' || storeStateMap[h.Tienda] === selectedState);
-        return passDate && passStore && estaPagada(h);
+        const esWK_AZPEN = String(h.nombre || '').toUpperCase().includes('AZPEN') && String(h.codigo || '').startsWith('WK-');
+        return passDate && passStore && estaPagada(h) && !esWK_AZPEN;
     }).reduce((acc, r) => acc + (parseFloat(r.Pago || r.pago) || 0), 0);
 
     const cobradoPE = specialProjectsHistoryData.filter(pe => {
