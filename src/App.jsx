@@ -17429,10 +17429,19 @@ const AdminPayrollView = ({
     const [tdcLoading, setTdcLoading] = useState(false);
     const [tdcImporting, setTdcImporting] = useState(false);
     const tdcFileInputRef = useRef(null);
+    const [adminPayrollDraft, setAdminPayrollDraft] = useState(null); // { periodo, rows }
+    const [isDesconfirmModalOpen, setIsDesconfirmModalOpen] = useState(false);
+    const [desconfirmTarget, setDesconfirmTarget] = useState(null);
 
     // Cargar empleados automáticamente al cambiar el período
     useEffect(() => {
         if (selectedPeriod) {
+            // Verificar si hay borrador guardado para este período
+            if (adminPayrollDraft && adminPayrollDraft.periodo === selectedPeriod && Array.isArray(adminPayrollDraft.rows)) {
+                setPayrollRows(adminPayrollDraft.rows);
+                return;
+            }
+            // Si no hay borrador, crear filas desde adminEmployees
             const activeEmps = adminEmployees.filter(e => e.activo);
             const rows = activeEmps.map(emp => ({
                 id: emp.codigo_empleado || emp.nombre,
@@ -17449,9 +17458,12 @@ const AdminPayrollView = ({
                 salario_base: emp.salario_quincenal,
                 ajuste: 0,
                 total: emp.salario_quincenal,
+                comentario: '',
                 pagado: false
             }));
             setPayrollRows(rows);
+            // Guardar borrador inicial
+            saveAdminPayrollDraft(rows, selectedPeriod);
         } else {
             setPayrollRows([]);
         }
@@ -17500,6 +17512,7 @@ const AdminPayrollView = ({
             salario_base: emp.salario_quincenal,
             ajuste: 0,
             total: emp.salario_quincenal,
+            comentario: '',
             pagado: false
         }));
         setPayrollRows(rows);
@@ -17507,17 +17520,45 @@ const AdminPayrollView = ({
     };
 
     const updateRow = (id, field, val) => {
-        setPayrollRows(prev => prev.map(r => {
-            if (r.id !== id) return r;
-            const updated = { ...r, [field]: val };
-            updated.total = (parseFloat(updated.salario_base) || 0) + (parseFloat(updated.ajuste) || 0);
+        setPayrollRows(prev => {
+            const updated = prev.map(r => {
+                if (r.id !== id) return r;
+                const row = { ...r, [field]: val };
+                row.total = (parseFloat(row.salario_base) || 0) + (parseFloat(row.ajuste) || 0);
+                return row;
+            });
+            // Auto-guardar borrador después de cada edición
+            if (selectedPeriod) saveAdminPayrollDraft(updated, selectedPeriod);
             return updated;
-        }));
+        });
     };
 
     const removeRow = (id) => {
         setPayrollRows(prev => prev.filter(r => r.id !== id));
     };
+
+    // Guardar borrador de nómina admin en Variables
+    const saveAdminPayrollDraft = (rowsToSave, periodo) => {
+        const draft = { periodo: periodo || selectedPeriod, rows: rowsToSave };
+        setAdminPayrollDraft(draft);
+        syncToDatabase('upsert', { key: 'admin_payroll_draft', value: JSON.stringify(draft) }, 'Variables', true, ['key'], true);
+    };
+
+    // Cargar borrador de nómina admin desde Variables al iniciar
+    useEffect(() => {
+        const loadDraft = async () => {
+            try {
+                const res = await fetch(`${apiUrl}?sheetName=Variables`);
+                const data = await res.json();
+                const draftRow = Array.isArray(data) ? data.find(r => r.key === 'admin_payroll_draft') : null;
+                if (draftRow?.value) {
+                    const parsed = JSON.parse(draftRow.value);
+                    setAdminPayrollDraft(parsed);
+                }
+            } catch (e) { /* ignore */ }
+        };
+        loadDraft();
+    }, []);
 
     const showNotif = (type, msg) => {
         setNotif({ open: true, type, msg });
@@ -17543,7 +17584,8 @@ const AdminPayrollView = ({
                     account_num: r.account_num || '',
                     account_type: r.account_type || 'checking',
                     payee_name: r.payee_name || '',
-                    id_number: r.id_number || ''
+                    id_number: r.id_number || '',
+                    comentario: r.comentario || ''
                 })),
                 total_nomina: payrollRows.reduce((acc, r) => acc + (r.total || 0), 0)
             };
@@ -17559,6 +17601,10 @@ const AdminPayrollView = ({
                 Empleados_JSON: JSON.stringify(newRecord.empleados)
             }, 'Admin_Nomina_Historico', true, [], false, 'Confirmó', 'Nómina Admin', selectedPeriod);
 
+            // Eliminar borrador después de confirmar
+            setAdminPayrollDraft(null);
+            syncToDatabase('delete', { key: 'admin_payroll_draft' }, 'Variables', true, ['key'], true);
+
             showNotif('success', `Nómina del período ${selectedPeriod} confirmada exitosamente.`);
             setActiveSection('history');
         } catch (e) {
@@ -17566,6 +17612,51 @@ const AdminPayrollView = ({
             showNotif('error', 'Error al confirmar la nómina. Verifique la conexión.');
         } finally {
             setIsConfirming(false);
+        }
+    };
+
+    // Desconfirmar nómina administrativa: mover de historial a borrador
+    const handleDesconfirmarNominaAdmin = async (record) => {
+        try {
+            // Eliminar de Admin_Nomina_Historico en Sheets/DB
+            await syncToDatabase('delete', {
+                Periodo: record.periodo
+            }, 'Admin_Nomina_Historico', true, ['Periodo'], false, 'Desconfirmó', 'Nómina Admin', record.periodo);
+
+            // Eliminar del historial local
+            setAdminPayrollHistory(prev => prev.filter(r => r.periodo !== record.periodo));
+
+            // Convertir empleados del historial a formato payrollRows y guardar como borrador
+            const rows = (record.empleados || []).map(emp => ({
+                id: emp.nombre,
+                nombre: emp.nombre,
+                cargo: emp.cargo || '',
+                email: '',
+                metodo_pago: emp.metodo_pago || '',
+                cuenta_bancaria: '',
+                routing_num: emp.routing_num || '',
+                account_num: emp.account_num || '',
+                account_type: emp.account_type || 'checking',
+                payee_name: emp.payee_name || '',
+                id_number: emp.id_number || '',
+                salario_base: emp.salario_base || 0,
+                ajuste: emp.ajuste || 0,
+                total: emp.total || 0,
+                comentario: emp.comentario || '',
+                pagado: false
+            }));
+
+            // Guardar como borrador
+            saveAdminPayrollDraft(rows, record.periodo);
+
+            showNotif('success', `Nómina del período ${record.periodo} desconfirmada. Puede editarla en la pestaña "Pago".`);
+            setIsDesconfirmModalOpen(false);
+            setDesconfirmTarget(null);
+            setActiveSection('payroll');
+            setSelectedPeriod(record.periodo);
+        } catch (e) {
+            console.error('[LGM] Error desconfirmando nómina admin:', e);
+            showNotif('error', 'Error al desconfirmar la nómina. Verifique la conexión.');
         }
     };
 
@@ -17969,31 +18060,42 @@ const AdminPayrollView = ({
 
                                 <div className="divide-y-2 divide-gray-50">
                                     {payrollRows.map((row) => (
-                                        <div key={row.id} className="px-6 py-4 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center hover:bg-blue-50/20 transition-all">
-                                            <div>
-                                                <p className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</p>
-                                                <p className="text-[9px] font-bold text-[#6bbdb7] uppercase tracking-wider mt-0.5">{row.cargo}</p>
+                                        <div key={row.id}>
+                                            <div className="px-6 py-4 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center hover:bg-blue-50/20 transition-all">
+                                                <div>
+                                                    <p className="text-xs font-black text-[#303a7f] uppercase leading-tight">{row.nombre}</p>
+                                                    <p className="text-[9px] font-bold text-[#6bbdb7] uppercase tracking-wider mt-0.5">{row.cargo}</p>
+                                                </div>
+                                                <div className="text-right w-28">
+                                                    <span className="text-xs font-black text-[#303a7f]">{fmtCurrency(row.salario_base)}</span>
+                                                </div>
+                                                <div className="w-28">
+                                                    <input
+                                                        type="number"
+                                                        value={row.ajuste}
+                                                        onChange={e => updateRow(row.id, 'ajuste', e.target.value)}
+                                                        className="w-full bg-gray-50 border-2 border-transparent focus:border-[#303a7f]/10 text-[#303a7f] font-black rounded-xl px-3 py-1.5 outline-none text-xs text-right transition-all"
+                                                        step="0.01"
+                                                        placeholder="0.00"
+                                                    />
+                                                </div>
+                                                <div className="text-right w-28">
+                                                    <span className="text-sm font-black text-[#6bbdb7]">{fmtCurrency(row.total)}</span>
+                                                </div>
+                                                <div className="flex justify-end w-10">
+                                                    <button onClick={() => removeRow(row.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div className="text-right w-28">
-                                                <span className="text-xs font-black text-[#303a7f]">{fmtCurrency(row.salario_base)}</span>
-                                            </div>
-                                            <div className="w-28">
+                                            <div className="px-6 pb-3 -mt-2">
                                                 <input
-                                                    type="number"
-                                                    value={row.ajuste}
-                                                    onChange={e => updateRow(row.id, 'ajuste', e.target.value)}
-                                                    className="w-full bg-gray-50 border-2 border-transparent focus:border-[#303a7f]/10 text-[#303a7f] font-black rounded-xl px-3 py-1.5 outline-none text-xs text-right transition-all"
-                                                    step="0.01"
-                                                    placeholder="0.00"
+                                                    type="text"
+                                                    value={row.comentario || ''}
+                                                    onChange={e => updateRow(row.id, 'comentario', e.target.value)}
+                                                    className="w-full bg-transparent border border-transparent focus:border-gray-200 text-gray-500 font-medium rounded-lg px-3 py-1 outline-none text-[10px] transition-all italic"
+                                                    placeholder="Comentario interno (opcional)"
                                                 />
-                                            </div>
-                                            <div className="text-right w-28">
-                                                <span className="text-sm font-black text-[#6bbdb7]">{fmtCurrency(row.total)}</span>
-                                            </div>
-                                            <div className="flex justify-end w-10">
-                                                <button onClick={() => removeRow(row.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors">
-                                                    <Trash2 size={14} />
-                                                </button>
                                             </div>
                                         </div>
                                     ))}
@@ -18039,7 +18141,7 @@ const AdminPayrollView = ({
                                             <p className="text-xs font-black text-[#303a7f] uppercase tracking-tight">{record.periodo}</p>
                                             <p className="text-[9px] font-bold text-gray-400 mt-0.5">Confirmado: {record.fecha_confirmacion}</p>
                                         </div>
-                                        <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-3">
                                             <button
                                                 onClick={() => {
                                                     const csv = generateAdminNachaCSV(record);
@@ -18057,7 +18159,14 @@ const AdminPayrollView = ({
                                                 className="px-6 py-3 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-900/20"
                                             >
                                                 <Download size={14} />
-                                                CSV NACHA
+                                                CSV
+                                            </button>
+                                            <button
+                                                onClick={() => { setDesconfirmTarget(record); setIsDesconfirmModalOpen(true); }}
+                                                className="px-6 py-3 bg-red-50 text-red-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-red-100 transition-all active:scale-95 flex items-center gap-2"
+                                            >
+                                                <Undo2 size={14} />
+                                                Desconfirmar
                                             </button>
                                             <div className="text-right">
                                                 <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Pagado</p>
@@ -18072,6 +18181,9 @@ const AdminPayrollView = ({
                                                 <div>
                                                     <p className="text-[9px] font-black text-[#303a7f] uppercase leading-none">{emp.nombre}</p>
                                                     <p className="text-[8px] font-bold text-[#6bbdb7]">{fmtCurrency(emp.total)}</p>
+                                                    {emp.comentario && (
+                                                        <p className="text-[7px] font-bold text-gray-400 mt-0.5 italic max-w-[150px] truncate" title={emp.comentario}>{emp.comentario}</p>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
@@ -18105,6 +18217,34 @@ const AdminPayrollView = ({
                     onDeselectAllTdc={deselectAllTdc}
                     onSelectOnlyExpenses={selectOnlyExpenses}
                 />
+            )}
+
+            {/* ── MODAL: CONFIRMAR DESCONFIRMACIÓN ── */}
+            {isDesconfirmModalOpen && desconfirmTarget && (
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-[#303a7f]/20 backdrop-blur-sm" onClick={() => { setIsDesconfirmModalOpen(false); setDesconfirmTarget(null); }} />
+                    <div className="relative w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl border-2 border-white animate-in zoom-in-95 duration-200">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center mb-6 text-amber-500"><Undo2 size={36} /></div>
+                            <h3 className="text-2xl font-black text-[#303a7f] tracking-tighter mb-3 uppercase">¿Desconfirmar Nómina?</h3>
+                            <p className="text-gray-400 text-xs mb-2">Período: <span className="font-black text-[#333333]">{desconfirmTarget.periodo}</span></p>
+                            <p className="text-gray-400 text-xs mb-8">La nómina volverá a la pestaña <span className="font-black text-[#333333]">"Pago"</span> para su edición.</p>
+                            <div className="flex gap-3 w-full">
+                                <button onClick={() => { setIsDesconfirmModalOpen(false); setDesconfirmTarget(null); }} className="flex-1 font-black py-4 rounded-2xl border-2 transition-all btn-close-danger">Cancelar</button>
+                                <button onClick={() => handleDesconfirmarNominaAdmin(desconfirmTarget)} className="flex-1 font-black py-4 rounded-2xl text-white bg-amber-500 hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2">
+                                    <Undo2 size={14} /> Desconfirmar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── NOTIFICACIÓN ── */}
+            {notif.open && (
+                <div className={`fixed top-6 right-6 z-[1001] px-6 py-4 rounded-2xl shadow-xl border-2 text-sm font-black tracking-wide animate-in slide-in-from-right duration-300 ${notif.type === 'success' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+                    {notif.msg}
+                </div>
             )}
         </div>
     );
