@@ -222,7 +222,12 @@ const ResumenView = ({
                 .filter(e => getYearFromDate(e.fecha) === selectedYear && getMonthFromDate(e.fecha) === m)
                 .reduce((acc, e) => acc + (parseFloat(e.monto) || 0), 0);
             const gastosPersonalMes = adminPayrollHistory
-                .filter(p => getYearFromDate(p.fecha_confirmacion) === selectedYear && getMonthFromDate(p.fecha_confirmacion) === m)
+                .filter(p => {
+                    const periodo = p.periodo || '';
+                    const mesPeriodo = MESES.findIndex(nombre => periodo.startsWith(nombre));
+                    const anioPeriodo = parseInt(periodo.split(' ').pop()) || null;
+                    return mesPeriodo === m && anioPeriodo === selectedYear;
+                })
                 .reduce((acc, p) => acc + (p.total_nomina || 0), 0);
             const gastosAdminMes = gastosMiscMes + gastosPersonalMes;
             totalGastos += gastosAdminMes;
