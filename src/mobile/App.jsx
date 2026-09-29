@@ -13113,6 +13113,60 @@ const BillingView = ({
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const isAZPEN = String(storeName).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN';
 
+    // Estado para edición inline de celdas (Pago, Fecha de Pago, WOS)
+    const [editingCell, setEditingCell] = useState({ row: null, col: null });
+    const [editValue, setEditValue] = useState('');
+
+    const handleCellClick = (rowId, col, currentValue) => {
+        setEditingCell({ row: rowId, col });
+        setEditValue(currentValue || '');
+    };
+
+    const handleCellSave = (rowId, col, onUpdate, updateKey) => {
+        const apiFieldMap = {
+            'fecha_pago': 'fecha de pago'
+        };
+        const apiField = apiFieldMap[col] || col;
+        if (editValue !== '') {
+            onUpdate(updateKey, apiField, editValue);
+        }
+        setEditingCell({ row: null, col: null });
+    };
+
+    const handleCellKeyDown = (e, rowId, col, onUpdate, updateKey) => {
+        if (e.key === 'Enter') {
+            handleCellSave(rowId, col, onUpdate, updateKey);
+        } else if (e.key === 'Escape') {
+            setEditingCell({ row: null, col: null });
+        }
+    };
+
+    const renderEditableCell = (row, col, displayValue, onUpdate, updateKey, inputType = 'text') => {
+        const isEditing = editingCell.row === row.id && editingCell.col === col;
+        if (isEditing) {
+            return (
+                <input
+                    autoFocus
+                    type={inputType}
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={() => handleCellSave(row.id, col, onUpdate, updateKey)}
+                    onKeyDown={(e) => handleCellKeyDown(e, row.id, col, onUpdate, updateKey)}
+                    className="w-full text-center text-[10px] font-black text-[#303a7f] bg-white border-2 border-[#6bbdb7] rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-[#6bbdb7]/30 transition-all"
+                />
+            );
+        }
+        return (
+            <span
+                onClick={() => handleCellClick(row.id, col, row[col])}
+                className="font-black text-[#303a7f] cursor-pointer hover:bg-[#6bbdb7]/10 rounded-lg px-1 transition-all border border-transparent hover:border-[#6bbdb7]/30"
+                title="Clic para editar"
+            >
+                {displayValue}
+            </span>
+        );
+    };
+
     // --- LÓGICA TABLA VWH (Nómina Regular) ---
     // Filtrado y ordenado seguro (Safe-Sort) - incluye filtro por año seleccionado
     const activeRecords = (historyData || [])
@@ -13557,11 +13611,11 @@ const BillingView = ({
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
-                                    <span className="font-black text-[#303a7f]">Pago: {formatCurrencyInput(row.pago) || '$0.00'}</span>
+                                    <span className="font-black text-[#303a7f]">Pago: {renderEditableCell(row, 'pago', formatCurrencyInput(row.pago) || '$0.00', onUpdateManual, row.id)}</span>
                                     <span className="text-gray-300">|</span>
-                                    <span className="font-bold text-gray-400 uppercase">FP: {row.fecha_pago || '--/--/--'}</span>
+                                    <span className="font-bold text-gray-400 uppercase">FP: {renderEditableCell(row, 'fecha_pago', row.fecha_pago || '--/--/--', onUpdateManual, row.id)}</span>
                                     <span className="text-gray-300">|</span>
-                                    <span className={`font-black ${row.wos ? 'text-orange-500' : 'text-gray-300'}`}>WOS: {row.wos || '---'}</span>
+                                    <span>WOS: {renderEditableCell(row, 'wos', row.wos || '---', onUpdateManual, row.id)}</span>
                                 </div>
                                 <label className="flex items-center gap-1.5 cursor-pointer">
                                     <span className="text-[9px] font-black text-gray-400 uppercase">Pagado</span>
@@ -13641,11 +13695,11 @@ const BillingView = ({
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
-                                    <span className="font-black text-[#303a7f]">Pago: {formatCurrencyInput(row.pago) || '$0.00'}</span>
+                                    <span className="font-black text-[#303a7f]">Pago: {renderEditableCell(row, 'pago', formatCurrencyInput(row.pago) || '$0.00', onUpdateManualPE, row.correlativo)}</span>
                                     <span className="text-gray-300">|</span>
-                                    <span className="font-bold text-gray-400 uppercase">FP: {row.fecha_pago || '--/--/--'}</span>
+                                    <span className="font-bold text-gray-400 uppercase">FP: {renderEditableCell(row, 'fecha_pago', row.fecha_pago || '--/--/--', onUpdateManualPE, row.correlativo)}</span>
                                     <span className="text-gray-300">|</span>
-                                    <span className={`font-black ${row.wos ? 'text-orange-500' : 'text-gray-300'}`}>WOS: {row.wos || '---'}</span>
+                                    <span>WOS: {renderEditableCell(row, 'wos', row.wos || '---', onUpdateManualPE, row.correlativo)}</span>
                                 </div>
                                 <label className="flex items-center gap-1.5 cursor-pointer">
                                     <span className="text-[9px] font-black text-gray-400 uppercase">Pagado</span>

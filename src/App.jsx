@@ -16493,6 +16493,60 @@ const BillingView = ({
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const isAZPEN = String(storeName).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN';
 
+    // Estado para edición inline de celdas (Pago, Fecha de Pago, WOS)
+    const [editingCell, setEditingCell] = useState({ row: null, col: null });
+    const [editValue, setEditValue] = useState('');
+
+    const handleCellClick = (rowId, col, currentValue) => {
+        setEditingCell({ row: rowId, col });
+        setEditValue(currentValue || '');
+    };
+
+    const handleCellSave = (rowId, col, onUpdate, updateKey) => {
+        const apiFieldMap = {
+            'fecha_pago': 'fecha de pago'
+        };
+        const apiField = apiFieldMap[col] || col;
+        if (editValue !== '') {
+            onUpdate(updateKey, apiField, editValue);
+        }
+        setEditingCell({ row: null, col: null });
+    };
+
+    const handleCellKeyDown = (e, rowId, col, onUpdate, updateKey) => {
+        if (e.key === 'Enter') {
+            handleCellSave(rowId, col, onUpdate, updateKey);
+        } else if (e.key === 'Escape') {
+            setEditingCell({ row: null, col: null });
+        }
+    };
+
+    const renderEditableCell = (row, col, displayValue, onUpdate, updateKey, inputType = 'text') => {
+        const isEditing = editingCell.row === row.id && editingCell.col === col;
+        if (isEditing) {
+            return (
+                <input
+                    autoFocus
+                    type={inputType}
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={() => handleCellSave(row.id, col, onUpdate, updateKey)}
+                    onKeyDown={(e) => handleCellKeyDown(e, row.id, col, onUpdate, updateKey)}
+                    className="w-full text-center text-[10px] font-black text-[#303a7f] bg-white border-2 border-[#6bbdb7] rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-[#6bbdb7]/30 transition-all"
+                />
+            );
+        }
+        return (
+            <span
+                onClick={() => handleCellClick(row.id, col, row[col])}
+                className="text-[10px] font-black text-[#303a7f] whitespace-nowrap cursor-pointer hover:bg-[#6bbdb7]/10 rounded-lg px-2 py-1 transition-all border border-transparent hover:border-[#6bbdb7]/30"
+                title="Clic para editar"
+            >
+                {displayValue}
+            </span>
+        );
+    };
+
     // --- LÓGICA TABLA VWH (Nómina Regular) ---
     // Filtrado y ordenado seguro (Safe-Sort) - incluye filtro por año seleccionado
     const activeRecords = (historyData || [])
@@ -16969,13 +17023,13 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <span className="text-[10px] font-black text-[#303a7f] whitespace-nowrap">{formatCurrencyInput(row.pago) || '$0.00'}</span>
+                                    {renderEditableCell(row, 'pago', formatCurrencyInput(row.pago) || '$0.00', onUpdateManual, row.id)}
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">{row.fecha_pago || '--/--/--'}</span>
+                                    {renderEditableCell(row, 'fecha_pago', row.fecha_pago || '--/--/--', onUpdateManual, row.id)}
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <span className={`text-[10px] font-black ${row.wos ? 'text-orange-500' : 'text-gray-300'}`}>{row.wos || '---'}</span>
+                                    {renderEditableCell(row, 'wos', row.wos || '---', onUpdateManual, row.id)}
                                 </td>
                                 <td className="px-3 py-4 text-center">
                                     <input
@@ -17086,13 +17140,13 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <span className="text-[10px] font-black text-[#303a7f] whitespace-nowrap">{formatCurrencyInput(row.pago) || '$0.00'}</span>
+                                    {renderEditableCell(row, 'pago', formatCurrencyInput(row.pago) || '$0.00', onUpdateManualPE, row.correlativo)}
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">{row.fecha_pago || '--/--/--'}</span>
+                                    {renderEditableCell(row, 'fecha_pago', row.fecha_pago || '--/--/--', onUpdateManualPE, row.correlativo)}
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    <span className={`text-[10px] font-black ${row.wos ? 'text-orange-500' : 'text-gray-300'}`}>{row.wos || '---'}</span>
+                                    {renderEditableCell(row, 'wos', row.wos || '---', onUpdateManualPE, row.correlativo)}
                                 </td>
                                 <td className="px-3 py-4 text-center">
                                     <input
