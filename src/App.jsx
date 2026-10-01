@@ -12023,7 +12023,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         isMultiSite: false
                     };
                 });
-                const mergedCSG = mezclarEmpleadosCSG(loaded);
+                const mergedCSG = esVistaNominaCompleta ? mezclarEmpleadosCSG(loaded) : loaded;
                 mergedCSG.sort((a, b) => {
                     if (isSalariedSupervisor(a) && !isSalariedSupervisor(b)) return 1;
                     if (!isSalariedSupervisor(a) && isSalariedSupervisor(b)) return -1;
