@@ -11870,7 +11870,7 @@ const isSalariedSupervisor = (emp) => {
     return cargo === 'supervisor' && Number(emp?.sueldoFijo || 0) > 0;
 };
 
-const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, onConfirmPayroll, onDesconfirmarPayroll, onBack, user }) => {
+const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, csgNominaData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, onConfirmPayroll, onDesconfirmarPayroll, onBack, user }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [addedSupervisors, setAddedSupervisors] = useState([]);
@@ -11923,6 +11923,51 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         if (isNaN(num)) return null;
         const val = m[1] === '-' ? -num : num;
         return Math.max(-50000, Math.min(50000, val));
+    };
+
+    // Integra (solo lectura) los servicios CSG confirmados (CSG_Nomina) del periodo en la lista de empleados de Nómina Completa
+    const mezclarEmpleadosCSG = (entradas) => {
+        const periodRange = String(period?.range || '').replace(/\s+/g, ' ').trim();
+        if (!periodRange) return entradas;
+        const csgRecords = (csgNominaData || []).filter(r =>
+            String(r.periodo || r.Periodo || '').replace(/\s+/g, ' ').trim() === periodRange
+        );
+        if (!csgRecords.length) return entradas;
+
+        const porNombre = new Map(entradas.map(e => [String(e.nombre).trim().toLowerCase(), e]));
+        csgRecords.forEach(record => {
+            let servicios = [];
+            try {
+                servicios = JSON.parse(record.servicios_json || record.Servicios_JSON || '[]');
+            } catch (e) { return; }
+            (Array.isArray(servicios) ? servicios : []).forEach(svc => {
+                if (!svc || !svc.empleado) return;
+                const key = String(svc.empleado).trim().toLowerCase();
+                if (!porNombre.has(key)) {
+                    const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === key);
+                    porNombre.set(key, {
+                        id: `${key}_${String(svc.codigo_empleado || (dbEmp ? dbEmp.codigo_empleado : 'CSG')).trim()}`,
+                        nombre: svc.empleado,
+                        semana1: 0,
+                        semana2: 0,
+                        pe: 0,
+                        peEarnings: 0,
+                        rate: 0,
+                        sueldoFijo: 0,
+                        cargo: dbEmp ? dbEmp.cargo : 'Cleaning Staff',
+                        address: dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '',
+                        comments: 'CSG Cleaning',
+                        csgEarnings: 0,
+                        stores: new Set(['CSG Cleaning']),
+                        isMultiSite: false,
+                        rowColor: 'bg-white'
+                    });
+                }
+                const e = porNombre.get(key);
+                e.csgEarnings = (Number(e.csgEarnings) || 0) + Number(svc.monto_lgm || 0);
+            });
+        });
+        return Array.from(porNombre.values());
     };
 
     // Formatea para la celda: +$52.00 en verde / −$30.00 en rojo
@@ -11978,12 +12023,13 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         isMultiSite: false
                     };
                 });
-                loaded.sort((a, b) => {
+                const mergedCSG = mezclarEmpleadosCSG(loaded);
+                mergedCSG.sort((a, b) => {
                     if (isSalariedSupervisor(a) && !isSalariedSupervisor(b)) return 1;
                     if (!isSalariedSupervisor(a) && isSalariedSupervisor(b)) return -1;
                     return a.nombre.localeCompare(b.nombre);
                 });
-                setBiweeklyEmployees(loaded);
+                setBiweeklyEmployees(mergedCSG);
                 setRawEntriesData(buildRawEntries(period, nominaHistoryData));
                 return;
             } catch (e) {
@@ -12038,7 +12084,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 } catch (e) { }
             });
 
-            const unified = Object.values(empMap).map(e => ({
+            const unified = mezclarEmpleadosCSG(Object.values(empMap)).map(e => ({
                 ...e,
                 comments: e.comments || (e.isMultiSite && e.stores.size > 0 ? Array.from(e.stores).join('\n').toUpperCase() : ''),
                 rowColor: isSalariedSupervisor(e) ? 'bg-teal-50/40 border-l-4 border-teal-500' : (e.isMultiSite ? 'bg-amber-50/30' : 'bg-white'),
@@ -12374,7 +12420,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         });
         setBiweeklyEmployees(consolidated);
         setRawEntriesData(entriesMap);
-    }, [period, nominaHistoryData, specialProjectsData, specialProjectsHistoryData, nominaDetailData]);
+    }, [period, nominaHistoryData, specialProjectsData, specialProjectsHistoryData, nominaDetailData, csgNominaData]);
 
     useEffect(() => {
         if (!period) return;
@@ -12442,14 +12488,15 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         return (Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0));
     };
     const calculatePagoTotal = (emp) => {
+        const csgExtra = Number(emp?.csgEarnings) || 0;
         if (isSalariedSupervisor(emp)) {
-            return Number(emp.sueldoFijo || 0);
+            return Number(emp.sueldoFijo || 0) + csgExtra;
         }
         if (emp?.esManual) {
-            return Number(emp.sueldoFijo || 0);
+            return Number(emp.sueldoFijo || 0) + csgExtra;
         }
         const baseEarnings = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
-        return baseEarnings + (emp.peEarnings || 0);
+        return baseEarnings + (emp.peEarnings || 0) + csgExtra;
     };
 
     // Empleados manuales como filas de nómina (solo vista Nómina Completa): monto fijo editado por el asistente
@@ -21352,7 +21399,10 @@ function App() {
 
         try {
             // 1. Preparar datos para Nomina_Detalle
-            const nominaDetalleRows = biweeklyEmployees.map(emp => {
+            // Los empleados puro CSG no entran a Nomina_Detalle: su pago vive en CSG_Nomina y se suma por lectura directa
+            const nominaDetalleRows = biweeklyEmployees
+                .filter(emp => !(Number(emp.csgEarnings) > 0 && !Number(emp.sueldoFijo) && !Number(emp.semana1) && !Number(emp.semana2) && !Number(emp.pe) && !Number(emp.peEarnings)))
+                .map(emp => {
                 const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === String(emp.nombre).trim().toLowerCase());
                 const isSup = isSalariedSupervisor(emp);
                 const totalHrs = isSup ? 0 : Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0);
@@ -27882,6 +27932,7 @@ function App() {
                     period={selectedBiweeklyPeriod}
                     nominaHistoryData={nominaHistoryDataRaw}
                     nominaDetailData={nominaDetailDataRaw}
+                    csgNominaData={csgNominaData}
                     processedBiweeks={processedBiweeks}
                     setIsPEModalOpen={setIsPEModalOpen}
                     setPayrollStore={setPayrollStore}
