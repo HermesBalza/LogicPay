@@ -13768,7 +13768,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                 </button>
                             </>
                         )}
-                        {user?.rol !== 'Operador de Pagos' && (
+                        {user?.rol !== 'Operador de Pagos' && !esVistaNominaCompleta && (
                             <button
                                 onClick={() => setIsConfirmModalOpen(true)}
                                 disabled={isSaving || isAlreadyProcessed || todosNomina.length === 0}
