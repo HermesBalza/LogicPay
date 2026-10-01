@@ -12742,6 +12742,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         clonedRoot.style.overflow = 'visible';
                         clonedRoot.style.boxShadow = 'none';
 
+                        // Salvaguarda: posicionar el header sticky como estático en el clon del PDF
+                        const clonedStickyHeader = clonedRoot.querySelector('[data-sticky-header]');
+                        if (clonedStickyHeader) clonedStickyHeader.style.position = 'static';
+
                         const tableContainer = clonedRoot.querySelector('.overflow-x-auto');
                         if (tableContainer) {
                             tableContainer.style.overflow = 'visible';
@@ -13053,6 +13057,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         clonedRoot.style.overflow = 'visible';
                         clonedRoot.style.boxShadow = 'none';
 
+                        // Salvaguarda: posicionar el header sticky como estático en el clon del PDF
+                        const clonedStickyHeader = clonedRoot.querySelector('[data-sticky-header]');
+                        if (clonedStickyHeader) clonedStickyHeader.style.position = 'static';
+
                         const tableContainer = clonedRoot.querySelector('.overflow-x-auto');
                         if (tableContainer) {
                             tableContainer.style.overflow = 'visible';
@@ -13130,8 +13138,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             />
 
             <div id="biweekly-report-pdf-root" ref={biweeklyReportRef} className="max-w-7xl mx-auto p-4 lg:p-6 pb-12 bg-white rounded-[3rem] shadow-sm">
-                {/* Header Navigation */}
-                <div className="flex items-center justify-between mb-8">
+                {/* Header Navigation (fijo mientras se hace scroll) */}
+                <div data-sticky-header className="sticky top-0 z-30 bg-[#f4f7f9]/95 backdrop-blur-sm py-3 shadow-sm flex items-center justify-between mb-8">
                     <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 ${period.store === CONSOLIDATED_STORE ? 'bg-gradient-to-br from-[#6bbdb7] to-[#303a7f]' : 'bg-[#303a7f]'} text-white rounded-2xl flex items-center justify-center shadow-xl shadow-blue-900/10`}>
                             {period.store === CONSOLIDATED_STORE ? <Sparkles size={24} /> : <Cpu size={24} />}
