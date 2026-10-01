@@ -675,6 +675,9 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, syncToDat
     useEffect(() => {
         const checkExistingNomina = async () => {
             if (!isOpen || !biweek) return;
+            // Reset de estado en cada apertura: evita arrastrar el estado "Confirmada" de una bisemana anterior
+            setIsConfirmed(false);
+            setExistingRecord(null);
             setIsValidating(true);
             try {
                 const response = await fetch(CSG_NOMINA_API_URL, { cache: 'no-store' });
