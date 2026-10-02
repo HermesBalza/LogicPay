@@ -7492,7 +7492,7 @@ const VirtualAssistantScheduleModal = ({ isOpen, onClose, vaSchedule = [] }) => 
     );
 };
 
-const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, defaultTo = '' }) => {
+const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, defaultTo = '', specialProjectsHistoryData = [] }) => {
     const formatMMDDYY = (dateStr) => {
         if (!dateStr) return "";
         const parts = dateStr.split('/');
@@ -7507,15 +7507,66 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     const [cc, setCc] = useState('SYSCO@kbs-services.com');
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
+    const [relevantSpecialProjects, setRelevantSpecialProjects] = useState([]);
 
     useEffect(() => {
         if (isOpen) {
             const dStart = formatMMDDYY(fechaDesde);
             const dEnd = formatMMDDYY(fechaHasta);
-            setSubject(`INVOICE ${String(storeName || '').toUpperCase()} ${dStart} - ${dEnd}`);
-            setBody(`Hello, Mindy\n\nAttached is the Invoice for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nThank You,\nLogic Group Management`);
+            let newSubject = `INVOICE ${String(storeName || '').toUpperCase()} ${dStart} - ${dEnd}`;
+            let newBody = `Hello, Mindy\n\nAttached is the Invoice for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nThank You,\nLogic Group Management`;
+
+            // Proyectos Especiales de la misma semana (adjuntos junto al VWH)
+            const parsePEPeriodRange = (periodStr) => {
+                const parts = String(periodStr || '').split('-').map(p => p.trim());
+                if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+                const toDateObj = (s) => {
+                    const d = s.split('/');
+                    return d.length === 3 ? new Date(d[2], d[0] - 1, d[1]) : null;
+                };
+                const start = toDateObj(parts[0]);
+                const end = toDateObj(parts[1]);
+                return start && end ? { start, end } : null;
+            };
+            const toRangeObj = (s) => {
+                const d = String(s || '').split('/');
+                return d.length === 3 ? new Date(d[2], d[0] - 1, d[1]) : null;
+            };
+            const vwhStart = toRangeObj(fechaDesde);
+            const vwhEnd = toRangeObj(fechaHasta);
+
+            const found = [];
+            try {
+                const normalizedStore = String(storeName || '').trim().toLowerCase();
+                (specialProjectsHistoryData || []).forEach(record => {
+                    if (String(record.tienda || record.Tienda || '').trim().toLowerCase() !== normalizedStore) return;
+                    const peRange = parsePEPeriodRange(record.periodo || record.Periodo);
+                    if (!vwhStart || !vwhEnd || !peRange) return;
+                    if (!(peRange.start <= vwhEnd && vwhStart <= peRange.end)) return;
+
+                    try {
+                        const parsed = JSON.parse(record.data_json || record.Data_JSON || '{}');
+                        (Array.isArray(parsed) ? parsed : [parsed]).forEach(item => {
+                            if (!(item.employees || item.providers)) return;
+                            found.push({
+                                label: `#${normalizeInvoice(item.invoice)} - ${item.proyecto || item.nombre}`,
+                                fileName: `Invoice Special Project - ${record.tienda || record.Tienda || ''} - ${item.proyecto || item.nombre}.pdf`
+                            });
+                        });
+                    } catch (e) { }
+                });
+            } catch (e) { }
+
+            setRelevantSpecialProjects(found);
+            if (found.length > 0) {
+                newSubject = `${newSubject} + Special Projects`;
+                newBody = `${newBody}\n\nAlso attached are the Special Projects Invoices for this period: ${found.map(p => p.label).join(', ')}.`;
+            }
+
+            setSubject(newSubject);
+            setBody(newBody);
         }
-    }, [isOpen, storeName, fechaDesde, fechaHasta]);
+    }, [isOpen, storeName, fechaDesde, fechaHasta, specialProjectsHistoryData]);
 
     if (!isOpen) return null;
 
@@ -7589,17 +7640,32 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                         {/* Attachment Preview */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documento Adjunto</label>
-                            <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
-                                <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10">
-                                    <FileText size={18} />
+                            <div className="space-y-3 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
+                                {/* Simulación Reporte VWH */}
+                                <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
+                                    <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10">
+                                        <FileText size={18} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">{subject}.pdf</p>
+                                        <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
+                                    </div>
+                                    <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm">
+                                        <Check size={14} />
+                                    </div>
                                 </div>
-                                <div className="flex-1">
-                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">{subject}.pdf</p>
-                                    <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
-                                </div>
-                                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm">
-                                    <Check size={14} />
-                                </div>
+
+                                {/* Simulación Invoices de Proyectos Especiales */}
+                                {relevantSpecialProjects.map((proj, idx) => (
+                                    <div key={idx} className="p-4 bg-blue-50/30 rounded-2xl border-2 border-dashed border-blue-100/30 flex items-center gap-4 group transition-all animate-in slide-in-from-left duration-300" style={{ animationDelay: `${idx * 100}ms` }}>
+                                        <div className="p-2.5 bg-[#303a7f] text-white rounded-xl shadow-lg shadow-blue-900/10"><FileText size={18} /></div>
+                                        <div className="flex-1">
+                                            <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-tight">{proj.fileName}</p>
+                                            <p className="text-[8px] text-[#303a7f]/60 font-bold uppercase">Special Project Invoice</p>
+                                        </div>
+                                        <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#303a7f] shadow-sm"><Check size={14} /></div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
@@ -8701,14 +8767,7 @@ const VWHTableModal = (props) => {
                 console.error('Error filtrando Proyectos Especiales para el correo VWH:', filterErr);
             }
 
-            let finalSubject = emailData.subject;
-            let finalBody = emailData.body;
-            if (specialProjectAttachments.length > 0) {
-                finalSubject = `${finalSubject} + Special Projects`;
-                finalBody = `${finalBody}\n\nAlso attached are the Special Projects Invoices for this period: ${peInvoiceLabels.join(', ')}.`;
-            }
-
-            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: finalSubject, body: finalBody, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }, ...specialProjectAttachments] });
+            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }, ...specialProjectAttachments] });
             fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte VWH', entidadNombre: `${payrollStore} - ${currentStartDate} a ${currentEndDate}` }) }).catch(() => { });
 
             const reportKey = normalizeKey(recordId || `${payrollStore}_${currentStartDate}_${currentEndDate}`);
@@ -9313,6 +9372,7 @@ const VWHTableModal = (props) => {
                 onSend={handleSendEmail}
                 isSending={isSendingEmail}
                 defaultTo={stores.find(s => normalizeKey(s.nombre) === normalizeKey(payrollStore))?.correo || ''}
+                specialProjectsHistoryData={specialProjectsHistoryData}
             />
 
             <EmailNotificationModal
