@@ -13165,7 +13165,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                 className="px-8 py-3.5 bg-[#303a7f] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#252a5e] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-blue-900/20"
                             >
                                 <Mail size={16} />
-                                Enviar por Correo
+                                Enviar
                             </button>
                         )}
                         {user?.rol === 'Operador de Pagos' && (
@@ -13195,8 +13195,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/20"
                         >
                             <FileText size={16} />
-                            Recibos de Pago
-                        </button>
+                            Talonarios
+                            </button>
                         <button
                             onClick={handleExportExcel}
                             className="px-8 py-3.5 bg-[#6bbdb7] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-[#59aba5] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-teal-900/10"
@@ -13215,7 +13215,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             className="group flex items-center gap-2.5 px-5 py-2.5 border-2 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-blue-900/5 hover:shadow-blue-900/10 transition-all active:scale-95 btn-close-danger"
                         >
                             <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                            Volver a Nómina
+                            Volver
                         </button>
                     </div>
                 </div>
@@ -20150,9 +20150,9 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
                         disabled={isSendingEmail}
                         className="px-6 py-3 bg-[#303a7f] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#1e234d] shadow-lg shadow-blue-900/10 active:scale-95 flex items-center gap-2 transition-all"
                     >
-                        <Mail size={16} />
-                        Enviar por Correo
-                    </button>
+                            <Mail size={16} />
+                                Enviar
+                            </button>
                     <button
                         onClick={handleExportExcel}
                         className="px-6 py-3 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 flex items-center gap-2"
