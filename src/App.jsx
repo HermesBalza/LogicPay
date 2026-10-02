@@ -8604,7 +8604,7 @@ const generateSpecialProjectInvoicePdf = ({ project, totalKBS, kbsId = '---', em
 };
 
 const VWHTableModal = (props) => {
-    const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId, employees = [], isRadicated = false, onOpenUPSConsolidated, historyKbsData = [], user } = props;
+    const { isOpen, onClose, data, payrollStore, stores, fechaDesde, fechaHasta, emailsSent = {}, onEmailSent, recordId, employees = [], isRadicated = false, onOpenUPSConsolidated, historyKbsData = [], user, specialProjectsHistoryData = [] } = props;
     const normalizeKey = (k) => String(k || '').toLowerCase().trim();
     const reportRef = useRef(null);
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -8636,7 +8636,79 @@ const VWHTableModal = (props) => {
             });
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
-            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
+            // --- Proyectos Especiales de la misma semana: adjuntar su Invoice junto al VWH ---
+            const parsePEPeriodRange = (periodStr) => {
+                const parts = String(periodStr || '').split('-').map(p => p.trim());
+                if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+                const toDateObj = (s) => {
+                    const d = s.split('/');
+                    return d.length === 3 ? new Date(d[2], d[0] - 1, d[1]) : null;
+                };
+                const start = toDateObj(parts[0]);
+                const end = toDateObj(parts[1]);
+                return start && end ? { start, end } : null;
+            };
+            const toVWHDateObj = (s) => {
+                const d = String(s || '').split('/');
+                return d.length === 3 ? new Date(d[2], d[0] - 1, d[1]) : null;
+            };
+            const vwhStart = toVWHDateObj(currentStartDate);
+            const vwhEnd = toVWHDateObj(currentEndDate);
+
+            let peInvoiceLabels = [];
+            const specialProjectAttachments = [];
+            try {
+                const normalizedStore = normalizeKey(payrollStore);
+                (specialProjectsHistoryData || []).forEach(record => {
+                    if (normalizeKey(record.tienda || record.Tienda) !== normalizedStore) return;
+                    const peRange = parsePEPeriodRange(record.periodo || record.Periodo);
+                    if (!vwhStart || !vwhEnd || !peRange) return;
+                    if (!(peRange.start <= vwhEnd && vwhStart <= peRange.end)) return;
+
+                    try {
+                        const raw = record.data_json || record.Data_JSON || '{}';
+                        const parsed = JSON.parse(raw);
+                        const items = Array.isArray(parsed) ? parsed : [parsed];
+                        items.forEach(item => {
+                            try {
+                                const project = {
+                                    ...item,
+                                    tienda: record.tienda || record.Tienda || '',
+                                    periodo: record.periodo || record.Periodo || ''
+                                };
+                                if (!(project.employees || project.providers)) return;
+                                const peEmpTotal = (project.employees || []).reduce((acc, row) => acc + (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0), 0);
+                                const peProvTotal = (project.providers || []).reduce((acc, row) => acc + (parseFloat(row.rateKBS) || 0), 0);
+                                const peTotal = peEmpTotal + peProvTotal;
+                                const peKbsId = stores.find(s => normalizeKey(s.nombre) === normalizeKey(project.tienda || project.Tienda || project.nombre))?.codigo || '---';
+
+                                const pePdf = generateSpecialProjectInvoicePdf({ project, totalKBS: peTotal, kbsId: peKbsId, employees });
+                                specialProjectAttachments.push({
+                                    name: `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`,
+                                    type: 'application/pdf',
+                                    base64: pePdf.output('datauristring').split(',')[1]
+                                });
+                                peInvoiceLabels.push(`#${normalizeInvoice(project.invoice)} - ${project.proyecto || project.nombre}`);
+                            } catch (itemErr) {
+                                console.error('Error generando Invoice de Proyecto Especial adjunto:', itemErr);
+                            }
+                        });
+                    } catch (jsonErr) {
+                        console.error('Error parseando Proyecto Especial del historial:', jsonErr);
+                    }
+                });
+            } catch (filterErr) {
+                console.error('Error filtrando Proyectos Especiales para el correo VWH:', filterErr);
+            }
+
+            let finalSubject = emailData.subject;
+            let finalBody = emailData.body;
+            if (specialProjectAttachments.length > 0) {
+                finalSubject = `${finalSubject} + Special Projects`;
+                finalBody = `${finalBody}\n\nAlso attached are the Special Projects Invoices for this period: ${peInvoiceLabels.join(', ')}.`;
+            }
+
+            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: finalSubject, body: finalBody, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }, ...specialProjectAttachments] });
             fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte VWH', entidadNombre: `${payrollStore} - ${currentStartDate} a ${currentEndDate}` }) }).catch(() => { });
 
             const reportKey = normalizeKey(recordId || `${payrollStore}_${currentStartDate}_${currentEndDate}`);
@@ -25090,6 +25162,7 @@ function App() {
                 fechaHasta={fechaHasta}
                 emailsSent={vwhEmailsSent}
                 recordId={vwhRecordId}
+                specialProjectsHistoryData={specialProjectsHistoryData}
                 isRadicated={(() => {
                     const rad = nominaHistoryData.find(h => String(h.codigo) === String(vwhRecordId))?.radicacion;
                     return !!(rad && rad !== '--/--/--');
