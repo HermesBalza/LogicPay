@@ -3782,23 +3782,24 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
     const handleManualMatchMulti = (wosService) => {
         if (!wosService || manualMatchSelectedIds.size < 2) return;
 
+        // Resolución por identidad de fila (no por índice de posición), para que el
+        // match múltiple siempre confirme las filas exactas marcadas aunque el
+        // filtro de tienda esté activo.
         const selectedEntries = Array.from(manualMatchSelectedIds)
-            .map(id => availableForManualMatch[id])
+            .map(key => availableForManualMatch.find(e => e._mmKey === key))
             .filter(Boolean);
 
         const vwhEntries = selectedEntries.filter(e => e.source === 'VWH');
         const peEntries = selectedEntries.filter(e => e.source === 'P.E.');
 
         if (vwhEntries.length >= 2 && peEntries.length === 0) {
-            const sorted = vwhEntries.sort((a, b) => {
-                const da = nominaHistoryData.indexOf(a) < 0 ? 9999 : nominaHistoryData.indexOf(a);
-                const db = nominaHistoryData.indexOf(b) < 0 ? 9999 : nominaHistoryData.indexOf(b);
-                return da - db;
-            });
-            const idxs = sorted.map(e => nominaHistoryData.findIndex(h =>
-                String(h.nombre || '').trim().toLowerCase() === String(e.nombre || '').trim().toLowerCase() &&
-                String(h.codigo || '').replace(/^'+/, '').trim() === String(e.codigo || '').replace(/^'+/, '').trim()
-            )).filter(i => i >= 0);
+            const idxs = vwhEntries
+                .map(e => nominaHistoryData.findIndex(h =>
+                    String(h.nombre || '').trim().toLowerCase() === String(e.nombre || '').trim().toLowerCase() &&
+                    String(h.codigo || '').replace(/^'+/, '').trim() === String(e.codigo || '').replace(/^'+/, '').trim()
+                ))
+                .filter(i => i >= 0)
+                .sort((a, b) => a - b);
 
             if (idxs.length < 2) return;
 
@@ -3827,8 +3828,8 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 matchedNominaRecords: originalRecords,
                 rawServices: [wosService],
                 descriptions: [wosService.serviceDescription || ''],
-                lgmBilled: originalRecords.reduce((sum, r) => sum + (r.Pago_KBS || 0), 0),
-                diff: wosAmount - originalRecords.reduce((sum, r) => sum + (r.Pago_KBS || 0), 0),
+                lgmBilled: vwhEntries.reduce((sum, e) => sum + (e.Pago_KBS || 0), 0),
+                diff: wosAmount - vwhEntries.reduce((sum, e) => sum + (e.Pago_KBS || 0), 0),
                 storeCode: '',
                 serviceDates: originalRecords.map(r => `${r.fecha_inicio || ''} - ${r.fecha_fin || ''}`).join(' + ')
             };
@@ -4318,37 +4319,306 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
     }, [wosDiscrepancies, getKBSFromPE, getKBSFromNomina]);
 
     const availableForManualMatch = useMemo(() => {
-        const nominaEntries = nominaHistoryData
-            .filter(h => h.Status !== 'Paid')
-            .map(h => {
-                const data = JSON.parse(h.data_json || '{}');
-                let horasTotal = 0;
-                const tableData = data.semanaTableData || data.earningsTableData || [];
-                if (Array.isArray(tableData)) {
-                    const days = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-                    horasTotal = tableData.reduce((acc, r) =>
-                        acc + days.reduce((a, d) => a + (parseFloat(r[d]?.final || r[d]?.sup || 0) || 0), 0), 0);
-                }
-                return { ...h, source: 'VWH', horasTotal };
-            });
+        // === FUENTE ÚNICA: réplica exacta de las pantallas "Facturación Radicada" y "Saldos Pendientes" ===
+        // Cada nómina se modela tal como la presenta la pantalla de radicación de su tienda:
+        //  - AZPEN: consolidada por quincena (misma regla, facturación fija y metadatos desde la fila Q-)
+        //  - Resto de tiendas: una fila por semana, con montos calculados desde data_json
+        // Se omiten filas pagadas (Status Paid / Pagada) y las que no generan facturación (0 horas),
+        // idéntico al criterio de las pantallas de origen.
+        const rowTotalToNumberMM = (val) => {
+            if (!val) return 0;
+            return String(val).replace(/[^0-9.-]+/g, "");
+        };
+        const helperHhmmToDecimalMM = (v) => {
+            if (!v || v === 'X' || v === '0:00') return 0;
+            const s = String(v);
+            if (s.includes(':')) {
+                const [hrs, min] = s.split(':').map(Number);
+                return hrs + (min || 0) / 60;
+            }
+            return parseFloat(s) || 0;
+        };
+        const isAZPENStoreMM = (name) => String(name || '').trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN';
 
-        const peEntries = specialProjectsHistoryData
-            // Excluir también las marcadas como 'Pagada' (estado en español que usa esta tabla)
-            .filter(h => !['Paid', 'Pagada'].includes(String(h.Status || '').trim()))
-            .map(h => {
-                let horasTotal = 0;
-                try {
-                    const raw = JSON.parse(h.data_json || h.Data_JSON || '{}');
-                    const items = Array.isArray(raw) ? raw : [raw];
-                    horasTotal = items.reduce((acc, item) => {
-                        if (!item) return acc;
-                        const emps = Array.isArray(item.employees) ? item.employees : [];
-                        return acc + emps.reduce((a, emp) => a + (parseFloat(emp.hours) || 0), 0);
-                    }, 0);
-                } catch (e) { }
-                return { ...h, source: 'P.E.', horasTotal };
-            });
+        const mmEntries = [];
 
+        const porTiendaMM = {};
+        nominaHistoryData.forEach(h => {
+            if (!h || !h.nombre) return;
+            const key = String(h.nombre).trim();
+            if (!porTiendaMM[key]) porTiendaMM[key] = [];
+            porTiendaMM[key].push(h);
+        });
+
+        Object.entries(porTiendaMM).forEach(([storeNameMM, records]) => {
+            if (isAZPENStoreMM(storeNameMM)) {
+                // === AZPEN: consolidación por quincena (misma regla de "Facturación Radicada") ===
+                const quincenasMapMM = {};
+                records.forEach(h => {
+                    if (!h || !h.fecha_inicio) return;
+                    const partsStart = String(h.fecha_inicio).split('/');
+                    if (partsStart.length !== 3) return;
+                    const [mS, dS, yS] = partsStart.map(Number);
+                    if (!mS || !dS || !yS) return;
+                    const baseStartDateMM = new Date(yS, mS - 1, dS);
+
+                    const getOrInitQuincenaMM = (dateObj) => {
+                        const y = dateObj.getFullYear();
+                        const m = dateObj.getMonth() + 1;
+                        const d = dateObj.getDate();
+                        const qNumber = d <= 15 ? 1 : 2;
+                        const qKey = `${y}-${String(m).padStart(2, '0')}-Q${qNumber}`;
+
+                        if (!quincenasMapMM[qKey]) {
+                            const mStr = String(m).padStart(2, '0');
+                            const lastDay = new Date(y, m, 0).getDate();
+                            const qStart = qNumber === 1 ? `${mStr}/01/${y}` : `${mStr}/16/${y}`;
+                            const qEnd = qNumber === 1 ? `${mStr}/15/${y}` : `${mStr}/${lastDay}/${y}`;
+                            quincenasMapMM[qKey] = {
+                                qKey,
+                                qStart,
+                                qEnd,
+                                horas: 0,
+                                costos: 0,
+                                codigo: '',
+                                radicacion: '',
+                                pago: '',
+                                fecha_pago: '',
+                                wos: '',
+                                pagada: false
+                            };
+                        }
+
+                        const q = quincenasMapMM[qKey];
+                        // Los metadatos financieros solo provienen de la fila quincenal unificada (Q-),
+                        // igual que en la pantalla de radicación (sin contaminación cruzada de semanas)
+                        const hQNumber = dS <= 15 ? 1 : 2;
+                        const hQKey = `${yS}-${String(mS).padStart(2, '0')}-Q${hQNumber}`;
+                        if (q.qKey === hQKey && String(h.codigo || '').startsWith('Q-')) {
+                            q.codigo = h.codigo;
+                            if (h['Fecha Rad.'] || h['fecha rad.']) q.radicacion = h['Fecha Rad.'] || h['fecha rad.'];
+                            if (h['pago'] || h['Pago']) q.pago = h['pago'] || h['Pago'];
+                            if (h['fecha de pago'] || h['Fecha de Pago']) q.fecha_pago = h['fecha de pago'] || h['Fecha de Pago'];
+                            if (h['wos'] || h['WOS']) q.wos = h['wos'] || h['WOS'];
+                            const statusValMM = h['Status'] || h['status'] || '';
+                            q.pagada = (statusValMM === 'Paid');
+                        }
+                        return q;
+                    };
+
+                    try {
+                        if (h && h.data_json) {
+                            const data = JSON.parse(h.data_json);
+
+                            let addedHoursMM = false;
+
+                            if (data.semanaTableData) {
+                                const daysMappingMM = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                                let sIdxMM = 0;
+                                let eIdxMM = 6;
+                                if (data.isSplitFragment && data.fragmentRange) {
+                                    try {
+                                        const [fmS, fdS, fyS] = data.fragmentRange.start.split('/');
+                                        const [fmE, fdE, fyE] = data.fragmentRange.end.split('/');
+                                        sIdxMM = new Date(fyS, fmS - 1, fdS).getDay();
+                                        eIdxMM = new Date(fyE, fmE - 1, fdE).getDay();
+                                    } catch (err) { sIdxMM = 0; eIdxMM = 6; }
+                                }
+
+                                data.semanaTableData.forEach(emp => {
+                                    const empIdMM = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
+                                    const earningRowMM = (data.earningsTableData || []).find(e =>
+                                        `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empIdMM);
+                                    const rateMM = earningRowMM ? (parseFloat(earningRowMM.rate) || 0) : 0;
+
+                                    for (let i = sIdxMM; i <= eIdxMM; i++) {
+                                        const hrsMM = helperHhmmToDecimalMM(emp[daysMappingMM[i]]?.final || 0);
+                                        if (hrsMM > 0) {
+                                            const currentDateMM = new Date(baseStartDateMM.getFullYear(), baseStartDateMM.getMonth(), baseStartDateMM.getDate() + (i - sIdxMM));
+                                            const q = getOrInitQuincenaMM(currentDateMM);
+                                            q.horas += hrsMM;
+                                            q.costos += hrsMM * rateMM;
+                                            addedHoursMM = true;
+                                        }
+                                    }
+                                });
+                            }
+
+                            if (!addedHoursMM && h.fecha_fin) {
+                                const [mF, dF, yF] = h.fecha_fin.split('/').map(Number);
+                                const q = getOrInitQuincenaMM(new Date(yF, mF - 1, dF));
+
+                                let totalHMM = 0;
+                                let totalCMM = 0;
+                                if (data.kbsBillingTableData) {
+                                    data.kbsBillingTableData.forEach(r => {
+                                        const totalValMM = parseFloat(rowTotalToNumberMM(r.total)) || 0;
+                                        const rateValMM = parseFloat(r.rate) || 1;
+                                        totalHMM += totalValMM / rateValMM;
+                                    });
+                                }
+                                if (data.earningsTableData) {
+                                    totalCMM = data.earningsTableData.reduce((acc, r) => acc + (parseFloat(rowTotalToNumberMM(r.total)) || 0), 0);
+                                }
+                                q.horas += totalHMM;
+                                q.costos += totalCMM;
+                            }
+                        }
+                    } catch (err) { console.error("[LogicPay] Error parsing history json (Match Manual AZPEN)", err); }
+                });
+
+                Object.values(quincenasMapMM).forEach(q => {
+                    if (q.pagada) return;
+                    if (!(q.horas > 0)) return;
+                    mmEntries.push({
+                        source: 'VWH',
+                        nombre: storeNameMM,
+                        tienda: storeNameMM,
+                        codigo: q.codigo,
+                        fecha_inicio: q.qStart,
+                        fecha_fin: q.qEnd,
+                        radicacion: q.radicacion,
+                        'Fecha Rad.': q.radicacion,
+                        horasTotal: q.horas,
+                        Pago_KBS: 484.33,
+                        Pago_LGM: q.costos,
+                        Pago: (parseFloat(q.pago) || 0),
+                        'Fecha de Pago': q.fecha_pago,
+                        wos: q.wos,
+                        _mmKey: `VWH|${storeNameMM}|${q.codigo || `${q.qStart}_${q.qEnd}`}`
+                    });
+                });
+            } else {
+                // === Resto de tiendas: una fila por semana (misma lógica de "Facturación Radicada") ===
+                records.forEach(h => {
+                    const statusValMM = h['Status'] || h['status'] || '';
+                    if (statusValMM === 'Paid') return;
+
+                    const statsMM = { horas: 0, facturacion: 0, costos: 0 };
+                    try {
+                        if (h && h.data_json) {
+                            const data = JSON.parse(h.data_json);
+
+                            if (data.kbsBillingTableData) {
+                                data.kbsBillingTableData.forEach(r => {
+                                    const totalValMM = parseFloat(rowTotalToNumberMM(r.total)) || 0;
+                                    statsMM.facturacion += totalValMM;
+                                });
+                            }
+
+                            if (data.semanaTableData) {
+                                const daysMappingMM = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                                let sIdxMM = 0;
+                                let eIdxMM = 6;
+                                if (data.isSplitFragment && data.fragmentRange) {
+                                    try {
+                                        const [fmS, fdS, fyS] = data.fragmentRange.start.split('/');
+                                        const [fmE, fdE, fyE] = data.fragmentRange.end.split('/');
+                                        sIdxMM = new Date(fyS, fmS - 1, fdS).getDay();
+                                        eIdxMM = new Date(fyE, fmE - 1, fdE).getDay();
+                                    } catch (err) { sIdxMM = 0; eIdxMM = 6; }
+                                }
+
+                                data.semanaTableData.forEach(emp => {
+                                    const isMonSunStoreMM = isWeekMonSun(storeNameMM);
+                                    if (isMonSunStoreMM && sIdxMM > eIdxMM) {
+                                        for (let i = sIdxMM; i <= 6; i++) {
+                                            statsMM.horas += helperHhmmToDecimalMM(emp[daysMappingMM[i]]?.final || 0);
+                                        }
+                                        for (let i = 0; i <= eIdxMM; i++) {
+                                            statsMM.horas += helperHhmmToDecimalMM(emp[daysMappingMM[i]]?.final || 0);
+                                        }
+                                    } else {
+                                        for (let i = sIdxMM; i <= eIdxMM; i++) {
+                                            statsMM.horas += helperHhmmToDecimalMM(emp[daysMappingMM[i]]?.final || 0);
+                                        }
+                                    }
+                                });
+                            } else if (data.kbsBillingTableData) {
+                                // Fallback para registros antiguos
+                                data.kbsBillingTableData.forEach(r => {
+                                    const totalValMM = parseFloat(rowTotalToNumberMM(r.total)) || 0;
+                                    const rateValMM = parseFloat(r.rate) || 1;
+                                    statsMM.horas += totalValMM / rateValMM;
+                                });
+                            }
+                            if (data.earningsTableData) {
+                                statsMM.costos = data.earningsTableData.reduce((acc, r) => acc + (parseFloat(rowTotalToNumberMM(r.total)) || 0), 0);
+                            }
+                        }
+                    } catch (err) { console.error("[LogicPay] Error parsing history json (Match Manual)", err); }
+
+                    // Filtrar semanas con cero actividad (0 horas), igual que en radicación
+                    if (!(statsMM.horas > 0)) return;
+
+                    mmEntries.push({
+                        source: 'VWH',
+                        nombre: storeNameMM,
+                        tienda: storeNameMM,
+                        codigo: h.codigo,
+                        fecha_inicio: h.fecha_inicio || '',
+                        fecha_fin: h.fecha_fin || '',
+                        radicacion: h['Fecha Rad.'] || h['fecha rad.'] || '',
+                        'Fecha Rad.': h['Fecha Rad.'] || h['fecha rad.'] || '',
+                        horasTotal: statsMM.horas,
+                        Pago_KBS: statsMM.facturacion,
+                        Pago_LGM: statsMM.costos,
+                        Pago: (parseFloat(h['pago'] || h['Pago']) || 0),
+                        'Fecha de Pago': h['fecha de pago'] || h['Fecha de Pago'] || '',
+                        wos: h['wos'] || h['WOS'] || '',
+                        _mmKey: `VWH|${storeNameMM}|${h.codigo}`
+                    });
+                });
+            }
+        });
+
+        // === PROYECTOS ESPECIALES: misma regla y montos de "Facturación Radicada" (P.E.) ===
+        (specialProjectsHistoryData || []).forEach(h => {
+            const statusValPE = String(h.Status || h.status || '').trim();
+            if (statusValPE === 'Paid' || statusValPE === 'Pagada') return;
+            if (String(h.visible || h.Visible || '').trim().toLowerCase() === 'anulado') return;
+
+            const tiendaPE = h.Tienda || h.tienda || '';
+            if (!tiendaPE) return;
+
+            let horasTotalPE = 0;
+            let costosPE = 0;
+            try {
+                const rawPE = JSON.parse(h.data_json || h.Data_JSON || '{}');
+                const itemsPE = Array.isArray(rawPE) ? rawPE : [rawPE];
+                itemsPE.forEach(item => {
+                    if (!item) return;
+                    const employeesPE = Array.isArray(item.employees) ? item.employees : [];
+                    const providersPE = Array.isArray(item.providers) ? item.providers : [];
+                    employeesPE.forEach(emp => {
+                        const hPE = parseFloat(emp.hours) || 0;
+                        horasTotalPE += hPE;
+                        costosPE += hPE * (parseFloat(emp.rateLogic) || 0);
+                    });
+                    providersPE.forEach(prov => {
+                        costosPE += parseFloat(prov.rateLogic) || 0;
+                    });
+                });
+            } catch (err) { }
+
+            mmEntries.push({
+                source: 'P.E.',
+                nombre: tiendaPE,
+                tienda: tiendaPE,
+                Periodo: h.Periodo || `${h.fecha_inicio || ''} - ${h.fecha_fin || ''}`,
+                radicacion: h['Fecha Rad.'] || h['fecha rad.'] || '',
+                'Fecha Rad.': h['Fecha Rad.'] || h['fecha rad.'] || '',
+                horasTotal: horasTotalPE,
+                Pago_KBS: parseFloat(h['Pago'] || h['pago']) || 0,
+                Pago_LGM: costosPE,
+                Pago: (parseFloat(h['pago'] || h['Pago']) || 0),
+                'Fecha de Pago': h['fecha de pago'] || h['Fecha de Pago'] || '',
+                wos: h['WOS'] || h['wos'] || '',
+                _mmKey: `PE|${String(h.Correlativo || h.correlativo || '').trim()}|${String(h.Periodo || '')}`
+            });
+        });
+
+        // === SALDOS PENDIENTES: mismo criterio de la pantalla "Saldos Pendientes" ===
         const pendienteEntries = (saldosPendientesData || [])
             .filter(s => !(s.pagado === 1 || s.pagado === true) && (parseFloat(s.saldo_pendiente) || 0) > 0.009)
             .map(s => ({
@@ -4363,7 +4633,8 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 Pago_LGM: 0,
                 horasTotal: 0,
                 wos: s.wos || '',
-                _pendienteId: s.id
+                _pendienteId: s.id,
+                _mmKey: `PENDIENTE|${s.id}`
             }));
 
         // Orden cronológico ascendente (más antigua arriba). Fallback:
@@ -4387,7 +4658,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             return Infinity;
         };
 
-        return [...nominaEntries, ...peEntries, ...pendienteEntries]
+        return [...mmEntries, ...pendienteEntries]
             .sort((a, b) => {
                 const da = entryDateNum(a);
                 const db = entryDateNum(b);
@@ -5495,10 +5766,10 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                         {manualMatchMulti ? (
                                                             <input
                                                                 type="checkbox"
-                                                                checked={manualMatchSelectedIds.has(idx)}
+                                                                checked={manualMatchSelectedIds.has(entry._mmKey)}
                                                                 onChange={(e) => {
                                                                     const next = new Set(manualMatchSelectedIds);
-                                                                    e.target.checked ? next.add(idx) : next.delete(idx);
+                                                                    e.target.checked ? next.add(entry._mmKey) : next.delete(entry._mmKey);
                                                                     setManualMatchSelectedIds(next);
                                                                 }}
                                                                 className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all"
