@@ -4333,7 +4333,8 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             });
 
         const peEntries = specialProjectsHistoryData
-            .filter(h => h.Status !== 'Paid')
+            // Excluir también las marcadas como 'Pagada' (estado en español que usa esta tabla)
+            .filter(h => !['Paid', 'Pagada'].includes(String(h.Status || '').trim()))
             .map(h => {
                 let horasTotal = 0;
                 try {
@@ -5393,9 +5394,52 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
-                                    {availableForManualMatch
-                                        .filter(e => !manualMatchStoreFilter || (e.nombre || e.tienda || e.Tienda || '') === manualMatchStoreFilter)
-                                        .map((entry, idx) => {
+                                    {(() => {
+                                        const filteredEntries = availableForManualMatch.filter(e => !manualMatchStoreFilter || (e.nombre || e.tienda || e.Tienda || '') === manualMatchStoreFilter);
+                                        // AGRUPACIÓN DE FACTURACIONES RADICADAS:
+                                        // 1) Facturación VWH (Nómina Regular)  2) Facturación de Proyectos Especiales (Auditoría Especial)
+                                        // 3) Saldos Pendientes (Cobro Parcial) - color ámbar, siempre al final.
+                                        // filteredEntries ya viene ordenado de forma cronológica ascendente, por lo que
+                                        // el orden se conserva dentro de cada grupo.
+                                        const matchGroups = [
+                                            { key: 'vwh', titulo: 'Facturación VWH', subtitulo: 'Nómina Regular', Icono: FileText, tono: 'teal', items: [] },
+                                            { key: 'pe', titulo: 'Facturación de Proyectos Especiales', subtitulo: 'Auditoría Especial', Icono: ClipboardCheck, tono: 'navy', items: [] },
+                                            { key: 'saldo', titulo: 'Saldos Pendientes', subtitulo: 'Cobro Parcial', Icono: AlertTriangle, tono: 'amber', items: [] }
+                                        ];
+                                        filteredEntries.forEach((entry, idx) => {
+                                            // Prioridad: las filas de saldo van a su propio grupo sin importar su tipo (VWH o P.E.)
+                                            let grupoIdx = 0;
+                                            if (entry.source === 'PENDIENTE') grupoIdx = 2;
+                                            else if (entry.source === 'P.E.') grupoIdx = 1;
+                                            matchGroups[grupoIdx].items.push({ entry, idx });
+                                        });
+                                        const tonoIcono = {
+                                            teal: 'bg-[#6bbdb7] shadow-teal-900/10',
+                                            navy: 'bg-[#303a7f] shadow-blue-900/10',
+                                            amber: 'bg-[#f59e0b] shadow-amber-900/20'
+                                        };
+                                        const tonoSubtitulo = { teal: 'text-gray-400', navy: 'text-[#6bbdb7]', amber: 'text-[#f59e0b]' };
+                                        return matchGroups.filter(g => g.items.length > 0).map(group => (
+                                            <React.Fragment key={group.key}>
+                                                <tr className="bg-gray-50/80 border-y border-gray-100">
+                                                    <td colSpan={10} className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`${tonoIcono[group.tono]} p-2 rounded-xl shadow-lg`}>
+                                                                <group.Icono className="text-white" size={14} />
+                                                            </div>
+                                                            <div>
+                                                                <h3 className="text-[12px] font-black text-[#303a7f] tracking-tighter uppercase leading-none">{group.titulo}</h3>
+                                                                <p className={`${tonoSubtitulo[group.tono]} text-[8px] font-black tracking-[0.4em] uppercase opacity-70 mt-1`}>{group.subtitulo}</p>
+                                                            </div>
+                                                            <span className={`ml-auto text-[9px] font-black uppercase tracking-widest ${group.key === 'saldo' ? 'text-[#f59e0b]' : 'text-gray-400'}`}>
+                                                                {group.key === 'saldo'
+                                                                    ? `${group.items.length} saldo${group.items.length === 1 ? '' : 's'} pendiente${group.items.length === 1 ? '' : 's'}`
+                                                                    : `${group.items.length} factura${group.items.length === 1 ? '' : 's'} radicada${group.items.length === 1 ? '' : 's'}`}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {group.items.map(({ entry, idx }) => {
                                             const entryName = entry.nombre || entry.tienda || entry.Tienda || '';
                                             const fechaRad = entry.radicacion || entry['Fecha Rad.'] || '';
                                             const periodo = entry.Periodo || `${entry.fecha_inicio || ''} - ${entry.fecha_fin || ''}`;
@@ -5477,8 +5521,10 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                     </td>
                                                 </tr>
                                             );
-                                        })
-                                    }
+                                                })}
+                                            </React.Fragment>
+                                        ));
+                                    })()}
                                     {availableForManualMatch.filter(e => !manualMatchStoreFilter || (e.nombre || e.tienda || e.Tienda || '') === manualMatchStoreFilter).length === 0 && (
                                         <tr>
                                             <td colSpan={10} className="px-6 py-20 text-center">
