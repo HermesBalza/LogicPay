@@ -17561,7 +17561,7 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    {renderEditableCell(row, 'pago', formatCurrencyInput(row.pago) || '$0.00', onUpdateManual, row.id)}
+                                    {renderEditableCell(row, 'pago', formatCurrency(parseFloat(rowTotalToNumber(row.pago)) || 0), onUpdateManual, row.id)}
                                 </td>
                                 <td className="px-2 py-4 text-center">
                                     {renderEditableCell(row, 'fecha_pago', row.fecha_pago || '--/--/--', onUpdateManual, row.id)}
@@ -17681,7 +17681,7 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    {renderEditableCell(row, 'pago', formatCurrencyInput(row.pago) || '$0.00', onUpdateManualPE, row.correlativo)}
+                                    {renderEditableCell(row, 'pago', formatCurrency(parseFloat(rowTotalToNumber(row.pago)) || 0), onUpdateManualPE, row.correlativo)}
                                 </td>
                                 <td className="px-2 py-4 text-center">
                                     {renderEditableCell(row, 'fecha_pago', row.fecha_pago || '--/--/--', onUpdateManualPE, row.correlativo)}
