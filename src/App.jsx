@@ -4582,6 +4582,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             if (!tiendaPE) return;
 
             let horasTotalPE = 0;
+            let facturacionPE = 0;
             let costosPE = 0;
             try {
                 const rawPE = JSON.parse(h.data_json || h.Data_JSON || '{}');
@@ -4590,6 +4591,15 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                     if (!item) return;
                     const employeesPE = Array.isArray(item.employees) ? item.employees : [];
                     const providersPE = Array.isArray(item.providers) ? item.providers : [];
+                    // Facturación (KBS): misma fórmula de la pantalla "Facturación Radicada"
+                    // (App.jsx peTableDataMap): total_kbs del ítem, o horas × rateKBS por empleado,
+                    // más el monto KBS de proveedores.
+                    const factItemPE = (parseFloat(item.total_kbs) || 0) > 0
+                        ? (parseFloat(item.total_kbs) || 0)
+                        : employeesPE.reduce((a, emp) => a + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0)), 0);
+                    facturacionPE += factItemPE;
+                    const factProvPE = providersPE.reduce((a, prov) => a + (parseFloat(prov.rateKBS) || 0), 0);
+                    facturacionPE += factProvPE;
                     employeesPE.forEach(emp => {
                         const hPE = parseFloat(emp.hours) || 0;
                         horasTotalPE += hPE;
@@ -4609,7 +4619,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 radicacion: h['Fecha Rad.'] || h['fecha rad.'] || '',
                 'Fecha Rad.': h['Fecha Rad.'] || h['fecha rad.'] || '',
                 horasTotal: horasTotalPE,
-                Pago_KBS: parseFloat(h['Pago'] || h['pago']) || 0,
+                Pago_KBS: facturacionPE,
                 Pago_LGM: costosPE,
                 Pago: (parseFloat(h['pago'] || h['Pago']) || 0),
                 'Fecha de Pago': h['fecha de pago'] || h['Fecha de Pago'] || '',
