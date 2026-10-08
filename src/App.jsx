@@ -28220,7 +28220,7 @@ function App() {
                                     <table className="w-full border-collapse table-auto mb-10">
                                         <thead className="sticky top-0 z-20">
                                             <tr className="bg-white border-b border-gray-100 shadow-sm">
-                                                {['Fecha Rad.', 'Semana Facturada', 'Facturación (KBS)', 'Pago Recibido', 'Saldo Pendiente', 'WOS', 'Status'].map((h, i) => (
+                                                {['Fecha Rad.', 'Semana Facturada', 'Facturación (KBS)', 'Pago Recibido', 'Saldo Pendiente', 'Pago', 'Fecha de Pago', 'Sales Order', 'WOS', 'Status'].map((h, i) => (
                                                     <th key={i} className="px-3 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
                                                 ))}
                                             </tr>
@@ -28233,11 +28233,12 @@ function App() {
                                                     <td className="px-3 py-4 text-center text-[10px] font-bold text-red-400">{formatNum(row.facturacion_kbs)}</td>
                                                     <td className="px-3 py-4 text-center text-[10px] font-bold text-teal-600">{formatNum(row.pago_recibido)}</td>
                                                     <td className="px-3 py-4 text-center">
-                                                        <div className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-lg inline-block">
-                                                            <span className="text-[11px] font-black text-amber-600">{formatNum(row.saldo_pendiente)}</span>
-                                                        </div>
+                                                            <span className="text-[10px] font-black text-amber-600">{formatNum(row.saldo_pendiente)}</span>
                                                     </td>
-                                                    <td className="px-3 py-4 text-center"><span className="text-[10px] font-black text-orange-500">{row.wos || '---'}</span></td>
+                                                    <td className="px-3 py-4 text-center"></td>
+                                                    <td className="px-3 py-4 text-center"></td>
+                                                    <td className="px-3 py-4 text-center"></td>
+                                                    <td className="px-3 py-4 text-center"></td>
                                                     <td className="px-3 py-4 text-center">
                                                         <input type="checkbox" checked={!!row.pagado} onChange={() => togglePagado(row)} className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all" />
                                                     </td>
@@ -28264,7 +28265,7 @@ function App() {
                                     <table className="w-full border-collapse table-auto mb-10">
                                         <thead className="sticky top-0 z-20">
                                             <tr className="bg-white border-b border-gray-100 shadow-sm">
-                                                {['Fecha Rad.', 'Proyecto', 'Facturación (KBS)', 'Pago Recibido', 'Saldo Pendiente', 'WOS', 'Status'].map((h, i) => (
+                                                {['Fecha Rad.', 'Proyecto', 'Facturación (KBS)', 'Pago Recibido', 'Saldo Pendiente', 'Pago', 'Fecha de Pago', 'Sales Order', 'WOS', 'Status'].map((h, i) => (
                                                     <th key={i} className="px-3 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
                                                 ))}
                                             </tr>
@@ -28277,11 +28278,12 @@ function App() {
                                                     <td className="px-3 py-4 text-center text-[10px] font-bold text-red-400">{formatNum(row.facturacion_kbs)}</td>
                                                     <td className="px-3 py-4 text-center text-[10px] font-bold text-teal-600">{formatNum(row.pago_recibido)}</td>
                                                     <td className="px-3 py-4 text-center">
-                                                        <div className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-lg inline-block">
-                                                            <span className="text-[11px] font-black text-amber-600">{formatNum(row.saldo_pendiente)}</span>
-                                                        </div>
+                                                            <span className="text-[10px] font-black text-amber-600">{formatNum(row.saldo_pendiente)}</span>
                                                     </td>
-                                                    <td className="px-3 py-4 text-center"><span className="text-[10px] font-black text-orange-500">{row.wos || '---'}</span></td>
+                                                    <td className="px-3 py-4 text-center"></td>
+                                                    <td className="px-3 py-4 text-center"></td>
+                                                    <td className="px-3 py-4 text-center"></td>
+                                                    <td className="px-3 py-4 text-center"></td>
                                                     <td className="px-3 py-4 text-center">
                                                         <input type="checkbox" checked={!!row.pagado} onChange={() => togglePagado(row)} className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all" />
                                                     </td>
