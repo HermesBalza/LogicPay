@@ -4631,21 +4631,36 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
         // === SALDOS PENDIENTES: mismo criterio de la pantalla "Saldos Pendientes" ===
         const pendienteEntries = (saldosPendientesData || [])
             .filter(s => !(s.pagado === 1 || s.pagado === true) && (parseFloat(s.saldo_pendiente) || 0) > 0.009)
-            .map(s => ({
-                ...s,
-                source: 'PENDIENTE',
-                nombre: s.tienda || '',
-                tienda: s.tienda || '',
-                Periodo: s.semana_facturada || '',
-                'Fecha Rad.': s.fecha_rad || '',
-                Pago_KBS: s.saldo_pendiente || 0,
-                Pago: s.pago_recibido || 0,
-                Pago_LGM: 0,
-                horasTotal: 0,
-                wos: s.wos || '',
-                _pendienteId: s.id,
-                _mmKey: `PENDIENTE|${s.id}`
-            }));
+            .map(s => {
+                // Los saldos derivados de Proyectos Especiales (tipo 'PE') nacen con
+                // semana_facturada vacía: se resuelve su Período desde el proyecto
+                // original usando el Correlativo (ref_id), normalizando el sufijo ".0"
+                const normCorrMM = (v) => String(v ?? '').trim().replace(/\.0+$/, '');
+                let periodoSaldoMM = '';
+                if (String(s.tipo || '').trim() === 'PE' && !String(s.semana_facturada || '').trim()) {
+                    const refMM = normCorrMM(s.ref_id);
+                    const proyMM = (specialProjectsHistoryData || []).find(h =>
+                        normCorrMM(h.Correlativo) === refMM &&
+                        String(h.Tienda || h.tienda || '').trim() === String(s.tienda || '').trim()
+                    );
+                    if (proyMM && proyMM.Periodo) periodoSaldoMM = proyMM.Periodo;
+                }
+                return {
+                    ...s,
+                    source: 'PENDIENTE',
+                    nombre: s.tienda || '',
+                    tienda: s.tienda || '',
+                    Periodo: s.semana_facturada || periodoSaldoMM || '',
+                    'Fecha Rad.': s.fecha_rad || '',
+                    Pago_KBS: s.saldo_pendiente || 0,
+                    Pago: s.pago_recibido || 0,
+                    Pago_LGM: 0,
+                    horasTotal: 0,
+                    wos: s.wos || '',
+                    _pendienteId: s.id,
+                    _mmKey: `PENDIENTE|${s.id}`
+                };
+            });
 
         // Orden cronológico ascendente (más antigua arriba). Fallback:
         // 1) Fecha Rad. 2) primera fecha de Periodo/semana 3) fecha_inicio 4) al final
