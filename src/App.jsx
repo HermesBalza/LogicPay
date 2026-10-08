@@ -17037,7 +17037,8 @@ const BillingView = ({
 
     const handleCellSave = (rowId, col, onUpdate, updateKey) => {
         const apiFieldMap = {
-            'fecha_pago': 'fecha de pago'
+            'fecha_pago': 'fecha de pago',
+            'sales_order': 'sales order'
         };
         const apiField = apiFieldMap[col] || col;
         if (editValue !== '') {
@@ -17144,6 +17145,7 @@ const BillingView = ({
                         pago: '',
                         fecha_pago: '',
                         wos: '',
+                        sales_order: '',
                         pagada: false,
                         _qKey: qKey
                     };
@@ -17165,6 +17167,7 @@ const BillingView = ({
                         if (h['pago'] || h['Pago']) q.pago = h['pago'] || h['Pago'];
                         if (h['fecha de pago'] || h['Fecha de Pago']) q.fecha_pago = h['fecha de pago'] || h['Fecha de Pago'];
                         if (h['wos'] || h['WOS']) q.wos = h['wos'] || h['WOS'];
+                        if (h['Sales Order'] || h['sales order']) q.sales_order = h['Sales Order'] || h['sales order'];
                         const statusVal = h['Status'] || h['status'] || '';
                         q.pagada = (statusVal === 'Paid');
                     }
@@ -17334,6 +17337,7 @@ const BillingView = ({
                 utilidad: (stats.facturacion || 0) - (stats.costos || 0),
                 pago: h['pago'] || h['Pago'] || '',
                 fecha_pago: h['fecha de pago'] || h['Fecha de Pago'] || '',
+                sales_order: h['Sales Order'] || h['sales order'] || '',
                 wos: h['wos'] || h['WOS'] || '',
                 pagada: isPaid
             };
@@ -17405,6 +17409,7 @@ const BillingView = ({
                         radicacion: h['Fecha Rad.'] || h['fecha rad.'] || '',
                         pago: h['Pago'] || h['pago'] || '',
                         fecha_pago: h['Fecha de Pago'] || h['fecha de pago'] || '',
+                        sales_order: h['Sales Order'] || h['sales order'] || '',
                         wos: h['WOS'] || h['wos'] || '',
                         pagada: h['pagada'] === true || h['pagada'] === 'true' || (h['Status'] || h['status']) === 'Paid' || (h['Status'] || h['status']) === 'Pagada'
                     };
@@ -17485,14 +17490,14 @@ const BillingView = ({
                 <table className="w-full border-collapse table-auto mb-6">
                     <thead className="sticky top-0 z-20">
                         <tr className="bg-white border-b border-gray-100 shadow-sm">
-                            {['Fecha Rad.', isAZPEN ? 'Quincena Facturada' : 'Semana Facturada', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Status'].map((h, i) => (
+                            {['Fecha Rad.', isAZPEN ? 'Quincena Facturada' : 'Semana Facturada', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'Sales Order', 'WOS', 'Status'].map((h, i) => (
                                 <th key={i} className="px-2 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {tableData.length === 0 ? (
-                            <tr><td colSpan={10} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros VWH.</td></tr>
+                            <tr><td colSpan={11} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros VWH.</td></tr>
                         ) : tableData.map((row) => (
                             <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
                                 <td className="px-3 py-4 text-center">
@@ -17562,6 +17567,9 @@ const BillingView = ({
                                     {renderEditableCell(row, 'fecha_pago', row.fecha_pago || '--/--/--', onUpdateManual, row.id)}
                                 </td>
                                 <td className="px-2 py-4 text-center">
+                                    {renderEditableCell(row, 'sales_order', row.sales_order || '---', onUpdateManual, row.id)}
+                                </td>
+                                <td className="px-2 py-4 text-center">
                                     {renderEditableCell(row, 'wos', row.wos || '---', onUpdateManual, row.id)}
                                 </td>
                                 <td className="px-3 py-4 text-center">
@@ -17611,14 +17619,14 @@ const BillingView = ({
                 <table className="w-full border-collapse table-auto mb-6">
                     <thead className="sticky top-0 z-20">
                         <tr className="bg-white border-b border-gray-100 shadow-sm">
-                            {['Fecha Rad.', 'Fecha', 'Nombre del Proyecto', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'WOS', 'Status'].map((h, i) => (
+                            {['Fecha Rad.', 'Fecha', 'Nombre del Proyecto', 'Horas', 'Facturación (KBS)', 'Costos (LGM)', 'Utilidad', 'Pago', 'Fecha de Pago', 'Sales Order', 'WOS', 'Status'].map((h, i) => (
                                 <th key={i} className="px-2 py-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.1em] text-center whitespace-nowrap bg-white">{h}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {peTableData.length === 0 ? (
-                            <tr><td colSpan={11} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros de Proyectos Especiales.</td></tr>
+                            <tr><td colSpan={12} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-[10px]">No hay registros de Proyectos Especiales.</td></tr>
                         ) : peTableData.map((row) => (
                             <tr key={row.id} className="group hover:bg-[#fcfdfe] transition-colors duration-200">
                                 <td className="px-3 py-4 text-center">
@@ -17677,6 +17685,9 @@ const BillingView = ({
                                 </td>
                                 <td className="px-2 py-4 text-center">
                                     {renderEditableCell(row, 'fecha_pago', row.fecha_pago || '--/--/--', onUpdateManualPE, row.correlativo)}
+                                </td>
+                                <td className="px-2 py-4 text-center">
+                                    {renderEditableCell(row, 'sales_order', row.sales_order || '---', onUpdateManualPE, row.correlativo)}
                                 </td>
                                 <td className="px-2 py-4 text-center">
                                     {renderEditableCell(row, 'wos', row.wos || '---', onUpdateManualPE, row.correlativo)}
@@ -21208,6 +21219,7 @@ function App() {
                             "Fecha Rad.": field === 'fecha rad.' ? val : (existing['fecha rad.'] || existing['Fecha Rad.'] || ''),
                             "Pago": field === 'pago' ? val : (existing['pago'] || existing['Pago'] || ''),
                             "Fecha de Pago": field === 'fecha de pago' ? val : (existing['fecha de pago'] || existing['Fecha de Pago'] || ''),
+                            "Sales Order": field === 'sales order' ? val : (existing['Sales Order'] || existing['sales order'] || ''),
                             "WOS": field === 'wos' ? val : (existing['wos'] || existing['WOS'] || 0),
                             "Status": statusVal
                         };
@@ -21365,6 +21377,7 @@ function App() {
                             "Fecha Rad.": field === 'fecha rad.' ? val : (existing['Fecha Rad.'] || existing['fecha rad.'] || ''),
                             "Pago": field === 'pago' ? val : (existing['Pago'] || existing['pago'] || ''),
                             "Fecha de Pago": field === 'fecha de pago' ? val : (existing['Fecha de Pago'] || existing['fecha de pago'] || ''),
+                            "Sales Order": field === 'sales order' ? val : (existing['Sales Order'] || existing['sales order'] || ''),
                             "WOS": field === 'wos' ? val : (existing['WOS'] || existing['wos'] || 0),
                             "Status": field === 'pagada' ? (val ? 'Paid' : 'Due') : (existing['Status'] || existing['status'] || 'Due')
                         };
@@ -27967,6 +27980,7 @@ function App() {
                                             'fecha rad.': ['fecha rad.', 'Fecha Rad.'],
                                             'pago': ['pago', 'Pago'],
                                             'fecha de pago': ['fecha de pago', 'Fecha de Pago'],
+                                            'sales order': ['sales order', 'Sales Order'],
                                             'wos': ['wos', 'WOS'],
                                             'pagada': ['status', 'Status']
                                         };
@@ -27980,18 +27994,20 @@ function App() {
                                             "Fecha Rad.": '',
                                             "Pago": '',
                                             "Fecha de Pago": '',
+                                            "Sales Order": '',
                                             "WOS": '',
                                             "Status": 'Due'
                                         };
                                         (fieldMap[field] || []).forEach(key => { newRow[key] = finalVal; });
                                         return [...prev, newRow];
                                     }
-                                    return prev.map(h => {
+                                        return prev.map(h => {
                                         if (String(h.nombre).trim().toLowerCase() === String(selectedHistoryStore).trim().toLowerCase() && String(h.codigo) === String(week)) {
                                             const fieldMap = {
                                                 'fecha rad.': ['fecha rad.', 'Fecha Rad.'],
                                                 'pago': ['pago', 'Pago'],
                                                 'fecha de pago': ['fecha de pago', 'Fecha de Pago'],
+                                                'sales order': ['sales order', 'Sales Order'],
                                                 'wos': ['wos', 'WOS'],
                                                 'pagada': ['status', 'Status']
                                             };
@@ -28017,6 +28033,7 @@ function App() {
                                             'fecha rad.': ['fecha rad.', 'Fecha Rad.'],
                                             'pago': ['pago', 'Pago'],
                                             'fecha de pago': ['fecha de pago', 'Fecha de Pago'],
+                                            'sales order': ['sales order', 'Sales Order'],
                                             'wos': ['wos', 'WOS'],
                                             'pagada': ['status', 'Status']
                                         };

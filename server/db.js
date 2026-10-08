@@ -136,6 +136,10 @@ try { db.exec(`UPDATE Personal SET account_num = cuenta_bancaria WHERE (account_
 // Migración de datos: nombre → first_name + last_name
 try { db.exec(`UPDATE Personal SET first_name = TRIM(SUBSTR(nombre, 1, INSTR(nombre || ' ', ' ') - 1)), last_name = TRIM(SUBSTR(nombre, INSTR(nombre || ' ', ' ') + 1)) WHERE (first_name IS NULL OR first_name = '') AND (last_name IS NULL OR last_name = '') AND nombre IS NOT NULL AND nombre != ''`); } catch (_) {}
 
+// Migración segura: columna Sales Order (Facturación Radicada)
+try { db.exec(`ALTER TABLE Nomina_Historico ADD COLUMN "Sales Order" TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE Proyectos_Especiales ADD COLUMN "Sales Order" TEXT`); } catch (_) {}
+
 db.exec(`CREATE TABLE IF NOT EXISTS CRM_Proyectos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,

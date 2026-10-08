@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS Nomina_Historico (
     "Fecha Rad." TEXT,
     "Pago" TEXT,
     "Fecha de Pago" TEXT,
+    "Sales Order" TEXT,
     "WOS" TEXT,
     "Status" TEXT
 );
@@ -190,6 +191,7 @@ CREATE TABLE IF NOT EXISTS Proyectos_Especiales (
     "Fecha Rad." TEXT,
     "Pago" TEXT,
     "Fecha de Pago" TEXT,
+    "Sales Order" TEXT,
     "WOS" TEXT,
     "Status" TEXT,
     "Visible" TEXT
