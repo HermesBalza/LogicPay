@@ -17719,6 +17719,44 @@ const BillingView = ({
     );
 };
 
+// ─── Celda editable para la pantalla "Saldos Pendientes" (Pago, Fecha de Pago, Sales Order, WOS) ─────────
+const SaldosEditableCell = ({ rawValue, displayValue, col, onSave }) => {
+    const [editing, setEditing] = useState(false);
+    const [value, setValue] = useState('');
+
+    const commit = () => {
+        const cleanVal = String(value).trim();
+        if (cleanVal !== '') onSave(col, cleanVal);
+        setEditing(false);
+    };
+
+    if (editing) {
+        return (
+            <input
+                autoFocus
+                type="text"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') commit();
+                    else if (e.key === 'Escape') setEditing(false);
+                }}
+                className="w-full text-center text-[10px] font-black text-[#303a7f] bg-white border-2 border-[#6bbdb7] rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-[#6bbdb7]/30 transition-all"
+            />
+        );
+    }
+    return (
+        <span
+            onClick={() => { setValue(rawValue || ''); setEditing(true); }}
+            className="text-[10px] font-black text-[#303a7f] whitespace-nowrap cursor-pointer hover:bg-[#6bbdb7]/10 rounded-lg px-2 py-1 transition-all border border-transparent hover:border-[#6bbdb7]/30"
+            title="Clic para editar"
+        >
+            {displayValue}
+        </span>
+    );
+};
+
 // ─── MÓDULO LGM: NÓMINA ADMINISTRATIVA ───────────────────────────────────────
 // ─── AdminEmployeeAddView: Pantalla para agregar/editar personal Administrativo ─────────
 const AdminEmployeeAddView = ({ employee, onSave, onDelete, onBack }) => {
@@ -28192,6 +28230,30 @@ function App() {
                     });
                 };
 
+                const saveSaldosCell = async (row, col, val) => {
+                    const columnMap = {
+                        'pago': 'Pago',
+                        'fecha de pago': 'Fecha de Pago',
+                        'sales order': 'Sales Order',
+                        'wos': 'wos'
+                    };
+                    const dbCol = columnMap[col] || col;
+                    setSaldosPendientesData(prev => prev.map(r =>
+                        r.id === row.id ? { ...r, [dbCol]: val, updated_at: new Date().toISOString() } : r
+                    ));
+                    await fetch(API_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify({
+                            action: 'upsert',
+                            sheetName: 'Saldos_Pendientes',
+                            data: { id: row.id, [dbCol]: val, updated_at: new Date().toISOString() },
+                            matchKeys: ['id']
+                        })
+                    });
+                };
+
                 return (
                     <div className="fixed inset-0 z-[250] bg-white animate-in fade-in duration-300 overflow-hidden flex flex-col">
                         <div className="px-12 py-4 border-b-2 border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm">
@@ -28252,10 +28314,38 @@ function App() {
                                                     <td className="px-3 py-4 text-center">
                                                             <span className="text-[10px] font-black text-amber-600">{formatNum(row.saldo_pendiente)}</span>
                                                     </td>
-                                                    <td className="px-3 py-4 text-center"></td>
-                                                    <td className="px-3 py-4 text-center"></td>
-                                                    <td className="px-3 py-4 text-center"></td>
-                                                    <td className="px-3 py-4 text-center"></td>
+                                                    <td className="px-2 py-4 text-center">
+                                                        <SaldosEditableCell
+                                                            col="pago"
+                                                            rawValue={row['Pago'] || ''}
+                                                            displayValue={formatNum(parseFloat(String(row['Pago'] || '').replace(/[^0-9.]/g, '')) || 0)}
+                                                            onSave={(c, v) => saveSaldosCell(row, c, v)}
+                                                        />
+                                                    </td>
+                                                    <td className="px-2 py-4 text-center">
+                                                        <SaldosEditableCell
+                                                            col="fecha de pago"
+                                                            rawValue={row['Fecha de Pago'] || ''}
+                                                            displayValue={row['Fecha de Pago'] || '--/--/--'}
+                                                            onSave={(c, v) => saveSaldosCell(row, c, v)}
+                                                        />
+                                                    </td>
+                                                    <td className="px-2 py-4 text-center">
+                                                        <SaldosEditableCell
+                                                            col="sales order"
+                                                            rawValue={row['Sales Order'] || ''}
+                                                            displayValue={row['Sales Order'] || '---'}
+                                                            onSave={(c, v) => saveSaldosCell(row, c, v)}
+                                                        />
+                                                    </td>
+                                                    <td className="px-2 py-4 text-center">
+                                                        <SaldosEditableCell
+                                                            col="wos"
+                                                            rawValue={row.wos || ''}
+                                                            displayValue={row.wos || '---'}
+                                                            onSave={(c, v) => saveSaldosCell(row, c, v)}
+                                                        />
+                                                    </td>
                                                     <td className="px-3 py-4 text-center">
                                                         <input type="checkbox" checked={!!row.pagado} onChange={() => togglePagado(row)} className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all" />
                                                     </td>
@@ -28297,10 +28387,38 @@ function App() {
                                                     <td className="px-3 py-4 text-center">
                                                             <span className="text-[10px] font-black text-amber-600">{formatNum(row.saldo_pendiente)}</span>
                                                     </td>
-                                                    <td className="px-3 py-4 text-center"></td>
-                                                    <td className="px-3 py-4 text-center"></td>
-                                                    <td className="px-3 py-4 text-center"></td>
-                                                    <td className="px-3 py-4 text-center"></td>
+                                                    <td className="px-2 py-4 text-center">
+                                                        <SaldosEditableCell
+                                                            col="pago"
+                                                            rawValue={row['Pago'] || ''}
+                                                            displayValue={formatNum(parseFloat(String(row['Pago'] || '').replace(/[^0-9.]/g, '')) || 0)}
+                                                            onSave={(c, v) => saveSaldosCell(row, c, v)}
+                                                        />
+                                                    </td>
+                                                    <td className="px-2 py-4 text-center">
+                                                        <SaldosEditableCell
+                                                            col="fecha de pago"
+                                                            rawValue={row['Fecha de Pago'] || ''}
+                                                            displayValue={row['Fecha de Pago'] || '--/--/--'}
+                                                            onSave={(c, v) => saveSaldosCell(row, c, v)}
+                                                        />
+                                                    </td>
+                                                    <td className="px-2 py-4 text-center">
+                                                        <SaldosEditableCell
+                                                            col="sales order"
+                                                            rawValue={row['Sales Order'] || ''}
+                                                            displayValue={row['Sales Order'] || '---'}
+                                                            onSave={(c, v) => saveSaldosCell(row, c, v)}
+                                                        />
+                                                    </td>
+                                                    <td className="px-2 py-4 text-center">
+                                                        <SaldosEditableCell
+                                                            col="wos"
+                                                            rawValue={row.wos || ''}
+                                                            displayValue={row.wos || '---'}
+                                                            onSave={(c, v) => saveSaldosCell(row, c, v)}
+                                                        />
+                                                    </td>
                                                     <td className="px-3 py-4 text-center">
                                                         <input type="checkbox" checked={!!row.pagado} onChange={() => togglePagado(row)} className="w-4 h-4 rounded border-gray-300 text-[#6bbdb7] focus:ring-[#59aba5] cursor-pointer accent-[#6bbdb7] transition-all" />
                                                     </td>

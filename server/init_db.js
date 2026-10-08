@@ -265,6 +265,9 @@ CREATE TABLE IF NOT EXISTS Saldos_Pendientes (
     "saldo_pendiente" REAL DEFAULT 0,
     "wos" TEXT,
     "pagado" INTEGER DEFAULT 0,
+    "Pago" TEXT,
+    "Fecha de Pago" TEXT,
+    "Sales Order" TEXT,
     "created_at" TEXT DEFAULT (datetime('now','localtime')),
     "updated_at" TEXT DEFAULT (datetime('now','localtime'))
 );

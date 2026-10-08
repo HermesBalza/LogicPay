@@ -140,6 +140,11 @@ try { db.exec(`UPDATE Personal SET first_name = TRIM(SUBSTR(nombre, 1, INSTR(nom
 try { db.exec(`ALTER TABLE Nomina_Historico ADD COLUMN "Sales Order" TEXT`); } catch (_) {}
 try { db.exec(`ALTER TABLE Proyectos_Especiales ADD COLUMN "Sales Order" TEXT`); } catch (_) {}
 
+// Migración segura: columnas de edición manual en Saldos Pendientes
+try { db.exec(`ALTER TABLE Saldos_Pendientes ADD COLUMN "Pago" TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE Saldos_Pendientes ADD COLUMN "Fecha de Pago" TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE Saldos_Pendientes ADD COLUMN "Sales Order" TEXT`); } catch (_) {}
+
 db.exec(`CREATE TABLE IF NOT EXISTS CRM_Proyectos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
