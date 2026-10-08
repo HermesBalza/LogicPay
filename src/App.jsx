@@ -5766,7 +5766,11 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                     </td>
                                                     <td className="px-3 py-4 text-center">
                                                         {entry.source === 'PENDIENTE' && (
-                                                            <span className="inline-block px-2 py-0.5 rounded-md bg-amber-100 text-amber-600 text-[8px] font-black uppercase tracking-widest mb-1">SALDO</span>
+                                                            String(entry.tipo || '').trim() === 'PE' ? (
+                                                                <span className="inline-block px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 text-[8px] font-black uppercase tracking-widest mb-1">P.E</span>
+                                                            ) : (
+                                                                <span className="inline-block px-2 py-0.5 rounded-md bg-blue-100 text-blue-600 text-[8px] font-black uppercase tracking-widest mb-1">VWH</span>
+                                                            )
                                                         )}
                                                         <span className="text-[#303a7f] text-[10px] font-bold transition-all whitespace-nowrap block">{periodo}</span>
                                                     </td>
