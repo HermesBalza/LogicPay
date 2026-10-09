@@ -886,9 +886,9 @@ app.post('/api/sync-saldos-pendientes', (req, res) => {
       if (factKBS > 0 && pago < factKBS) {
         const existing = db.prepare('SELECT id FROM Saldos_Pendientes WHERE tipo = ? AND ref_id = ? AND tienda = ?').get('VWH', row.codigo, nombreStore);
         if (existing) {
-          db.prepare('UPDATE Saldos_Pendientes SET facturacion_kbs = ?, pago_recibido = ?, saldo_pendiente = ?, wos = ?, fecha_rad = ?, semana_facturada = ?, updated_at = ? WHERE id = ?').run(factKBS, pago, factKBS - pago, wos, fechaRad, semana, new Date().toISOString(), existing.id);
+          db.prepare('UPDATE Saldos_Pendientes SET facturacion_kbs = ?, pago_recibido = ?, saldo_pendiente = ?, fecha_rad = ?, semana_facturada = ?, updated_at = ? WHERE id = ?').run(factKBS, pago, factKBS - pago, fechaRad, semana, new Date().toISOString(), existing.id);
         } else {
-          db.prepare('INSERT INTO Saldos_Pendientes (tipo, ref_id, tienda, fecha_rad, semana_facturada, facturacion_kbs, pago_recibido, saldo_pendiente, wos, pagado, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,0,?,?)').run('VWH', row.codigo, nombreStore, fechaRad, semana, factKBS, pago, factKBS - pago, wos, new Date().toISOString(), new Date().toISOString());
+          db.prepare('INSERT INTO Saldos_Pendientes (tipo, ref_id, tienda, fecha_rad, semana_facturada, facturacion_kbs, pago_recibido, saldo_pendiente, pagado, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,0,?,?)').run('VWH', row.codigo, nombreStore, fechaRad, semana, factKBS, pago, factKBS - pago, new Date().toISOString(), new Date().toISOString());
         }
       } else if (wos && factKBS > 0) {
         db.prepare('DELETE FROM Saldos_Pendientes WHERE tipo = ? AND ref_id = ? AND tienda = ?').run('VWH', row.codigo, nombreStore);
@@ -926,9 +926,9 @@ app.post('/api/sync-saldos-pendientes', (req, res) => {
       if (factKBS > 0 && pago < factKBS) {
         const existing = db.prepare('SELECT id FROM Saldos_Pendientes WHERE tipo = ? AND ref_id = ? AND tienda = ?').get('PE', corr, tiendaPE);
         if (existing) {
-          db.prepare('UPDATE Saldos_Pendientes SET facturacion_kbs = ?, pago_recibido = ?, saldo_pendiente = ?, wos = ?, fecha_rad = ?, updated_at = ? WHERE id = ?').run(factKBS, pago, factKBS - pago, wos, fechaRad, new Date().toISOString(), existing.id);
+          db.prepare('UPDATE Saldos_Pendientes SET facturacion_kbs = ?, pago_recibido = ?, saldo_pendiente = ?, fecha_rad = ?, updated_at = ? WHERE id = ?').run(factKBS, pago, factKBS - pago, fechaRad, new Date().toISOString(), existing.id);
         } else {
-          db.prepare('INSERT INTO Saldos_Pendientes (tipo, ref_id, tienda, fecha_rad, semana_facturada, facturacion_kbs, pago_recibido, saldo_pendiente, wos, pagado, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,0,?,?)').run('PE', corr, tiendaPE, fechaRad, '', factKBS, pago, factKBS - pago, wos, new Date().toISOString(), new Date().toISOString());
+          db.prepare('INSERT INTO Saldos_Pendientes (tipo, ref_id, tienda, fecha_rad, semana_facturada, facturacion_kbs, pago_recibido, saldo_pendiente, pagado, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,0,?,?)').run('PE', corr, tiendaPE, fechaRad, '', factKBS, pago, factKBS - pago, new Date().toISOString(), new Date().toISOString());
         }
       } else if (wos && factKBS > 0) {
         db.prepare('DELETE FROM Saldos_Pendientes WHERE tipo = ? AND ref_id = ? AND tienda = ?').run('PE', corr, tiendaPE);

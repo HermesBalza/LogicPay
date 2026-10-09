@@ -21306,7 +21306,7 @@ function App() {
                                 body: JSON.stringify({
                                     action: 'upsert',
                                     sheetName: 'Saldos_Pendientes',
-                                    data: { tipo: 'PE', ref_id: corrPE, tienda: tiendaPE, fecha_rad: fechaRadPE, semana_facturada: '', facturacion_kbs: factPE, pago_recibido: pagoValPE, saldo_pendiente: Math.round((factPE - pagoValPE) * 100) / 100, wos: wosValPE, updated_at: new Date().toISOString() },
+                                    data: { tipo: 'PE', ref_id: corrPE, tienda: tiendaPE, fecha_rad: fechaRadPE, semana_facturada: '', facturacion_kbs: factPE, pago_recibido: pagoValPE, saldo_pendiente: Math.round((factPE - pagoValPE) * 100) / 100, updated_at: new Date().toISOString() },
                                     matchKeys: ['tipo', 'ref_id', 'tienda']
                                 })
                             });
@@ -21470,7 +21470,7 @@ function App() {
                                 body: JSON.stringify({
                                     action: 'upsert',
                                     sheetName: 'Saldos_Pendientes',
-                                    data: { tipo: 'VWH', ref_id: payload.codigo, tienda: payload.nombre, fecha_rad: fechaRad, semana_facturada: semana, facturacion_kbs: factKBS, pago_recibido: pagoVal, saldo_pendiente: Math.round((factKBS - pagoVal) * 100) / 100, wos: wosVal, updated_at: new Date().toISOString() },
+                                    data: { tipo: 'VWH', ref_id: payload.codigo, tienda: payload.nombre, fecha_rad: fechaRad, semana_facturada: semana, facturacion_kbs: factKBS, pago_recibido: pagoVal, saldo_pendiente: Math.round((factKBS - pagoVal) * 100) / 100, updated_at: new Date().toISOString() },
                                     matchKeys: ['tipo', 'ref_id', 'tienda']
                                 })
                             });
@@ -24317,82 +24317,18 @@ function App() {
             if (!saldo) return;
 
             const saldoId = saldo.id;
-            const saldoTipo = String(saldo.tipo || '').trim().toUpperCase();
-            const saldoRef = String(saldo.ref_id || '').replace(/^'+/, '').trim();
-            const factKBS = parseFloat(saldo.facturacion_kbs) || 0;
-            const prevPagoRecibido = parseFloat(saldo.pago_recibido) || 0;
-            const newPagoRecibido = prevPagoRecibido + paymentAmount;
-            const fullyPaid = newPagoRecibido >= factKBS - 0.01;
-            const newSaldo = Math.max(0, factKBS - newPagoRecibido);
 
-            // Acumular pago en la factura VWH/PE subyacente (ref_id)
-            if (saldoTipo === 'VWH') {
-                const record = (nominaHistoryData || []).find(h =>
-                    String(h.codigo || '').replace(/^'+/, '').trim() === saldoRef
-                );
-                if (record) {
-                    const prevPago = parseFloat(record.Pago || record.pago || 0) || 0;
-                    const accPago = prevPago + paymentAmount;
-                    setNominaHistoryDataRaw(prev => prev.map(h =>
-                        String(h.codigo || '').replace(/^'+/, '').trim() === saldoRef
-                            ? { ...h, "pago": accPago, "fecha de pago": paymentDate, "wos": wosNumber }
-                            : h
-                    ));
-                    billingPendingSaveRef.current.push({
-                        __prebuilt: true,
-                        nombre: record.nombre,
-                        codigo: `'${saldoRef}`,
-                        fecha_inicio: record.fecha_inicio || '',
-                        fecha_fin: record.fecha_fin || '',
-                        data_json: record.data_json || '{}',
-                        "Fecha Rad.": record['Fecha Rad.'] || record['fecha rad.'] || '',
-                        "Pago": accPago,
-                        "Fecha de Pago": paymentDate,
-                        "WOS": wosNumber,
-                        "Status": record['Status'] || record['status'] || 'Due',
-                        auditAccion: 'Aceptó pago de WOS',
-                        auditEntidad: 'VWH',
-                        auditEntidadNombre: `${record.nombre} ${record.fecha_inicio} - ${record.fecha_fin}`
-                    });
-                    setIsSyncingBilling(true);
-                }
-            } else if (saldoTipo === 'PE') {
-                const record = (specialProjectsHistoryData || []).find(h =>
-                    String(h.correlativo || h.Correlativo || '').replace(/^'+/, '').trim() === saldoRef
-                );
-                if (record) {
-                    const prevPago = parseFloat(record.Pago || record.pago || 0) || 0;
-                    const accPago = prevPago + paymentAmount;
-                    setSpecialProjectsHistoryData(prev => prev.map(h =>
-                        String(h.correlativo || h.Correlativo || '').replace(/^'+/, '').trim() === saldoRef
-                            ? { ...h, "pago": accPago, "fecha de pago": paymentDate, "wos": wosNumber }
-                            : h
-                    ));
-                    pePendingSaveRef.current.push({
-                        __prebuilt: true,
-                        "ID_Consolidacion": record.id_consolidacion || record.ID_Consolidacion || '',
-                        "Tienda": record.tienda || record.Tienda || '',
-                        "Periodo": record.periodo || record.Periodo || '',
-                        "Data_JSON": record.data_json || record.Data_JSON || '{}',
-                        "Fecha_Confirmacion": record.fecha_confirmacion || record.Fecha_Confirmacion || '',
-                        "Correlativo": saldoRef,
-                        "Fecha Rad.": record['fecha rad.'] || record['Fecha Rad.'] || '',
-                        "Pago": accPago,
-                        "Fecha de Pago": paymentDate,
-                        "WOS": wosNumber,
-                        "Status": record['Status'] || record['status'] || 'Due',
-                        auditAccion: 'Aceptó pago de WOS',
-                        auditEntidad: 'P.E.',
-                        auditEntidadNombre: `${record.tienda || record.Tienda || ''} ${record.periodo || record.Periodo || ''}`
-                    });
-                    setIsSyncingPE(true);
-                }
-            }
-
-            // Actualizar saldo pendiente en estado local
+            // Registro del pago anunciado por el documento WOS en la fila del saldo:
+            // WOS del PDF + Fecha de Pago del PDF + Sales Order del servicio matcheado + Pago (monto anunciado).
+            // No se tocan pago_recibido / saldo_pendiente (gobierna su lógica desde la radicación
+            // vía /api/sync-saldos-pendientes), ni el Status (exclusivo del checkbox manual),
+            // ni la radicación subyacente.
+            const rawServicesSaldo = Array.isArray(row.rawServices) ? row.rawServices : [];
+            const lastServiceSaldo = rawServicesSaldo[rawServicesSaldo.length - 1] || null;
+            const salesOrderSaldo = (lastServiceSaldo && lastServiceSaldo.salesOrder) || '';
             setSaldosPendientesData(prev => prev.map(r =>
                 String(r.id) === String(saldoId)
-                    ? { ...r, pago_recibido: newPagoRecibido, saldo_pendiente: newSaldo, wos: wosNumber, pagado: fullyPaid ? 1 : 0, updated_at: new Date().toISOString() }
+                    ? { ...r, wos: wosNumber, 'Pago': paymentAmount, 'Fecha de Pago': paymentDate, 'Sales Order': salesOrderSaldo, updated_at: new Date().toISOString() }
                     : r
             ));
 
@@ -24404,7 +24340,7 @@ function App() {
                 body: JSON.stringify({
                     action: 'upsert',
                     sheetName: 'Saldos_Pendientes',
-                    data: { id: saldoId, pago_recibido: newPagoRecibido, saldo_pendiente: newSaldo, wos: wosNumber, pagado: fullyPaid ? 1 : 0, updated_at: new Date().toISOString() },
+                    data: { id: saldoId, wos: wosNumber, 'Pago': paymentAmount, 'Fecha de Pago': paymentDate, 'Sales Order': salesOrderSaldo, updated_at: new Date().toISOString() },
                     matchKeys: ['id']
                 })
             }).catch(() => { });
