@@ -24216,6 +24216,13 @@ function App() {
         const wosNumber = wosMetadata.wosNumber || '';
         const paymentAmount = row.kbsAnnounced || 0;
 
+        // Sales Order: extraído por servicio del PDF de WOS. Se toma el último servicio
+        // matcheado (mismo patrón que Saldos_Pendientes) y se escribe en Nomina_Historico
+        // y Proyectos_Especiales de la misma forma que se escribe el número de WOS.
+        const rawServicesSO = Array.isArray(row.rawServices) ? row.rawServices : [];
+        const lastServiceSO = rawServicesSO[rawServicesSO.length - 1] || null;
+        const salesOrder = (lastServiceSO && lastServiceSO.salesOrder) || '';
+
         // Normalización obligatoria a MM/DD/YYYY
         if (paymentDate.includes('-')) {
             const parts = paymentDate.split('-');
@@ -24253,7 +24260,7 @@ function App() {
                 setNominaHistoryDataRaw(prev => prev.map(h =>
                     (String(h.nombre).trim().toLowerCase() === String(record.nombre).trim().toLowerCase() &&
                         String(h.codigo).replace(/^'+/, '').trim() === String(record.codigo).replace(/^'+/, '').trim())
-                        ? { ...h, "pago": pago, "fecha de pago": paymentDate, "wos": wosNumber }
+                        ? { ...h, "pago": pago, "fecha de pago": paymentDate, "wos": wosNumber, "Sales Order": salesOrder }
                         : h
                 ));
 
@@ -24269,6 +24276,7 @@ function App() {
                     "Pago": pago,
                     "Fecha de Pago": paymentDate,
                     "WOS": wosNumber,
+                    "Sales Order": salesOrder,
                     "Status": record['Status'] || record['status'] || 'Due',
                     auditAccion: 'Aceptó pago de WOS',
                     auditEntidad: 'VWH',
@@ -24285,7 +24293,7 @@ function App() {
             // Actualizar estado local para feedback inmediato.
             setSpecialProjectsHistoryData(prev => prev.map(h =>
                 (String(h.correlativo || h.Correlativo || '').trim() === String(record.correlativo || record.Correlativo || '').trim())
-                    ? { ...h, "pago": paymentAmount, "fecha de pago": paymentDate, "wos": wosNumber }
+                    ? { ...h, "pago": paymentAmount, "fecha de pago": paymentDate, "wos": wosNumber, "Sales Order": salesOrder }
                     : h
             ));
 
@@ -24305,6 +24313,7 @@ function App() {
                 "Pago": paymentAmount,
                 "Fecha de Pago": paymentDate,
                 "WOS": wosNumber,
+                "Sales Order": salesOrder,
                 "Status": record['Status'] || record['status'] || 'Due',
                 auditAccion: 'Aceptó pago de WOS',
                 auditEntidad: 'P.E.',
