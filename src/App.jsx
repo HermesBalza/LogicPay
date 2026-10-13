@@ -141,6 +141,51 @@ const sendEmail = async (purpose, { to, cc, subject, body, attachments } = {}) =
     if (!data.success) throw new Error(data.error || 'Error al enviar email');
 };
 
+// Helpers de PDF para los adjuntos estilo Gmail: vista previa (pestaña nueva) y descarga
+const openPdfPreviewTab = (pdfDoc) => {
+    try {
+        const url = URL.createObjectURL(pdfDoc.output('blob'));
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 120000);
+    } catch (e) {
+        console.error('[PDF Preview] Error al abrir la vista previa:', e);
+    }
+};
+
+const base64ToPdfBlobUrl = (base64) => {
+    const byteCharacters = atob(base64);
+    const byteArray = new Uint8Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteArray[i] = byteCharacters.charCodeAt(i);
+    }
+    return URL.createObjectURL(new Blob([byteArray], { type: 'application/pdf' }));
+};
+
+const openBase64PdfPreviewTab = (base64) => {
+    try {
+        const url = base64ToPdfBlobUrl(base64);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 120000);
+    } catch (e) {
+        console.error('[PDF Preview] Error al abrir la vista previa:', e);
+    }
+};
+
+const downloadBase64Pdf = (base64, fileName) => {
+    try {
+        const url = base64ToPdfBlobUrl(base64);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName || 'documento.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 120000);
+    } catch (e) {
+        console.error('[PDF Download] Error al descargar:', e);
+    }
+};
+
 // ─── BASE DE DATOS: SQLite Local (Lectura) ───────────────
 const LOCAL_API_BASE = '/api/data';
 const STORES_API_URL = `${LOCAL_API_BASE}/Tiendas`;
@@ -8324,7 +8369,89 @@ const EmailRecipientsField = ({ value, onChange, contacts = [], onOpenDirectory,
     );
 };
 
-const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, defaultTo = '', specialProjectsHistoryData = [] }) => {
+// ─── ADJUNTOS ESTILO GMAIL: tira de chips (Previsualizar / Descargar / Quitar / Restaurar) ───
+const GmailAttachmentChip = ({ item, removed, onPreview, onDownload, onRemove, onRestore }) => (
+    <div
+        className={`relative flex items-center gap-2 bg-white border rounded-full pl-1.5 pr-3 py-1 shadow-sm transition-all group/chip max-w-full ${removed ? 'border-dashed border-gray-300 opacity-40' : 'border-gray-200 hover:shadow-md hover:bg-gray-50'}`}
+    >
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${removed ? 'bg-gray-200 text-gray-400' : 'bg-[#ea4335] text-white shadow-sm'}`}>
+            <FileText size={14} />
+        </div>
+        <div className={`min-w-0 ${removed ? '' : 'pr-[72px]'}`}>
+            <p className={`text-[11px] font-black truncate max-w-[200px] ${removed ? 'line-through text-gray-400' : 'text-[#202124]'}`}>{item.name}</p>
+            <p className="text-[8px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">{item.subtitle || 'PDF'}</p>
+        </div>
+
+        {/* Acciones al pasar el mouse */}
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 items-center gap-1 hidden group-hover/chip:flex">
+            {removed ? (
+                <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => onRestore && onRestore(item)}
+                    title="Volver a incluir el adjunto"
+                    className="w-6 h-6 rounded-full bg-white border border-gray-200 text-[#303a7f] hover:bg-[#303a7f] hover:text-white flex items-center justify-center transition-all shadow-sm active:scale-95"
+                >
+                    <Undo2 size={12} />
+                </button>
+            ) : (
+                <>
+                    {onPreview && (
+                        <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => onPreview(item)}
+                            title="Previsualizar PDF"
+                            className="w-6 h-6 rounded-full bg-white border border-gray-200 text-[#303a7f] hover:bg-[#303a7f] hover:text-white flex items-center justify-center transition-all shadow-sm active:scale-95"
+                        >
+                            <Eye size={12} />
+                        </button>
+                    )}
+                    {onDownload && (
+                        <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => onDownload(item)}
+                            title="Descargar PDF"
+                            className="w-6 h-6 rounded-full bg-white border border-gray-200 text-[#6bbdb7] hover:bg-[#6bbdb7] hover:text-white flex items-center justify-center transition-all shadow-sm active:scale-95"
+                        >
+                            <Download size={12} />
+                        </button>
+                    )}
+                    {onRemove && (
+                        <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => onRemove(item)}
+                            title="Quitar del envío"
+                            className="w-6 h-6 rounded-full bg-white border border-gray-200 text-gray-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all shadow-sm active:scale-95"
+                        >
+                            <X size={12} />
+                        </button>
+                    )}
+                </>
+            )}
+        </div>
+    </div>
+);
+
+const AttachmentsGmailStrip = ({ attachments = [], removedIds, onPreview, onDownload, onRemove, onRestore }) => (
+    <div className="flex flex-wrap gap-2 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+        {attachments.map(item => (
+            <GmailAttachmentChip
+                key={item.id}
+                item={item}
+                removed={!!(removedIds && removedIds.has(item.id))}
+                onPreview={onPreview}
+                onDownload={onDownload}
+                onRemove={onRemove}
+                onRestore={onRestore}
+            />
+        ))}
+    </div>
+);
+
+const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, defaultTo = '', specialProjectsHistoryData = [], onPreviewAttachment, onDownloadAttachment }) => {
     const formatMMDDYY = (dateStr) => {
         if (!dateStr) return "";
         const parts = dateStr.split('/');
@@ -8354,6 +8481,25 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
         }
     };
     useEffect(() => { if (isOpen) loadCorreos(); }, [isOpen]);
+
+    // Adjuntos estilo Gmail: quitar / restaurar (se resetea al abrir el modal)
+    const [removedAttachments, setRemovedAttachments] = useState(new Set());
+    const removeAttachment = (item) => setRemovedAttachments(prev => new Set([...prev, item.id]));
+    const restoreAttachment = (item) => setRemovedAttachments(prev => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+    });
+    const attachmentItems = useMemo(() => [
+        { id: 'main', name: `${subject || 'Reporte'}.pdf`, subtitle: 'Incluido automáticamente' },
+        ...(relevantSpecialProjects || []).map(p => ({ id: p.fileName, name: p.fileName, subtitle: 'Special Project' }))
+    ], [subject, relevantSpecialProjects]);
+
+    useEffect(() => {
+        if (isOpen) {
+            setRemovedAttachments(new Set());
+        }
+    }, [isOpen]);
 
     useEffect(() => {
         if (isOpen) {
@@ -8479,36 +8625,17 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                             />
                         </div>
 
-                        {/* Attachment Preview */}
+                        {/* Attachment Preview — estilo Gmail */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documento Adjunto</label>
-                            <div className="space-y-3 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-                                {/* Simulación Reporte VWH */}
-                                <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
-                                    <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10">
-                                        <FileText size={18} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">{subject}.pdf</p>
-                                        <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
-                                    </div>
-                                    <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm">
-                                        <Check size={14} />
-                                    </div>
-                                </div>
-
-                                {/* Simulación Invoices de Proyectos Especiales */}
-                                {relevantSpecialProjects.map((proj, idx) => (
-                                    <div key={idx} className="p-4 bg-blue-50/30 rounded-2xl border-2 border-dashed border-blue-100/30 flex items-center gap-4 group transition-all animate-in slide-in-from-left duration-300" style={{ animationDelay: `${idx * 100}ms` }}>
-                                        <div className="p-2.5 bg-[#303a7f] text-white rounded-xl shadow-lg shadow-blue-900/10"><FileText size={18} /></div>
-                                        <div className="flex-1">
-                                            <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-tight">{proj.fileName}</p>
-                                            <p className="text-[8px] text-[#303a7f]/60 font-bold uppercase">Special Project Invoice</p>
-                                        </div>
-                                        <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#303a7f] shadow-sm"><Check size={14} /></div>
-                                    </div>
-                                ))}
-                            </div>
+                            <AttachmentsGmailStrip
+                                attachments={attachmentItems}
+                                removedIds={removedAttachments}
+                                onPreview={onPreviewAttachment}
+                                onDownload={onDownloadAttachment}
+                                onRemove={removeAttachment}
+                                onRestore={restoreAttachment}
+                            />
                         </div>
                     </div>
 
@@ -8532,7 +8659,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                         Cancelar
                     </button>
                     <button
-                        onClick={() => !isSending && onSend({ to, cc, subject, body })}
+                        onClick={() => !isSending && onSend({ to, cc, subject, body, removedAttachments: Array.from(removedAttachments) })}
                         disabled={isSending}
                         className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
@@ -8549,7 +8676,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     );
 };
 
-const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, stores = [], specialProjectsHistoryData = [] }) => {
+const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, stores = [], specialProjectsHistoryData = [], mainPdfBase64 = '', onPreviewAttachment, onDownloadAttachment }) => {
     const formatMMDDYY = (dateStr) => {
         if (!dateStr) return "";
         const parts = dateStr.split('/');
@@ -8592,8 +8719,18 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
     };
     useEffect(() => { if (isOpen) loadCorreos(); }, [isOpen]);
 
+    // Adjuntos estilo Gmail: quitar / restaurar (se resetea al abrir el modal)
+    const [removedAttachments, setRemovedAttachments] = useState(new Set());
+    const removeAttachment = (item) => setRemovedAttachments(prev => new Set([...prev, item.id]));
+    const restoreAttachment = (item) => setRemovedAttachments(prev => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+    });
+
     useEffect(() => {
         if (isOpen) {
+            setRemovedAttachments(new Set());
             const mName = getManager();
             const dStart = formatMMDDYY(fechaDesde);
             const dEnd = formatMMDDYY(fechaHasta);
@@ -8629,6 +8766,15 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
             setRelevantProjects(foundProjects);
         }
     }, [isOpen, storeName, fechaDesde, fechaHasta, stores, specialProjectsHistoryData]);
+
+    const attachmentItems = [
+        { id: 'main', name: `${subject || 'Reporte'}.pdf`, subtitle: 'Reporte de Asistencia Semanal' },
+        ...(relevantProjects || []).map(proj => ({
+            id: computeHoursPEFileName(proj, storeName, formatDate),
+            name: computeHoursPEFileName(proj, storeName, formatDate),
+            subtitle: 'Special Project'
+        }))
+    ];
 
     if (!isOpen) return null;
 
@@ -8685,47 +8831,14 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documento Adjunto</label>
-                            <div className="space-y-3 max-h-[180px] overflow-y-auto pr-2 custom-scrollbar">
-                                {/* Simulación Reporte Principal */}
-                                <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
-                                    <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10"><FileText size={18} /></div>
-                                    <div className="flex-1">
-                                        <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">
-                                            {storeName.replace(/\s+/g, '_')}_Weekly_Attendance_Report.pdf
-                                        </p>
-                                        <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Reporte de Asistencia Semanal</p>
-                                    </div>
-                                    <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm"><Check size={14} /></div>
-                                </div>
-
-                                {/* Simulación Proyectos Especiales */}
-                                {relevantProjects.map((proj, idx) => {
-                                    // Determinar fecha real desde Data_JSON para la simulación
-                                    let peRealDate = proj.fecha || proj.Timestamp || proj.fecha_confirmacion || "";
-                                    try {
-                                        const parsed = JSON.parse(proj.data_json || proj.Data_JSON || '[]');
-                                        const projects = Array.isArray(parsed) ? parsed : [parsed];
-                                        if (projects.length > 0 && projects[0].fecha) {
-                                            peRealDate = projects[0].fecha;
-                                        }
-                                    } catch (e) { }
-
-                                    const dateParts = formatDate(peRealDate).split('/');
-                                    const mmddyy = dateParts.length === 3 ? `${dateParts[0]}${dateParts[1]}${dateParts[2].slice(-2)}` : '000000';
-                                    const fileName = `Hours Report ${proj.Tienda || storeName} - Special Project ${mmddyy}.pdf`;
-
-                                    return (
-                                        <div key={idx} className="p-4 bg-blue-50/30 rounded-2xl border-2 border-dashed border-blue-100/30 flex items-center gap-4 group transition-all animate-in slide-in-from-left duration-300" style={{ animationDelay: `${idx * 100}ms` }}>
-                                            <div className="p-2.5 bg-[#303a7f] text-white rounded-xl shadow-lg shadow-blue-900/10"><FileText size={18} /></div>
-                                            <div className="flex-1">
-                                                <p className="text-[10px] font-black text-[#303a7f] uppercase tracking-tight">{fileName}</p>
-                                                <p className="text-[8px] text-[#303a7f]/60 font-bold uppercase">Special Project Support Doc</p>
-                                            </div>
-                                            <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#303a7f] shadow-sm"><Check size={14} /></div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                            <AttachmentsGmailStrip
+                                attachments={attachmentItems}
+                                removedIds={removedAttachments}
+                                onPreview={onPreviewAttachment}
+                                onDownload={onDownloadAttachment}
+                                onRemove={removeAttachment}
+                                onRestore={restoreAttachment}
+                            />
                         </div>
                     </div>
                     <div className="flex flex-col space-y-1.5 h-full">
@@ -8742,7 +8855,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                         Cancelar
                     </button>
                     <button
-                        onClick={() => !isSending && onSend({ to, cc, subject, body, relevantProjects })}
+                        onClick={() => !isSending && onSend({ to, cc, subject, body, relevantProjects, removedAttachments: Array.from(removedAttachments) })}
                         disabled={isSending}
                         className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
@@ -8770,6 +8883,139 @@ const vwhNormalizarPdf = (texto) => String(texto ?? '')
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/[\u201C\u201D]/g, '"')
     .replace(/[\u2013\u2014]/g, '-');
+
+// Nombre de archivo del PDF de Soporte de Horas de un Proyecto Especial
+// (idéntico en el chip del modal y en el adjunto real del envío)
+const computeHoursPEFileName = (proj, fallbackStore, formatDateFn) => {
+    let peRealDate = proj?.fecha || proj?.Timestamp || proj?.fecha_confirmacion || "";
+    try {
+        const parsed = JSON.parse(proj?.data_json || proj?.Data_JSON || '[]');
+        const projects = Array.isArray(parsed) ? parsed : [parsed];
+        if (projects.length > 0 && projects[0].fecha) peRealDate = projects[0].fecha;
+    } catch (e) { }
+    const dateParts = formatDateFn(peRealDate).split('/');
+    const mmddyy = dateParts.length === 3 ? `${dateParts[0]}${dateParts[1]}${dateParts[2].slice(-2)}` : '000000';
+    return `Hours Report ${proj?.Tienda || fallbackStore} - Special Project ${mmddyy}.pdf`;
+};
+
+// Generador del PDF "HOURS SUMMARY" de un Proyecto Especial (extracto del envío,
+// reutilizado por el envío real y por Previsualizar/Descargar del chip)
+const generateHoursSpecialProjectPdfDoc = (proj, fallbackStore) => {
+    const doc = new jsPDF();
+    let yPos = 20;
+
+    // --- HEADER PREMIUM (Coherente con Reporte Principal) ---
+    doc.setFillColor(48, 58, 127); // Azul LGM (#303a7f)
+    doc.rect(0, 0, 210, 45, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(24);
+    doc.text("SPECIAL PROJECT", 15, 28);
+
+    doc.setTextColor(107, 189, 183); // Teal LGM (#6bbdb7)
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "black");
+    doc.text("LOGIC GROUP MANAGEMENT — HOURS SUMMARY", 15, 37);
+
+    // --- DETERMINAR FECHA REAL Y DATOS DESDE DATA_JSON ---
+    const rawJson = proj?.data_json || proj?.Data_JSON || '[]';
+    let projects = [];
+    let peRealDate = proj?.fecha || proj?.Timestamp || proj?.fecha_confirmacion || "";
+
+    try {
+        const parsed = JSON.parse(rawJson);
+        projects = Array.isArray(parsed) ? parsed : [parsed];
+        // Extraer fecha certera del JSON del proyecto
+        if (projects.length > 0 && projects[0].fecha) {
+            peRealDate = projects[0].fecha;
+        }
+    } catch (e) { projects = []; }
+
+    // --- INFO BOX ---
+    yPos = 60;
+    doc.setTextColor(48, 58, 127);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("STORE / SITE:", 15, yPos);
+    doc.setFont("helvetica", "normal");
+    doc.text(String(proj?.Tienda || fallbackStore).toUpperCase(), 65, yPos);
+
+    yPos += 8;
+    doc.setFont("helvetica", "bold");
+    doc.text("PROJECT DATE:", 15, yPos);
+    doc.setFont("helvetica", "normal");
+    // Usar la fecha real extraída del JSON
+    let cleanDate = formatDate(peRealDate).split(' ')[0].replace(',', '').trim();
+    doc.text(cleanDate, 65, yPos);
+
+    yPos += 15;
+
+    // --- CONTENT ---
+
+    projects.forEach((p, pIdx) => {
+        // Sub-header Proyecto
+        doc.setFillColor(245, 247, 250);
+        doc.rect(15, yPos - 6, 180, 10, 'F');
+        doc.setTextColor(48, 58, 127);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        const projectTitle = p.proyecto || p.nombre || 'SPECIAL PROJECT';
+        doc.text(`PROJECT: ${String(projectTitle).toUpperCase()}`, 20, yPos + 1);
+
+        yPos += 15;
+
+        // Table Header
+        doc.setFontSize(9);
+        doc.setTextColor(150, 150, 150);
+        doc.text("EMPLOYEE NAME", 20, yPos);
+        doc.text("HOURS", 190, yPos, { align: "right" });
+
+        yPos += 4;
+        doc.setDrawColor(230, 230, 230);
+        doc.setLineWidth(0.5);
+        doc.line(15, yPos, 195, yPos);
+        yPos += 8;
+
+        // Table Body
+        doc.setTextColor(60, 60, 60);
+        doc.setFont("helvetica", "normal");
+        const emps = Array.isArray(p.employees) ? p.employees : [];
+        let totalProjectHours = 0;
+
+        emps.forEach(emp => {
+            // Corrección de Mapeo: employeeName en lugar de name
+            const empName = emp.employeeName || emp.name || 'N/A';
+            doc.text(String(empName).toUpperCase(), 20, yPos);
+            doc.text(String(emp.hours || 0), 190, yPos, { align: "right" });
+            totalProjectHours += (parseFloat(emp.hours) || 0);
+            yPos += 8;
+
+            if (yPos > 270) {
+                doc.addPage();
+                yPos = 20;
+            }
+        });
+
+        // Total Footer por Proyecto
+        yPos += 2;
+        doc.setDrawColor(48, 58, 127);
+        doc.setLineWidth(0.8);
+        doc.line(120, yPos, 195, yPos);
+
+        yPos += 8;
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+
+        doc.setTextColor(48, 58, 127);
+        doc.text("TOTAL PROJECT HOURS:", 120, yPos);
+        doc.text(String(totalProjectHours.toFixed(2)), 190, yPos, { align: "right" });
+
+        yPos += 20;
+    });
+
+    return { doc };
+};
 
 // Rectángulo con esquinas redondeadas (con respaldo por si la API no existe)
 const vwhRectRedondeado = (pdf, x, y, w, h, r) => {
@@ -9546,18 +9792,25 @@ const VWHTableModal = (props) => {
         });
 
         try {
+            // Adjuntos desactivados por el usuario desde los chips estilo Gmail
+            const removedSet = new Set(emailData.removedAttachments || []);
+
             // PDF vectorial adjunto: idéntico al descargado, siempre completo
-            const pdf = generateVWHPdfDocument({
-                data,
-                payrollStore,
-                kbsId,
-                start: currentStartDate,
-                end: currentEndDate,
-                employees,
-                isMonSun: isWeekMonSun(payrollStore),
-                hhmmToDecimal
-            });
-            const pdfBase64 = pdf.output('datauristring').split(',')[1];
+            // (se omite únicamente si lo quitaron con la X del chip)
+            let pdfBase64 = '';
+            if (!removedSet.has('main')) {
+                const pdf = generateVWHPdfDocument({
+                    data,
+                    payrollStore,
+                    kbsId,
+                    start: currentStartDate,
+                    end: currentEndDate,
+                    employees,
+                    isMonSun: isWeekMonSun(payrollStore),
+                    hhmmToDecimal
+                });
+                pdfBase64 = pdf.output('datauristring').split(',')[1];
+            }
 
             // --- Proyectos Especiales de la misma semana: adjuntar su Invoice junto al VWH ---
             const parsePEPeriodRange = (periodStr) => {
@@ -9600,6 +9853,9 @@ const VWHTableModal = (props) => {
                                     periodo: record.periodo || record.Periodo || ''
                                 };
                                 if (!(project.employees || project.providers)) return;
+                                // Respetar los adjuntos quitados desde los chips estilo Gmail
+                                const peAttachmentName = `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`;
+                                if (removedSet.has(peAttachmentName)) return;
                                 const peEmpTotal = (project.employees || []).reduce((acc, row) => acc + (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0), 0);
                                 const peProvTotal = (project.providers || []).reduce((acc, row) => acc + (parseFloat(row.rateKBS) || 0), 0);
                                 const peTotal = peEmpTotal + peProvTotal;
@@ -9607,7 +9863,7 @@ const VWHTableModal = (props) => {
 
                                 const pePdf = generateSpecialProjectInvoicePdf({ project, totalKBS: peTotal, kbsId: peKbsId, employees });
                                 specialProjectAttachments.push({
-                                    name: `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`,
+                                    name: peAttachmentName,
                                     type: 'application/pdf',
                                     base64: pePdf.output('datauristring').split(',')[1]
                                 });
@@ -9624,7 +9880,13 @@ const VWHTableModal = (props) => {
                 console.error('Error filtrando Proyectos Especiales para el correo VWH:', filterErr);
             }
 
-            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: [{ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 }, ...specialProjectAttachments] });
+            const vwhAttachments = [];
+            if (!removedSet.has('main')) {
+                vwhAttachments.push({ name: `${emailData.subject}.pdf`, type: 'application/pdf', base64: pdfBase64 });
+            }
+            vwhAttachments.push(...specialProjectAttachments);
+
+            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: vwhAttachments });
             fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte VWH', entidadNombre: `${payrollStore} - ${currentStartDate} a ${currentEndDate}` }) }).catch(() => { });
 
             const reportKey = normalizeKey(recordId || `${payrollStore}_${currentStartDate}_${currentEndDate}`);
@@ -9647,6 +9909,58 @@ const VWHTableModal = (props) => {
             setIsSendingEmail(false);
         }
     };
+
+    // Previsualizar / Descargar los adjuntos del correo VWH (estilo Gmail)
+    const handleVWHAttachmentAction = (mode, item) => {
+        const id = item?.id;
+        const name = item?.name || 'documento.pdf';
+        try {
+            if (id === 'main') {
+                const pdf = generateVWHPdfDocument({
+                    data,
+                    payrollStore,
+                    kbsId,
+                    start: currentStartDate,
+                    end: currentEndDate,
+                    employees,
+                    isMonSun: isWeekMonSun(payrollStore),
+                    hhmmToDecimal
+                });
+                if (mode === 'preview') openPdfPreviewTab(pdf);
+                else pdf.save(name.endsWith('.pdf') ? name : `${name}.pdf`);
+                return;
+            }
+
+            // Factura de Proyecto Especial: localizar el proyecto cuyo nombre coincida con el chip
+            let peProject = null;
+            (specialProjectsHistoryData || []).forEach(record => {
+                if (peProject) return;
+                try {
+                    const parsed = JSON.parse(record.data_json || record.Data_JSON || '{}');
+                    (Array.isArray(parsed) ? parsed : [parsed]).forEach(itemPE => {
+                        if (!(itemPE.employees || itemPE.providers) || peProject) return;
+                        const candidate = `Invoice Special Project - ${record.tienda || record.Tienda || ''} - ${itemPE.proyecto || itemPE.nombre}.pdf`;
+                        if (candidate === id) {
+                            peProject = { ...itemPE, tienda: record.tienda || record.Tienda || '', periodo: record.periodo || record.Periodo || '' };
+                        }
+                    });
+                } catch (e) { }
+            });
+            if (!peProject) return;
+
+            const peEmpTotal = (peProject.employees || []).reduce((acc, row) => acc + (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0), 0);
+            const peProvTotal = (peProject.providers || []).reduce((acc, row) => acc + (parseFloat(row.rateKBS) || 0), 0);
+            const peTotal = peEmpTotal + peProvTotal;
+            const peKbsId = stores.find(s => normalizeKey(s.nombre) === normalizeKey(peProject.tienda || peProject.Tienda || peProject.nombre))?.codigo || '---';
+            const pePdf = generateSpecialProjectInvoicePdf({ project: peProject, totalKBS: peTotal, kbsId: peKbsId, employees });
+            if (mode === 'preview') openPdfPreviewTab(pePdf);
+            else pePdf.save(name);
+        } catch (err) {
+            console.error('[Adjuntos VWH] Error en Previsualizar/Descargar:', err);
+        }
+    };
+    const previewVWHAttachment = (item) => handleVWHAttachmentAction('preview', item);
+    const downloadVWHAttachment = (item) => handleVWHAttachmentAction('download', item);
 
     const downloadVWHAsPDF = async () => {
         try {
@@ -10230,6 +10544,8 @@ const VWHTableModal = (props) => {
                 isSending={isSendingEmail}
                 defaultTo={stores.find(s => normalizeKey(s.nombre) === normalizeKey(payrollStore))?.correo || ''}
                 specialProjectsHistoryData={specialProjectsHistoryData}
+                onPreviewAttachment={previewVWHAttachment}
+                onDownloadAttachment={downloadVWHAttachment}
             />
 
             <EmailNotificationModal
@@ -17050,7 +17366,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 
 // ─── Componente del Modal de Factura (Elegante y Premium) ───────────────────
 // ─── Modal Premium de Envío de Factura por Correo ──────────────────────────────
-const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending, defaultTo = '' }) => {
+const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending, defaultTo = '', onPreviewAttachment, onDownloadAttachment }) => {
     // Destinatario siempre en blanco: el usuario lo escribe manualmente
     const [to, setTo] = useState('');
     const [cc, setCc] = useState('');
@@ -17070,6 +17386,21 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
         }
     };
     useEffect(() => { if (isOpen) loadCorreos(); }, [isOpen]);
+
+    // Adjuntos estilo Gmail: quitar / restaurar (se resetea al abrir el modal)
+    const [removedAttachments, setRemovedAttachments] = useState(new Set());
+    const removeAttachment = (item) => setRemovedAttachments(prev => new Set([...prev, item.id]));
+    const restoreAttachment = (item) => setRemovedAttachments(prev => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+    });
+
+    useEffect(() => { if (isOpen) setRemovedAttachments(new Set()); }, [isOpen]);
+
+    const attachmentItems = [
+        { id: 'main', name: `Invoice Special Project - ${project?.tienda} - ${project?.proyecto || project?.nombre}.pdf`, subtitle: 'Incluido automáticamente' }
+    ];
 
     if (!isOpen) return null;
 
@@ -17136,21 +17467,17 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                             />
                         </div>
 
-                        {/* Attachment Preview */}
+                        {/* Attachment Preview — estilo Gmail */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documento Adjunto</label>
-                            <div className="p-4 bg-teal-50/50 rounded-2xl border-2 border-dashed border-teal-100/50 flex items-center gap-4 group transition-all">
-                                <div className="p-2.5 bg-[#6bbdb7] text-white rounded-xl shadow-lg shadow-teal-900/10">
-                                    <FileText size={18} />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-[10px] font-black text-[#2e5d5a] uppercase tracking-tight">Invoice Special Project - {project.tienda} - {project.proyecto || project.nombre}.pdf</p>
-                                    <p className="text-[8px] text-[#2e5d5a]/60 font-bold uppercase">Incluido Automáticamente</p>
-                                </div>
-                                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#6bbdb7] shadow-sm">
-                                    <Check size={14} />
-                                </div>
-                            </div>
+                            <AttachmentsGmailStrip
+                                attachments={attachmentItems}
+                                removedIds={removedAttachments}
+                                onPreview={onPreviewAttachment}
+                                onDownload={onDownloadAttachment}
+                                onRemove={removeAttachment}
+                                onRestore={restoreAttachment}
+                            />
                         </div>
                     </div>
 
@@ -17174,7 +17501,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                         Cancelar
                     </button>
                     <button
-                        onClick={() => !isSending && onSend({ to, cc, subject, body })}
+                        onClick={() => !isSending && onSend({ to, cc, subject, body, removedAttachments: Array.from(removedAttachments) })}
                         disabled={isSending}
                         className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
@@ -17209,6 +17536,24 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
         return found?.codigo_empleado || '';
     };
 
+    // Previsualizar / Descargar el adjunto del Invoice Proyecto Especial (estilo Gmail)
+    const handleSpecialProjectInvoiceAttachmentAction = (mode, item) => {
+        try {
+            const name = item?.name || `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`;
+            const empTotal = (project.employees || []).reduce((acc, row) => acc + (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0), 0);
+            const provTotal = (project.providers || []).reduce((acc, row) => acc + (parseFloat(row.rateKBS) || 0), 0);
+            const total = empTotal + provTotal;
+            const kbsId = stores.find(s => normalizeKey(s.nombre) === normalizeKey(project.tienda || project.Tienda || project.nombre))?.codigo || '---';
+            const pdf = generateSpecialProjectInvoicePdf({ project, totalKBS: total, kbsId, employees });
+            if (mode === 'preview') openPdfPreviewTab(pdf);
+            else pdf.save(name);
+        } catch (err) {
+            console.error('[Adjuntos Proyecto Especial] Error en Previsualizar/Descargar:', err);
+        }
+    };
+    const previewSpecialProjectInvoiceAttachment = (item) => handleSpecialProjectInvoiceAttachmentAction('preview', item);
+    const downloadSpecialProjectInvoiceAttachment = (item) => handleSpecialProjectInvoiceAttachmentAction('download', item);
+
     const handleSendEmail = async (emailData) => {
         setIsSendingEmail(true);
         setNotificationModal({
@@ -17218,15 +17563,26 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
         });
 
         try {
+            // Adjuntos desactivados por el usuario desde los chips estilo Gmail
+            const removedSet = new Set(emailData.removedAttachments || []);
+
             const empTotal = (project.employees || []).reduce((acc, row) => acc + (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0), 0);
             const provTotal = (project.providers || []).reduce((acc, row) => acc + (parseFloat(row.rateKBS) || 0), 0);
             const total = empTotal + provTotal;
             const kbsId = stores.find(s => normalizeKey(s.nombre) === normalizeKey(project.tienda || project.Tienda || project.nombre))?.codigo || '---';
 
-            const pdf = generateSpecialProjectInvoicePdf({ project, totalKBS: total, kbsId, employees });
-            const pdfBase64 = pdf.output('datauristring').split(',')[1];
+            // Respetar los adjuntos quitados desde los chips estilo Gmail
+            let peInvoiceAttachments = [];
+            if (!removedSet.has('main')) {
+                const pdf = generateSpecialProjectInvoicePdf({ project, totalKBS: total, kbsId, employees });
+                peInvoiceAttachments = [{
+                    name: `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`,
+                    type: 'application/pdf',
+                    base64: pdf.output('datauristring').split(',')[1]
+                }];
+            }
 
-            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: [{ name: `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
+            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: peInvoiceAttachments });
             fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Factura Proyecto Especial', entidadNombre: `${project.tienda} - #${project.invoice}` }) }).catch(() => { });
 
             const reportKey = normalizeKey(project.invoice);
@@ -17422,6 +17778,8 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                 onSend={handleSendEmail}
                 isSending={isSendingEmail}
                 defaultTo={stores.find(s => normalizeKey(s.nombre) === normalizeKey(project.tienda || project.Tienda || project.nombre))?.correo || ''}
+                onPreviewAttachment={previewSpecialProjectInvoiceAttachment}
+                onDownloadAttachment={downloadSpecialProjectInvoiceAttachment}
             />
 
             <EmailNotificationModal
@@ -23414,154 +23772,76 @@ function App() {
             setIsStatusModalOpen(true);
         }
     };
+    // Previsualizar / Descargar los adjuntos del Reporte de Horas (estilo Gmail)
+    const findHoursPEProjectByFileName = (fileName) =>
+        (specialProjectsHistoryData || []).find(p => computeHoursPEFileName(p, payrollStore, formatDate) === fileName);
+
+    const previewHoursReportAttachment = (item) => {
+        try {
+            if (item?.id === 'main') {
+                if (hoursReportPdfBase64) openBase64PdfPreviewTab(hoursReportPdfBase64);
+                return;
+            }
+            const proj = findHoursPEProjectByFileName(item?.id);
+            if (!proj) return;
+            const { doc } = generateHoursSpecialProjectPdfDoc(proj, payrollStore);
+            openPdfPreviewTab(doc);
+        } catch (err) {
+            console.error('[Adjuntos Reporte de Horas] Error en Previsualizar:', err);
+        }
+    };
+
+    const downloadHoursReportAttachment = (item) => {
+        try {
+            if (item?.id === 'main') {
+                if (hoursReportPdfBase64) downloadBase64Pdf(hoursReportPdfBase64, item?.name || 'reporte.pdf');
+                return;
+            }
+            const proj = findHoursPEProjectByFileName(item?.id);
+            if (!proj) return;
+            const { doc } = generateHoursSpecialProjectPdfDoc(proj, payrollStore);
+            doc.save(item?.name || 'reporte.pdf');
+        } catch (err) {
+            console.error('[Adjuntos Reporte de Horas] Error en Descargar:', err);
+        }
+    };
+
     const handleSendHoursReportEmail = async (emailData) => {
         setIsSendingHoursReport(true);
         try {
-            // Sanitizar nombres para el archivo adjunto
-            const safeStore = (payrollStore || 'Tienda').replace(/[^a-z0-9]/gi, '_');
-            const safeDate = (fechaDesde || 'Fecha').replace(/[^a-z0-9]/gi, '_');
+            // Adjuntos desactivados por el usuario desde los chips estilo Gmail
+            const removedSet = new Set(emailData.removedAttachments || []);
 
-            const attachments = [{
-                name: `${emailData.subject}.pdf`,
-                type: 'application/pdf',
-                base64: hoursReportPdfBase64
-            }];
+            const attachments = [];
 
-            // Generar PDFs para Proyectos Especiales (Sin Rates) - Rediseño Premium Hermes
+            // Reporte principal (se omite únicamente si lo quitaron con la X del chip)
+            if (!removedSet.has('main')) {
+                attachments.push({
+                    name: `${emailData.subject}.pdf`,
+                    type: 'application/pdf',
+                    base64: hoursReportPdfBase64
+                });
+            }
+
+            // Generar PDFs para Proyectos Especiales (Sin Rates) — generador compartido
             if (emailData.relevantProjects && emailData.relevantProjects.length > 0) {
-                emailData.relevantProjects.forEach((proj, index) => {
+                emailData.relevantProjects.forEach((proj) => {
                     try {
-                        const doc = new jsPDF();
-                        let yPos = 20;
+                        const peFileName = computeHoursPEFileName(proj, payrollStore, formatDate);
+                        // Respetar los adjuntos quitados desde los chips estilo Gmail
+                        if (removedSet.has(peFileName)) return;
 
-                        // --- HEADER PREMIUM (Coherente con Reporte Principal) ---
-                        doc.setFillColor(48, 58, 127); // Azul LGM (#303a7f)
-                        doc.rect(0, 0, 210, 45, 'F');
-
-                        doc.setTextColor(255, 255, 255);
-                        doc.setFont("helvetica", "bold");
-                        doc.setFontSize(24);
-                        doc.text("SPECIAL PROJECT", 15, 28);
-
-                        doc.setTextColor(107, 189, 183); // Teal LGM (#6bbdb7)
-                        doc.setFontSize(10);
-                        doc.setFont("helvetica", "black");
-                        doc.text("LOGIC GROUP MANAGEMENT — HOURS SUMMARY", 15, 37);
-
-                        // --- DETERMINAR FECHA REAL Y DATOS DESDE DATA_JSON ---
-                        const rawJson = proj.data_json || proj.Data_JSON || '[]';
-                        let projects = [];
-                        let peRealDate = proj.fecha || proj.Timestamp || proj.fecha_confirmacion || "";
-
-                        try {
-                            const parsed = JSON.parse(rawJson);
-                            projects = Array.isArray(parsed) ? parsed : [parsed];
-                            // Extraer fecha certera del JSON del proyecto
-                            if (projects.length > 0 && projects[0].fecha) {
-                                peRealDate = projects[0].fecha;
-                            }
-                        } catch (e) { projects = []; }
-
-                        // --- INFO BOX ---
-                        yPos = 60;
-                        doc.setTextColor(48, 58, 127);
-                        doc.setFontSize(10);
-                        doc.setFont("helvetica", "bold");
-                        doc.text("STORE / SITE:", 15, yPos);
-                        doc.setFont("helvetica", "normal");
-                        doc.text(String(proj.Tienda || payrollStore).toUpperCase(), 65, yPos);
-
-                        yPos += 8;
-                        doc.setFont("helvetica", "bold");
-                        doc.text("PROJECT DATE:", 15, yPos);
-                        doc.setFont("helvetica", "normal");
-                        // Usar la fecha real extraída del JSON
-                        let cleanDate = formatDate(peRealDate).split(' ')[0].replace(',', '').trim();
-                        doc.text(cleanDate, 65, yPos);
-
-                        yPos += 15;
-
-                        // --- CONTENT ---
-
-                        projects.forEach((p, pIdx) => {
-                            // Sub-header Proyecto
-                            doc.setFillColor(245, 247, 250);
-                            doc.rect(15, yPos - 6, 180, 10, 'F');
-                            doc.setTextColor(48, 58, 127);
-                            doc.setFontSize(11);
-                            doc.setFont("helvetica", "bold");
-                            const projectTitle = p.proyecto || p.nombre || 'SPECIAL PROJECT';
-                            doc.text(`PROJECT: ${String(projectTitle).toUpperCase()}`, 20, yPos + 1);
-
-                            yPos += 15;
-
-                            // Table Header
-                            doc.setFontSize(9);
-                            doc.setTextColor(150, 150, 150);
-                            doc.text("EMPLOYEE NAME", 20, yPos);
-                            doc.text("HOURS", 190, yPos, { align: "right" });
-
-                            yPos += 4;
-                            doc.setDrawColor(230, 230, 230);
-                            doc.setLineWidth(0.5);
-                            doc.line(15, yPos, 195, yPos);
-                            yPos += 8;
-
-                            // Table Body
-                            doc.setTextColor(60, 60, 60);
-                            doc.setFont("helvetica", "normal");
-                            const emps = Array.isArray(p.employees) ? p.employees : [];
-                            let totalProjectHours = 0;
-
-                            emps.forEach(emp => {
-                                // Corrección de Mapeo: employeeName en lugar de name
-                                const empName = emp.employeeName || emp.name || 'N/A';
-                                doc.text(String(empName).toUpperCase(), 20, yPos);
-                                doc.text(String(emp.hours || 0), 190, yPos, { align: "right" });
-                                totalProjectHours += (parseFloat(emp.hours) || 0);
-                                yPos += 8;
-
-                                if (yPos > 270) {
-                                    doc.addPage();
-                                    yPos = 20;
-                                }
-                            });
-
-                            // Total Footer por Proyecto
-                            yPos += 2;
-                            doc.setDrawColor(48, 58, 127);
-                            doc.setLineWidth(0.8);
-                            doc.line(120, yPos, 195, yPos);
-
-                            yPos += 8;
-                            doc.setFontSize(10);
-                            doc.setFont("helvetica", "bold");
-                            doc.setTextColor(48, 58, 127);
-                            doc.text("TOTAL PROJECT HOURS:", 120, yPos);
-                            doc.text(String(totalProjectHours.toFixed(2)), 190, yPos, { align: "right" });
-
-                            yPos += 20;
-                        });
-
-                        const peBase64 = doc.output('datauristring').split(',')[1];
-
-                        // Generar MMDDYY basado en la fecha real extraída al inicio del loop
-                        const dateParts = formatDate(peRealDate).split('/');
-                        const mmddyy = dateParts.length === 3
-                            ? `${dateParts[0]}${dateParts[1]}${dateParts[2].slice(-2)}`
-                            : '000000';
-
+                        const { doc } = generateHoursSpecialProjectPdfDoc(proj, payrollStore);
                         attachments.push({
-                            name: `Hours Report ${proj.Tienda || payrollStore} - Special Project ${mmddyy}.pdf`,
+                            name: peFileName,
                             type: 'application/pdf',
-                            base64: peBase64
+                            base64: doc.output('datauristring').split(',')[1]
                         });
                     } catch (err) {
                         console.error("Error generating Special Project PDF:", err);
                     }
                 });
             }
-
             await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments });
             fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte de Horas', entidadNombre: payrollStore || emailData.subject }) }).catch(() => { });
 
@@ -29502,6 +29782,9 @@ function App() {
                 isSending={isSendingHoursReport}
                 stores={stores}
                 specialProjectsHistoryData={specialProjectsHistoryData}
+                mainPdfBase64={hoursReportPdfBase64}
+                onPreviewAttachment={previewHoursReportAttachment}
+                onDownloadAttachment={downloadHoursReportAttachment}
             />
 
             {/* COMPONENTE OCULTO PARA CAPTURA DE PDF (REPORTE PROFESIONAL) */}
