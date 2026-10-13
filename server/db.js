@@ -145,6 +145,16 @@ try { db.exec(`ALTER TABLE Saldos_Pendientes ADD COLUMN "Pago" TEXT`); } catch (
 try { db.exec(`ALTER TABLE Saldos_Pendientes ADD COLUMN "Fecha de Pago" TEXT`); } catch (_) {}
 try { db.exec(`ALTER TABLE Saldos_Pendientes ADD COLUMN "Sales Order" TEXT`); } catch (_) {}
 
+// Agenda de correos electrónicos (directorio de contactos para los modales de envío)
+db.exec(`CREATE TABLE IF NOT EXISTS Correos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    apellido TEXT NOT NULL,
+    correo TEXT NOT NULL,
+    comentario TEXT,
+    created_at TEXT DEFAULT (datetime('now','localtime'))
+);`);
+
 db.exec(`CREATE TABLE IF NOT EXISTS CRM_Proyectos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,

@@ -7838,6 +7838,492 @@ const VirtualAssistantScheduleModal = ({ isOpen, onClose, vaSchedule = [] }) => 
     );
 };
 
+// ─── AGENDA DE CORREOS: componentes del directorio de contactos ─────────────
+
+// Confirma el borrado de un contacto del directorio (mismo lenguaje visual que EmailNotificationModal)
+const ConfirmDeleteModal = ({ isOpen, title, message, isProcessing = false, onCancel, onConfirm }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[800] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-10 flex flex-col items-center text-center animate-in zoom-in-95 duration-500 border-2 border-white relative overflow-hidden">
+                {/* Background Decor */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full -mr-16 -mt-16 opacity-70" />
+
+                <div className="w-20 h-20 rounded-[1.8rem] flex items-center justify-center mb-8 shadow-2xl transition-all duration-500 relative z-10 bg-red-500 text-white shadow-red-900/20">
+                    <AlertTriangle size={36} className="animate-in zoom-in duration-500" />
+                </div>
+
+                <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-4 relative z-10">{title}</h3>
+                <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-10 uppercase tracking-[0.1em] px-4 relative z-10">{message}</p>
+
+                <div className="grid grid-cols-2 gap-3 w-full relative z-10">
+                    <button
+                        onClick={onCancel}
+                        className="py-4 text-[#303a7f] bg-gray-100 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-200 transition-all active:scale-95 shadow-sm"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={isProcessing}
+                        className={`py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95 ${isProcessing ? 'bg-gray-400 cursor-not-allowed shadow-gray-400/20' : 'bg-red-500 shadow-red-900/20 hover:bg-red-600'}`}
+                    >
+                        {isProcessing ? '...' : 'Eliminar'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Iniciales para el avatar del contacto (Nombre + Apellido)
+const initialsOfContact = (c) => {
+    const n = String(c?.nombre || '').trim().charAt(0).toUpperCase();
+    const a = String(c?.apellido || '').trim().charAt(0).toUpperCase();
+    return `${n}${a}` || '?';
+};
+
+// Directorio de correos: alta, edición y baja de contactos (tabla "Correos")
+const DirectorioCorreosModal = ({ isOpen, onClose, onContactsChanged = () => { } }) => {
+    const [contactos, setContactos] = useState([]);
+    const [isCargando, setIsCargando] = useState(false);
+    const [busqueda, setBusqueda] = useState('');
+    const [vista, setVista] = useState('lista'); // lista | form
+    const [form, setForm] = useState({ id: null, nombre: '', apellido: '', correo: '', comentario: '' });
+    const [formError, setFormError] = useState('');
+    const [isGuardando, setIsGuardando] = useState(false);
+    const [pendienteBorrar, setPendienteBorrar] = useState(null);
+    const [isEliminando, setIsEliminando] = useState(false);
+
+    const loadContactos = async () => {
+        setIsCargando(true);
+        try {
+            const res = await fetch(`${LOCAL_API_BASE}/Correos`);
+            const data = await res.json();
+            const arr = Array.isArray(data) ? data : [];
+            arr.sort((a, b) => `${a.nombre || ''} ${a.apellido || ''}`.toLowerCase().localeCompare(`${b.nombre || ''} ${b.apellido || ''}`.toLowerCase()));
+            setContactos(arr);
+        } catch (e) {
+            console.error('[Directorio Correos] Error al cargar contactos:', e);
+        } finally {
+            setIsCargando(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isOpen) {
+            setVista('lista');
+            setBusqueda('');
+            setForm({ id: null, nombre: '', apellido: '', correo: '', comentario: '' });
+            setFormError('');
+            setPendienteBorrar(null);
+            loadContactos();
+        }
+    }, [isOpen]);
+
+    // Validaciones: obligatorios, formato de correo y correo duplicado
+    const validateForm = () => {
+        const nombre = String(form.nombre || '').trim();
+        const apellido = String(form.apellido || '').trim();
+        const correo = String(form.correo || '').trim();
+        if (!nombre || !apellido) return 'Nombre y Apellido son obligatorios.';
+        if (!correo) return 'El correo es obligatorio.';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) return 'El formato del correo no es válido.';
+        const duplicado = contactos.some(c =>
+            String(c.correo || '').trim().toLowerCase() === correo.toLowerCase() &&
+            String(c.id) !== String(form.id ?? '')
+        );
+        if (duplicado) return 'Ese correo ya está registrado en el directorio.';
+        return '';
+    };
+
+    const handleGuardar = async () => {
+        const error = validateForm();
+        if (error) { setFormError(error); return; }
+
+        setIsGuardando(true);
+        setFormError('');
+        try {
+            const data = {
+                nombre: String(form.nombre || '').trim(),
+                apellido: String(form.apellido || '').trim(),
+                correo: String(form.correo || '').trim(),
+                comentario: String(form.comentario || '').trim()
+            };
+            const payload = form.id
+                ? { action: 'upsert', sheetName: 'Correos', data: { ...data, id: form.id }, matchKeys: ['id'] }
+                : { action: 'upsert', sheetName: 'Correos', data };
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) {
+                const errText = await res.text().catch(() => '');
+                throw new Error(`Error al guardar en Correos: ${errText}`);
+            }
+
+            await loadContactos();
+            onContactsChanged();
+            setVista('lista');
+            setForm({ id: null, nombre: '', apellido: '', correo: '', comentario: '' });
+        } catch (e) {
+            console.error('[Directorio Correos] Error al guardar:', e);
+            setFormError(`No se pudo guardar el contacto: ${e.message}`);
+        } finally {
+            setIsGuardando(false);
+        }
+    };
+
+    const handleEliminar = async () => {
+        if (!pendienteBorrar) return;
+        setIsEliminando(true);
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'delete',
+                    sheetName: 'Correos',
+                    data: { id: pendienteBorrar.id },
+                    matchKeys: ['id']
+                })
+            });
+            if (!res.ok) {
+                const errText = await res.text().catch(() => '');
+                throw new Error(`Error al eliminar en Correos: ${errText}`);
+            }
+
+            await loadContactos();
+            onContactsChanged();
+            setPendienteBorrar(null);
+        } catch (e) {
+            console.error('[Directorio Correos] Error al eliminar:', e);
+            setPendienteBorrar(null);
+        } finally {
+            setIsEliminando(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    const busquedaLower = busqueda.trim().toLowerCase();
+    const listaVisible = busquedaLower
+        ? contactos.filter(c =>
+            `${c.nombre || ''} ${c.apellido || ''}`.toLowerCase().includes(busquedaLower) ||
+            String(c.correo || '').toLowerCase().includes(busquedaLower) ||
+            String(c.comentario || '').toLowerCase().includes(busquedaLower)
+        )
+        : contactos;
+
+    return (
+        <>
+            <div className="fixed inset-0 z-[700] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
+                <div className="bg-white w-full max-w-3xl h-[98vh] rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] border-2 border-white flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
+                    {/* Header */}
+                    <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-[#303a7f] text-white rounded-xl shadow-lg shadow-blue-900/20">
+                                <Mail size={18} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none">Directorio de Correos</h3>
+                                <p className="text-[8px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80 mt-1">{contactos.length} contacto{contactos.length === 1 ? '' : 's'} registrado{contactos.length === 1 ? '' : 's'}</p>
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="p-2.5 rounded-xl transition-all border border-transparent btn-close-danger">
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    {vista === 'lista' && (
+                        <>
+                            {/* Barra de acciones */}
+                            <div className="px-8 py-4 flex items-center gap-3 border-b-2 border-gray-50 shrink-0">
+                                <div className="relative flex-1">
+                                    <input
+                                        type="text"
+                                        value={busqueda}
+                                        onChange={(e) => setBusqueda(e.target.value)}
+                                        placeholder="Buscar por nombre, correo o comentario..."
+                                        className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl pl-10 pr-4 py-2.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs"
+                                    />
+                                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300"><Search size={14} /></div>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setForm({ id: null, nombre: '', apellido: '', correo: '', comentario: '' });
+                                        setFormError('');
+                                        setVista('form');
+                                    }}
+                                    className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 flex items-center gap-2 shrink-0"
+                                >
+                                    <Plus size={14} /> Agregar Contacto
+                                </button>
+                            </div>
+
+                            {/* Lista de contactos */}
+                            <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
+                                {isCargando ? (
+                                    <div className="flex flex-col items-center justify-center py-16 gap-4">
+                                        <Loader2 size={28} className="animate-spin text-[#303a7f]" />
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">Cargando contactos...</p>
+                                    </div>
+                                ) : listaVisible.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-16 gap-4">
+                                        <div className="p-4 bg-gray-50 rounded-3xl text-gray-300"><Mail size={28} /></div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{busquedaLower ? 'Sin coincidencias con tu búsqueda' : 'El directorio está vacío'}</p>
+                                    </div>
+                                ) : (
+                                    listaVisible.map(c => (
+                                        <div key={c.id} className="flex items-center gap-4 px-3 py-3 rounded-2xl hover:bg-gray-50 transition-all group">
+                                            <div className="w-10 h-10 rounded-2xl bg-[#303a7f] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-md shadow-blue-900/10">
+                                                {initialsOfContact(c)}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-black text-[#303a7f] truncate">{String(c.nombre || '').trim()} {String(c.apellido || '').trim()}</p>
+                                                <p className="text-[10px] font-bold text-gray-400 truncate">{String(c.correo || '').trim()}</p>
+                                                {String(c.comentario || '').trim() && (
+                                                    <p className="text-[9px] font-bold text-[#6bbdb7] truncate mt-0.5">{String(c.comentario || '').trim()}</p>
+                                                )}
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setForm({ id: c.id, nombre: c.nombre || '', apellido: c.apellido || '', correo: c.correo || '', comentario: c.comentario || '' });
+                                                    setFormError('');
+                                                    setVista('form');
+                                                }}
+                                                title="Editar contacto"
+                                                className="p-2.5 rounded-xl text-[#303a7f] bg-gray-50 hover:bg-[#303a7f] hover:text-white transition-all shadow-sm active:scale-95"
+                                            >
+                                                <Edit2 size={14} />
+                                            </button>
+                                            <button
+                                                onClick={() => setPendienteBorrar(c)}
+                                                title="Eliminar contacto"
+                                                className="p-2.5 rounded-xl text-gray-300 bg-gray-50 hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-95"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </>
+                    )}
+
+                    {vista === 'form' && (
+                        <>
+                            {/* Formulario Alta/Edición */}
+                            <div className="px-8 py-4 border-b-2 border-gray-50 shrink-0">
+                                <h4 className="text-sm font-black text-[#303a7f] tracking-tighter uppercase">
+                                    {form.id ? 'Editar Contacto' : 'Nuevo Contacto'}
+                                </h4>
+                            </div>
+                            <div className="flex-1 overflow-y-auto px-8 py-6 space-y-4 custom-scrollbar">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Nombre *</label>
+                                        <input
+                                            type="text"
+                                            value={form.nombre}
+                                            onChange={(e) => setForm(prev => ({ ...prev, nombre: e.target.value }))}
+                                            placeholder="Nombre"
+                                            className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Apellido *</label>
+                                        <input
+                                            type="text"
+                                            value={form.apellido}
+                                            onChange={(e) => setForm(prev => ({ ...prev, apellido: e.target.value }))}
+                                            placeholder="Apellido"
+                                            className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Correo *</label>
+                                    <input
+                                        type="email"
+                                        value={form.correo}
+                                        onChange={(e) => setForm(prev => ({ ...prev, correo: e.target.value }))}
+                                        placeholder="ejemplo@correo.com"
+                                        className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Comentario (Opcional)</label>
+                                    <input
+                                        type="text"
+                                        value={form.comentario}
+                                        onChange={(e) => setForm(prev => ({ ...prev, comentario: e.target.value }))}
+                                        placeholder="Ej: Mindy - Cliente KBS"
+                                        className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs"
+                                    />
+                                </div>
+                                {formError && (
+                                    <div className="flex items-center gap-3 px-4 py-3 bg-red-50 rounded-2xl">
+                                        <AlertTriangle size={14} className="text-red-500 shrink-0" />
+                                        <p className="text-[10px] font-black text-red-500 uppercase tracking-wider">{formError}</p>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="px-8 py-6 border-t-2 border-gray-50 flex justify-center gap-4 shrink-0">
+                                <button
+                                    onClick={() => { setVista('lista'); setFormError(''); }}
+                                    className="px-8 py-3.5 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50 active:scale-95"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleGuardar}
+                                    disabled={isGuardando}
+                                    className={`px-8 py-3.5 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-3 active:scale-95 ${isGuardando ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
+                                >
+                                    {isGuardando ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                    {isGuardando ? 'Guardando...' : 'Guardar Contacto'}
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* Confirmación de borrado */}
+            <ConfirmDeleteModal
+                isOpen={!!pendienteBorrar}
+                title="¿Eliminar Contacto?"
+                message={`"${`${pendienteBorrar?.nombre || ''} ${pendienteBorrar?.apellido || ''}`.trim()}" se eliminará del directorio de correos.`}
+                isProcessing={isEliminando}
+                onCancel={() => setPendienteBorrar(null)}
+                onConfirm={handleEliminar}
+            />
+        </>
+    );
+};
+
+// Campo de destinatarios estilo Gmail: chips + sugerencias del directorio al escribir + botón (+) del directorio
+const EmailRecipientsField = ({ value, onChange, contacts = [], onOpenDirectory, placeholder = '', inputType = 'email' }) => {
+    const chips = useMemo(
+        () => String(value || '').split(',').map(t => t.trim()).filter(Boolean),
+        [value]
+    );
+    const [draft, setDraft] = useState('');
+    const [isFocused, setIsFocused] = useState(false);
+
+    const commitDraft = (overrideToken = null) => {
+        const token = String(overrideToken ?? draft).trim().replace(/,+$/, '');
+        const next = [...chips];
+        if (token) {
+            if (!next.some(t => t.toLowerCase() === token.toLowerCase())) next.push(token);
+        }
+        onChange(next.join(', '));
+        setDraft('');
+    };
+
+    const removeChip = (idx) => {
+        const next = chips.filter((_, i) => i !== idx);
+        onChange(next.join(', '));
+    };
+
+    const draftLower = draft.trim().toLowerCase();
+    const selectedLower = chips.map(t => t.toLowerCase());
+    const suggestions = draftLower
+        ? contacts
+            .filter(c => !selectedLower.includes(String(c.correo || '').trim().toLowerCase()) && (
+                String(c.correo || '').toLowerCase().includes(draftLower) ||
+                `${c.nombre || ''} ${c.apellido || ''}`.toLowerCase().includes(draftLower) ||
+                String(c.comentario || '').toLowerCase().includes(draftLower)
+            ))
+            .slice(0, 8)
+        : [];
+
+    return (
+        <div className="relative">
+            <div className="w-full bg-gray-50 border-2 border-transparent rounded-2xl p-2 outline-none focus-within:bg-white focus-within:border-[#303a7f]/10 transition-all shadow-sm flex items-center flex-wrap gap-1.5 cursor-text">
+                {chips.map((chip, idx) => (
+                    <span key={`${chip}-${idx}`} className="flex items-center gap-1.5 bg-white border border-[#303a7f]/10 rounded-full pl-2 pr-1 py-1 shadow-sm max-w-full">
+                        <Mail size={10} className="text-[#6bbdb7]" />
+                        <span className="text-[10px] font-black text-[#303a7f] break-all">{chip}</span>
+                        <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => removeChip(idx)}
+                            title="Quitar destinatario"
+                            className="w-4 h-4 rounded-full bg-gray-100 text-gray-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all shrink-0"
+                        >
+                            <X size={8} />
+                        </button>
+                    </span>
+                ))}
+                <input
+                    type={inputType}
+                    value={draft}
+                    onChange={(e) => {
+                        // La coma confirma el destinatario escrito (como Gmail)
+                        if (e.target.value.endsWith(',')) {
+                            commitDraft(e.target.value.slice(0, -1));
+                        } else {
+                            setDraft(e.target.value);
+                        }
+                    }}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => { setIsFocused(false); if (draft.trim()) commitDraft(); }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (suggestions.length > 0) commitDraft(suggestions[0].correo);
+                            else commitDraft();
+                        } else if (e.key === 'Escape') {
+                            setDraft('');
+                        } else if (e.key === 'Backspace' && draft === '' && chips.length > 0) {
+                            removeChip(chips.length - 1);
+                        }
+                    }}
+                    placeholder={chips.length === 0 ? placeholder : ''}
+                    className="flex-1 min-w-[120px] bg-transparent text-[#303a7f] font-black outline-none py-1 transition-all"
+                />
+                <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={onOpenDirectory}
+                    title="Abrir Directorio de Correos"
+                    className="w-7 h-7 rounded-full bg-[#303a7f]/5 text-[#303a7f] hover:bg-[#303a7f] hover:text-white flex items-center justify-center transition-all shrink-0 active:scale-95"
+                >
+                    <Plus size={14} />
+                </button>
+            </div>
+
+            {/* Sugerencias del directorio (aparecen al escribir) */}
+            {isFocused && suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl border-2 border-gray-100 shadow-[0_20px_60px_rgba(48,58,127,0.15)] z-50 max-h-56 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-1 duration-300">
+                    {suggestions.map((c, i) => (
+                        <div
+                            key={c.id ?? `${c.correo}-${i}`}
+                            onMouseDown={(e) => { e.preventDefault(); commitDraft(c.correo); }}
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#6bbdb7]/10 cursor-pointer transition-all"
+                        >
+                            <div className="w-8 h-8 rounded-xl bg-[#303a7f] text-white flex items-center justify-center font-black text-[10px] shrink-0">
+                                {initialsOfContact(c)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-black text-[#303a7f] truncate">{String(c.nombre || '').trim()} {String(c.apellido || '').trim()}</p>
+                                <p className="text-[9px] font-bold text-gray-400 truncate">{String(c.correo || '').trim()}</p>
+                            </div>
+                            {String(c.comentario || '').trim() && (
+                                <span className="text-[8px] font-black text-[#6bbdb7] uppercase tracking-wider shrink-0" title={String(c.comentario).trim()}>{String(c.comentario).trim()}</span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, defaultTo = '', specialProjectsHistoryData = [] }) => {
     const formatMMDDYY = (dateStr) => {
         if (!dateStr) return "";
@@ -7854,6 +8340,20 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
     const [relevantSpecialProjects, setRelevantSpecialProjects] = useState([]);
+
+    // Agenda de correos: directorio de contactos + modal
+    const [correos, setCorreos] = useState([]);
+    const [isDirectorioOpen, setIsDirectorioOpen] = useState(false);
+    const loadCorreos = async () => {
+        try {
+            const res = await fetch(`${LOCAL_API_BASE}/Correos`);
+            const data = await res.json();
+            setCorreos(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error('[EmailModal] Error al cargar directorio de correos:', e);
+        }
+    };
+    useEffect(() => { if (isOpen) loadCorreos(); }, [isOpen]);
 
     useEffect(() => {
         if (isOpen) {
@@ -7919,6 +8419,12 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     return (
         <div className="fixed inset-0 z-[500] bg-white animate-in slide-in-from-bottom duration-500 overflow-hidden">
             <div className="h-screen flex flex-col bg-gray-50/30">
+                {/* Agenda de Correos: Directorio */}
+                <DirectorioCorreosModal
+                    isOpen={isDirectorioOpen}
+                    onClose={() => setIsDirectorioOpen(false)}
+                    onContactsChanged={loadCorreos}
+                />
                 {/* Header Full Screen */}
                 <div className="px-10 py-5 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
                     <div className="flex items-center gap-4">
@@ -7941,35 +8447,25 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                         {/* To */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
-                            <div className="relative">
-                                <input
-                                    type="email"
-                                    value={to}
-                                    onChange={(e) => setTo(e.target.value)}
-                                    placeholder="ejemplo@kbs-services.com"
-                                    className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
-                                />
-                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]">
-                                    <Send size={16} />
-                                </div>
-                            </div>
+                            <EmailRecipientsField
+                                value={to}
+                                onChange={setTo}
+                                contacts={correos}
+                                onOpenDirectory={() => setIsDirectorioOpen(true)}
+                                placeholder="ejemplo@kbs-services.com"
+                            />
                         </div>
 
                         {/* CC */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Con Copia (CC)</label>
-                            <div className="relative">
-                                <input
-                                    type="email"
-                                    value={cc}
-                                    onChange={(e) => setCc(e.target.value)}
-                                    placeholder="ejemplo@kbs-services.com"
-                                    className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
-                                />
-                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]">
-                                    <Layers size={16} />
-                                </div>
-                            </div>
+                            <EmailRecipientsField
+                                value={cc}
+                                onChange={setCc}
+                                contacts={correos}
+                                onOpenDirectory={() => setIsDirectorioOpen(true)}
+                                placeholder="ejemplo@kbs-services.com"
+                            />
                         </div>
 
                         {/* Subject */}
@@ -8082,6 +8578,20 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
     const [body, setBody] = useState('');
     const [relevantProjects, setRelevantProjects] = useState([]);
 
+    // Agenda de correos: directorio de contactos + modal
+    const [correos, setCorreos] = useState([]);
+    const [isDirectorioOpen, setIsDirectorioOpen] = useState(false);
+    const loadCorreos = async () => {
+        try {
+            const res = await fetch(`${LOCAL_API_BASE}/Correos`);
+            const data = await res.json();
+            setCorreos(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error('[EmailModal] Error al cargar directorio de correos:', e);
+        }
+    };
+    useEffect(() => { if (isOpen) loadCorreos(); }, [isOpen]);
+
     useEffect(() => {
         if (isOpen) {
             const mName = getManager();
@@ -8125,6 +8635,12 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
     return (
         <div className="fixed inset-0 z-[500] bg-white animate-in slide-in-from-bottom duration-500 overflow-hidden">
             <div className="h-screen flex flex-col bg-gray-50/30">
+                {/* Agenda de Correos: Directorio */}
+                <DirectorioCorreosModal
+                    isOpen={isDirectorioOpen}
+                    onClose={() => setIsDirectorioOpen(false)}
+                    onContactsChanged={loadCorreos}
+                />
                 {/* Header Full Screen */}
                 <div className="px-10 py-5 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
                     <div className="flex items-center gap-4">
@@ -8145,17 +8661,23 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                     <div className="space-y-4">
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
-                            <div className="relative">
-                                <input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="ejemplo@correo.com" className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
-                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]"><Send size={16} /></div>
-                            </div>
+                            <EmailRecipientsField
+                                value={to}
+                                onChange={setTo}
+                                contacts={correos}
+                                onOpenDirectory={() => setIsDirectorioOpen(true)}
+                                placeholder="ejemplo@correo.com"
+                            />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Con Copia (CC)</label>
-                            <div className="relative">
-                                <input type="text" value={cc} onChange={(e) => setCc(e.target.value)} placeholder="ejemplo@correo.com, otro@correo.com" className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
-                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]"><Users size={16} /></div>
-                            </div>
+                            <EmailRecipientsField
+                                value={cc}
+                                onChange={setCc}
+                                contacts={correos}
+                                onOpenDirectory={() => setIsDirectorioOpen(true)}
+                                placeholder="ejemplo@correo.com, otro@correo.com"
+                            />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto del Correo</label>
@@ -16531,14 +17053,35 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending, defaultTo = '' }) => {
     // Destinatario siempre en blanco: el usuario lo escribe manualmente
     const [to, setTo] = useState('');
+    const [cc, setCc] = useState('');
     const [subject, setSubject] = useState(`Invoice Special Project #${project.invoice} - ${project.proyecto || project.nombre} - ${project.tienda}`);
     const [body, setBody] = useState(`Hello,\n\nAttached is the Invoice Special Project #${project.invoice} for the professional services of the Special Project "${project.proyecto || project.nombre}" in the ${project.tienda} store.\n\nThank You,\nLogic Group Management`);
+
+    // Agenda de correos: directorio de contactos + modal
+    const [correos, setCorreos] = useState([]);
+    const [isDirectorioOpen, setIsDirectorioOpen] = useState(false);
+    const loadCorreos = async () => {
+        try {
+            const res = await fetch(`${LOCAL_API_BASE}/Correos`);
+            const data = await res.json();
+            setCorreos(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error('[EmailModal] Error al cargar directorio de correos:', e);
+        }
+    };
+    useEffect(() => { if (isOpen) loadCorreos(); }, [isOpen]);
 
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[500] bg-white animate-in slide-in-from-bottom duration-500 overflow-hidden font-sans">
             <div className="h-screen flex flex-col bg-gray-50/30">
+                {/* Agenda de Correos: Directorio */}
+                <DirectorioCorreosModal
+                    isOpen={isDirectorioOpen}
+                    onClose={() => setIsDirectorioOpen(false)}
+                    onContactsChanged={loadCorreos}
+                />
                 {/* Header Full Screen */}
                 <div className="px-10 py-5 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
                     <div className="flex items-center gap-4">
@@ -16561,18 +17104,25 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                         {/* To */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Destinatario</label>
-                            <div className="relative">
-                                <input
-                                    type="email"
-                                    value={to}
-                                    onChange={(e) => setTo(e.target.value)}
-                                    placeholder="ejemplo@kbs-services.com"
-                                    className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
-                                />
-                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]">
-                                    <Send size={16} />
-                                </div>
-                            </div>
+                            <EmailRecipientsField
+                                value={to}
+                                onChange={setTo}
+                                contacts={correos}
+                                onOpenDirectory={() => setIsDirectorioOpen(true)}
+                                placeholder="ejemplo@kbs-services.com"
+                            />
+                        </div>
+
+                        {/* CC */}
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Con Copia (CC)</label>
+                            <EmailRecipientsField
+                                value={cc}
+                                onChange={setCc}
+                                contacts={correos}
+                                onOpenDirectory={() => setIsDirectorioOpen(true)}
+                                placeholder="ejemplo@kbs-services.com"
+                            />
                         </div>
 
                         {/* Subject */}
@@ -16624,7 +17174,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                         Cancelar
                     </button>
                     <button
-                        onClick={() => !isSending && onSend({ to, subject, body })}
+                        onClick={() => !isSending && onSend({ to, cc, subject, body })}
                         disabled={isSending}
                         className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
@@ -16676,7 +17226,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
             const pdf = generateSpecialProjectInvoicePdf({ project, totalKBS: total, kbsId, employees });
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
-            await sendEmail('general', { to: emailData.to, subject: emailData.subject, body: emailData.body, attachments: [{ name: `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
+            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: [{ name: `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
             fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Factura Proyecto Especial', entidadNombre: `${project.tienda} - #${project.invoice}` }) }).catch(() => { });
 
             const reportKey = normalizeKey(project.invoice);

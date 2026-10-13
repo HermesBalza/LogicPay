@@ -80,6 +80,7 @@ const ENTITY_MAP = {
     CRM_Proyectos: 'Proyecto', CRM_Cotizaciones: 'Cotización',
     Notas: 'Nota', NotasLeidas: 'Lectura',
     Gastos_Miscelaneos: 'Gasto Misceláneo',
+    Correos: 'Correo',
 };
 
 function mapEntityName(sheetName) {
@@ -202,7 +203,7 @@ app.get('/api/table-info/:table', (req, res) => {
     'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
     'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
     'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
-    'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios', 'AuditLog'
+    'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios', 'AuditLog', 'Correos'
   ];
 
   if (!allowedTables.includes(table)) {
