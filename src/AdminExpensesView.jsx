@@ -169,6 +169,13 @@ const AdminExpensesView = ({
         setOpenAdd(true);
     };
 
+    // Orden cronológico real: las fechas MM/DD/YYYY son texto y no deben
+    // ordenarse alfabéticamente (12/2025 quedaba encima de 01/2026)
+    const parseFechaGasto = (s) => {
+        const parts = String(s || '').split('/');
+        return parts.length === 3 ? new Date(parts[2], parts[0] - 1, parts[1]) : null;
+    };
+
     const filteredExpenses = useMemo(() => {
         return adminExpenses
             .filter(e => {
@@ -180,9 +187,12 @@ const AdminExpensesView = ({
                 return matchSearch && matchFilter;
             })
             .sort((a, b) => {
-                const dateA = a.fecha || '';
-                const dateB = b.fecha || '';
-                return dateB.localeCompare(dateA);
+                const dateA = parseFechaGasto(a.fecha);
+                const dateB = parseFechaGasto(b.fecha);
+                if (!dateA && !dateB) return 0;
+                if (!dateA) return 1;
+                if (!dateB) return -1;
+                return dateB - dateA;
             });
     }, [adminExpenses, searchTerm, filterCategoria]);
 
