@@ -19475,7 +19475,7 @@ const AdminPayrollView = ({
                             type="file"
                             ref={tdcFileInputRef}
                             onChange={handleTdcFileSelect}
-                            accept=".numbers"
+                            accept=".csv"
                             className="hidden"
                         />
                         <button

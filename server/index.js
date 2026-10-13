@@ -9,6 +9,8 @@ import multer from 'multer';
 import { execFile } from 'child_process';
 import fs from 'fs';
 import os from 'os';
+import csv from 'csv-parser';
+import { Readable } from 'stream';
 import db from './db.js';
 import './init_db.js';
 import { runBackup, backupDatabase, isBackupConfigured, startBackupScheduler, listBackups, getBackupStream } from './backup.js';
@@ -1127,12 +1129,48 @@ if (process.env.NODE_ENV === 'production') {
 // ---------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------
-// Endpoint para parsear archivos .numbers de TDC (Chase)
+// Endpoint para parsear archivos .numbers de TDC (Chase) — versión mobile —
+// y también archivos .csv (Chase) — versión escritorio — con csv-parser en Node.
 app.post('/api/parse-tdc', upload.single('tdcFile'), (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No se recibió ningún archivo.' });
     }
 
+    const fileExt = String(req.file.originalname || '').toLowerCase();
+
+    // --- Rama CSV: parseo directo en Node (mismo JSON que parse_tdc.py) ---
+    if (fileExt.endsWith('.csv')) {
+        let content = req.file.buffer.toString('utf8');
+        // El BOM que algunos export de Chase traen corrompe el primer encabezado
+        if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
+        if (!content.trim()) {
+            return res.status(400).json({ error: 'El archivo CSV está vacío.' });
+        }
+
+        const rows = [];
+        const parser = csv();
+        const source = new Readable();
+        source.push(content);
+        source.push(null);
+
+        parser.on('data', (row) => {
+            // Descartar filas completamente vacías
+            const hasValue = Object.values(row).some(v => String(v || '').trim() !== '');
+            if (hasValue) rows.push(row);
+        });
+        parser.on('error', (err) => {
+            console.error('[parse-tdc] Error parseando CSV:', err.message);
+            if (!res.headersSent) res.status(500).json({ error: 'Error al interpretar el archivo CSV.' });
+        });
+
+        source.pipe(parser);
+        parser.on('end', () => {
+            res.json(rows);
+        });
+        return;
+    }
+
+    // --- Rama .numbers: lógica Python original intacta (mobile) ---
     const tempDir = os.tmpdir();
     const tempFile = path.join(tempDir, `tdc_${Date.now()}.numbers`);
 
