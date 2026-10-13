@@ -8460,13 +8460,13 @@ const vwhChipId = (cand) => `${cand.fileName}_#INV${cand.invoice}`;
 
 // ─── ADJUNTOS ESTILO GMAIL: tira de chips (Previsualizar / Descargar / Quitar / Restaurar) ───
 const GmailAttachmentChip = ({ item, removed, onPreview, onDownload, onRemove, onRestore }) => (    <div
-        className={`relative flex items-center gap-2 bg-white border rounded-full pl-1.5 pr-3 py-1 shadow-sm transition-all group/chip max-w-full ${removed ? 'border-dashed border-gray-300 opacity-40' : 'border-gray-200 hover:shadow-md hover:bg-gray-50'}`}
+        className={`relative flex items-center gap-2 bg-white border rounded-2xl pl-1.5 pr-3 py-1 shadow-sm transition-all group/chip w-full ${removed ? 'border-dashed border-gray-300 opacity-40' : 'border-gray-200 hover:shadow-md hover:bg-gray-50'}`}
     >
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${removed ? 'bg-gray-200 text-gray-400' : 'bg-[#ea4335] text-white shadow-sm'}`}>
             <FileText size={14} />
         </div>
         <div className={`min-w-0 ${removed ? '' : 'pr-[72px]'}`}>
-            <p className={`text-[11px] font-black truncate max-w-[200px] ${removed ? 'line-through text-gray-400' : 'text-[#202124]'}`}>{item.name}</p>
+            <p className={`text-[11px] font-black truncate ${removed ? 'line-through text-gray-400' : 'text-[#202124]'}`}>{item.name}</p>
             <p className="text-[8px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">{item.subtitle || 'PDF'}</p>
         </div>
 
@@ -8524,7 +8524,7 @@ const GmailAttachmentChip = ({ item, removed, onPreview, onDownload, onRemove, o
 );
 
 const AttachmentsGmailStrip = ({ attachments = [], removedIds, onPreview, onDownload, onRemove, onRestore }) => (
-    <div className="flex flex-wrap gap-2 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+    <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
         {attachments.map(item => (
             <GmailAttachmentChip
                 key={item.id}
