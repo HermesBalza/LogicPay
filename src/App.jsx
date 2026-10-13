@@ -8371,6 +8371,10 @@ const EmailRecipientsField = ({ value, onChange, contacts = [], onOpenDirectory,
 
 // Lista de candidatos de Invoice de Proyecto Especial para un correo VWH.
 // MISMA regla en chips, envío y Previsualizar/Descargar: tienda + solape del Periodo del registro.
+// En semanas divididas (split) el Periodo del registro guarda la semana completa, por lo que el
+// solape coincide con ambas partes; en ese caso cada proyecto se asigna a la parte que contiene
+// su fecha interna (Data_JSON.fecha) y se omite de la otra. Sin fecha legible se conserva el
+// criterio por solape del Periodo para no perder adjuntos.
 // Cada candidato lleva su id único (fileName + invoice) para que nombres repetidos nunca se confundan entre semanas.
 const listVWHSpecialProjectCandidates = ({ specialProjectsHistoryData = [], normalizedStore = '', fechaDesde = '', fechaHasta = '' }) => {
     const parsePeriod = (periodStr) => {
@@ -8392,6 +8396,35 @@ const listVWHSpecialProjectCandidates = ({ specialProjectsHistoryData = [], norm
     const vwhEnd = toDateObj(fechaHasta);
     if (!vwhStart || !vwhEnd) return [];
 
+    // Semana dividida: el rango del correo solo recibe el filtro por fecha si es la Parte A
+    // (domingo → dateAEnd) o la Parte B (dateBStart → sábado) del split de esa semana. Como el
+    // rango puede iniciar a mitad de semana (Parte B), se retrocede al domingo de la semana
+    // que lo contiene antes de resolver el split.
+    const weekSunday = new Date(vwhStart);
+    weekSunday.setDate(weekSunday.getDate() - weekSunday.getDay());
+    const split = getSplitInfo(`${String(weekSunday.getMonth() + 1).padStart(2, '0')}/${String(weekSunday.getDate()).padStart(2, '0')}/${weekSunday.getFullYear()}`);
+    let splitPart = null;
+    if (split.hasSplit) {
+        const partAEnd = toDateObj(split.dateAEnd);
+        const partBStart = toDateObj(split.dateBStart);
+        if (partAEnd && vwhEnd.getTime() === partAEnd.getTime()) {
+            splitPart = { start: vwhStart, end: partAEnd };
+        } else if (partBStart && vwhStart.getTime() === partBStart.getTime()) {
+            splitPart = { start: partBStart, end: vwhEnd };
+        }
+    }
+
+    // Fecha interna del proyecto (Data_JSON.fecha): acepta ISO (2026-03-29) o MM/DD/YYYY (04/01/2026)
+    const parseItemFecha = (raw) => {
+        if (!raw) return null;
+        const iso = String(raw).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (iso) {
+            const f = new Date(parseInt(iso[1], 10), parseInt(iso[2], 10) - 1, parseInt(iso[3], 10));
+            return isNaN(f.getTime()) ? null : f;
+        }
+        return toDateObj(raw);
+    };
+
     const candidates = [];
     (specialProjectsHistoryData || []).forEach(record => {
         if (!record) return;
@@ -8404,6 +8437,11 @@ const listVWHSpecialProjectCandidates = ({ specialProjectsHistoryData = [], norm
             const parsed = JSON.parse(record.data_json || record.Data_JSON || '{}');
             (Array.isArray(parsed) ? parsed : [parsed]).forEach(item => {
                 if (!item || !(item.employees || item.providers)) return;
+                // Semana dividida: el proyecto solo se incluye en la parte que contiene su fecha interna
+                if (splitPart) {
+                    const itemFecha = parseItemFecha(item.fecha);
+                    if (itemFecha && (itemFecha < splitPart.start || itemFecha > splitPart.end)) return;
+                }
                 const tiendaRecord = record.tienda || record.Tienda || '';
                 candidates.push({
                     project: { ...item, tienda: tiendaRecord, periodo: record.periodo || record.Periodo || '' },
