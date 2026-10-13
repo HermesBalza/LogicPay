@@ -8369,9 +8369,59 @@ const EmailRecipientsField = ({ value, onChange, contacts = [], onOpenDirectory,
     );
 };
 
+// Lista de candidatos de Invoice de Proyecto Especial para un correo VWH.
+// MISMA regla en chips, envío y Previsualizar/Descargar: tienda + solape del Periodo del registro.
+// Cada candidato lleva su id único (fileName + invoice) para que nombres repetidos nunca se confundan entre semanas.
+const listVWHSpecialProjectCandidates = ({ specialProjectsHistoryData = [], normalizedStore = '', fechaDesde = '', fechaHasta = '' }) => {
+    const parsePeriod = (periodStr) => {
+        const parts = String(periodStr || '').split('-').map(p => p.trim());
+        if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+        const toDate = (s) => {
+            const d = s.split('/');
+            return d.length === 3 ? new Date(d[2], d[0] - 1, d[1]) : null;
+        };
+        const start = toDate(parts[0]);
+        const end = toDate(parts[1]);
+        return start && end ? { start, end } : null;
+    };
+    const toDateObj = (s) => {
+        const d = String(s || '').split('/');
+        return d.length === 3 ? new Date(d[2], d[0] - 1, d[1]) : null;
+    };
+    const vwhStart = toDateObj(fechaDesde);
+    const vwhEnd = toDateObj(fechaHasta);
+    if (!vwhStart || !vwhEnd) return [];
+
+    const candidates = [];
+    (specialProjectsHistoryData || []).forEach(record => {
+        if (!record) return;
+        if (String(record.tienda || record.Tienda || '').trim().toLowerCase() !== normalizedStore) return;
+        const peRange = parsePeriod(record.periodo || record.Periodo);
+        if (!peRange) return;
+        if (!(peRange.start <= vwhEnd && vwhStart <= peRange.end)) return;
+
+        try {
+            const parsed = JSON.parse(record.data_json || record.Data_JSON || '{}');
+            (Array.isArray(parsed) ? parsed : [parsed]).forEach(item => {
+                if (!item || !(item.employees || item.providers)) return;
+                const tiendaRecord = record.tienda || record.Tienda || '';
+                candidates.push({
+                    project: { ...item, tienda: tiendaRecord, periodo: record.periodo || record.Periodo || '' },
+                    fileName: `Invoice Special Project - ${tiendaRecord} - ${item.proyecto || item.nombre}.pdf`,
+                    invoice: item.invoice ?? '',
+                    projectName: item.proyecto || item.nombre || ''
+                });
+            });
+        } catch (e) { }
+    });
+    return candidates;
+};
+
+// Construye la id única de un chip de Invoice P.E. para el correo VWH
+const vwhChipId = (cand) => `${cand.fileName}_#INV${cand.invoice}`;
+
 // ─── ADJUNTOS ESTILO GMAIL: tira de chips (Previsualizar / Descargar / Quitar / Restaurar) ───
-const GmailAttachmentChip = ({ item, removed, onPreview, onDownload, onRemove, onRestore }) => (
-    <div
+const GmailAttachmentChip = ({ item, removed, onPreview, onDownload, onRemove, onRestore }) => (    <div
         className={`relative flex items-center gap-2 bg-white border rounded-full pl-1.5 pr-3 py-1 shadow-sm transition-all group/chip max-w-full ${removed ? 'border-dashed border-gray-300 opacity-40' : 'border-gray-200 hover:shadow-md hover:bg-gray-50'}`}
     >
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${removed ? 'bg-gray-200 text-gray-400' : 'bg-[#ea4335] text-white shadow-sm'}`}>
@@ -8492,7 +8542,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     });
     const attachmentItems = useMemo(() => [
         { id: 'main', name: `${subject || 'Reporte'}.pdf`, subtitle: 'Incluido automáticamente' },
-        ...(relevantSpecialProjects || []).map(p => ({ id: p.fileName, name: p.fileName, subtitle: 'Special Project' }))
+        ...(relevantSpecialProjects || []).map(p => ({ id: p.id, name: p.fileName, subtitle: 'Special Project' }))
     ], [subject, relevantSpecialProjects]);
 
     useEffect(() => {
@@ -8509,45 +8559,19 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
             let newBody = `Hello,\n\nAttached is the Invoice for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nThank You,\nLogic Group Management`;
 
             // Proyectos Especiales de la misma semana (adjuntos junto al VWH)
-            const parsePEPeriodRange = (periodStr) => {
-                const parts = String(periodStr || '').split('-').map(p => p.trim());
-                if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
-                const toDateObj = (s) => {
-                    const d = s.split('/');
-                    return d.length === 3 ? new Date(d[2], d[0] - 1, d[1]) : null;
-                };
-                const start = toDateObj(parts[0]);
-                const end = toDateObj(parts[1]);
-                return start && end ? { start, end } : null;
-            };
-            const toRangeObj = (s) => {
-                const d = String(s || '').split('/');
-                return d.length === 3 ? new Date(d[2], d[0] - 1, d[1]) : null;
-            };
-            const vwhStart = toRangeObj(fechaDesde);
-            const vwhEnd = toRangeObj(fechaHasta);
-
-            const found = [];
-            try {
-                const normalizedStore = String(storeName || '').trim().toLowerCase();
-                (specialProjectsHistoryData || []).forEach(record => {
-                    if (String(record.tienda || record.Tienda || '').trim().toLowerCase() !== normalizedStore) return;
-                    const peRange = parsePEPeriodRange(record.periodo || record.Periodo);
-                    if (!vwhStart || !vwhEnd || !peRange) return;
-                    if (!(peRange.start <= vwhEnd && vwhStart <= peRange.end)) return;
-
-                    try {
-                        const parsed = JSON.parse(record.data_json || record.Data_JSON || '{}');
-                        (Array.isArray(parsed) ? parsed : [parsed]).forEach(item => {
-                            if (!(item.employees || item.providers)) return;
-                            found.push({
-                                label: `#${normalizeInvoice(item.invoice)} - ${item.proyecto || item.nombre}`,
-                                fileName: `Invoice Special Project - ${record.tienda || record.Tienda || ''} - ${item.proyecto || item.nombre}.pdf`
-                            });
-                        });
-                    } catch (e) { }
-                });
-            } catch (e) { }
+            // MISMA regla y candidatos que el envío y Previsualizar/Descargar (helper compartido)
+            const found = listVWHSpecialProjectCandidates({
+                specialProjectsHistoryData,
+                normalizedStore: String(storeName || '').trim().toLowerCase(),
+                fechaDesde,
+                fechaHasta
+            }).map(cand => ({
+                id: vwhChipId(cand),
+                invoice: cand.invoice,
+                projectName: cand.projectName,
+                label: `#${normalizeInvoice(cand.invoice)} - ${cand.projectName}`,
+                fileName: cand.fileName
+            }));
 
             setRelevantSpecialProjects(found);
             if (found.length > 0) {
@@ -9813,72 +9837,38 @@ const VWHTableModal = (props) => {
             }
 
             // --- Proyectos Especiales de la misma semana: adjuntar su Invoice junto al VWH ---
-            const parsePEPeriodRange = (periodStr) => {
-                const parts = String(periodStr || '').split('-').map(p => p.trim());
-                if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
-                const toDateObj = (s) => {
-                    const d = s.split('/');
-                    return d.length === 3 ? new Date(d[2], d[0] - 1, d[1]) : null;
-                };
-                const start = toDateObj(parts[0]);
-                const end = toDateObj(parts[1]);
-                return start && end ? { start, end } : null;
-            };
-            const toVWHDateObj = (s) => {
-                const d = String(s || '').split('/');
-                return d.length === 3 ? new Date(d[2], d[0] - 1, d[1]) : null;
-            };
-            const vwhStart = toVWHDateObj(currentStartDate);
-            const vwhEnd = toVWHDateObj(currentEndDate);
+            // MISMA lista de candidatos que los chips y Previsualizar/Descargar (helper compartido).
+            // Cada invoice se quita/restaura por su id único (fileName + #invoice).
+            const peCandidates = listVWHSpecialProjectCandidates({
+                specialProjectsHistoryData,
+                normalizedStore: normalizeKey(payrollStore),
+                fechaDesde: currentStartDate,
+                fechaHasta: currentEndDate
+            });
 
-            let peInvoiceLabels = [];
+            const peInvoiceLabels = [];
             const specialProjectAttachments = [];
-            try {
-                const normalizedStore = normalizeKey(payrollStore);
-                (specialProjectsHistoryData || []).forEach(record => {
-                    if (normalizeKey(record.tienda || record.Tienda) !== normalizedStore) return;
-                    const peRange = parsePEPeriodRange(record.periodo || record.Periodo);
-                    if (!vwhStart || !vwhEnd || !peRange) return;
-                    if (!(peRange.start <= vwhEnd && vwhStart <= peRange.end)) return;
+            peCandidates.forEach(cand => {
+                try {
+                    if (removedSet.has(vwhChipId(cand))) return;
 
-                    try {
-                        const raw = record.data_json || record.Data_JSON || '{}';
-                        const parsed = JSON.parse(raw);
-                        const items = Array.isArray(parsed) ? parsed : [parsed];
-                        items.forEach(item => {
-                            try {
-                                const project = {
-                                    ...item,
-                                    tienda: record.tienda || record.Tienda || '',
-                                    periodo: record.periodo || record.Periodo || ''
-                                };
-                                if (!(project.employees || project.providers)) return;
-                                // Respetar los adjuntos quitados desde los chips estilo Gmail
-                                const peAttachmentName = `Invoice Special Project - ${project.tienda} - ${project.proyecto || project.nombre}.pdf`;
-                                if (removedSet.has(peAttachmentName)) return;
-                                const peEmpTotal = (project.employees || []).reduce((acc, row) => acc + (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0), 0);
-                                const peProvTotal = (project.providers || []).reduce((acc, row) => acc + (parseFloat(row.rateKBS) || 0), 0);
-                                const peTotal = peEmpTotal + peProvTotal;
-                                const peKbsId = stores.find(s => normalizeKey(s.nombre) === normalizeKey(project.tienda || project.Tienda || project.nombre))?.codigo || '---';
+                    const project = cand.project;
+                    const peEmpTotal = (project.employees || []).reduce((acc, row) => acc + (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0), 0);
+                    const peProvTotal = (project.providers || []).reduce((acc, row) => acc + (parseFloat(row.rateKBS) || 0), 0);
+                    const peTotal = peEmpTotal + peProvTotal;
+                    const peKbsId = stores.find(s => normalizeKey(s.nombre) === normalizeKey(project.tienda || project.Tienda || project.nombre))?.codigo || '---';
 
-                                const pePdf = generateSpecialProjectInvoicePdf({ project, totalKBS: peTotal, kbsId: peKbsId, employees });
-                                specialProjectAttachments.push({
-                                    name: peAttachmentName,
-                                    type: 'application/pdf',
-                                    base64: pePdf.output('datauristring').split(',')[1]
-                                });
-                                peInvoiceLabels.push(`#${normalizeInvoice(project.invoice)} - ${project.proyecto || project.nombre}`);
-                            } catch (itemErr) {
-                                console.error('Error generando Invoice de Proyecto Especial adjunto:', itemErr);
-                            }
-                        });
-                    } catch (jsonErr) {
-                        console.error('Error parseando Proyecto Especial del historial:', jsonErr);
-                    }
-                });
-            } catch (filterErr) {
-                console.error('Error filtrando Proyectos Especiales para el correo VWH:', filterErr);
-            }
+                    const pePdf = generateSpecialProjectInvoicePdf({ project, totalKBS: peTotal, kbsId: peKbsId, employees });
+                    specialProjectAttachments.push({
+                        name: cand.fileName,
+                        type: 'application/pdf',
+                        base64: pePdf.output('datauristring').split(',')[1]
+                    });
+                    peInvoiceLabels.push(`#${normalizeInvoice(cand.invoice)} - ${cand.projectName}`);
+                } catch (itemErr) {
+                    console.error('Error generando Invoice de Proyecto Especial adjunto:', itemErr);
+                }
+            });
 
             const vwhAttachments = [];
             if (!removedSet.has('main')) {
@@ -9931,22 +9921,17 @@ const VWHTableModal = (props) => {
                 return;
             }
 
-            // Factura de Proyecto Especial: localizar el proyecto cuyo nombre coincida con el chip
-            let peProject = null;
-            (specialProjectsHistoryData || []).forEach(record => {
-                if (peProject) return;
-                try {
-                    const parsed = JSON.parse(record.data_json || record.Data_JSON || '{}');
-                    (Array.isArray(parsed) ? parsed : [parsed]).forEach(itemPE => {
-                        if (!(itemPE.employees || itemPE.providers) || peProject) return;
-                        const candidate = `Invoice Special Project - ${record.tienda || record.Tienda || ''} - ${itemPE.proyecto || itemPE.nombre}.pdf`;
-                        if (candidate === id) {
-                            peProject = { ...itemPE, tienda: record.tienda || record.Tienda || '', periodo: record.periodo || record.Periodo || '' };
-                        }
-                    });
-                } catch (e) { }
+            // Factura de Proyecto Especial: resolver por id único del chip
+            // (fileName + #invoice) sobre la MISMA lista de candidatos del envío y los chips
+            const peCandidates = listVWHSpecialProjectCandidates({
+                specialProjectsHistoryData,
+                normalizedStore: normalizeKey(payrollStore),
+                fechaDesde: currentStartDate,
+                fechaHasta: currentEndDate
             });
-            if (!peProject) return;
+            const cand = peCandidates.find(c => vwhChipId(c) === id);
+            if (!cand) return;
+            const peProject = cand.project;
 
             const peEmpTotal = (peProject.employees || []).reduce((acc, row) => acc + (parseFloat(row.hours) || 0) * (parseFloat(row.rateKBS) || 0), 0);
             const peProvTotal = (peProject.providers || []).reduce((acc, row) => acc + (parseFloat(row.rateKBS) || 0), 0);
