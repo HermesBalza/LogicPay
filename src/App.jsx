@@ -7849,8 +7849,8 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
         return `${m}${d}${y}`;
     };
 
-    const [to, setTo] = useState('Mindy.Odom@kbs-services.com');
-    const [cc, setCc] = useState('SYSCO@kbs-services.com');
+    const [to, setTo] = useState('');
+    const [cc, setCc] = useState('');
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
     const [relevantSpecialProjects, setRelevantSpecialProjects] = useState([]);
@@ -7860,7 +7860,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
             const dStart = formatMMDDYY(fechaDesde);
             const dEnd = formatMMDDYY(fechaHasta);
             let newSubject = `INVOICE ${String(storeName || '').toUpperCase()} ${dStart} - ${dEnd}`;
-            let newBody = `Hello, Mindy\n\nAttached is the Invoice for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nThank You,\nLogic Group Management`;
+            let newBody = `Hello,\n\nAttached is the Invoice for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nThank You,\nLogic Group Management`;
 
             // Proyectos Especiales de la misma semana (adjuntos junto al VWH)
             const parsePEPeriodRange = (periodStr) => {
@@ -7946,7 +7946,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                                     type="email"
                                     value={to}
                                     onChange={(e) => setTo(e.target.value)}
-                                    placeholder="Mindy.Odom@kbs-services.com"
+                                    placeholder="ejemplo@kbs-services.com"
                                     className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
                                 />
                                 <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]">
@@ -7963,7 +7963,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                                     type="email"
                                     value={cc}
                                     onChange={(e) => setCc(e.target.value)}
-                                    placeholder="SYSCO@kbs-services.com"
+                                    placeholder="ejemplo@kbs-services.com"
                                     className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-black rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
                                 />
                                 <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6bbdb7]">
@@ -8089,20 +8089,9 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
             const dEnd = formatMMDDYY(fechaHasta);
             const greeting = mName ? `Hello ${mName},` : "Hello,";
 
-            // Asignar email por defecto según manager
-            let emailTo = "";
-            let emailCc = "";
-            if (mName === "Pauline") emailTo = "pauline.ross@kbs-services.com";
-            else if (mName === "Shawna") {
-                emailTo = "spatterson@kbs-services.com";
-                emailCc = "estefanyclgm@gmail.com, GFish@kbs-services.com, mary.alstatt@kbs-services.com";
-            }
-            else if (mName === "Tawana") emailTo = "Tawana.Davis@kbs-services.com";
-            else if (mName === "Christian / Alfredo") emailTo = "christian.madrigal@kbs-services.com, ALitardo@kbs-services.com";
-            else if (mName === "Hugh") emailTo = "";
-
-            setTo(emailTo);
-            setCc(emailCc);
+            // Destinatarios siempre en blanco: el usuario escribe Destinatario y CC manualmente
+            setTo('');
+            setCc('');
             setSubject(`${storeName} Hours Report ${dStart} - ${dEnd}`);
             setBody(`${greeting}\n\nAttached is the Weekly Attendance Report for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nI look forward to your approval.\n\nBest regards,\nLogic Group Management`);
 
@@ -16540,9 +16529,10 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 // ─── Componente del Modal de Factura (Elegante y Premium) ───────────────────
 // ─── Modal Premium de Envío de Factura por Correo ──────────────────────────────
 const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending, defaultTo = '' }) => {
-    const [to, setTo] = useState(defaultTo || '');
+    // Destinatario siempre en blanco: el usuario lo escribe manualmente
+    const [to, setTo] = useState('');
     const [subject, setSubject] = useState(`Invoice Special Project #${project.invoice} - ${project.proyecto || project.nombre} - ${project.tienda}`);
-    const [body, setBody] = useState(`Hello, Mindy\n\nAttached is the Invoice Special Project #${project.invoice} for the professional services of the Special Project "${project.proyecto || project.nombre}" in the ${project.tienda} store.\n\nThank You,\nLogic Group Management`);
+    const [body, setBody] = useState(`Hello,\n\nAttached is the Invoice Special Project #${project.invoice} for the professional services of the Special Project "${project.proyecto || project.nombre}" in the ${project.tienda} store.\n\nThank You,\nLogic Group Management`);
 
     if (!isOpen) return null;
 
