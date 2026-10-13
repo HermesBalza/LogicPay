@@ -8288,17 +8288,17 @@ const EmailRecipientsField = ({ value, onChange, contacts = [], onOpenDirectory,
 
     return (
         <div className="relative">
-            <div className="w-full bg-gray-50 border-2 border-transparent rounded-2xl p-2 outline-none focus-within:bg-white focus-within:border-[#303a7f]/10 transition-all shadow-sm flex items-center flex-wrap gap-1.5 cursor-text">
+            <div className="w-full bg-gray-50 border-2 border-transparent rounded-xl p-1.5 outline-none focus-within:bg-white focus-within:border-[#303a7f]/10 transition-all shadow-sm flex items-center flex-wrap gap-1.5 cursor-text">
                 {chips.map((chip, idx) => (
-                    <span key={`${chip}-${idx}`} className="flex items-center gap-1.5 bg-white border border-[#303a7f]/10 rounded-full pl-2 pr-1 py-1 shadow-sm max-w-full">
+                    <span key={`${chip}-${idx}`} className="flex items-center gap-1.5 bg-white border border-[#303a7f]/10 rounded-full pl-2 pr-1 py-0.5 shadow-sm max-w-full">
                         <Mail size={10} className="text-[#6bbdb7]" />
-                        <span className="text-[10px] font-black text-[#303a7f] break-all">{chip}</span>
+                        <span className="text-[9px] font-black text-[#303a7f] break-all">{chip}</span>
                         <button
                             type="button"
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => removeChip(idx)}
                             title="Quitar destinatario"
-                            className="w-4 h-4 rounded-full bg-gray-100 text-gray-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all shrink-0"
+                            className="w-3.5 h-3.5 rounded-full bg-gray-100 text-gray-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all shrink-0"
                         >
                             <X size={8} />
                         </button>
@@ -8329,16 +8329,16 @@ const EmailRecipientsField = ({ value, onChange, contacts = [], onOpenDirectory,
                         }
                     }}
                     placeholder={chips.length === 0 ? placeholder : ''}
-                    className="flex-1 min-w-[120px] bg-transparent text-[#303a7f] font-black outline-none py-1 transition-all"
+                    className="flex-1 min-w-[120px] bg-transparent text-[#303a7f] font-black outline-none py-0.5 text-[10px] transition-all"
                 />
                 <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={onOpenDirectory}
                     title="Abrir Directorio de Correos"
-                    className="w-7 h-7 rounded-full bg-[#303a7f]/5 text-[#303a7f] hover:bg-[#303a7f] hover:text-white flex items-center justify-center transition-all shrink-0 active:scale-95"
+                    className="w-5 h-5 rounded-full bg-[#303a7f]/5 text-[#303a7f] hover:bg-[#303a7f] hover:text-white flex items-center justify-center transition-all shrink-0 active:scale-95"
                 >
-                    <Plus size={14} />
+                    <Plus size={12} />
                 </button>
             </div>
 
@@ -8645,7 +8645,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                                 type="text"
                                 value={subject}
                                 onChange={(e) => setSubject(e.target.value)}
-                                className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
+                                className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-xl p-1.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-[10px] leading-[14px] shadow-sm"
                             />
                         </div>
 
@@ -8675,17 +8675,17 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                 </div>
 
                 {/* Footer Full Screen - Compacto */}
-                <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
+                <div className="px-10 pb-4 flex justify-center gap-6 shrink-0">
                     <button
                         onClick={onClose}
-                        className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
+                        className="w-48 py-2 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={() => !isSending && onSend({ to, cc, subject, body, removedAttachments: Array.from(removedAttachments) })}
                         disabled={isSending}
-                        className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
+                        className={`w-48 py-2 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
                         {isSending ? (
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -8851,7 +8851,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto del Correo</label>
-                            <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm" />
+                            <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-xl p-1.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-[10px] leading-[14px] shadow-sm" />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Documento Adjunto</label>
@@ -8871,17 +8871,17 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                     </div>
                 </div>
 
-                <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
+                <div className="px-10 pb-4 flex justify-center gap-6 shrink-0">
                     <button
                         onClick={onClose}
-                        className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
+                        className="w-48 py-2 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={() => !isSending && onSend({ to, cc, subject, body, relevantProjects, removedAttachments: Array.from(removedAttachments) })}
                         disabled={isSending}
-                        className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
+                        className={`w-48 py-2 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
                         {isSending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={18} />}
                         {isSending ? 'Enviando...' : 'Enviar Ahora'}
@@ -17448,7 +17448,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                                 type="text"
                                 value={subject}
                                 onChange={(e) => setSubject(e.target.value)}
-                                className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-2xl p-3.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs shadow-sm"
+                                className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-xl p-1.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-[10px] leading-[14px] shadow-sm"
                             />
                         </div>
 
@@ -17478,17 +17478,17 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                 </div>
 
                 {/* Footer Full Screen - Compacto */}
-                <div className="px-10 pb-8 flex justify-center gap-6 shrink-0">
+                <div className="px-10 pb-4 flex justify-center gap-6 shrink-0">
                     <button
                         onClick={onClose}
-                        className="w-48 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
+                        className="w-48 py-2 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border-2 border-red-100/50"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={() => !isSending && onSend({ to, cc, subject, body, removedAttachments: Array.from(removedAttachments) })}
                         disabled={isSending}
-                        className={`w-48 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
+                        className={`w-48 py-2 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
                         {isSending ? (
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
