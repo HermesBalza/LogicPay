@@ -320,6 +320,13 @@ const BalanceView = ({ onClose, historyData = [], specialHistoryData = [], saldo
     }), { radicadas: 0, facturacion: 0, pagado: 0, deMas: 0, deMenos: 0, exactos: 0, pendientes: 0 });
     const generalBalance = totals.pagado - totals.facturacion;
 
+    // Chips superiores: con tienda seleccionada muestran el balance de esa tienda;
+    // en modo General (sin tienda) muestran los totales de la tabla "Balance por Tiendas"
+    const chipRadicadasConPago = selectedStore ? scopeRadicadas - scopePendientes : totals.radicadas - totals.pendientes;
+    const chipFacturacion = selectedStore ? scopeFacturacion : totals.facturacion;
+    const chipPagado = selectedStore ? scopePagado : totals.pagado;
+    const chipBalance = selectedStore ? scopeBalance : generalBalance;
+
     return (
         <div className="fixed inset-0 z-[200] bg-white animate-in fade-in duration-500 overflow-hidden flex flex-col">
             {/* Header Premium */}
@@ -380,20 +387,20 @@ const BalanceView = ({ onClose, historyData = [], specialHistoryData = [], saldo
                 <div className="flex flex-wrap gap-3">
                     <div className="px-4 py-2 bg-[#f9f9f9] rounded-xl border-2 border-transparent">
                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Radicadas con pago</p>
-                        <p className="text-sm font-black text-[#303a7f] tracking-tighter">{scopeRadicadas - scopePendientes}</p>
+                        <p className="text-sm font-black text-[#303a7f] tracking-tighter">{chipRadicadasConPago}</p>
                     </div>
                     <div className="px-4 py-2 bg-[#f9f9f9] rounded-xl border-2 border-transparent">
                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Facturación (Pagada)</p>
-                        <p className="text-sm font-black text-[#303a7f] tracking-tighter">{fmtCurrency(scopeFacturacion)}</p>
+                        <p className="text-sm font-black text-[#303a7f] tracking-tighter">{fmtCurrency(chipFacturacion)}</p>
                     </div>
                     <div className="px-4 py-2 bg-[#f9f9f9] rounded-xl border-2 border-transparent">
                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Total Pagado</p>
-                        <p className="text-sm font-black text-[#303a7f] tracking-tighter">{fmtCurrency(scopePagado)}</p>
+                        <p className="text-sm font-black text-[#303a7f] tracking-tighter">{fmtCurrency(chipPagado)}</p>
                     </div>
-                    <div className={`px-4 py-2 rounded-xl border-2 border-transparent shadow-sm ${scopeBalance < -0.009 ? 'bg-red-50' : 'bg-[#6bbdb7]/5'}`}>
+                    <div className={`px-4 py-2 rounded-xl border-2 border-transparent shadow-sm ${chipBalance < -0.009 ? 'bg-red-50' : 'bg-[#6bbdb7]/5'}`}>
                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Balance</p>
-                        <p className={`text-sm font-black tracking-tighter ${scopeBalance < -0.009 ? 'text-red-500' : 'text-[#6bbdb7]'}`}>
-                            {scopeBalance < 0 ? '-' : '+'}{fmtCurrency(Math.abs(scopeBalance)).replace('$', '$')}
+                        <p className={`text-sm font-black tracking-tighter ${chipBalance < -0.009 ? 'text-red-500' : 'text-[#6bbdb7]'}`}>
+                            {chipBalance < 0 ? '-' : '+'}{fmtCurrency(Math.abs(chipBalance)).replace('$', '$')}
                         </p>
                     </div>
                 </div>
