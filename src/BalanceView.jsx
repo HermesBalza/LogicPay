@@ -451,7 +451,7 @@ const BalanceView = ({ onClose, historyData = [], specialHistoryData = [], saldo
                                             <td className="text-center px-3 py-3 text-[10px] font-black text-gray-500">{s.radicadas}</td>
                                             <td className="text-right px-4 py-3 text-[10px] font-black text-[#303a7f]">{fmtCurrency(s.facturacion)}</td>
                                             <td className="text-right px-4 py-3 text-[10px] font-black text-[#303a7f]">{fmtCurrency(s.pagado)}</td>
-                                            <td className={`text-right px-4 py-3 text-xs font-black ${s.balance < -0.009 ? 'text-red-500' : 'text-[#6bbdb7]'}`}>
+                                            <td className={`text-right px-4 py-3 text-xs font-black ${s.balance < -0.009 ? 'text-red-500' : s.balance > 0.009 ? 'text-green-600' : 'text-[#6bbdb7]'}`}>
                                                 {s.balance < 0 ? '-' : '+'}{fmtCurrency(Math.abs(s.balance))}
                                             </td>
                                             <td className="text-center px-2 py-3 text-[10px] font-black text-green-600">{s.deMas}</td>
@@ -473,7 +473,7 @@ const BalanceView = ({ onClose, historyData = [], specialHistoryData = [], saldo
                                             <td className="text-center px-3 py-3 text-[10px] font-black">{totals.radicadas}</td>
                                             <td className="text-right px-4 py-3 text-[10px] font-black">{fmtCurrency(totals.facturacion)}</td>
                                             <td className="text-right px-4 py-3 text-[10px] font-black">{fmtCurrency(totals.pagado)}</td>
-                                            <td className={`text-right px-4 py-3 text-xs font-black ${generalBalance < -0.009 ? 'text-red-300' : 'text-[#6bbdb7]'}`}>
+                                            <td className={`text-right px-4 py-3 text-xs font-black ${generalBalance < -0.009 ? 'text-red-300' : generalBalance > 0.009 ? 'text-green-300' : 'text-[#6bbdb7]'}`}>
                                                 {generalBalance < 0 ? '-' : '+'}{fmtCurrency(Math.abs(generalBalance))}
                                             </td>
                                             <td className="text-center px-2 py-3 text-[10px] font-black">{totals.deMas}</td>
