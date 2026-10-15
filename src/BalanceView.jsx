@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Scale, X, Receipt, FileText, AlertTriangle } from 'lucide-react';
+import { Scale, X, Receipt, FileText, AlertTriangle, Download } from 'lucide-react';
 
 const rowTotalToNumber = (val) => {
     if (!val) return 0;
@@ -327,6 +327,307 @@ const BalanceView = ({ onClose, historyData = [], specialHistoryData = [], saldo
     const chipPagado = selectedStore ? scopePagado : totals.pagado;
     const chipBalance = selectedStore ? scopeBalance : generalBalance;
 
+    // ─── Exportación a Excel (Balance General + una hoja por tienda) ───
+    const [isExportingBalance, setIsExportingBalance] = useState(false);
+
+    const sanitizeSheetName = (name) => {
+        const clean = String(name || '').replace(/[\\/:*?[\]]/g, ' ').trim().slice(0, 31);
+        return clean || 'Tienda';
+    };
+
+    const handleExportBalanceExcel = async () => {
+        if (isExportingBalance) return;
+        setIsExportingBalance(true);
+        try {
+            // ExcelJS se importa de forma diferida: chunk separado que solo se descarga al exportar
+            const ExcelJS = (await import('exceljs')).default;
+            const wb = new ExcelJS.Workbook();
+            wb.creator = 'LogicPay · Logic Group Management';
+            wb.created = new Date();
+
+            // ─── Paleta LogicPay ───
+            const NAVY = 'FF303A7F', NAVY_DARK = 'FF1E234D', TEAL = 'FF6BBDB7', AMBER = 'FFF59E0B';
+            const WHITE = 'FFFFFFFF', ZEBRA = 'FFF4F6FB', BORDER = 'FFE2E8F0', HEADER_BG = 'FFEFF3FA';
+            const GREEN = 'FF16A34A', RED = 'FFEF4444', GRAY = 'FF9CA3AF', NAVY_TEXT = 'FF303A7F', TEXT_GRAY = 'FF6B7280';
+            const GREEN_L = 'FF86EFAC', RED_L = 'FFFCA5A5';
+            const VWH_BLUE = 'FF2563EB', PE_ORANGE = 'FFC2410C', FECHA_COLOR = 'FF1F9E96';
+            const moneyFmt = '"$"#,##0.00';
+            const borderThin = { style: 'thin', color: { argb: BORDER } };
+            const box = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+            const solid = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+            const genDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+
+            const balanceColor = (v) => (v > 0.009 ? GREEN : v < -0.009 ? RED : TEAL);
+            const ESTADO_EXCEL = {
+                'de-mas': { fill: 'FFECFDF5', font: GREEN },
+                'de-menos': { fill: 'FFFEF2F2', font: RED },
+                'exacto': { fill: 'FFF3F4F6', font: TEXT_GRAY },
+                'pendiente': { fill: 'FFFEF3C7', font: 'FFD97706' }
+            };
+
+            // ══════════ HOJA 1: BALANCE GENERAL ══════════
+            const wsG = wb.addWorksheet('Balance General', { views: [{ state: 'frozen', ySplit: 3 }] });
+            wsG.columns = [{ width: 34 }, { width: 12 }, { width: 8 }, { width: 17 }, { width: 17 }, { width: 15 }, { width: 10 }, { width: 11 }, { width: 10 }, { width: 13 }];
+
+            wsG.mergeCells(1, 1, 1, 10);
+            let bannerCell = wsG.getCell(1, 1);
+            bannerCell.value = 'LOGIC GROUP MANAGEMENT';
+            bannerCell.font = { size: 14, bold: true, color: { argb: WHITE } };
+            bannerCell.fill = solid(NAVY);
+            bannerCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+            wsG.getRow(1).height = 30;
+
+            wsG.mergeCells(2, 1, 2, 10);
+            bannerCell = wsG.getCell(2, 1);
+            bannerCell.value = `Balance General · Facturación Radicada del ${selectedYear} · Generado desde LogicPay · ${genDate}`;
+            bannerCell.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } };
+            bannerCell.fill = solid('FFF8FAFD');
+            bannerCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+            wsG.getRow(2).height = 22;
+
+            const headsG = ['TIENDA', 'CÓDIGO', 'RAD.', 'FACTURACIÓN', 'PAGADO', 'BALANCE', 'DE MÁS', 'DE MENOS', 'EXACTOS', 'PENDIENTES'];
+            const headRowG = wsG.getRow(4);
+            headsG.forEach((h, i) => {
+                const c = headRowG.getCell(i + 1);
+                c.value = h;
+                c.font = { bold: true, size: 9, color: { argb: WHITE } };
+                c.fill = solid(NAVY);
+                c.border = box;
+                c.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'center', indent: i === 0 ? 1 : 0 };
+            });
+            headRowG.height = 20;
+
+            let rG = 5;
+            buildData.summaries.forEach((s, idx) => {
+                const rowG = wsG.getRow(rG);
+                [s.tienda, storeCode(s.tienda) || '—', s.radicadas, s.facturacion, s.pagado, s.balance, s.deMas, s.deMenos, s.exactos, s.pendientes].forEach((v, i) => {
+                    const c = rowG.getCell(i + 1);
+                    c.value = v;
+                    c.border = box;
+                    if (idx % 2 === 1) c.fill = solid(ZEBRA);
+                    if (i === 0) { c.font = { bold: true, size: 10, color: { argb: NAVY_TEXT } }; c.alignment = { vertical: 'middle', indent: 1 }; }
+                    else if (i === 1) { c.font = { size: 9, color: { argb: GRAY } }; c.alignment = { vertical: 'middle', horizontal: 'center' }; }
+                    else if (i === 2) { c.font = { size: 9, bold: true, color: { argb: TEXT_GRAY } }; c.alignment = { vertical: 'middle', horizontal: 'center' }; }
+                    else if (i === 3 || i === 4) { c.numFmt = moneyFmt; c.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } }; c.alignment = { vertical: 'middle', horizontal: 'right' }; }
+                    else if (i === 5) { c.numFmt = moneyFmt; c.font = { size: 10, bold: true, color: { argb: balanceColor(s.balance) } }; c.alignment = { vertical: 'middle', horizontal: 'right' }; }
+                    else { c.font = { size: 9, bold: true, color: { argb: TEXT_GRAY } }; c.alignment = { vertical: 'middle', horizontal: 'center' }; }
+                });
+                rowG.height = 18;
+                rG++;
+            });
+
+            const totalRowG = wsG.getRow(rG);
+            ['TOTAL GENERAL', '', totals.radicadas, totals.facturacion, totals.pagado, generalBalance, totals.deMas, totals.deMenos, totals.exactos, totals.pendientes].forEach((v, i) => {
+                const c = totalRowG.getCell(i + 1);
+                c.value = v;
+                c.fill = solid(NAVY_DARK);
+                c.border = box;
+                c.font = { bold: true, size: 10, color: { argb: WHITE } };
+                c.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : i === 1 ? 'center' : 'right', indent: i === 0 ? 1 : 0 };
+                if (i === 3 || i === 4) c.numFmt = moneyFmt;
+                if (i === 5) { c.numFmt = moneyFmt; c.font = { bold: true, size: 11, color: { argb: generalBalance > 0.009 ? GREEN_L : generalBalance < -0.009 ? RED_L : TEAL } }; }
+            });
+            totalRowG.height = 22;
+            wsG.autoFilter = { from: { row: 4, column: 1 }, to: { row: rG - 1, column: 10 } };
+
+            // ══════════ HOJA POR TIENDA ══════════
+            buildData.summaries.forEach(summary => {
+                const d = buildData.dataByStore[summary.tienda] || { vwh: [], pe: [], saldos: [] };
+                const codigo = storeCode(summary.tienda);
+
+                const secciones = [
+                    {
+                        key: 'vwh', titulo: 'FACTURACIÓN VWH', color: TEAL,
+                        ancho: [22, 13, 15, 15, 14, 13, 13, 16],
+                        kinds: ['text', 'fecha', 'money', 'money', 'fecha', 'text', 'diff', 'estado'],
+                        headers: ['SEMANA', 'RADICACIÓN', 'FACTURACIÓN', 'PAGADO', 'FECHA DE PAGO', 'WOS', 'DIFERENCIA', 'ESTADO'],
+                        filas: (d.vwh || []).map(r => {
+                            const pagadoNum = rowTotalToNumber(r.pagoStr);
+                            const estado = resolveEstado(r.pagoStr, pagadoNum, r.facturacion);
+                            return [r.semana || r.id || '—', r.radicacion || '—', r.facturacion, estado === 'pendiente' ? null : pagadoNum, estado === 'pendiente' ? null : (r.fecha_pago || '—'), r.wos || '—', estado === 'pendiente' ? null : pagadoNum - r.facturacion, estado];
+                        })
+                    },
+                    {
+                        key: 'pe', titulo: 'PROYECTOS ESPECIALES', color: NAVY,
+                        ancho: [10, 28, 14, 15, 15, 14, 13, 13, 16],
+                        kinds: ['text', 'text', 'fecha', 'money', 'money', 'fecha', 'text', 'diff', 'estado'],
+                        headers: ['INVOICE', 'PROYECTO', 'RADICACIÓN', 'FACTURACIÓN', 'PAGADO', 'FECHA DE PAGO', 'WOS', 'DIFERENCIA', 'ESTADO'],
+                        filas: (d.pe || []).map(r => {
+                            const pagadoNum = rowTotalToNumber(r.pagoStr);
+                            const estado = resolveEstado(r.pagoStr, pagadoNum, r.facturacion);
+                            return [`#${r.invoice}`, r.nombre || '—', r.radicacion || '—', r.facturacion, estado === 'pendiente' ? null : pagadoNum, estado === 'pendiente' ? null : (r.fecha_pago || '—'), r.wos || '—', estado === 'pendiente' ? null : pagadoNum - r.facturacion, estado];
+                        })
+                    },
+                    {
+                        key: 'saldos', titulo: 'SALDOS PENDIENTES', color: AMBER,
+                        ancho: [9, 22, 16, 15, 14, 17, 13, 13, 16],
+                        kinds: ['badge', 'text', 'moneySaldo', 'money', 'fecha', 'text', 'text', 'diff', 'estado'],
+                        headers: ['TIPO', 'SEMANA / FECHA', 'FACTURACIÓN (KBS)', 'PAGADO', 'FECHA DE PAGO', 'SALES ORDER', 'WOS', 'DIFERENCIA', 'ESTADO'],
+                        filas: (d.saldos || []).map(r => {
+                            const pagadoNum = rowTotalToNumber(r.pagoStr);
+                            const cobrado = r.pagadoFlag && pagadoNum > 0.009;
+                            const estado = cobrado ? (pagadoNum - r.facturacion > 0.009 ? 'de-mas' : pagadoNum - r.facturacion < -0.009 ? 'de-menos' : 'exacto') : 'pendiente';
+                            return [
+                                r.tipo === 'PE' ? 'P.E.' : 'VWH',
+                                r.tipo === 'PE' ? (r.fechaProyecto || r.radicacion || '—') : (r.semana || r.ref_id || '—'),
+                                r.facturacion,
+                                estado === 'pendiente' ? null : pagadoNum,
+                                estado === 'pendiente' ? null : (r.fecha_pago || '—'),
+                                estado === 'pendiente' ? null : (r.salesOrder || '—'),
+                                estado === 'pendiente' ? null : (r.wos || '—'),
+                                estado === 'pendiente' ? null : pagadoNum - r.facturacion,
+                                estado
+                            ];
+                        })
+                    }
+                ].filter(sec => sec.filas.length > 0);
+
+                const ws = wb.addWorksheet(sanitizeSheetName(summary.tienda));
+                // Anchos por columna: el máximo de las secciones presentes en esa posición
+                ws.columns = Array.from({ length: 9 }, (_, j) => {
+                    const widths = secciones.filter(sec => sec.ancho.length > j).map(sec => sec.ancho[j]);
+                    return { width: widths.length ? Math.max(...widths) : 10 };
+                });
+
+                const mergeBanner = (row, numCols) => {
+                    ws.mergeCells(row, 1, row, numCols);
+                    return ws.getCell(row, 1);
+                };
+                let bannerCellT;
+                const totalCols = 9;
+
+                bannerCellT = mergeBanner(1, totalCols);
+                bannerCellT.value = `${summary.tienda}${codigo ? ` (${codigo})` : ''}`;
+                bannerCellT.font = { size: 14, bold: true, color: { argb: WHITE } };
+                bannerCellT.fill = solid(NAVY);
+                bannerCellT.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+                ws.getRow(1).height = 30;
+
+                bannerCellT = mergeBanner(2, totalCols);
+                bannerCellT.value = `Balance · Facturación Radicada del ${selectedYear} · Generado desde LogicPay · ${genDate}`;
+                bannerCellT.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } };
+                bannerCellT.fill = solid('FFF8FAFD');
+                bannerCellT.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+                ws.getRow(2).height = 22;
+
+                ws.mergeCells(4, 1, 4, totalCols);
+                const resumenCell = ws.getCell(4, 1);
+                resumenCell.value = `RADICADAS ${summary.radicadas}  ·  PENDIENTES ${summary.pendientes}  ·  DE MÁS ${summary.deMas}  ·  DE MENOS ${summary.deMenos}  ·  EXACTOS ${summary.exactos}`;
+                resumenCell.font = { size: 9, bold: true, color: { argb: TEXT_GRAY } };
+                resumenCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+
+                ws.mergeCells(5, 1, 5, 2);
+                let bsCell = ws.getCell(5, 1);
+                bsCell.value = 'FACTURADO / PAGADO';
+                bsCell.font = { size: 9, bold: true, color: { argb: NAVY_TEXT } };
+                bsCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+                bsCell = ws.getCell(5, 3);
+                bsCell.value = `${fmtCurrency(summary.facturacion)} / ${fmtCurrency(summary.pagado)}`;
+                bsCell.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } };
+                bsCell.alignment = { vertical: 'middle', horizontal: 'left' };
+                ws.mergeCells(5, 5, 5, 6);
+                bsCell = ws.getCell(5, 5);
+                bsCell.value = 'BALANCE';
+                bsCell.font = { size: 9, bold: true, color: { argb: NAVY_TEXT } };
+                bsCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+                bsCell = ws.getCell(5, 7);
+                bsCell.value = summary.balance;
+                bsCell.numFmt = moneyFmt;
+                bsCell.font = { size: 11, bold: true, color: { argb: balanceColor(summary.balance) } };
+                bsCell.fill = solid(summary.balance > 0.009 ? 'FFECFDF5' : summary.balance < -0.009 ? 'FFFEF2F2' : 'FFF0FDFA');
+                bsCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+                let r = 7;
+                secciones.forEach(sec => {
+                    const titleCell = mergeBanner(r, sec.ancho.length);
+                    titleCell.value = `${sec.titulo} · RADICADAS DEL ${selectedYear} · ${sec.filas.length} FACTURA${sec.filas.length === 1 ? '' : 'S'}`;
+                    titleCell.fill = solid(sec.color);
+                    titleCell.font = { size: 10, bold: true, color: { argb: WHITE } };
+                    titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+                    ws.getRow(r).height = 20;
+                    r++;
+
+                    const headRow = ws.getRow(r);
+                    sec.headers.forEach((h, i) => {
+                        const c = headRow.getCell(i + 1);
+                        c.value = h;
+                        c.font = { size: 8, bold: true, color: { argb: NAVY_TEXT } };
+                        c.fill = solid(HEADER_BG);
+                        c.border = box;
+                        c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                    });
+                    headRow.height = 20;
+                    r++;
+
+                    sec.filas.forEach((fila, idx) => {
+                        const rowEx = ws.getRow(r);
+                        fila.forEach((v, i) => {
+                            const c = rowEx.getCell(i + 1);
+                            c.border = box;
+                            const kind = sec.kinds[i];
+                            if (idx % 2 === 1) c.fill = solid(ZEBRA);
+                            c.alignment = { vertical: 'middle' };
+                            if (kind === 'money' || kind === 'moneySaldo' || kind === 'diff') {
+                                c.alignment.horizontal = 'right';
+                                if (v === null || v === undefined) {
+                                    c.value = '—';
+                                    c.font = { size: 9, color: { argb: 'FFD1D5DB' } };
+                                } else {
+                                    c.value = v;
+                                    c.numFmt = moneyFmt;
+                                    if (kind === 'moneySaldo') c.font = { size: 10, bold: true, color: { argb: 'FFD97706' } };
+                                    else if (kind === 'money') c.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } };
+                                    else c.font = { size: 10, bold: true, color: { argb: v > 0.009 ? GREEN : v < -0.009 ? RED : TEXT_GRAY } };
+                                }
+                            } else if (kind === 'estado') {
+                                c.alignment.horizontal = 'center';
+                                c.value = ESTADO_LABEL[v] || v;
+                                const estilo = ESTADO_EXCEL[v];
+                                if (estilo) {
+                                    c.fill = solid(estilo.fill);
+                                    c.font = { size: 8, bold: true, color: { argb: estilo.font } };
+                                } else {
+                                    c.font = { size: 8, bold: true, color: { argb: TEXT_GRAY } };
+                                }
+                            } else if (kind === 'badge') {
+                                c.alignment.horizontal = 'center';
+                                c.value = v;
+                                c.font = { size: 8, bold: true, color: { argb: v === 'P.E.' ? PE_ORANGE : VWH_BLUE } };
+                            } else if (kind === 'fecha') {
+                                c.alignment.horizontal = 'center';
+                                c.value = v;
+                                c.font = { size: 9, bold: true, color: { argb: FECHA_COLOR } };
+                            } else {
+                                c.value = v;
+                                c.font = { size: 9, bold: kind === 'text' && i === 0 && sec.key === 'pe', color: { argb: sec.key === 'pe' && i === 1 ? NAVY_TEXT : 'FF4B5563' } };
+                                if (sec.key === 'pe' && i === 1) c.alignment.horizontal = 'left';
+                            }
+                        });
+                        rowEx.height = 16;
+                        r++;
+                    });
+                    r++; // espacio entre secciones
+                });
+            });
+
+            // ─── Descarga ───
+            const buffer = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Balance_LogicPay_${selectedYear}_${genDate.replace(/\//g, '-')}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (e) {
+            console.error('[Balance] Error exportando Excel:', e);
+        } finally {
+            setIsExportingBalance(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[200] bg-white animate-in fade-in duration-500 overflow-hidden flex flex-col">
             {/* Header Premium */}
@@ -345,12 +646,23 @@ const BalanceView = ({ onClose, historyData = [], specialHistoryData = [], saldo
                         </div>
                     </div>
                 </div>
-                <button
-                    onClick={onClose}
-                    className="group p-3 rounded-xl transition-all active:scale-95 shadow-sm border-2 btn-close-danger flex items-center justify-center"
-                >
-                    <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleExportBalanceExcel}
+                        disabled={isExportingBalance}
+                        className="px-5 py-3 rounded-xl bg-[#303a7f] text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md shadow-blue-900/10 hover:bg-[#1e234d] active:scale-95 transition-all disabled:opacity-60 disabled:cursor-wait"
+                        title="Descarga el Balance General y una hoja por cada tienda en un archivo Excel"
+                    >
+                        <Download size={14} />
+                        {isExportingBalance ? 'Exportando…' : 'Exportar Balance'}
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="group p-3 rounded-xl transition-all active:scale-95 shadow-sm border-2 btn-close-danger flex items-center justify-center"
+                    >
+                        <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
+                    </button>
+                </div>
             </div>
 
             {/* Filtros: Tienda + Año */}
