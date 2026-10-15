@@ -83,7 +83,8 @@ import {
     Cloud,
     RefreshCw,
     Link,
-    Undo2
+    Undo2,
+    Scale
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -97,6 +98,7 @@ import Notes from './Notes.jsx';
 import ResumenView from './ResumenView.jsx';
 import CRMView from './CRMView.jsx';
 import AdminExpensesView from './AdminExpensesView.jsx';
+import BalanceView from './BalanceView.jsx';
 import NotificationBell from './NotificationBell.jsx';
 import PixelCat from './PixelCat.jsx';
 
@@ -15738,7 +15740,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     );
 };
 
-const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [], onOpenBilling = () => { }, onOpenWOS = () => { }, nominaDetailData = [], payrollDrafts = {}, user = null }) => {
+const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [], onOpenBilling = () => { }, onOpenWOS = () => { }, onOpenBalance = () => { }, nominaDetailData = [], payrollDrafts = {}, user = null }) => {
     const [selectedYear, setSelectedYear] = useState(2026);
     const [forcedBiweeks, setForcedBiweeks] = useState({});
     if (!isOpen) return null;
@@ -15936,6 +15938,13 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                     >
                         <LayoutGrid size={16} />
                         WOS
+                    </button>
+                    <button
+                        onClick={onOpenBalance}
+                        className="h-[44px] px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg bg-[#303a7f] text-white shadow-blue-900/10 hover:bg-[#252a5e]"
+                    >
+                        <Scale size={16} />
+                        Balance
                     </button>
                     <button
                         onClick={() => onOpenBilling(selectedYear)}
@@ -22072,6 +22081,7 @@ function App() {
 
     // Controles de Visibilidad del Modal de Facturación
     const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+    const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
     const [showSaldosPendientes, setShowSaldosPendientes] = useState(false);
     const [saldosPendientesData, setSaldosPendientesData] = useState([]);
     const [billingFilterYear, setBillingFilterYear] = useState(new Date().getFullYear());
@@ -27761,6 +27771,7 @@ function App() {
                 nominaDetailData={nominaDetailDataRaw}
                                 payrollDrafts={payrollDrafts}
                                 onOpenBilling={(year) => { setBillingFilterYear(year); setIsBillingModalOpen(true); }}
+                                onOpenBalance={() => setIsBalanceModalOpen(true)}
                                 onOpenWOS={() => setIsWOSOpen(true)}
                                 manualData={billingManualRecords}
                                 onUpdateManual={(week, field, val) => {
@@ -28728,6 +28739,7 @@ function App() {
                 nominaDetailData={nominaDetailDataRaw}
                 payrollDrafts={payrollDrafts}
                 onOpenBilling={() => setIsBillingModalOpen(true)}
+                onOpenBalance={() => setIsBalanceModalOpen(true)}
                 onOpenWOS={() => setIsWOSOpen(true)}
                 manualData={billingManualRecords}
                 onUpdateManual={(week, field, val) => {
@@ -28987,6 +28999,17 @@ function App() {
                         />
                     </div>
                 </div>
+            )}
+
+            {/* FASE BALANCE: VIEW FULL SCREEN */}
+            {isBalanceModalOpen && (
+                <BalanceView
+                    onClose={() => setIsBalanceModalOpen(false)}
+                    historyData={nominaHistoryData}
+                    specialHistoryData={specialProjectsHistoryData}
+                    saldosPendientesData={saldosPendientesData}
+                    stores={stores}
+                />
             )}
 
             {/* SALDOS PENDIENTES */}
