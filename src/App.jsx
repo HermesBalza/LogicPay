@@ -22223,6 +22223,7 @@ function App() {
     // Eliminación de dependencia de Local Storage para Facturación
     const [billingManualRecords, setBillingManualRecords] = useState({});
     const [billingPEManualRecords, setBillingPEManualRecords] = useState({});
+    const [isExportingBillingExcel, setIsExportingBillingExcel] = useState(false);
     const [specialProjectsHistoryData, setSpecialProjectsHistoryData] = useState([]); // FASE 10: Historial P.E
     const [wosHistoryData, setWosHistoryData] = useState([]); // FASE 12: Historial WOS
 
@@ -25382,12 +25383,15 @@ function App() {
 
     };
 
-    const handleExportBillingExcel = () => {
+    // ─── Exportación "Facturación Radicada" (ExcelJS con el mismo nivel de diseño del Balance) ───
+    const handleExportBillingExcel = async () => {
+        if (isExportingBillingExcel) return;
         if (!selectedHistoryStore) {
             showError("Seleccione una tienda primero.");
             return;
         }
-
+        setIsExportingBillingExcel(true);
+        try {
         // --- Helpers del contexto de Billing para extracción limpia ---
         function rowTotalToNumber(val) {
             if (!val) return 0;
@@ -25493,16 +25497,369 @@ function App() {
         // Limpiar el campo temporal
         peProcessedRows.forEach(r => delete r._invoiceNum);
 
-        // --- Generación del Excel ---
-        const wb = XLSX.utils.book_new();
-        const ws1 = XLSX.utils.json_to_sheet(vwhDataForExcel);
-        const ws2 = XLSX.utils.json_to_sheet(peProcessedRows);
+        // ─── Generación del Excel (ExcelJS cargado de forma diferida, mismo diseño del Balance) ───
+        const ExcelJS = (await import('exceljs')).default;
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'LogicPay · Logic Group Management';
+        wb.created = new Date();
 
-        XLSX.utils.book_append_sheet(wb, ws1, "Facturación VWH");
-        XLSX.utils.book_append_sheet(wb, ws2, "Proyectos Especiales");
+        // Paleta LogicPay idéntica a la exportación de Balance
+        const NAVY = 'FF303A7F', NAVY_DARK = 'FF1E234D', TEAL = 'FF6BBDB7', AMBER = 'FFF59E0B';
+        const WHITE = 'FFFFFFFF', ZEBRA = 'FFF4F6FB', BORDER = 'FFE2E8F0', HEADER_BG = 'FFEFF3FA';
+        const GREEN = 'FF16A34A', RED = 'FFEF4444', NAVY_TEXT = 'FF303A7F', TEXT_GRAY = 'FF6B7280';
+        const VWH_BLUE = 'FF2563EB', PE_ORANGE = 'FFC2410C', FECHA_COLOR = 'FF1F9E96';
+        const moneyFmt = '"$"#,##0.00';
+        const borderThin = { style: 'thin', color: { argb: BORDER } };
+        const box = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+        const solid = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+        const genDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+        const numCell = (v) => (Number.isFinite(v) ? v : (parseFloat(String(v ?? '').replace(/[^0-9.-]+/g, '')) || 0));
+        const ESTADO_LABEL = { 'de-mas': 'Pagado de más', 'de-menos': 'Pagado de menos', 'exacto': 'Pagado exacto', 'pendiente': 'Pendiente' };
+        const ESTADO_EXCEL = { 'de-mas': { fill: 'FFECFDF5', font: GREEN }, 'de-menos': { fill: 'FFFEF2F2', font: RED }, 'exacto': { fill: 'FFF3F4F6', font: TEXT_GRAY }, 'pendiente': { fill: 'FFFEF3C7', font: 'FFD97706' } };
+        const STATUS_BG = { 'Paid': { fill: 'FFECFDF5', font: GREEN }, 'Due': { fill: 'FFFEF3C7', font: 'FFD97706' } };
 
+        const codigoStore = ((stores || []).find(s => String(s.nombre || '').trim().toLowerCase() === String(selectedHistoryStore || '').trim().toLowerCase()) || {}).codigo || '';
+
+        // Estado por fila: misma regla del Balance (Pago registrado vs Facturación)
+        const estadoDeFila = (pagoBruto, facturacion) => {
+            const pagado = numCell(pagoBruto);
+            if (String(pagoBruto ?? '').trim() === '') return { estado: 'pendiente', pago: null };
+            const diff = pagado - facturacion;
+            return { estado: diff > 0.009 ? 'de-mas' : diff < -0.009 ? 'de-menos' : 'exacto', pago: pagado };
+        };
+
+        const putBanner = (ws, numCols) => {
+            ws.mergeCells(1, 1, 1, numCols);
+            let c = ws.getCell(1, 1);
+            c.value = 'LOGIC GROUP MANAGEMENT';
+            c.font = { size: 14, bold: true, color: { argb: WHITE } };
+            c.fill = solid(NAVY);
+            c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+            ws.getRow(1).height = 30;
+
+            ws.mergeCells(2, 1, 2, numCols);
+            c = ws.getCell(2, 1);
+            c.value = `Facturación Radicada · ${selectedHistoryStore}${codigoStore ? ` (${codigoStore})` : ''} · Generado desde LogicPay · ${genDate}`;
+            c.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } };
+            c.fill = solid('FFF8FAFD');
+            c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+            ws.getRow(2).height = 22;
+        };
+
+        // Resumen: solo línea de conteos (sin montos ni balance, design/visual igual al Balance)
+        const putResumen = (ws, numCols, chips) => {
+            ws.mergeCells(4, 1, 4, numCols);
+            const c = ws.getCell(4, 1);
+            c.value = chips;
+            c.font = { size: 9, bold: true, color: { argb: TEXT_GRAY } };
+            c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        };
+
+        const paintDataCell = (c, v, kind) => {
+            c.alignment = { vertical: 'middle' };
+            switch (kind) {
+                case 'textoWrap':
+                    c.value = (v === null || v === undefined || String(v).trim() === '') ? '—' : v;
+                    c.font = { size: 9, bold: true, color: { argb: NAVY_TEXT } };
+                    c.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+                    break;
+                case 'text':
+                    c.value = (v === null || v === undefined || String(v).trim() === '') ? '—' : v;
+                    c.font = { size: 9, color: { argb: 'FF4B5563' } };
+                    c.alignment = { vertical: 'middle', horizontal: 'left' };
+                    break;
+                case 'textC':
+                    c.value = (v === null || v === undefined || String(v).trim() === '') ? '—' : v;
+                    c.font = { size: 9, color: { argb: 'FF4B5563' } };
+                    c.alignment = { vertical: 'middle', horizontal: 'center' };
+                    break;
+                case 'fecha':
+                    c.value = (v === null || v === undefined || String(v).trim() === '') ? '—' : v;
+                    c.font = { size: 9, bold: true, color: { argb: FECHA_COLOR } };
+                    c.alignment = { vertical: 'middle', horizontal: 'center' };
+                    break;
+                case 'horas':
+                    c.value = numCell(v);
+                    c.numFmt = '#,##0.0';
+                    c.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } };
+                    c.alignment = { vertical: 'middle', horizontal: 'right' };
+                    break;
+                case 'money':
+                case 'moneyBase':
+                case 'moneyTeal':
+                case 'moneyAmber':
+                case 'diff':
+                    c.alignment = { vertical: 'middle', horizontal: 'right' };
+                    if (kind !== 'moneyAmber' && (v === null || v === undefined)) {
+                        c.value = '—';
+                        c.font = { size: 9, color: { argb: 'FFD1D5DB' } };
+                    } else {
+                        c.value = numCell(v);
+                        c.numFmt = moneyFmt;
+                        if (kind === 'money') c.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } };
+                        else if (kind === 'moneyBase') c.font = { size: 10, bold: true, color: { argb: 'FF475569' } };
+                        else if (kind === 'moneyTeal') c.font = { size: 10, bold: true, color: { argb: 'FF0F9488' } };
+                        else if (kind === 'moneyAmber') c.font = { size: 10, bold: true, color: { argb: 'FFD97706' } };
+                        else c.font = { size: 10, bold: true, color: { argb: numCell(v) > 0.009 ? GREEN : numCell(v) < -0.009 ? RED : TEXT_GRAY } };
+                    }
+                    break;
+                case 'badge':
+                    c.value = (v === null || v === undefined || String(v).trim() === '') ? '—' : v;
+                    c.font = { size: 8, bold: true, color: { argb: String(v).trim() === 'P.E.' ? PE_ORANGE : VWH_BLUE } };
+                    c.alignment = { vertical: 'middle', horizontal: 'center' };
+                    break;
+                case 'estado': {
+                    c.value = ESTADO_LABEL[v] || v || '—';
+                    c.alignment = { vertical: 'middle', horizontal: 'center' };
+                    const est = ESTADO_EXCEL[v];
+                    if (est) { c.fill = solid(est.fill); c.font = { size: 8, bold: true, color: { argb: est.font } }; }
+                    else c.font = { size: 8, bold: true, color: { argb: TEXT_GRAY } };
+                    break;
+                }
+                case 'estadoPg': {
+                    c.value = (v === null || v === undefined || String(v).trim() === '') ? '—' : v;
+                    c.alignment = { vertical: 'middle', horizontal: 'center' };
+                    const estPg = STATUS_BG[String(v).trim()];
+                    if (estPg) { c.fill = solid(estPg.fill); c.font = { size: 8, bold: true, color: { argb: estPg.font } }; }
+                    else c.font = { size: 8, bold: true, color: { argb: TEXT_GRAY } };
+                    break;
+                }
+                default:
+                    c.value = v ?? null;
+            }
+        };
+
+        const putSectionTable = (ws, startRow, sec) => {
+            let r = startRow;
+
+            ws.mergeCells(r, 1, r, sec.ancho.length);
+            const bandCell = ws.getCell(r, 1);
+            bandCell.value = sec.titulo;
+            bandCell.fill = solid(sec.color);
+            bandCell.font = { size: 10, bold: true, color: { argb: WHITE } };
+            bandCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+            ws.getRow(r).height = 20;
+            r++;
+
+            const headRow = ws.getRow(r);
+            sec.headers.forEach((h, i) => {
+                const c = headRow.getCell(i + 1);
+                c.value = h;
+                c.font = { size: 8, bold: true, color: { argb: NAVY_TEXT } };
+                c.fill = solid(HEADER_BG);
+                c.border = box;
+                c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            });
+            headRow.height = 20;
+            r++;
+
+            const rowHeight = sec.kinds.includes('textoWrap') ? 26 : 16;
+            sec.filas.forEach((fila, idx) => {
+                const rowEx = ws.getRow(r);
+                fila.forEach((v, i) => {
+                    const c = rowEx.getCell(i + 1);
+                    c.border = box;
+                    if (idx % 2 === 1 && sec.kinds[i] !== 'estado' && sec.kinds[i] !== 'estadoPg') c.fill = solid(ZEBRA);
+                    paintDataCell(c, v, sec.kinds[i]);
+                });
+                rowEx.height = rowHeight;
+                r++;
+            });
+
+            if (sec.filas.length > 0) {
+                ws.autoFilter = { from: { row: startRow + 1, column: 1 }, to: { row: r - 1, column: sec.ancho.length } };
+            }
+
+            const totalRow = ws.getRow(r);
+            sec.totales.forEach((vT, i) => {
+                const c = totalRow.getCell(i + 1);
+                c.value = vT === '' ? null : vT;
+                c.fill = solid(NAVY_DARK);
+                c.border = box;
+                c.font = { bold: true, size: 10, color: { argb: WHITE } };
+                c.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right', indent: i === 0 ? 1 : 0 };
+                const kind = sec.kinds[i];
+                if (kind === 'money' || kind === 'moneyBase' || kind === 'moneyTeal' || kind === 'moneyAmber' || kind === 'diff') c.numFmt = moneyFmt;
+                if (kind === 'horas') c.numFmt = '#,##0.0';
+            });
+            totalRow.height = 22;
+        };
+
+        const statsDeTabla = (filas, idxFact, pagoDesdeEstado) => filas.reduce((acc, x) => {
+            if (x.st.estado === 'pendiente') { acc.pendientes++; return acc; }
+            if (x.st.estado === 'de-mas') acc.deMas++;
+            else if (x.st.estado === 'de-menos') acc.deMenos++;
+            else acc.exactas++;
+            acc.facturado += numCell(x.fila[idxFact]);
+            acc.pagado += (pagoDesdeEstado ? (x.st.pago || 0) : numCell(x.fila[6]));
+            return acc;
+        }, { deMas: 0, deMenos: 0, exactas: 0, pendientes: 0, facturado: 0, pagado: 0 });
+
+
+        // ═══ HOJA 1: FACTURACIÓN VWH (mismos datos y columnas de siempre, diseño nuevo) ═══
+        const vwhConEstado = vwhDataForExcel.map(r => {
+            const st = estadoDeFila(r['Pago'], numCell(r['Facturación (KBS)']));
+            return {
+                st,
+                fila: [
+                    String(r['Fecha Rad.'] ?? '').trim(),
+                    String(r['Semana Facturada'] ?? '').trim(),
+                    numCell(r['Horas']),
+                    numCell(r['Facturación (KBS)']),
+                    numCell(r['Costos (LGM)']),
+                    numCell(r['Utilidad']),
+                    st.pago,
+                    String(r['Fecha de Pago'] ?? '').trim(),
+                    (r['WOS'] === 0 || String(r['WOS'] ?? '').trim() === '') ? '' : String(r['WOS']).trim(),
+                    String(r['Status'] ?? '')
+                ]
+            };
+        });
+        const vwhStats = statsDeTabla(vwhConEstado, 3, true);
+        const vwhSumCol = (i) => vwhConEstado.reduce((a, x) => a + numCell(x.fila[i]), 0);
+        const vwhSumPago = vwhConEstado.reduce((a, x) => a + (x.st.pago || 0), 0);
+
+        const ws1 = wb.addWorksheet('Facturación VWH', { views: [{ state: 'frozen', ySplit: 7 }] });
+        const anchoVWH = [13, 24, 8, 16, 16, 14, 13, 15, 12, 14];
+        ws1.columns = anchoVWH.map(w => ({ width: w }));
+        putBanner(ws1, anchoVWH.length);
+        putResumen(
+            ws1, anchoVWH.length,
+            `RADICADAS ${vwhConEstado.length} · PAGADO DE MÁS ${vwhStats.deMas} · PAGADO DE MENOS ${vwhStats.deMenos} · EXACTAS ${vwhStats.exactas} · PENDIENTES ${vwhStats.pendientes}`
+        );
+        ws1.getRow(5).height = 8;
+        putSectionTable(ws1, 6, {
+            color: TEAL,
+            titulo: `FACTURACIÓN VWH · ${vwhConEstado.length} FACTURA${vwhConEstado.length === 1 ? '' : 'S'}`,
+            ancho: anchoVWH,
+            kinds: ['fecha', 'text', 'horas', 'money', 'money', 'diff', 'money', 'fecha', 'textC', 'estadoPg'],
+            headers: ['FECHA RAD.', 'SEMANA FACTURADA', 'HORAS', 'FACTURACIÓN (KBS)', 'COSTOS (LGM)', 'UTILIDAD', 'PAGO', 'FECHA DE PAGO', 'WOS', 'STATUS'],
+            filas: vwhConEstado.map(x => x.fila),
+            totales: ['TOTAL GENERAL', '', vwhSumCol(2), vwhSumCol(3), vwhSumCol(4), vwhSumCol(5), vwhSumPago, '', '', '']
+        });
+
+        // ═══ HOJA 2: PROYECTOS ESPECIALES (mismos datos y columnas de siempre, diseño nuevo) ═══
+        const peConEstado = peProcessedRows.map(r => {
+            const st = estadoDeFila(r['Pago'], numCell(r['Facturación (KBS)']));
+            return {
+                st,
+                fila: [
+                    String(r['Fecha Rad.'] ?? '').trim(),
+                    String(r['Nombre del Proyecto'] ?? '').trim(),
+                    numCell(r['Horas']),
+                    numCell(r['Facturación (KBS)']),
+                    numCell(r['Costos (LGM)']),
+                    numCell(r['Utilidad']),
+                    st.pago,
+                    String(r['Fecha de Pago'] ?? '').trim(),
+                    (r['WOS'] === 0 || String(r['WOS'] ?? '').trim() === '') ? '' : String(r['WOS']).trim(),
+                    String(r['Status'] ?? '')
+                ]
+            };
+        });
+        const peStats = statsDeTabla(peConEstado, 3, true);
+        const peSumCol = (i) => peConEstado.reduce((a, x) => a + numCell(x.fila[i]), 0);
+        const peSumPago = peConEstado.reduce((a, x) => a + (x.st.pago || 0), 0);
+
+        const ws2 = wb.addWorksheet('Proyectos Especiales', { views: [{ state: 'frozen', ySplit: 7 }] });
+        const anchoPE = [13, 30, 8, 16, 16, 14, 13, 15, 12, 14];
+        ws2.columns = anchoPE.map(w => ({ width: w }));
+        putBanner(ws2, anchoPE.length);
+        putResumen(
+            ws2, anchoPE.length,
+            `RADICADAS ${peConEstado.length} · PAGADO DE MÁS ${peStats.deMas} · PAGADO DE MENOS ${peStats.deMenos} · EXACTAS ${peStats.exactas} · PENDIENTES ${peStats.pendientes}`
+        );
+        ws2.getRow(5).height = 8;
+        putSectionTable(ws2, 6, {
+            color: NAVY,
+            titulo: `PROYECTOS ESPECIALES · ${peConEstado.length} FACTURA${peConEstado.length === 1 ? '' : 'S'}`,
+            ancho: anchoPE,
+            kinds: ['fecha', 'textoWrap', 'horas', 'money', 'money', 'diff', 'money', 'fecha', 'textC', 'estadoPg'],
+            headers: ['FECHA RAD.', 'PROYECTO / INVOICE', 'HORAS', 'FACTURACIÓN (KBS)', 'COSTOS (LGM)', 'UTILIDAD', 'PAGO', 'FECHA DE PAGO', 'WOS', 'STATUS'],
+            filas: peConEstado.map(x => x.fila),
+            totales: ['TOTAL GENERAL', '', peSumCol(2), peSumCol(3), peSumCol(4), peSumCol(5), peSumPago, '', '', '']
+        });
+
+        // ═══ HOJA 3: SALDOS PENDIENTES (misma regla exacta de la pantalla Saldos Pendientes) ═══
+        // Registros de la tienda con saldo activo (> 0). Los datos registrados (Pago,
+        // Fecha de Pago, Sales Order, WOS) se muestran SIEMPRE, tal como los pinta la
+        // pantalla, provenientes tanto de la auditoría WOS como de la edición manual;
+        // la pildora STATUS refleja el cobro confirmado con la casilla manual (una vez
+        // marcada compara el Pago registrado contra el saldo pendiente).
+        const saldoMontoOf = (val) => (typeof val === 'number' ? val : numCell(val));
+        const storeFilterExport = String(selectedHistoryStore || '').trim().toLowerCase();
+        const saldoConEstado = (saldosPendientesData || [])
+            .filter(r => r && String(r.tienda || '').trim().toLowerCase() === storeFilterExport && saldoMontoOf(r.saldo_pendiente) > 0.009)
+            .map(r => {
+                const saldoMonto = saldoMontoOf(r.saldo_pendiente);
+                const pagadoFlag = r.pagado === 1 || r.pagado === true;
+                const pagoNumSaldo = numCell(r['Pago']);
+                const cobrado = pagadoFlag && pagoNumSaldo > 0.009;
+                const diffSaldo = pagoNumSaldo - saldoMonto;
+                const estadoSaldo = cobrado ? (diffSaldo > 0.009 ? 'de-mas' : diffSaldo < -0.009 ? 'de-menos' : 'exacto') : 'pendiente';
+                return {
+                    estado: estadoSaldo,
+                    fila: [
+                        String(r.tipo || '').trim().toUpperCase() === 'PE' ? 'P.E.' : 'VWH',
+                        String(r.fecha_rad || '').trim(),
+                        String(r.semana_facturada || '').trim() || String(r.ref_id || '').replace(/^'+/, '').trim() || 'P.E.',
+                        saldoMontoOf(r.facturacion_kbs),
+                        saldoMontoOf(r.pago_recibido),
+                        saldoMonto,
+                        pagoNumSaldo,
+                        String(r['Fecha de Pago'] ?? '').trim(),
+                        String(r['Sales Order'] ?? '').trim(),
+                        String(r.wos ?? '').trim(),
+                        estadoSaldo
+                    ]
+                };
+            });
+        const saldoStats = saldoConEstado.reduce((acc, x) => {
+            acc.saldoTotal += numCell(x.fila[5]);
+            acc.factKBS += numCell(x.fila[3]);
+            acc.pagoRecibido += numCell(x.fila[4]);
+            acc.pagadoRegistrado += numCell(x.fila[6]);
+            if (x.estado === 'pendiente') acc.pendientes++;
+            else { acc.cobrados++; acc.pagadoCobrado += numCell(x.fila[6]); }
+            return acc;
+        }, { saldoTotal: 0, factKBS: 0, pagoRecibido: 0, pagadoRegistrado: 0, pagadoCobrado: 0, cobrados: 0, pendientes: 0 });
+
+        const wsSaldo = wb.addWorksheet('Saldos Pendientes', { views: [{ state: 'frozen', ySplit: 7 }] });
+        const anchoSaldo = [8, 13, 24, 16, 15, 16, 13, 15, 16, 10, 12];
+        wsSaldo.columns = anchoSaldo.map(w => ({ width: w }));
+        putBanner(wsSaldo, anchoSaldo.length);
+        putResumen(
+            wsSaldo, anchoSaldo.length,
+            `REGISTROS ${saldoConEstado.length} · COBRADOS ${saldoStats.cobrados} · PENDIENTES ${saldoStats.pendientes}`
+        );
+        wsSaldo.getRow(5).height = 8;
+        putSectionTable(wsSaldo, 6, {
+            color: AMBER,
+            titulo: `SALDOS PENDIENTES · ${saldoConEstado.length} REGISTRO${saldoConEstado.length === 1 ? '' : 'S'}`,
+            ancho: anchoSaldo,
+            kinds: ['badge', 'fecha', 'text', 'moneyBase', 'moneyTeal', 'moneyAmber', 'money', 'fecha', 'textC', 'textC', 'estado'],
+            headers: ['TIPO', 'FECHA RAD.', 'SEMANA / REF', 'FACTURACIÓN (KBS)', 'PAGO RECIBIDO', 'SALDO PENDIENTE', 'PAGO', 'FECHA DE PAGO', 'SALES ORDER', 'WOS', 'STATUS'],
+            filas: saldoConEstado.map(x => x.fila),
+            totales: ['TOTAL GENERAL', '', '', saldoStats.factKBS, saldoStats.pagoRecibido, saldoStats.saldoTotal, saldoStats.pagadoRegistrado, '', '', '', '']
+        });
+
+        // ─── Descarga ───
         const fileName = `Facturacion_Radicada_${selectedHistoryStore.replace(/\s+/g, '_')}_${new Date().getTime()}.xlsx`;
-        XLSX.writeFile(wb, fileName);
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (e) {
+            console.error('[Billing] Error exportando Excel de Facturación Radicada:', e);
+        } finally {
+            setIsExportingBillingExcel(false);
+        }
     };
 
     // ─── API: Cargar todas las tiendas desde SQLite ────
@@ -28949,9 +29306,10 @@ function App() {
                             </button>
                             <button
                                 onClick={handleExportBillingExcel}
-                                className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 animate-in fade-in zoom-in duration-700"
+                                disabled={isExportingBillingExcel}
+                                className="px-5 py-2.5 bg-[#6bbdb7] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#59aba5] transition-all shadow-lg shadow-teal-900/10 active:scale-95 animate-in fade-in zoom-in duration-700 disabled:opacity-60 disabled:cursor-wait"
                             >
-                                Exportar Facturación Radicada
+                                {isExportingBillingExcel ? 'Exportando…' : 'Exportar Facturación Radicada'}
                             </button>
                             <button
                                 onClick={() => setIsBillingModalOpen(false)}
