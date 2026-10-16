@@ -3838,6 +3838,20 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
         const vwhEntries = selectedEntries.filter(e => e.source === 'VWH');
         const peEntries = selectedEntries.filter(e => e.source === 'P.E.');
+        const saldoEntries = selectedEntries.filter(e => e.source === 'PENDIENTE');
+
+        // El ID del match (prefijo + índices: N/S/D) solo puede codificar un tipo.
+        // Una selección que mezcle VWH, P.E. y Saldos Pendientes se rechaza con aviso
+        // para que ningún pago anunciado quede sin registrar.
+        const tiposMezcladosMM = [vwhEntries.length > 0, peEntries.length > 0, saldoEntries.length > 0].filter(Boolean).length > 1;
+        if (tiposMezcladosMM) {
+            setNotificationModal({
+                isOpen: true,
+                type: 'error',
+                message: "El Match Múltiple requiere facturas del mismo tipo. Selecciona solo facturas VWH, solo Proyectos Especiales o solo Saldos Pendientes."
+            });
+            return;
+        }
 
         if (vwhEntries.length >= 2 && peEntries.length === 0) {
             const idxs = vwhEntries
@@ -3882,6 +3896,111 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             };
 
             onAcceptPayment(row, wosData);
+        }
+
+        // === MATCH MÚLTIPLE P.E. (2+ Proyectos Especiales pagados por un mismo WOS) ===
+        // Mismo patrón del match múltiple VWH: ID compuesto 'S-idxA+idxB', fila con todas
+        // las facturas cruzadas y el pago pasando por el flujo normal de Aceptar Pago.
+        if (peEntries.length >= 2) {
+            const idxs = peEntries
+                .map(e => {
+                    // La identidad de la entrada es 'PE|Correlativo|Periodo' (llave de availableForManualMatch),
+                    // misma llave usada para resolver el índice real en el historial P.E.
+                    const [, corrE, periodE] = String(e._mmKey || '').split('|');
+                    const normMM = (v) => String(v || '').replace(/^'+/, '').trim();
+                    return specialProjectsHistoryData.findIndex(h =>
+                        normMM(h.Correlativo || h.correlativo) === normMM(corrE) &&
+                        String(h.Periodo || '').trim() === String(periodE || '').trim()
+                    );
+                })
+                .filter(i => i >= 0)
+                .sort((a, b) => a - b);
+
+            if (idxs.length >= 2) {
+                const newMatchId = 'S-' + idxs.join('+');
+
+                const updatedServices = wosServices.map(s =>
+                    s === wosService ? { ...s, matchedLgmId: newMatchId } : s
+                );
+                setWosServices(updatedServices);
+
+                const newAuditedIds = [...(wosData.auditedLgmIds || []), newMatchId];
+                const newWosData = { ...wosData, auditedLgmIds: newAuditedIds };
+                setWosData(newWosData);
+
+                handleAutoSaveWOS(newWosData, updatedServices);
+
+                const originalRecords = idxs.map(i => specialProjectsHistoryData[i]).filter(Boolean);
+                const wosAmount = parseFloat(wosService.amount) || 0;
+
+                const row = {
+                    key: newMatchId,
+                    type: 'P.E.',
+                    storeName: originalRecords[0].tienda || originalRecords[0].Tienda || '',
+                    kbsAnnounced: wosAmount,
+                    matchedNominaRecord: null,
+                    matchedNominaRecords: [],
+                    matchedPERecord: originalRecords[0],
+                    matchedPERecords: originalRecords,
+                    matchedSaldoRecord: null,
+                    rawServices: [wosService],
+                    descriptions: [wosService.serviceDescription || ''],
+                    lgmBilled: peEntries.reduce((sum, e) => sum + (e.Pago_KBS || 0), 0),
+                    diff: wosAmount - peEntries.reduce((sum, e) => sum + (e.Pago_KBS || 0), 0),
+                    storeCode: '',
+                    serviceDates: originalRecords.map(r => r.periodo || r.Periodo || '').filter(Boolean).join(' | ')
+                };
+
+                onAcceptPayment(row, wosData);
+            }
+        }
+
+        // === MATCH MÚLTIPLE SALDOS PENDIENTES (2+ saldos pagados por un mismo WOS) ===
+        // Mismo patrón: ID compuesto 'D-idxA+idxB' con la suma de los saldos seleccionados.
+        if (saldoEntries.length >= 2) {
+            const idxs = saldoEntries
+                .map(e => saldosPendientesData.findIndex(s => String(s.id) === String(e._pendienteId ?? e.id)))
+                .filter(i => i >= 0)
+                .sort((a, b) => a - b);
+
+            if (idxs.length >= 2) {
+                const newMatchId = 'D-' + idxs.join('+');
+
+                const updatedServices = wosServices.map(s =>
+                    s === wosService ? { ...s, matchedLgmId: newMatchId } : s
+                );
+                setWosServices(updatedServices);
+
+                const newAuditedIds = [...(wosData.auditedLgmIds || []), newMatchId];
+                const newWosData = { ...wosData, auditedLgmIds: newAuditedIds };
+                setWosData(newWosData);
+
+                handleAutoSaveWOS(newWosData, updatedServices);
+
+                const originalRecords = idxs.map(i => saldosPendientesData[i]).filter(Boolean);
+                const wosAmount = parseFloat(wosService.amount) || 0;
+
+                const row = {
+                    key: newMatchId,
+                    type: 'PENDIENTE',
+                    storeName: originalRecords[0].tienda || originalRecords[0].ref_id || '',
+                    kbsAnnounced: wosAmount,
+                    matchedNominaRecord: null,
+                    matchedNominaRecords: [],
+                    matchedPERecord: null,
+                    matchedPERecords: [],
+                    matchedSaldoRecord: originalRecords[0],
+                    matchedSaldoRecords: originalRecords,
+                    rawServices: [wosService],
+                    descriptions: [wosService.serviceDescription || ''],
+                    lgmBilled: saldoEntries.reduce((sum, e) => sum + (e.Pago_KBS || 0), 0),
+                    diff: wosAmount - saldoEntries.reduce((sum, e) => sum + (e.Pago_KBS || 0), 0),
+                    storeCode: '',
+                    serviceDates: originalRecords.map(r => r.semana_facturada || r.fecha_rad || '').filter(Boolean).join(' | ')
+                };
+
+                onAcceptPayment(row, wosData);
+            }
         }
 
         setIsManualMatchModalOpen(false);
@@ -4219,6 +4338,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
             let matchedPERecord = null;
             let matchedPERecords = [];
             let matchedSaldoRecord = null;
+            let matchedSaldoRecords = [];
             let type = 'Sin Registro';
             let lgmBilled = 0;
             let storeCode = group.wosRows[0].locationId || '';
@@ -4254,13 +4374,16 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                         period = records.map(r => r.periodo).filter(Boolean).join(' | ');
                     }
                 } else if (pfx === 'D') {
-                    const saldo = indices.map(i => saldosPendientesData[i]).find(Boolean);
-                    matchedSaldoRecord = saldo || null;
-                    if (saldo) {
+                    // Match múltiple de Saldos Pendientes: el ID puede traer varios índices
+                    // ('D-3+7'); se cruzan TODOS los saldos y la facturación es la suma.
+                    const saldoRecords = indices.map(i => saldosPendientesData[i]).filter(Boolean);
+                    matchedSaldoRecords = saldoRecords;
+                    matchedSaldoRecord = saldoRecords[0] || null;
+                    if (saldoRecords.length > 0) {
                         type = 'PENDIENTE';
-                        lgmBilled = parseFloat(saldo.saldo_pendiente) || 0;
-                        storeName = saldo.tienda || saldo.ref_id || '';
-                        period = saldo.semana_facturada || saldo.fecha_rad || '';
+                        lgmBilled = saldoRecords.reduce((sum, s) => sum + (parseFloat(s.saldo_pendiente) || 0), 0);
+                        storeName = saldoRecords[0].tienda || saldoRecords[0].ref_id || '';
+                        period = saldoRecords.map(s => s.semana_facturada || s.fecha_rad || '').filter(Boolean).join(' | ');
                     }
                 }
             }
@@ -4281,6 +4404,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                 matchedPERecord,
                 matchedPERecords,
                 matchedSaldoRecord,
+                matchedSaldoRecords,
                 rawServices: group.wosRows
             };
         });
@@ -5384,19 +5508,19 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                                         </td>
                                                     </tr>
                                                 ))}
-                                                {selectedWosGroup.type === 'PENDIENTE' && selectedWosGroup.matchedSaldoRecord && (
-                                                    <tr key={`pend-0`} className="hover:bg-gray-50/50 transition-colors">
+                                                {selectedWosGroup.type === 'PENDIENTE' && (selectedWosGroup.matchedSaldoRecords && selectedWosGroup.matchedSaldoRecords.length > 0 ? selectedWosGroup.matchedSaldoRecords : selectedWosGroup.matchedSaldoRecord ? [selectedWosGroup.matchedSaldoRecord] : []).map((rec, idx) => (
+                                                    <tr key={`pend-${idx}`} className="hover:bg-gray-50/50 transition-colors">
                                                         <td className="px-4 py-3">
                                                             <span className="inline-block px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-amber-50 text-amber-600 border border-amber-100">SALDO</span>
                                                         </td>
-                                                        <td className="px-4 py-3 text-[10px] font-black text-[#303a7f] uppercase">{selectedWosGroup.matchedSaldoRecord.tienda || '---'}</td>
-                                                        <td className="px-4 py-3 text-[9px] font-bold text-gray-500 whitespace-nowrap">{selectedWosGroup.matchedSaldoRecord.semana_facturada || selectedWosGroup.matchedSaldoRecord.fecha_rad || '---'}</td>
-                                                        <td className="px-4 py-3 text-[9px] font-bold text-gray-500 font-mono">{selectedWosGroup.matchedSaldoRecord.ref_id || '---'}</td>
+                                                        <td className="px-4 py-3 text-[10px] font-black text-[#303a7f] uppercase">{rec.tienda || '---'}</td>
+                                                        <td className="px-4 py-3 text-[9px] font-bold text-gray-500 whitespace-nowrap">{rec.semana_facturada || rec.fecha_rad || '---'}</td>
+                                                        <td className="px-4 py-3 text-[9px] font-bold text-gray-500 font-mono">{rec.ref_id || '---'}</td>
                                                         <td className="px-4 py-3 text-[10px] font-black text-[#6bbdb7] text-right tabular-nums whitespace-nowrap">
-                                                            ${parseFloat(selectedWosGroup.matchedSaldoRecord.saldo_pendiente || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            ${parseFloat(rec.saldo_pendiente || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         </td>
                                                     </tr>
-                                                )}
+                                                ))}
                                             </tbody>
                                             <tfoot className="bg-gray-50/60 border-t-2 border-gray-100">
                                                 <tr>
@@ -25140,72 +25264,120 @@ function App() {
             setIsSyncingBilling(true);
 
         } else if (row.type === 'P.E.') {
-            const record = row.matchedPERecord;
-            if (!record) return;
+            const records = (row.matchedPERecords && row.matchedPERecords.length > 0)
+                ? row.matchedPERecords
+                : (row.matchedPERecord ? [row.matchedPERecord] : []);
+            if (records.length === 0) return;
 
-            // Actualizar estado local para feedback inmediato.
-            setSpecialProjectsHistoryData(prev => prev.map(h =>
-                (String(h.correlativo || h.Correlativo || '').trim() === String(record.correlativo || record.Correlativo || '').trim())
-                    ? { ...h, "pago": paymentAmount, "fecha de pago": paymentDate, "wos": wosNumber, "Sales Order": salesOrder }
-                    : h
-            ));
+            // Facturación KBS del P.E.: mismo criterio de la selección del Match Manual
+            // (total_kbs del ítem cuando existe, o horas × rateKBS por empleado,
+            // más el monto KBS de proveedores) para prorratear con la misma regla
+            // del match múltiple VWH: cada factura su monto propio y la última
+            // absorbe el restante, garantizando que la suma sea el WOS anunciado.
+            const getPEKBSAmount = (rec) => {
+                try {
+                    const raw = JSON.parse(rec.data_json || rec.Data_JSON || '{}');
+                    const items = Array.isArray(raw) ? raw : [raw];
+                    const factEmpleados = items.reduce((acc, item) => {
+                        if (!item) return acc;
+                        if ((parseFloat(item.total_kbs) || 0) > 0) return acc + (parseFloat(item.total_kbs) || 0);
+                        const emps = Array.isArray(item.employees) ? item.employees : [];
+                        return acc + emps.reduce((a, emp) => a + ((parseFloat(emp.hours) || 0) * (parseFloat(emp.rateKBS) || 0)), 0);
+                    }, 0);
+                    const factProveedores = items.reduce((acc, item) => {
+                        if (!item) return acc;
+                        const provs = Array.isArray(item.providers) ? item.providers : [];
+                        return acc + provs.reduce((a, p) => a + (parseFloat(p.rateKBS) || 0), 0);
+                    }, 0);
+                    return factEmpleados + factProveedores;
+                } catch (e) { }
+                return 0;
+            };
 
-            // FIX Bug #1 y #4: Construir el payload completo AHORA, en el momento del click,
-            // cuando `record` contiene los datos 100% correctos.
-            // Un solo objeto en cola elimina las condiciones de carrera de 3 POSTs separados.
-            const correlativoPEClean = String(record.correlativo || record.Correlativo || '').replace(/^'+/, '').trim();
-            pePendingSaveRef.current.push({
-                __prebuilt: true,
-                "ID_Consolidacion": record.id_consolidacion || record.ID_Consolidacion || '',
-                "Tienda": record.tienda || record.Tienda || '',
-                "Periodo": record.periodo || record.Periodo || '',
-                "Data_JSON": record.data_json || record.Data_JSON || '{}',
-                "Fecha_Confirmacion": record.fecha_confirmacion || record.Fecha_Confirmacion || '',
-                "Correlativo": correlativoPEClean,
-                "Fecha Rad.": record['fecha rad.'] || record['Fecha Rad.'] || '',
-                "Pago": paymentAmount,
-                "Fecha de Pago": paymentDate,
-                "WOS": wosNumber,
-                "Sales Order": salesOrder,
-                "Status": record['Status'] || record['status'] || 'Due',
-                auditAccion: 'Aceptó pago de WOS',
-                auditEntidad: 'P.E.',
-                auditEntidadNombre: `${record.tienda || record.Tienda || ''} ${record.periodo || record.Periodo || ''}`
+            let remainingPE = paymentAmount;
+            records.forEach((record, idx) => {
+                const isLastPE = idx === records.length - 1;
+                const peKbsAmount = getPEKBSAmount(record);
+                const pagoPE = isLastPE ? remainingPE : peKbsAmount;
+                remainingPE -= pagoPE;
+
+                // Actualizar estado local para feedback inmediato.
+                setSpecialProjectsHistoryData(prev => prev.map(h =>
+                    (String(h.correlativo || h.Correlativo || '').trim() === String(record.correlativo || record.Correlativo || '').trim())
+                        ? { ...h, "pago": pagoPE, "fecha de pago": paymentDate, "wos": wosNumber, "Sales Order": salesOrder }
+                        : h
+                ));
+
+                // FIX Bug #1 y #4: Construir el payload completo AHORA, en el momento del click,
+                // cuando `record` contiene los datos 100% correctos.
+                // Un objeto en cola por registro elimina las condiciones de carrera de POSTs separados.
+                const correlativoPEClean = String(record.correlativo || record.Correlativo || '').replace(/^'+/, '').trim();
+                pePendingSaveRef.current.push({
+                    __prebuilt: true,
+                    "ID_Consolidacion": record.id_consolidacion || record.ID_Consolidacion || '',
+                    "Tienda": record.tienda || record.Tienda || '',
+                    "Periodo": record.periodo || record.Periodo || '',
+                    "Data_JSON": record.data_json || record.Data_JSON || '{}',
+                    "Fecha_Confirmacion": record.fecha_confirmacion || record.Fecha_Confirmacion || '',
+                    "Correlativo": correlativoPEClean,
+                    "Fecha Rad.": record['fecha rad.'] || record['Fecha Rad.'] || '',
+                    "Pago": pagoPE,
+                    "Fecha de Pago": paymentDate,
+                    "WOS": wosNumber,
+                    "Sales Order": salesOrder,
+                    "Status": record['Status'] || record['status'] || 'Due',
+                    auditAccion: 'Aceptó pago de WOS',
+                    auditEntidad: 'P.E.',
+                    auditEntidadNombre: `${record.tienda || record.Tienda || ''} ${record.periodo || record.Periodo || ''}`
+                });
             });
 
             setIsSyncingPE(true);
         } else if (row.type === 'PENDIENTE') {
-            const saldo = row.matchedSaldoRecord;
-            if (!saldo) return;
-
-            const saldoId = saldo.id;
+            const saldos = (row.matchedSaldoRecords && row.matchedSaldoRecords.length > 0)
+                ? row.matchedSaldoRecords
+                : (row.matchedSaldoRecord ? [row.matchedSaldoRecord] : []);
+            if (saldos.length === 0) return;
 
             // Registro del pago anunciado por el documento WOS en la fila del saldo:
             // WOS del PDF + Fecha de Pago del PDF + Sales Order del servicio matcheado + Pago (monto anunciado).
             // No se tocan pago_recibido / saldo_pendiente (gobierna su lógica desde la radicación
             // vía /api/sync-saldos-pendientes), ni el Status (exclusivo del checkbox manual),
             // ni la radicación subyacente.
+            // Con varios saldos (match múltiple) se prorratea con la misma regla VWH:
+            // cada saldo su monto propio y el último absorbe el restante del WOS anunciado.
             const rawServicesSaldo = Array.isArray(row.rawServices) ? row.rawServices : [];
             const lastServiceSaldo = rawServicesSaldo[rawServicesSaldo.length - 1] || null;
             const salesOrderSaldo = (lastServiceSaldo && lastServiceSaldo.salesOrder) || '';
-            setSaldosPendientesData(prev => prev.map(r =>
-                String(r.id) === String(saldoId)
-                    ? { ...r, wos: wosNumber, 'Pago': paymentAmount, 'Fecha de Pago': paymentDate, 'Sales Order': salesOrderSaldo, updated_at: new Date().toISOString() }
-                    : r
-            ));
 
-            // Persistir el saldo actualizado en la tabla Saldos_Pendientes
-            fetch(API_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({
-                    action: 'upsert',
-                    sheetName: 'Saldos_Pendientes',
-                    data: { id: saldoId, wos: wosNumber, 'Pago': paymentAmount, 'Fecha de Pago': paymentDate, 'Sales Order': salesOrderSaldo, updated_at: new Date().toISOString() },
-                    matchKeys: ['id']
-                })
-            }).catch(() => { });
+            let remainingSaldo = paymentAmount;
+            saldos.forEach((saldo, idx) => {
+                const isLastSaldo = idx === saldos.length - 1;
+                const saldoPendiente = parseFloat(saldo.saldo_pendiente) || 0;
+                const pagoSaldo = isLastSaldo ? remainingSaldo : saldoPendiente;
+                remainingSaldo -= pagoSaldo;
+
+                const saldoId = saldo.id;
+
+                setSaldosPendientesData(prev => prev.map(r =>
+                    String(r.id) === String(saldoId)
+                        ? { ...r, wos: wosNumber, 'Pago': pagoSaldo, 'Fecha de Pago': paymentDate, 'Sales Order': salesOrderSaldo, updated_at: new Date().toISOString() }
+                        : r
+                ));
+
+                // Persistir el saldo actualizado en la tabla Saldos_Pendientes
+                fetch(API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        action: 'upsert',
+                        sheetName: 'Saldos_Pendientes',
+                        data: { id: saldoId, wos: wosNumber, 'Pago': pagoSaldo, 'Fecha de Pago': paymentDate, 'Sales Order': salesOrderSaldo, updated_at: new Date().toISOString() },
+                        matchKeys: ['id']
+                    })
+                }).catch(() => { });
+            });
         }
 
     };
