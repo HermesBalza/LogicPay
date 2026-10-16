@@ -14,6 +14,7 @@ import { Readable } from 'stream';
 import db from './db.js';
 import './init_db.js';
 import { runBackup, backupDatabase, isBackupConfigured, startBackupScheduler, listBackups, getBackupStream } from './backup.js';
+import { EMAIL_SIGNATURES, getSignatureById } from './emailSignatures.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -587,10 +588,28 @@ app.post('/api/gemini/generate', async (req, res) => {
   }
 });
 
+// GET /api/email-signatures — firmas disponibles (selector + vista previa en el frontend)
+app.get('/api/email-signatures', (req, res) => {
+  try {
+    const signatures = EMAIL_SIGNATURES.map(({ id, userId, nombre, html }) => ({ id, userId, nombre, html }));
+    res.json({ success: true, signatures });
+  } catch (error) {
+    console.error('Error reading email signatures:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Escapa el cuerpo en texto plano para incrustarlo de forma segura en el HTML del correo
+const escapeHtml = (text) => String(text ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;');
+
 // POST /api/send-email — proxies email sending via Google Apps Script (webhook URLs never exposed to frontend)
 app.post('/api/send-email', async (req, res) => {
   try {
-    const { purpose, to, cc, subject, body, attachments } = req.body;
+    const { purpose, to, cc, subject, body, attachments, signatureId } = req.body;
     if (!to || !subject || !body) {
       return res.status(400).json({ success: false, error: 'Faltan campos requeridos (to, subject, body)' });
     }
@@ -601,6 +620,11 @@ app.post('/api/send-email', async (req, res) => {
     }
     const webhookUrl = urlRow.value;
     const payload = { to, cc, subject, body, attachments };
+    // Firma HTML por usuario: se agrega DEBAJO del cierre actual del cuerpo (solo si se envió signatureId)
+    const signature = getSignatureById(signatureId);
+    if (signature) {
+      payload.htmlBody = `<div style="font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #333333; white-space: pre-wrap;">${escapeHtml(body)}</div><br>${signature.html}`;
+    }
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },

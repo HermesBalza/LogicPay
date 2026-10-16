@@ -133,14 +133,29 @@ const callGemini = async (prompt, { model = 'gemini-3-flash-preview', systemProm
 };
 
 // Helper: envía email a través del backend (la URL del webhook nunca sale del servidor)
-const sendEmail = async (purpose, { to, cc, subject, body, attachments } = {}) => {
+const sendEmail = async (purpose, { to, cc, subject, body, attachments, signatureId } = {}) => {
     const res = await fetch(SEND_EMAIL_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ purpose, to, cc, subject, body, attachments }),
+        body: JSON.stringify({ purpose, to, cc, subject, body, attachments, signatureId }),
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Error al enviar email');
+};
+
+// Helper: firmas de correo disponibles (selector "Firma del Remitente" + vista previa).
+// Se cargan una sola vez desde el backend y se cachean en memoria.
+let _emailSignaturesCache = null;
+const loadEmailSignatures = async () => {
+    if (_emailSignaturesCache) return _emailSignaturesCache;
+    try {
+        const res = await fetch('/api/email-signatures');
+        const data = await res.json();
+        _emailSignaturesCache = data.success ? (data.signatures || []) : [];
+    } catch (_) {
+        _emailSignaturesCache = [];
+    }
+    return _emailSignaturesCache;
 };
 
 // Helpers de PDF para los adjuntos estilo Gmail: vista previa (pestaña nueva) y descarga
@@ -8665,7 +8680,58 @@ const AttachmentsGmailStrip = ({ attachments = [], removedIds, onPreview, onDown
     </div>
 );
 
-const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, defaultTo = '', specialProjectsHistoryData = [], onPreviewAttachment, onDownloadAttachment }) => {
+// Selector "Firma del Remitente": permite enviar con la firma de otro asistente.
+// "" = Sin firma.
+const EmailSignatureSelect = ({ value, onChange, signatures = [] }) => (
+    <div className="space-y-1.5">
+        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Firma del Remitente</label>
+        <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-xl p-2 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-[10px] leading-[14px] shadow-sm cursor-pointer"
+        >
+            <option value="">Sin firma</option>
+            {signatures.map(s => (
+                <option key={s.id} value={s.id}>{s.nombre}</option>
+            ))}
+        </select>
+    </div>
+);
+
+// Vista previa del correo: cuerpo + firma HTML seleccionada, tal como lo verá el destinatario.
+// La firma es HTML propio y confiable (server/emailSignatures.js).
+const EmailSignaturePreview = ({ body, signature }) => (
+    <div className="flex flex-col space-y-1.5 flex-1 min-h-0">
+        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Vista Previa del Correo</label>
+        <div className="flex-1 min-h-[140px] overflow-y-auto custom-scrollbar bg-white border-2 border-gray-100 rounded-3xl p-5 shadow-sm">
+            <div style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '13px', color: '#333333', whiteSpace: 'pre-wrap' }}>{body}</div>
+            {signature && (
+                <div className="mt-4" dangerouslySetInnerHTML={{ __html: signature.html }} />
+            )}
+        </div>
+    </div>
+);
+
+// Hook compartido: carga las firmas y preselecciona la del usuario logueado (si tiene una).
+const useEmailSignature = (user, isOpen) => {
+    const [signatures, setSignatures] = useState([]);
+    const [signatureId, setSignatureId] = useState('');
+    useEffect(() => {
+        let alive = true;
+        loadEmailSignatures().then(list => { if (alive) setSignatures(list); });
+        return () => { alive = false; };
+    }, []);
+    useEffect(() => {
+        if (isOpen) {
+            const mine = signatures.find(s => String(s.userId) === String(user?.id));
+            setSignatureId(mine ? mine.id : '');
+        }
+    }, [isOpen, signatures, user?.id]);
+    const selectedSignature = signatures.find(s => s.id === signatureId) || null;
+    return { signatures, signatureId, setSignatureId, selectedSignature };
+};
+
+const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, defaultTo = '', specialProjectsHistoryData = [], onPreviewAttachment, onDownloadAttachment, user = null }) => {
     const formatMMDDYY = (dateStr) => {
         if (!dateStr) return "";
         const parts = dateStr.split('/');
@@ -8681,6 +8747,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
     const [relevantSpecialProjects, setRelevantSpecialProjects] = useState([]);
+    const { signatures, signatureId, setSignatureId, selectedSignature } = useEmailSignature(user, isOpen);
 
     // Agenda de correos: directorio de contactos + modal
     const [correos, setCorreos] = useState([]);
@@ -8802,6 +8869,9 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                             />
                         </div>
 
+                        {/* Firma del Remitente */}
+                        <EmailSignatureSelect value={signatureId} onChange={setSignatureId} signatures={signatures} />
+
                         {/* Subject */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto del Correo</label>
@@ -8833,8 +8903,9 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                         <textarea
                             value={body}
                             onChange={(e) => setBody(e.target.value)}
-                            className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]"
+                            className="w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[120px] max-h-[160px]"
                         />
+                        <EmailSignaturePreview body={body} signature={selectedSignature} />
                     </div>
                 </div>
 
@@ -8847,7 +8918,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                         Cancelar
                     </button>
                     <button
-                        onClick={() => !isSending && onSend({ to, cc, subject, body, removedAttachments: Array.from(removedAttachments) })}
+                        onClick={() => !isSending && onSend({ to, cc, subject, body, signatureId, removedAttachments: Array.from(removedAttachments) })}
                         disabled={isSending}
                         className={`w-48 py-2 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
@@ -8864,7 +8935,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     );
 };
 
-const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, stores = [], specialProjectsHistoryData = [], mainPdfBase64 = '', onPreviewAttachment, onDownloadAttachment }) => {
+const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, stores = [], specialProjectsHistoryData = [], mainPdfBase64 = '', onPreviewAttachment, onDownloadAttachment, user = null }) => {
     const formatMMDDYY = (dateStr) => {
         if (!dateStr) return "";
         const parts = dateStr.split('/');
@@ -8892,6 +8963,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
     const [relevantProjects, setRelevantProjects] = useState([]);
+    const { signatures, signatureId, setSignatureId, selectedSignature } = useEmailSignature(user, isOpen);
 
     // Agenda de correos: directorio de contactos + modal
     const [correos, setCorreos] = useState([]);
@@ -9013,6 +9085,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                                 placeholder="ejemplo@correo.com, otro@correo.com"
                             />
                         </div>
+                        <EmailSignatureSelect value={signatureId} onChange={setSignatureId} signatures={signatures} />
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto del Correo</label>
                             <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent text-[#303a7f] font-bold rounded-xl p-1.5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-[10px] leading-[14px] shadow-sm" />
@@ -9031,7 +9104,8 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                     </div>
                     <div className="flex flex-col space-y-1.5 h-full">
                         <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
-                        <textarea value={body} onChange={(e) => setBody(e.target.value)} className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]" />
+                        <textarea value={body} onChange={(e) => setBody(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[120px] max-h-[160px]" />
+                        <EmailSignaturePreview body={body} signature={selectedSignature} />
                     </div>
                 </div>
 
@@ -9043,7 +9117,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                         Cancelar
                     </button>
                     <button
-                        onClick={() => !isSending && onSend({ to, cc, subject, body, relevantProjects, removedAttachments: Array.from(removedAttachments) })}
+                        onClick={() => !isSending && onSend({ to, cc, subject, body, signatureId, relevantProjects, removedAttachments: Array.from(removedAttachments) })}
                         disabled={isSending}
                         className={`w-48 py-2 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
@@ -10040,7 +10114,7 @@ const VWHTableModal = (props) => {
             }
             vwhAttachments.push(...specialProjectAttachments);
 
-            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: vwhAttachments });
+            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: vwhAttachments, signatureId: emailData.signatureId });
             fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte VWH', entidadNombre: `${payrollStore} - ${currentStartDate} a ${currentEndDate}` }) }).catch(() => { });
 
             const reportKey = normalizeKey(recordId || `${payrollStore}_${currentStartDate}_${currentEndDate}`);
@@ -10695,6 +10769,7 @@ const VWHTableModal = (props) => {
                 specialProjectsHistoryData={specialProjectsHistoryData}
                 onPreviewAttachment={previewVWHAttachment}
                 onDownloadAttachment={downloadVWHAttachment}
+                user={user}
             />
 
             <EmailNotificationModal
@@ -17522,12 +17597,13 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
 
 // ─── Componente del Modal de Factura (Elegante y Premium) ───────────────────
 // ─── Modal Premium de Envío de Factura por Correo ──────────────────────────────
-const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending, defaultTo = '', onPreviewAttachment, onDownloadAttachment }) => {
+const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending, defaultTo = '', onPreviewAttachment, onDownloadAttachment, user = null }) => {
     // Destinatario siempre en blanco: el usuario lo escribe manualmente
     const [to, setTo] = useState('');
     const [cc, setCc] = useState('');
     const [subject, setSubject] = useState(`Invoice Special Project #${project.invoice} - ${project.proyecto || project.nombre} - ${project.tienda}`);
     const [body, setBody] = useState(`Hello,\n\nAttached is the Invoice Special Project #${project.invoice} for the professional services of the Special Project "${project.proyecto || project.nombre}" in the ${project.tienda} store.\n\nThank You,\nLogic Group Management`);
+    const { signatures, signatureId, setSignatureId, selectedSignature } = useEmailSignature(user, isOpen);
 
     // Agenda de correos: directorio de contactos + modal
     const [correos, setCorreos] = useState([]);
@@ -17612,6 +17688,9 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                             />
                         </div>
 
+                        {/* Firma del Remitente */}
+                        <EmailSignatureSelect value={signatureId} onChange={setSignatureId} signatures={signatures} />
+
                         {/* Subject */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Asunto del Correo</label>
@@ -17643,8 +17722,9 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                         <textarea
                             value={body}
                             onChange={(e) => setBody(e.target.value)}
-                            className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]"
+                            className="w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[120px] max-h-[160px]"
                         />
+                        <EmailSignaturePreview body={body} signature={selectedSignature} />
                     </div>
                 </div>
 
@@ -17657,7 +17737,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                         Cancelar
                     </button>
                     <button
-                        onClick={() => !isSending && onSend({ to, cc, subject, body, removedAttachments: Array.from(removedAttachments) })}
+                        onClick={() => !isSending && onSend({ to, cc, subject, body, signatureId, removedAttachments: Array.from(removedAttachments) })}
                         disabled={isSending}
                         className={`w-48 py-2 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#6bbdb7] shadow-lg shadow-teal-900/20 hover:bg-[#59aba5]'}`}
                     >
@@ -17738,7 +17818,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                 }];
             }
 
-            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: peInvoiceAttachments });
+            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: peInvoiceAttachments, signatureId: emailData.signatureId });
             fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Factura Proyecto Especial', entidadNombre: `${project.tienda} - #${project.invoice}` }) }).catch(() => { });
 
             const reportKey = normalizeKey(project.invoice);
@@ -17936,6 +18016,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                 defaultTo={stores.find(s => normalizeKey(s.nombre) === normalizeKey(project.tienda || project.Tienda || project.nombre))?.correo || ''}
                 onPreviewAttachment={previewSpecialProjectInvoiceAttachment}
                 onDownloadAttachment={downloadSpecialProjectInvoiceAttachment}
+                user={user}
             />
 
             <EmailNotificationModal
@@ -24000,7 +24081,7 @@ function App() {
                     }
                 });
             }
-            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments });
+            await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments, signatureId: emailData.signatureId });
             fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte de Horas', entidadNombre: payrollStore || emailData.subject }) }).catch(() => { });
 
             setStatusModalTitle("Envío Exitoso");
@@ -30376,6 +30457,7 @@ function App() {
                 mainPdfBase64={hoursReportPdfBase64}
                 onPreviewAttachment={previewHoursReportAttachment}
                 onDownloadAttachment={downloadHoursReportAttachment}
+                user={user}
             />
 
             {/* COMPONENTE OCULTO PARA CAPTURA DE PDF (REPORTE PROFESIONAL) */}
