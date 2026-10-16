@@ -8698,19 +8698,55 @@ const EmailSignatureSelect = ({ value, onChange, signatures = [] }) => (
     </div>
 );
 
-// Vista previa del correo: cuerpo + firma HTML seleccionada, tal como lo verá el destinatario.
-// La firma es HTML propio y confiable (server/emailSignatures.js).
-const EmailSignaturePreview = ({ body, signature }) => (
-    <div className="flex flex-col space-y-1.5 flex-1 min-h-0">
-        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Vista Previa del Correo</label>
-        <div className="flex-1 min-h-[140px] overflow-y-auto custom-scrollbar bg-white border-2 border-gray-100 rounded-3xl p-5 shadow-sm">
-            <div style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '13px', color: '#333333', whiteSpace: 'pre-wrap' }}>{body}</div>
-            {signature && (
-                <div className="mt-4" dangerouslySetInnerHTML={{ __html: signature.html }} />
-            )}
-        </div>
-    </div>
+// Botón "Vista Previa" (ícono de ojo) reutilizable en los modales de correo.
+const EmailPreviewButton = ({ onClick }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-[#6bbdb7] bg-[#6bbdb7]/10 hover:bg-[#6bbdb7] hover:text-white transition-all"
+    >
+        <Eye size={12} /> Vista Previa
+    </button>
 );
+
+// Modal emergente de vista previa del correo: Para/CC/Asunto + cuerpo + firma HTML seleccionada.
+// La firma es HTML propio y confiable (server/emailSignatures.js).
+const EmailPreviewModal = ({ isOpen, onClose, to, cc, subject, body, signature }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-[700] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-3xl max-h-[90vh] rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] border-2 border-white flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
+                <div className="px-8 py-6 border-b-2 border-gray-50 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-[#303a7f] text-white rounded-xl shadow-lg shadow-blue-900/20">
+                            <Eye size={18} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-black text-[#303a7f] tracking-tighter uppercase leading-none">Vista Previa del Correo</h3>
+                            <p className="text-[8px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80 mt-1">Así lo verá el destinatario</p>
+                        </div>
+                    </div>
+                    <button type="button" onClick={onClose} className="p-2.5 rounded-xl transition-all border border-transparent btn-close-danger">
+                        <X size={18} />
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-8 bg-gray-50/40">
+                    <div className="bg-white rounded-3xl border-2 border-gray-100 p-6 shadow-sm">
+                        <div className="mb-4 pb-4 border-b border-gray-100 text-[11px] text-gray-500 space-y-1">
+                            {to && <p><span className="font-black text-gray-400 uppercase tracking-widest text-[9px]">Para: </span>{to}</p>}
+                            {cc && <p><span className="font-black text-gray-400 uppercase tracking-widest text-[9px]">CC: </span>{cc}</p>}
+                            {subject && <p><span className="font-black text-gray-400 uppercase tracking-widest text-[9px]">Asunto: </span><span className="text-[#303a7f] font-bold">{subject}</span></p>}
+                        </div>
+                        <div style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '13px', color: '#333333', whiteSpace: 'pre-wrap' }}>{body}</div>
+                        {signature && (
+                            <div className="mt-4" dangerouslySetInnerHTML={{ __html: signature.html }} />
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // Hook compartido: carga las firmas y preselecciona la del usuario logueado (si tiene una).
 const useEmailSignature = (user, isOpen) => {
@@ -8748,6 +8784,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     const [body, setBody] = useState('');
     const [relevantSpecialProjects, setRelevantSpecialProjects] = useState([]);
     const { signatures, signatureId, setSignatureId, selectedSignature } = useEmailSignature(user, isOpen);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
     // Agenda de correos: directorio de contactos + modal
     const [correos, setCorreos] = useState([]);
@@ -8826,6 +8863,16 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                     onClose={() => setIsDirectorioOpen(false)}
                     onContactsChanged={loadCorreos}
                 />
+                {/* Vista Previa del Correo (emergente) */}
+                <EmailPreviewModal
+                    isOpen={isPreviewOpen}
+                    onClose={() => setIsPreviewOpen(false)}
+                    to={to}
+                    cc={cc}
+                    subject={subject}
+                    body={body}
+                    signature={selectedSignature}
+                />
                 {/* Header Full Screen */}
                 <div className="px-10 py-5 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
                     <div className="flex items-center gap-4">
@@ -8899,13 +8946,15 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
 
                     {/* Right Column: Message */}
                     <div className="flex flex-col space-y-1.5 h-full">
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
+                        <div className="flex items-center justify-between pr-1">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
+                            <EmailPreviewButton onClick={() => setIsPreviewOpen(true)} />
+                        </div>
                         <textarea
                             value={body}
                             onChange={(e) => setBody(e.target.value)}
-                            className="w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[120px] max-h-[160px]"
+                            className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]"
                         />
-                        <EmailSignaturePreview body={body} signature={selectedSignature} />
                     </div>
                 </div>
 
@@ -8964,6 +9013,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
     const [body, setBody] = useState('');
     const [relevantProjects, setRelevantProjects] = useState([]);
     const { signatures, signatureId, setSignatureId, selectedSignature } = useEmailSignature(user, isOpen);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
     // Agenda de correos: directorio de contactos + modal
     const [correos, setCorreos] = useState([]);
@@ -9047,6 +9097,16 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                     onClose={() => setIsDirectorioOpen(false)}
                     onContactsChanged={loadCorreos}
                 />
+                {/* Vista Previa del Correo (emergente) */}
+                <EmailPreviewModal
+                    isOpen={isPreviewOpen}
+                    onClose={() => setIsPreviewOpen(false)}
+                    to={to}
+                    cc={cc}
+                    subject={subject}
+                    body={body}
+                    signature={selectedSignature}
+                />
                 {/* Header Full Screen */}
                 <div className="px-10 py-5 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
                     <div className="flex items-center gap-4">
@@ -9103,9 +9163,11 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
                         </div>
                     </div>
                     <div className="flex flex-col space-y-1.5 h-full">
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
-                        <textarea value={body} onChange={(e) => setBody(e.target.value)} className="w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[120px] max-h-[160px]" />
-                        <EmailSignaturePreview body={body} signature={selectedSignature} />
+                        <div className="flex items-center justify-between pr-1">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
+                            <EmailPreviewButton onClick={() => setIsPreviewOpen(true)} />
+                        </div>
+                        <textarea value={body} onChange={(e) => setBody(e.target.value)} className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]" />
                     </div>
                 </div>
 
@@ -17604,6 +17666,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
     const [subject, setSubject] = useState(`Invoice Special Project #${project.invoice} - ${project.proyecto || project.nombre} - ${project.tienda}`);
     const [body, setBody] = useState(`Hello,\n\nAttached is the Invoice Special Project #${project.invoice} for the professional services of the Special Project "${project.proyecto || project.nombre}" in the ${project.tienda} store.\n\nThank You,\nLogic Group Management`);
     const { signatures, signatureId, setSignatureId, selectedSignature } = useEmailSignature(user, isOpen);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
     // Agenda de correos: directorio de contactos + modal
     const [correos, setCorreos] = useState([]);
@@ -17644,6 +17707,16 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
                     isOpen={isDirectorioOpen}
                     onClose={() => setIsDirectorioOpen(false)}
                     onContactsChanged={loadCorreos}
+                />
+                {/* Vista Previa del Correo (emergente) */}
+                <EmailPreviewModal
+                    isOpen={isPreviewOpen}
+                    onClose={() => setIsPreviewOpen(false)}
+                    to={to}
+                    cc={cc}
+                    subject={subject}
+                    body={body}
+                    signature={selectedSignature}
                 />
                 {/* Header Full Screen */}
                 <div className="px-10 py-5 border-b-2 border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
@@ -17718,13 +17791,15 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
 
                     {/* Right Column: Message */}
                     <div className="flex flex-col space-y-1.5 h-full">
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
+                        <div className="flex items-center justify-between pr-1">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">Cuerpo del Mensaje</label>
+                            <EmailPreviewButton onClick={() => setIsPreviewOpen(true)} />
+                        </div>
                         <textarea
                             value={body}
                             onChange={(e) => setBody(e.target.value)}
-                            className="w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[120px] max-h-[160px]"
+                            className="flex-1 w-full bg-gray-50 border-2 border-transparent text-gray-600 font-bold rounded-3xl p-5 outline-none focus:border-[#303a7f]/10 focus:bg-white transition-all text-xs resize-none shadow-sm leading-relaxed min-h-[180px]"
                         />
-                        <EmailSignaturePreview body={body} signature={selectedSignature} />
                     </div>
                 </div>
 
