@@ -29550,8 +29550,23 @@ function App() {
                 const pendientesTienda = (saldosPendientesData || []).filter(r =>
                     r && String(r.tienda || '').trim().toLowerCase() === storeFilter && (r.saldo_pendiente || 0) > 0.009
                 );
-                const vwhPendientes = pendientesTienda.filter(r => r.tipo === 'VWH');
-                const pePendientes = pendientesTienda.filter(r => r.tipo === 'PE');
+                // Orden cronológico ascendente (más antigua arriba): VWH por Semana Facturada,
+                // P.E. por Fecha Rad. Fechas vacías/ilegibles van al final; el orden estable
+                // de Array.sort conserva el orden actual de la Base de Datos en empates.
+                const parseFechaNum = (str) => {
+                    const m = String(str || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+                    return m ? parseInt(m[3] + m[1].padStart(2, '0') + m[2].padStart(2, '0'), 10) : null;
+                };
+                const claveOrdenVWH = (r) => {
+                    const inicioSemana = String(r.semana_facturada || '').split(' - ')[0];
+                    return parseFechaNum(inicioSemana) ?? parseFechaNum(r.fecha_rad) ?? Number.MAX_SAFE_INTEGER;
+                };
+                const claveOrdenPE = (r) => parseFechaNum(r.fecha_rad) ?? Number.MAX_SAFE_INTEGER;
+
+                const vwhPendientes = pendientesTienda.filter(r => r.tipo === 'VWH')
+                    .sort((a, b) => claveOrdenVWH(a) - claveOrdenVWH(b));
+                const pePendientes = pendientesTienda.filter(r => r.tipo === 'PE')
+                    .sort((a, b) => claveOrdenPE(a) - claveOrdenPE(b));
 
                 const togglePagado = async (row) => {
                     const nuevoValor = row.pagado ? 0 : 1;
