@@ -31,6 +31,21 @@ const parseProjectDate = (value) => {
 
 const isAZPENStore = (name) => String(name || '').trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN';
 
+// Fecha de inicio de un string de semana ("MM/DD/YYYY - MM/DD/YYYY"); fallback a la radicación
+const semanaStartDate = (semanaStr, radicacion) => {
+    const inicio = String(semanaStr || '').split(' - ')[0];
+    return parseMDY(inicio) || parseMDY(radicacion);
+};
+
+// Timestamp para orden cronológico: fecha inválida/vacía va al final
+const sortTime = (dateObj) => (dateObj instanceof Date && !isNaN(dateObj.getTime()) ? dateObj.getTime() : Number.MAX_SAFE_INTEGER);
+
+// Fecha visible de una fila de Saldos Pendientes (misma regla que la columna "Semana / Fecha")
+const saldoDisplayDate = (row) => {
+    if (row?.tipo === 'PE') return parseMDY(row.fechaProyecto) || parseMDY(row.radicacion);
+    return parseMDY(String(row?.semana || '').split(' - ')[0]) || parseMDY(row?.radicacion);
+};
+
 // Estado de cada fila: diferencia = Pagado - Facturación
 const resolveEstado = (pagoStr, pagado, facturacion) => {
     if (String(pagoStr || '').trim() === '') return 'pendiente';
@@ -240,6 +255,22 @@ const BalanceView = ({ onClose, historyData = [], specialHistoryData = [], saldo
                 wos: s.wos || '',
                 pagadoFlag: s.pagado === 1 || s.pagado === true
             });
+        });
+
+        // ─── Orden cronológico de cada grupo por tienda: más antiguo arriba, más nuevo abajo ───
+        Object.values(dataByStore).forEach(d => {
+            d.vwh.sort((a, b) =>
+                sortTime(semanaStartDate(a.semana, a.radicacion)) - sortTime(semanaStartDate(b.semana, b.radicacion)) ||
+                sortTime(parseMDY(a.radicacion)) - sortTime(parseMDY(b.radicacion))
+            );
+            d.pe.sort((a, b) =>
+                sortTime(parseMDY(a.radicacion)) - sortTime(parseMDY(b.radicacion)) ||
+                String(a.invoice || '').localeCompare(String(b.invoice || ''), undefined, { numeric: true })
+            );
+            d.saldos.sort((a, b) =>
+                sortTime(saldoDisplayDate(a)) - sortTime(saldoDisplayDate(b)) ||
+                sortTime(parseMDY(a.radicacion)) - sortTime(parseMDY(b.radicacion))
+            );
         });
 
         // Años disponibles para el selector (Facturaciones radicadas en los datos)
