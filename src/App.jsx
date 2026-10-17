@@ -14189,6 +14189,175 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         return csv.join('\n');
     };
 
+    // ─── REPORTE EXPLICATIVO (TXT) QUE ACOMPAÑA AL CSV NACHA ──────────────
+    // Genera un documento en lenguaje natural que explica a qué empleados se les
+    // paga en una misma cuenta bancaria, además de otras observaciones relevantes.
+    const buildNachaExplanation = () => {
+        const fmtMoney = (n) => `$${(Number(n) || 0).toFixed(2)}`;
+        const pad = (n) => String(n).padStart(2, '0');
+        const ahora = new Date();
+        const fechaGen = `${pad(ahora.getMonth() + 1)}/${pad(ahora.getDate())}/${ahora.getFullYear()} ${pad(ahora.getHours())}:${pad(ahora.getMinutes())}`;
+        const sep = '='.repeat(72);
+        const sub = '-'.repeat(72);
+        const lineas = [];
+
+        // Recolectar el detalle por empleado (misma fuente que el CSV NACHA)
+        const detalle = todosNomina.map(emp => {
+            const empCode = String(emp.id.split('_')[1] || '').trim();
+            const empName = String(emp.nombre || '').trim().toLowerCase();
+            const dbEmp = employees.find(e => {
+                const nombreBD = [e.first_name, e.last_name].filter(Boolean).join(' ').trim().toLowerCase();
+                return nombreBD === empName && String(e.codigo_empleado || '').trim() === empCode;
+            });
+            const monto = Number(calculatePagoTotal(emp) + (Number(ajustesNomina[emp.id]?.ajuste) || 0) || 0);
+            const routing = String(dbEmp?.routing_num || '').replace(/\D/g, '');
+            const account = String(dbEmp?.account_num || '').replace(/\D/g, '');
+            const llave = dbEmp ? llaveCuentaDesdeDb(dbEmp) : null;
+            return { emp, dbEmp, monto, routing, account, llave };
+        });
+
+        const pagables = detalle.filter(d => Math.round(d.monto * 100) > 0);
+        const excluidos = detalle.filter(d => Math.round(d.monto * 100) <= 0);
+        const incompletos = pagables.filter(d => !d.routing || !d.account);
+        const conAjuste = detalle.filter(d => Math.abs(Number(ajustesNomina[d.emp.id]?.ajuste) || 0) >= 0.005);
+        const sinCorreo = detalle.filter(d => !(d.dbEmp?.email_tax || d.dbEmp?.correo));
+
+        // Agrupar por llave bancaria para detectar cuentas compartidas (misma lógica del CSV)
+        const grupos = new Map();
+        pagables.forEach(d => {
+            if (!d.llave) return;
+            if (!grupos.has(d.llave)) grupos.set(d.llave, []);
+            grupos.get(d.llave).push(d);
+        });
+        const compartidas = [...grupos.values()].filter(g => g.length > 1);
+
+        // Cuentas con el mismo routing + account pero distinta llave: NO se fusionan
+        const porCuenta = new Map();
+        pagables.forEach(d => {
+            if (!d.routing || !d.account) return;
+            const k = `${d.routing}|${d.account}`;
+            if (!porCuenta.has(k)) porCuenta.set(k, []);
+            porCuenta.get(k).push(d);
+        });
+        const noFusionadas = [...porCuenta.values()].filter(g => g.length > 1 && new Set(g.map(d => d.llave)).size > 1);
+
+        const totalDepositar = pagables.reduce((s, d) => s + Math.max(0, d.monto), 0);
+        const totalTransacciones = agruparPagosNacha(pagables.map(d => ({
+            routing: d.routing, account: d.account,
+            trxnCode: (d.dbEmp?.account_type !== 'savings') ? '22' : '32',
+            idNumber: String(d.dbEmp?.id_number || d.dbEmp?.codigo_empleado || '').replace(/,/g, ''),
+            payeeName: String(d.dbEmp?.payee_name || '').replace(/,/g, '').trim(),
+            amountCents: Math.round(d.monto * 100)
+        }))).length;
+        const nombreCodigo = (d) => `${d.emp.nombre} (código ${String(d.emp.id.split('_')[1] || '').trim() || 'N/D'})`;
+
+        lineas.push(sep);
+        lineas.push('REPORTE EXPLICATIVO DE PAGOS ACH');
+        lineas.push('Nómina Bisemanal - Vista: Nómina Completa');
+        lineas.push(`Periodo: ${period.range || ''}`);
+        lineas.push(`Generado: ${fechaGen} por ${user?.nombre || 'Usuario'}`);
+        lineas.push('Este documento acompaña al archivo CSV de pagos (Payroll_ACH).');
+        lineas.push(sep);
+        lineas.push('');
+
+        // RESUMEN GENERAL
+        lineas.push('RESUMEN GENERAL');
+        lineas.push(sub);
+        lineas.push(`- Empleados en la nómina: ${todosNomina.length}`);
+        lineas.push(`- Empleados con pago mayor a $0 (incluidos en el ACH): ${pagables.length}`);
+        lineas.push(`- Transacciones que contendrá el archivo CSV: ${totalTransacciones}`);
+        lineas.push(`- Monto total a depositar: ${fmtMoney(totalDepositar)}`);
+        lineas.push(`- Cuentas compartidas detectadas: ${compartidas.length}`);
+        lineas.push('');
+
+        // 1) CUENTAS COMPARTIDAS
+        lineas.push('1) CUENTAS COMPARTIDAS (se pagan en UNA sola transacción del ACH)');
+        lineas.push(sub);
+        if (compartidas.length === 0) {
+            lineas.push('No se detectaron cuentas compartidas en esta nómina.');
+        } else {
+            compartidas.forEach((g, i) => {
+                const base = g[0];
+                const total = g.reduce((s, d) => s + d.monto, 0);
+                const tipo = (base.dbEmp?.account_type !== 'savings') ? 'Checking (código 22)' : 'Savings (código 32)';
+                lineas.push(`Cuenta compartida #${i + 1}:`);
+                lineas.push(`   Titular: ${base.dbEmp?.payee_name || 'N/D'} | ID Number: ${base.dbEmp?.id_number || base.dbEmp?.codigo_empleado || 'N/D'}`);
+                lineas.push(`   Banco: Routing ${base.routing || 'N/D'} | Cuenta ${base.account || 'N/D'} | ${tipo}`);
+                g.forEach(d => lineas.push(`   - ${nombreCodigo(d)}: ${fmtMoney(d.monto)}`));
+                lineas.push(`   -> Total depositado a esta cuenta: ${fmtMoney(total)}`);
+                lineas.push('');
+            });
+        }
+        lineas.push('');
+
+        // 2) EMPLEADOS EXCLUIDOS DEL ACH
+        lineas.push('2) EMPLEADOS EXCLUIDOS DEL ARCHIVO ACH (pago $0 o negativo)');
+        lineas.push(sub);
+        if (excluidos.length === 0) {
+            lineas.push('No se detectaron empleados excluidos.');
+        } else {
+            excluidos.forEach(d => lineas.push(`- ${nombreCodigo(d)}: ${fmtMoney(d.monto)} (no se incluye en el ACH)`));
+        }
+        lineas.push('');
+
+        // 3) DATOS BANCARIOS INCOMPLETOS
+        lineas.push('3) EMPLEADOS CON DATOS BANCARIOS INCOMPLETOS (revisar antes de enviar)');
+        lineas.push(sub);
+        if (incompletos.length === 0) {
+            lineas.push('Todos los empleados incluidos en el ACH tienen Routing y Cuenta.');
+        } else {
+            incompletos.forEach(d => {
+                const faltantes = [!d.routing ? 'Routing' : null, !d.account ? 'Cuenta' : null].filter(Boolean).join(' y ');
+                lineas.push(`- ${nombreCodigo(d)}: falta ${faltantes} (verificar datos del empleado en la base de datos).`);
+            });
+        }
+        lineas.push('');
+
+        // 4) AJUSTES APLICADOS
+        lineas.push('4) AJUSTES APLICADOS MANUALMENTE A ESTA NÓMINA');
+        lineas.push(sub);
+        if (conAjuste.length === 0) {
+            lineas.push('No se aplicaron ajustes manuales en esta nómina.');
+        } else {
+            conAjuste.forEach(d => {
+                const reg = ajustesNomina[d.emp.id] || {};
+                const ajuste = Number(reg.ajuste) || 0;
+                const comentario = String(reg.comentario || '').trim();
+                lineas.push(`- ${nombreCodigo(d)}: ajuste ${ajuste > 0 ? '+' : ''}${fmtMoney(ajuste)}${comentario ? ` - "${comentario}"` : ''}`);
+            });
+        }
+        lineas.push('');
+
+        // 5) SIN CORREO REGISTRADO
+        lineas.push('5) EMPLEADOS SIN CORREO REGISTRADO (no podrán recibir su recibo de pago)');
+        lineas.push(sub);
+        if (sinCorreo.length === 0) {
+            lineas.push('Todos los empleados tienen correo registrado.');
+        } else {
+            sinCorreo.forEach(d => lineas.push(`- ${nombreCodigo(d)}`));
+        }
+        lineas.push('');
+
+        // 6) CUENTAS IGUALES SIN FUSIONAR
+        lineas.push('6) CUENTAS CON EL MISMO NÚMERO PERO SIN FUSIONAR (se pagan por separado)');
+        lineas.push(sub);
+        if (noFusionadas.length === 0) {
+            lineas.push('No se detectaron cuentas con el mismo número y distinto titular.');
+        } else {
+            noFusionadas.forEach(g => {
+                const cuenta = `${g[0].routing || 'N/D'}-${g[0].account || 'N/D'}`;
+                lineas.push(`Cuenta ${cuenta} (compartida por ${g.length} empleados, con distinto titular/ID):`);
+                g.forEach(d => lineas.push(`   - ${nombreCodigo(d)}: se depositará por separado (titular: ${d.dbEmp?.payee_name || 'N/D'} | ID ${d.dbEmp?.id_number || d.dbEmp?.codigo_empleado || 'N/D'}).`));
+                lineas.push('');
+            });
+        }
+        lineas.push('');
+        lineas.push(sep);
+        lineas.push('Fin del reporte.');
+
+        return lineas.join('\n');
+    };
+
     // ─── LÓGICA DE ENVÍO DE RECIBOS DE PAGO (PAY STUBS) ───────────────────
     const handleSendAllPayStubs = async () => {
         const recipients = todosNomina.filter(emp => {
@@ -15414,6 +15583,18 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     a.click();
                                     document.body.removeChild(a);
                                     URL.revokeObjectURL(url);
+
+                                    // Reporte explicativo en lenguaje natural (.txt) que acompaña al CSV
+                                    const reporte = buildNachaExplanation();
+                                    const blobTxt = new Blob([reporte], { type: 'text/plain;charset=utf-8' });
+                                    const urlTxt = URL.createObjectURL(blobTxt);
+                                    const aTxt = document.createElement('a');
+                                    aTxt.href = urlTxt;
+                                    aTxt.download = `Reporte_Pagos_${period.range.replace(/\//g, '-').replace(/\s+/g, '_')}.txt`;
+                                    document.body.appendChild(aTxt);
+                                    aTxt.click();
+                                    document.body.removeChild(aTxt);
+                                    URL.revokeObjectURL(urlTxt);
                                 }}
                                 disabled={todosNomina.length === 0}
                                 className="px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
