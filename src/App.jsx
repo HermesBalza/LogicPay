@@ -985,8 +985,17 @@ const DashboardView = ({
     user,
     cobradoSaldos = 0
 }) => {
-    const [dateFrom, setDateFrom] = useState(null);
-    const [dateTo, setDateTo] = useState(null);
+    // Rango por defecto del Dashboard: 1 de enero del año en curso hasta hoy
+    const getDefaultDateRange = () => {
+        const t = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        return {
+            from: `${t.getFullYear()}-01-01`,
+            to: `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`
+        };
+    };
+    const [dateFrom, setDateFrom] = useState(() => getDefaultDateRange().from);
+    const [dateTo, setDateTo] = useState(() => getDefaultDateRange().to);
     const [selectedStore, setSelectedStore] = useState('Todas');
     const [selectedEmployee, setSelectedEmployee] = useState('Todos');
     const [selectedSupervisor, setSelectedSupervisor] = useState('Todos');
@@ -1719,8 +1728,9 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setDateFrom(null);
-                                    setDateTo(null);
+                                    const { from, to } = getDefaultDateRange();
+                                    setDateFrom(from);
+                                    setDateTo(to);
                                 }}
                                 title="Limpiar Filtros de Fecha"
                                 className="flex items-center justify-center p-2.5 bg-[#f9f9f9] rounded-xl border border-gray-200 text-[#303a7f] hover:bg-blue-50 hover:text-blue-600 hover:border-blue-100 transition-all active:scale-95"
