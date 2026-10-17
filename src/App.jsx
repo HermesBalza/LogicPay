@@ -1883,11 +1883,12 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
                                     />
                                     <Tooltip
                                         formatter={(value) => formatMoney(value)}
+                                        itemSorter={(item) => (item.name === 'Ingresos' ? 0 : 1)}
                                         contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 50px rgba(0,0,0,0.1)', padding: '20px' }}
                                         itemStyle={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}
                                     />
-                                    <Area type="monotone" dataKey="ingresos" name="Ingresos (KBS)" stroke="#6bbdb7" strokeWidth={4} fillOpacity={1} fill="url(#colorIngresos)" />
-                                    <Area type="monotone" dataKey="costos" name="Costos (LGM)" stroke="#303a7f" strokeWidth={4} fillOpacity={1} fill="url(#colorCostos)" />
+                                    <Area type="monotone" dataKey="ingresos" name="Ingresos" stroke="#6bbdb7" strokeWidth={4} fillOpacity={1} fill="url(#colorIngresos)" />
+                                    <Area type="monotone" dataKey="costos" name="Costos" stroke="#303a7f" strokeWidth={4} fillOpacity={1} fill="url(#colorCostos)" />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
