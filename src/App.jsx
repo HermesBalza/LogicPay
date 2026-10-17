@@ -18555,7 +18555,7 @@ const BillingView = ({
                         // Para AZPEN, solo populamos metadatos financieros y radicación desde la fila quincenal unificada (Q-)
                         // para mantener aisladas y vírgenes las semanas individuales.
                         if (h['Fecha Rad.'] || h['fecha rad.']) q.radicacion = h['Fecha Rad.'] || h['fecha rad.'];
-                        if (h['pago'] || h['Pago']) q.pago = h['pago'] || h['Pago'];
+                        q.pago = h['pago'] ?? h['Pago'] ?? '';
                         if (h['fecha de pago'] || h['Fecha de Pago']) q.fecha_pago = h['fecha de pago'] || h['Fecha de Pago'];
                         if (h['wos'] || h['WOS']) q.wos = h['wos'] || h['WOS'];
                         if (h['Sales Order'] || h['sales order']) q.sales_order = h['Sales Order'] || h['sales order'];
@@ -18726,7 +18726,7 @@ const BillingView = ({
                 facturacion: stats.facturacion || 0,
                 costos: stats.costos || 0,
                 utilidad: (stats.facturacion || 0) - (stats.costos || 0),
-                pago: h['pago'] || h['Pago'] || '',
+                pago: h['pago'] ?? h['Pago'] ?? '',
                 fecha_pago: h['fecha de pago'] || h['Fecha de Pago'] || '',
                 sales_order: h['Sales Order'] || h['sales order'] || '',
                 wos: h['wos'] || h['WOS'] || '',
@@ -18798,7 +18798,7 @@ const BillingView = ({
                         facturacion: 0,
                         costos: 0,
                         radicacion: h['Fecha Rad.'] || h['fecha rad.'] || '',
-                        pago: h['Pago'] || h['pago'] || '',
+                        pago: h['Pago'] ?? h['pago'] ?? '',
                         fecha_pago: h['Fecha de Pago'] || h['fecha de pago'] || '',
                         sales_order: h['Sales Order'] || h['sales order'] || '',
                         wos: h['WOS'] || h['wos'] || '',
@@ -18845,6 +18845,7 @@ const BillingView = ({
         if (!val) return 0;
         return String(val).replace(/[^0-9.-]+/g, "");
     }
+    const esPagoNulo = (val) => val === null || val === undefined || val === '';
 
     if (!storeName) {
         return (
@@ -18952,7 +18953,7 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    {renderEditableCell(row, 'pago', formatCurrency(parseFloat(rowTotalToNumber(row.pago)) || 0), onUpdateManual, row.id)}
+                                    {renderEditableCell(row, 'pago', esPagoNulo(row.pago) ? '---' : formatCurrency(parseFloat(rowTotalToNumber(row.pago)) || 0), onUpdateManual, row.id)}
                                 </td>
                                 <td className="px-2 py-4 text-center">
                                     {renderEditableCell(row, 'fecha_pago', row.fecha_pago || '--/--/--', onUpdateManual, row.id)}
@@ -19072,7 +19073,7 @@ const BillingView = ({
                                     </div>
                                 </td>
                                 <td className="px-2 py-4 text-center">
-                                    {renderEditableCell(row, 'pago', formatCurrency(parseFloat(rowTotalToNumber(row.pago)) || 0), onUpdateManualPE, row.correlativo)}
+                                    {renderEditableCell(row, 'pago', esPagoNulo(row.pago) ? '---' : formatCurrency(parseFloat(rowTotalToNumber(row.pago)) || 0), onUpdateManualPE, row.correlativo)}
                                 </td>
                                 <td className="px-2 py-4 text-center">
                                     {renderEditableCell(row, 'fecha_pago', row.fecha_pago || '--/--/--', onUpdateManualPE, row.correlativo)}
@@ -29883,6 +29884,7 @@ function App() {
             {showSaldosPendientes && (() => {
                 const storeFilter = String(selectedHistoryStore || '').trim().toLowerCase();
                 const formatNum = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v || 0);
+                const esPagoNulo = (v) => v === null || v === undefined || v === '';
 
                 const pendientesTienda = (saldosPendientesData || []).filter(r =>
                     r && String(r.tienda || '').trim().toLowerCase() === storeFilter && (r.saldo_pendiente || 0) > 0.009
@@ -30011,7 +30013,7 @@ function App() {
                                                         <SaldosEditableCell
                                                             col="pago"
                                                             rawValue={row['Pago'] || ''}
-                                                            displayValue={formatNum(parseFloat(String(row['Pago'] || '').replace(/[^0-9.]/g, '')) || 0)}
+                                                            displayValue={esPagoNulo(row['Pago']) ? '---' : formatNum(parseFloat(String(row['Pago'] || '').replace(/[^0-9.]/g, '')) || 0)}
                                                             onSave={(c, v) => saveSaldosCell(row, c, v)}
                                                         />
                                                     </td>
@@ -30084,7 +30086,7 @@ function App() {
                                                         <SaldosEditableCell
                                                             col="pago"
                                                             rawValue={row['Pago'] || ''}
-                                                            displayValue={formatNum(parseFloat(String(row['Pago'] || '').replace(/[^0-9.]/g, '')) || 0)}
+                                                            displayValue={esPagoNulo(row['Pago']) ? '---' : formatNum(parseFloat(String(row['Pago'] || '').replace(/[^0-9.]/g, '')) || 0)}
                                                             onSave={(c, v) => saveSaldosCell(row, c, v)}
                                                         />
                                                     </td>
