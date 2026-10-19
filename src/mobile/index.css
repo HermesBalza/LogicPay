@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: #f9f9f9;
+  color: #333333;
+  @apply min-h-screen font-sans;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #f9f9f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #303a7f;
+  border-radius: 9999px;
+  border: 2px solid #f9f9f9;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #252a5e;
+}
+
+/* La barra de scroll vertical se engrosa al pasar el mouse sobre ella */
+::-webkit-scrollbar:hover {
+  width: 12px;
+}
+
+/* Thin scrollbar for mobile bottom nav */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.btn-primary {
+  background-color: #303a7f;
+  color: #ffffff;
+  @apply font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 hover:bg-[#252a5e];
+}
+
+.card {
+  background-color: #ffffff;
+  @apply rounded-xl p-6 shadow-sm shadow-blue-900/[0.02];
+}
+
+/* Ocultar flechas (spinners) en inputs numéricos (WOS) */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* ============================
+   Botón Cerrar/Cancelar/Atrás — Rojo sin luz animada
+   ============================ */
+.btn-close-danger {
+  border: 2px solid #ff4c4c !important;
+  background: rgb(255, 241, 241) !important;
+  color: #ff4c4c !important;
+  font-weight: 700 !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-close-danger:hover {
+  background: #ff4c4c !important;
+  color: white !important;
+}
+

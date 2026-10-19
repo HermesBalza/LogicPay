@@ -169,6 +169,13 @@ const AdminExpensesView = ({
         setOpenAdd(true);
     };
 
+    // Orden cronológico real: las fechas MM/DD/YYYY son texto y no deben
+    // ordenarse alfabéticamente (12/2025 quedaba encima de 01/2026)
+    const parseFechaGasto = (s) => {
+        const parts = String(s || '').split('/');
+        return parts.length === 3 ? new Date(parts[2], parts[0] - 1, parts[1]) : null;
+    };
+
     const filteredExpenses = useMemo(() => {
         return adminExpenses
             .filter(e => {
@@ -180,9 +187,12 @@ const AdminExpensesView = ({
                 return matchSearch && matchFilter;
             })
             .sort((a, b) => {
-                const dateA = a.fecha || '';
-                const dateB = b.fecha || '';
-                return dateB.localeCompare(dateA);
+                const dateA = parseFechaGasto(a.fecha);
+                const dateB = parseFechaGasto(b.fecha);
+                if (!dateA && !dateB) return 0;
+                if (!dateA) return 1;
+                if (!dateB) return -1;
+                return dateB - dateA;
             });
     }, [adminExpenses, searchTerm, filterCategoria]);
 
@@ -198,7 +208,7 @@ const AdminExpensesView = ({
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             {notif.open && (
-                <div className={`fixed top-20 right-4 z-[500] px-5 py-3 rounded-2xl shadow-2xl font-black text-xs uppercase tracking-widest animate-in fade-in zoom-in duration-300 ${notif.type === 'success' ? 'bg-[#6bbdb7] text-white' : 'bg-red-500 text-white'}`}>
+                <div className={`fixed top-24 right-6 z-[500] px-6 py-4 rounded-2xl shadow-2xl font-black text-sm uppercase tracking-widest animate-in fade-in zoom-in duration-300 ${notif.type === 'success' ? 'bg-[#6bbdb7] text-white' : 'bg-red-500 text-white'}`}>
                     {notif.msg}
                 </div>
             )}
@@ -209,7 +219,7 @@ const AdminExpensesView = ({
                     <>
                         <button
                             onClick={() => setFilterCategoria('')}
-                            className={`px-3 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${!filterCategoria ? 'bg-[#303a7f] text-white shadow-lg' : 'bg-white text-gray-400 border-2 border-gray-100 active:bg-gray-50'}`}
+                            className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${!filterCategoria ? 'bg-[#303a7f] text-white shadow-lg' : 'bg-white text-gray-400 border-2 border-gray-100 hover:text-[#303a7f]'}`}
                         >
                             Todas
                         </button>
@@ -217,7 +227,7 @@ const AdminExpensesView = ({
                             <button
                                 key={cat}
                                 onClick={() => setFilterCategoria(filterCategoria === cat ? '' : cat)}
-                                className={`px-3 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${filterCategoria === cat ? 'bg-[#303a7f] text-white shadow-lg' : 'bg-white text-gray-400 border-2 border-gray-100 active:bg-gray-50'}`}
+                                className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${filterCategoria === cat ? 'bg-[#303a7f] text-white shadow-lg' : 'bg-white text-gray-400 border-2 border-gray-100 hover:text-[#303a7f]'}`}
                             >
                                 {cat}
                             </button>
@@ -226,298 +236,387 @@ const AdminExpensesView = ({
                 )}
             </div>
 
-            {/* Lista de Gastos - Cards móviles */}
+            {/* Tabla de Gastos */}
             {filteredExpenses.length === 0 ? (
-                <div className="py-24 text-center bg-white rounded-[2rem] border-2 border-dashed border-gray-100">
-                    <Receipt size={40} className="text-gray-100 mx-auto mb-4" />
-                    <p className="text-gray-400 font-black text-sm uppercase tracking-[0.2em] opacity-50">
+                <div className="py-32 text-center bg-white rounded-[2rem] border-2 border-dashed border-gray-100">
+                    <Receipt size={48} className="text-gray-100 mx-auto mb-6" />
+                    <p className="text-gray-400 font-black text-base uppercase tracking-[0.2em] opacity-50">
                         {adminExpenses.length === 0 ? 'No hay gastos registrados' : 'Sin coincidencias'}
                     </p>
                     {adminExpenses.length === 0 && (
                         <button
                             onClick={handleOpenAdd}
-                            className="mt-4 inline-flex items-center gap-2 px-5 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest bg-[#6bbdb7]/10 text-[#6bbdb7]"
+                            className="mt-6 inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest bg-[#6bbdb7]/10 text-[#6bbdb7] hover:bg-[#6bbdb7]/20 transition-colors"
                         >
                             <Plus size={14} />
-                            Primer Gasto
+                            Registrar Primer Gasto
                         </button>
                     )}
                 </div>
             ) : (
-                <div className="space-y-3 mb-6">
-                    {filteredExpenses.map((expense, i) => (
-                        <div
-                            key={expense.id || i}
-                            onClick={() => handleEdit(expense)}
-                            className="bg-white rounded-[1.5rem] border-2 border-gray-50 shadow-sm p-4 active:scale-[0.98] transition-transform"
-                        >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-bold text-[#303a7f] leading-tight mb-1.5">{expense.concepto}</p>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="inline-flex px-2.5 py-0.5 rounded-lg bg-[#303a7f]/5 text-[#303a7f] font-black text-[8px] uppercase tracking-wider">
-                                            {expense.categoria || 'Otros'}
-                                        </span>
-                                        <div className="flex items-center gap-1">
-                                            <Calendar size={10} className="text-gray-300" />
-                                            <span className="text-[10px] font-bold text-gray-400">{expense.fecha || '--'}</span>
+                <>
+                    {/* Desktop Table */}
+                    <div className="hidden md:block bg-white rounded-[2rem] border-2 border-gray-50 shadow-sm overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b-2 border-gray-50 bg-gray-50/50">
+                                        <th className="text-left px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Concepto</th>
+                                        <th className="text-left px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Categoría</th>
+                                        <th className="text-left px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</th>
+                                        <th className="text-right px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Monto</th>
+                                        <th className="text-center px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-20">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredExpenses.map((expense, i) => (
+                                        <tr
+                                            key={expense.id || i}
+                                            onClick={() => handleEdit(expense)}
+                                            className="border-b border-gray-50 hover:bg-gray-50/30 transition-colors cursor-pointer group"
+                                        >
+                                            <td className="px-6 py-4">
+                                                <p className="text-xs font-bold text-[#303a7f] leading-tight line-clamp-2">{expense.concepto}</p>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="inline-flex px-3 py-1 rounded-lg bg-[#303a7f]/5 text-[#303a7f] font-black text-[9px] uppercase tracking-wider">
+                                                    {expense.categoria || 'Otros'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Calendar size={12} className="text-gray-300" />
+                                                    <span className="text-xs font-bold text-gray-500">{expense.fecha || '--'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <span className="text-sm font-black text-[#6bbdb7]">{fmtCurrency(expense.monto)}</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleDelete(expense); }}
+                                                    className="p-2 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot>
+                                    <tr className="bg-gray-50/80">
+                                        <td colSpan={3} className="px-6 py-4 text-right">
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <span className="text-lg font-black text-[#6bbdb7]">{fmtCurrency(totalGeneral)}</span>
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Mobile Cards */}
+                    <div className="md:hidden space-y-3">
+                        {filteredExpenses.map((expense, i) => (
+                            <div
+                                key={expense.id || i}
+                                onClick={() => handleEdit(expense)}
+                                className="bg-white rounded-[1.5rem] border-2 border-gray-50 shadow-sm p-4 cursor-pointer active:scale-[0.98] transition-transform"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-bold text-[#303a7f] leading-tight mb-1.5">{expense.concepto}</p>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="inline-flex px-2.5 py-0.5 rounded-lg bg-[#303a7f]/5 text-[#303a7f] font-black text-[8px] uppercase tracking-wider">
+                                                {expense.categoria || 'Otros'}
+                                            </span>
+                                            <div className="flex items-center gap-1">
+                                                <Calendar size={10} className="text-gray-300" />
+                                                <span className="text-[10px] font-bold text-gray-400">{expense.fecha || '--'}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="flex flex-col items-end gap-2">
-                                    <span className="text-sm font-black text-[#6bbdb7]">{fmtCurrency(expense.monto)}</span>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleDelete(expense); }}
-                                        className="p-1.5 rounded-lg text-gray-300 active:text-red-500 active:bg-red-50 transition-all"
-                                    >
-                                        <Trash2 size={12} />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Footer Total */}
-            {filteredExpenses.length > 0 && (
-                <div className="bg-white rounded-[1.5rem] border-2 border-gray-50 shadow-sm p-4 flex items-center justify-between">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total</span>
-                    <span className="text-lg font-black text-[#303a7f]">{fmtCurrency(totalGeneral)}</span>
-                </div>
-            )}
-
-            {/* Modal Agregar/Editar Gasto (Full Screen en móvil) */}
-            {openAdd && (
-                <div className="fixed inset-0 z-[200] bg-[#f9f9f9] animate-in slide-in-from-bottom duration-300 flex flex-col">
-                    <div className="bg-white px-5 py-4 border-b-2 border-gray-50 flex items-center justify-between flex-shrink-0">
-                        <h2 className="text-sm font-black text-[#303a7f] uppercase tracking-widest">
-                            {editingExpense ? 'Editar Gasto' : 'Nuevo Gasto'}
-                        </h2>
-                        <button
-                            onClick={() => { setOpenAdd(false); resetForm(); }}
-                            className="p-2 rounded-xl transition-all btn-close-danger"
-                        >
-                            <X size={20} />
-                        </button>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                        {/* Concepto */}
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Concepto</label>
-                            <input
-                                type="text"
-                                value={concepto}
-                                onChange={e => setConcepto(e.target.value)}
-                                placeholder="Ej: FACEBK *RGKTJMY5V2 CA"
-                                className="w-full h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 outline-none focus:border-[#303a7f]/30 focus:bg-white text-sm font-bold text-[#303a7f] placeholder:text-gray-300 transition-all"
-                                autoFocus
-                            />
-                        </div>
-
-                        {/* Categoría */}
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Categoría</label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {CATEGORIAS.map(cat => (
-                                    <button
-                                        key={cat}
-                                        type="button"
-                                        onClick={() => setCategoria(cat)}
-                                        className={`px-3 py-3 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all border-2 ${categoria === cat ? 'bg-[#303a7f] text-white border-[#303a7f] shadow-lg' : 'bg-white text-gray-400 border-gray-100'}`}
-                                    >
-                                        {cat}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Monto */}
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Monto USD</label>
-                            <div className="relative">
-                                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
-                                <input
-                                    type="number"
-                                    value={monto}
-                                    onChange={e => setMonto(e.target.value)}
-                                    placeholder="0.00"
-                                    step="0.01"
-                                    min="0"
-                                    className="w-full h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl pl-10 pr-4 outline-none focus:border-[#303a7f]/30 focus:bg-white text-sm font-bold text-[#303a7f] placeholder:text-gray-300 transition-all"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Fecha */}
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Fecha</label>
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    value={fecha}
-                                    onChange={e => setFecha(e.target.value)}
-                                    placeholder="MM/DD/YYYY"
-                                    className="w-full h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl pl-4 pr-10 outline-none focus:border-[#303a7f]/30 focus:bg-white text-sm font-bold text-[#303a7f] placeholder:text-gray-300 transition-all"
-                                />
-                                <Calendar
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#303a7f] z-20 cursor-pointer"
-                                    size={18}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        const input = dateInputRef.current;
-                                        if (input) {
-                                            if (typeof input.showPicker === 'function') {
-                                                input.showPicker();
-                                            } else {
-                                                input.focus();
-                                                input.click();
-                                            }
-                                        }
-                                    }}
-                                />
-                                <input
-                                    type="date"
-                                    ref={dateInputRef}
-                                    value={toDateInput(fecha)}
-                                    onChange={e => setFecha(fromDateInput(e.target.value))}
-                                    className="absolute inset-0 z-10 opacity-0 cursor-pointer"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white px-5 py-4 border-t-2 border-gray-50 flex gap-3 flex-shrink-0">
-                        <button
-                            onClick={() => { setOpenAdd(false); resetForm(); }}
-                            className="flex-1 h-12 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all btn-close-danger"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            disabled={isSaving}
-                            className="flex-1 h-12 rounded-2xl bg-[#303a7f] text-white font-black text-[10px] uppercase tracking-widest active:bg-[#252a5e] disabled:opacity-50 transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
-                        >
-                            {isSaving ? (
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : editingExpense ? (
-                                'Actualizar'
-                            ) : (
-                                'Registrar'
-                            )}
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Modal Importar TDC (Full Screen en móvil) */}
-            {tdcModalOpen && (
-                <div className="fixed inset-0 z-[200] bg-[#f9f9f9] animate-in slide-in-from-bottom duration-300 flex flex-col">
-                    <div className="bg-white px-5 py-4 border-b-2 border-gray-50 flex items-center justify-between flex-shrink-0">
-                        <div>
-                            <h2 className="text-sm font-black text-[#303a7f] uppercase tracking-widest">Importar TDC</h2>
-                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
-                                {tdcTransactions.length} transacciones
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => { setTdcModalOpen(false); setTdcTransactions([]); }}
-                            className="p-2 rounded-xl transition-all btn-close-danger"
-                        >
-                            <X size={20} />
-                        </button>
-                    </div>
-
-                    <div className="flex-shrink-0 px-5 py-2 border-b border-gray-50 flex items-center gap-1.5 overflow-x-auto">
-                        <button
-                                onClick={onSelectOnlyExpenses}
-                            className="px-3 py-1.5 rounded-lg font-black text-[8px] uppercase tracking-wider whitespace-nowrap bg-[#6bbdb7]/10 text-[#6bbdb7]"
-                        >
-                            Solo Gastos
-                        </button>
-                        <button
-                                onClick={onSelectAllTdc}
-                            className="px-3 py-1.5 rounded-lg font-black text-[8px] uppercase tracking-wider whitespace-nowrap bg-gray-100 text-gray-500"
-                        >
-                            Todos
-                        </button>
-                        <button
-                                onClick={onDeselectAllTdc}
-                            className="px-3 py-1.5 rounded-lg font-black text-[8px] uppercase tracking-wider whitespace-nowrap bg-gray-100 text-gray-500"
-                        >
-                            Ninguno
-                        </button>
-                        <span className="ml-auto text-[9px] font-black text-[#303a7f] uppercase tracking-wider whitespace-nowrap">
-                            {tdcTransactions.filter(t => t.selected).length} sel.
-                        </span>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                        {tdcTransactions.map((t) => (
-                            <div
-                                key={t._idx}
-                                className={`bg-white rounded-xl border-2 p-3 transition-colors ${t.selected ? 'border-[#6bbdb7] bg-[#6bbdb7]/5' : 'border-gray-50'}`}
-                            >
-                                <div className="flex items-start gap-3">
-                                    <button
-                                        onClick={() => onToggleTdc(t._idx)}
-                                        className={`mt-0.5 w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all ${t.selected ? 'bg-[#6bbdb7] border-[#6bbdb7] text-white' : 'border-gray-200'}`}
-                                    >
-                                        {t.selected && (
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                        )}
-                                    </button>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-bold text-[#303a7f] leading-tight mb-1">{t.description}</p>
-                                        <div className="flex items-center gap-2 flex-wrap mb-2">
-                                            <span className={`inline-flex px-1.5 py-0.5 rounded-md font-black text-[7px] uppercase tracking-wider ${t.isExpense ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
-                                                {t.type}
-                                            </span>
-                                            <span className="text-[10px] font-bold text-gray-400">{t.fecha}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <select
-                                                value={t.categoria}
-                                                onChange={(e) => onUpdateTdcCat(t._idx, e.target.value)}
-                                                className="text-[9px] font-bold bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 outline-none text-[#303a7f] uppercase tracking-wider flex-1"
-                                            >
-                                                {CATEGORIAS.map(cat => (
-                                                    <option key={cat} value={cat}>{cat}</option>
-                                                ))}
-                                            </select>
-                                            <span className={`text-sm font-black flex-shrink-0 ${t.isExpense ? 'text-red-500' : 'text-green-500'}`}>
-                                                {t.isExpense ? '-' : '+'}{fmtCurrency(t.amount)}
-                                            </span>
-                                        </div>
+                                    <div className="flex flex-col items-end gap-2">
+                                        <span className="text-base font-black text-[#6bbdb7]">{fmtCurrency(expense.monto)}</span>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleDelete(expense); }}
+                                            className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         ))}
+                        <div className="bg-white rounded-[1.5rem] border-2 border-gray-50 shadow-sm p-4 flex items-center justify-between">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total</span>
+                            <span className="text-lg font-black text-[#6bbdb7]">{fmtCurrency(totalGeneral)}</span>
+                        </div>
                     </div>
+                </>
+            )}
 
-                    <div className="bg-white px-5 py-4 border-t-2 border-gray-50 flex gap-3 flex-shrink-0">
-                        <button
-                            onClick={() => { setTdcModalOpen(false); setTdcTransactions([]); }}
-                            className="flex-1 h-12 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all btn-close-danger"
-                        >
-                            Cancelar
-                        </button>
-                        <button
+            {/* Modal Agregar/Editar Gasto */}
+            {openAdd && (
+                <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-300">
+                        <div className="shrink-0 bg-white rounded-t-[2rem] px-6 py-4 border-b-2 border-gray-50 flex items-center justify-between">
+                            <h2 className="text-sm font-black text-[#303a7f] uppercase tracking-widest">
+                                {editingExpense ? 'Editar Gasto' : 'Nuevo Gasto'}
+                            </h2>
+                            <button
+                                onClick={() => { setOpenAdd(false); resetForm(); }}
+                                className="p-2 rounded-xl transition-all btn-close-danger"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                            {/* Concepto */}
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Concepto</label>
+                                <input
+                                    type="text"
+                                    value={concepto}
+                                    onChange={e => setConcepto(e.target.value)}
+                                    placeholder="Ej: FACEBK *RGKTJMY5V2 CA, Zelle payment to..."
+                                    className="w-full h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 outline-none focus:border-[#303a7f]/30 focus:bg-white text-sm font-bold text-[#303a7f] placeholder:text-gray-300 transition-all"
+                                    autoFocus
+                                />
+                            </div>
+
+                            {/* Categoría */}
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Categoría</label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                    {CATEGORIAS.map(cat => (
+                                        <button
+                                            key={cat}
+                                            type="button"
+                                            onClick={() => setCategoria(cat)}
+                                            className={`px-3 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all border-2 ${categoria === cat ? 'bg-[#303a7f] text-white border-[#303a7f] shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:text-[#303a7f] hover:border-[#303a7f]/20'}`}
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Monto y Fecha - lado a lado */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Monto USD</label>
+                                    <div className="relative">
+                                        <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                                        <input
+                                            type="number"
+                                            value={monto}
+                                            onChange={e => setMonto(e.target.value)}
+                                            placeholder="0.00"
+                                            step="0.01"
+                                            min="0"
+                                            className="w-full h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl pl-10 pr-4 outline-none focus:border-[#303a7f]/30 focus:bg-white text-sm font-bold text-[#303a7f] placeholder:text-gray-300 transition-all"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Fecha</label>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={fecha}
+                                            onChange={e => setFecha(e.target.value)}
+                                            placeholder="MM/DD/YYYY"
+                                            className="w-full h-12 bg-gray-50 border-2 border-gray-100 rounded-2xl pl-4 pr-10 outline-none focus:border-[#303a7f]/30 focus:bg-white text-sm font-bold text-[#303a7f] placeholder:text-gray-300 transition-all"
+                                        />
+                                        <Calendar
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#303a7f] z-20 cursor-pointer"
+                                            size={16}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const input = dateInputRef.current;
+                                                if (input) {
+                                                    if (typeof input.showPicker === 'function') {
+                                                        input.showPicker();
+                                                    } else {
+                                                        input.focus();
+                                                        input.click();
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                        <input
+                                            type="date"
+                                            ref={dateInputRef}
+                                            value={toDateInput(fecha)}
+                                            onChange={e => setFecha(fromDateInput(e.target.value))}
+                                            className="absolute inset-0 z-10 opacity-0 cursor-pointer"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="shrink-0 bg-white rounded-b-[2rem] px-6 py-4 border-t-2 border-gray-50 flex gap-3">
+                            <button
+                                onClick={() => { setOpenAdd(false); resetForm(); }}
+                                className="flex-1 h-12 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all btn-close-danger"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className="flex-1 h-12 rounded-2xl bg-[#303a7f] text-white font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
+                            >
+                                {isSaving ? (
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                ) : editingExpense ? (
+                                    'Actualizar'
+                                ) : (
+                                    'Registrar'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Importar TDC */}
+            {tdcModalOpen && (
+                <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-300">
+                        <div className="shrink-0 bg-white rounded-t-[2rem] px-6 py-4 border-b-2 border-gray-50 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-sm font-black text-[#303a7f] uppercase tracking-widest">Importar Gastos de TDC</h2>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
+                                    {tdcTransactions.length} transacciones detectadas
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => { setTdcModalOpen(false); setTdcTransactions([]); }}
+                                className="p-2 rounded-xl transition-all btn-close-danger"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="shrink-0 px-6 py-3 border-b border-gray-50 flex items-center gap-2">
+                            <button
+                                onClick={onSelectOnlyExpenses}
+                                className="px-3 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-wider bg-[#6bbdb7]/10 text-[#6bbdb7] hover:bg-[#6bbdb7]/20 transition-colors"
+                            >
+                                Solo Gastos
+                            </button>
+                            <button
+                                onClick={onSelectAllTdc}
+                                className="px-3 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-wider bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+                            >
+                                Todos
+                            </button>
+                            <button
+                                onClick={onDeselectAllTdc}
+                                className="px-3 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-wider bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+                            >
+                                Ninguno
+                            </button>
+                            <span className="ml-auto text-[10px] font-black text-[#303a7f] uppercase tracking-wider">
+                                {tdcTransactions.filter(t => t.selected).length} seleccionados
+                            </span>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto">
+                            <table className="w-full">
+                                <thead className="sticky top-0 bg-gray-50/95 backdrop-blur-sm z-10">
+                                    <tr className="border-b-2 border-gray-100">
+                                        <th className="w-10 px-4 py-3"></th>
+                                        <th className="text-left px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest">Descripción</th>
+                                        <th className="text-left px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest w-20">Tipo</th>
+                                        <th className="text-right px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest w-24">Monto</th>
+                                        <th className="text-left px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest w-24">Fecha</th>
+                                        <th className="text-left px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest w-40">Categoría</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {tdcTransactions.map((t) => (
+                                        <tr
+                                            key={t._idx}
+                                            className={`border-b border-gray-50 transition-colors ${t.selected ? 'bg-[#6bbdb7]/5' : 'hover:bg-gray-50/50'}`}
+                                        >
+                                            <td className="px-4 py-3 text-center">
+                                                <button
+                                                    onClick={() => onToggleTdc(t._idx)}
+                                                    className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${t.selected ? 'bg-[#6bbdb7] border-[#6bbdb7] text-white' : 'border-gray-200 hover:border-[#6bbdb7]/40'}`}
+                                                >
+                                                    {t.selected && (
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                    )}
+                                                </button>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <p className="text-xs font-bold text-[#303a7f] leading-tight max-w-xs truncate" title={t.description}>
+                                                    {t.description}
+                                                </p>
+                                                {t.memo && (
+                                                    <p className="text-[9px] text-gray-400 mt-0.5 truncate">{t.memo}</p>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={`inline-flex px-2 py-0.5 rounded-lg font-black text-[8px] uppercase tracking-wider ${t.isExpense ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
+                                                    {t.type}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <span className={`text-xs font-black ${t.isExpense ? 'text-red-500' : 'text-green-500'}`}>
+                                                    {t.isExpense ? '-' : '+'}{fmtCurrency(t.amount)}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="text-[10px] font-bold text-gray-500">{t.fecha}</span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <select
+                                                    value={t.categoria}
+                                                    onChange={(e) => onUpdateTdcCat(t._idx, e.target.value)}
+                                                    className="w-full text-[10px] font-bold bg-gray-50 border-2 border-gray-100 rounded-lg px-2 py-1.5 outline-none focus:border-[#303a7f]/30 text-[#303a7f] uppercase tracking-wider"
+                                                >
+                                                    {CATEGORIAS.map(cat => (
+                                                        <option key={cat} value={cat}>{cat}</option>
+                                                    ))}
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="shrink-0 bg-white rounded-b-[2rem] px-6 py-4 border-t-2 border-gray-50 flex gap-3">
+                            <button
+                                onClick={() => { setTdcModalOpen(false); setTdcTransactions([]); }}
+                                className="flex-1 h-12 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all btn-close-danger"
+                            >
+                                Cancelar
+                            </button>
+                            <button
                                 onClick={onTdcImport}
-                            disabled={tdcImporting || tdcTransactions.filter(t => t.selected).length === 0}
-                            className="flex-1 h-12 rounded-2xl bg-[#303a7f] text-white font-black text-[10px] uppercase tracking-widest active:bg-[#252a5e] disabled:opacity-50 transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
-                        >
-                            {tdcImporting ? (
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                                <>
-                                    <Upload size={14} />
-                                    Importar {tdcTransactions.filter(t => t.selected).length}
-                                </>
-                            )}
-                        </button>
+                                disabled={tdcImporting || tdcTransactions.filter(t => t.selected).length === 0}
+                                className="flex-1 h-12 rounded-2xl bg-[#303a7f] text-white font-black text-[10px] uppercase tracking-widest hover:bg-[#252a5e] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
+                            >
+                                {tdcImporting ? (
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <>
+                                        <Upload size={14} />
+                                        Importar {tdcTransactions.filter(t => t.selected).length} Gastos
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import sheetUrl from '../assets/cat_sheet.png';
+import sheetUrl from './assets/cat_sheet.png';
 
 const SPRITE_SIZE = 32;
 const RENDER_SCALE = 2;
