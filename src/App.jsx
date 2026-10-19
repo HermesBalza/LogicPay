@@ -10990,6 +10990,7 @@ const TaxCenterView = ({ employees, stores, csgNominaData, adminPayrollHistory, 
     });
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedState, setSelectedState] = useState('Todos');
+    const [isExportingExcel, setIsExportingExcel] = useState(false);
 
     const storeStateMap = useMemo(() => {
         const map = {};
@@ -11317,59 +11318,204 @@ const TaxCenterView = ({ employees, stores, csgNominaData, adminPayrollHistory, 
             });
     }, [reportData.rows, searchTerm, selectedState, storeStateMap]);
 
-    const handleExportExcel = () => {
-        const exportData = filteredRows.map(row => {
-            const dbEmp = employees.find(e => e.codigo_empleado === row.id) || {};
+    const handleExportExcel = async () => {
+        if (isExportingExcel) return;
+        setIsExportingExcel(true);
+        try {
+            // ─── Misma lógica de datos (intacta) ───
+            const exportData = filteredRows.map(row => {
+                const dbEmp = employees.find(e => e.codigo_empleado === row.id) || {};
 
-            const baseRow = {
-                'Payer Type': dbEmp.payer_type || 'Individual',
-                'Payer TIN Type': dbEmp.tin_type || 'SSN',
-                'Payer TIN': dbEmp.tin ? `'${dbEmp.tin}` : '',
-                'Bank Account': dbEmp.cuenta_bancaria ? `'${dbEmp.cuenta_bancaria}` : '',
-                'P Business Name or Last Name': dbEmp.last_name || row.nombre.split(' ').pop(),
-                'P First Name': dbEmp.first_name || row.nombre.split(' ')[0],
-                'P Address 1': dbEmp.address_1 || '',
-                'P City': dbEmp.city || '',
-                'P State': dbEmp.state || '',
-                'P ZIP or Foreign Postal Code': dbEmp.zip ? `'${dbEmp.zip}` : '',
-                'P Country': dbEmp.country || 'EE. UU.',
-                'P Email Address (optional)': dbEmp.email_tax || '',
-                'Tienda': dbEmp.tienda || '',
-                'Site Code': dbEmp.site_code ? `'${dbEmp.site_code}` : '',
-                'Activo': dbEmp.fecha_egreso ? 'Inactivo' : 'Activo',
-                'Box 1 Nonemployee Compensation': row.totalBox1,
-            };
+                const baseRow = {
+                    'Payer Type': dbEmp.payer_type || 'Individual',
+                    'Payer TIN Type': dbEmp.tin_type || 'SSN',
+                    'Payer TIN': dbEmp.tin ? `'${dbEmp.tin}` : '',
+                    'Bank Account': dbEmp.cuenta_bancaria ? `'${dbEmp.cuenta_bancaria}` : '',
+                    'P Business Name or Last Name': dbEmp.last_name || row.nombre.split(' ').pop(),
+                    'P First Name': dbEmp.first_name || row.nombre.split(' ')[0],
+                    'P Address 1': dbEmp.address_1 || '',
+                    'P City': dbEmp.city || '',
+                    'P State': dbEmp.state || '',
+                    'P ZIP or Foreign Postal Code': dbEmp.zip ? `'${dbEmp.zip}` : '',
+                    'P Country': dbEmp.country || 'EE. UU.',
+                    'P Email Address (optional)': dbEmp.email_tax || '',
+                    'Tienda': dbEmp.tienda || '',
+                    'Site Code': dbEmp.site_code ? `'${dbEmp.site_code}` : '',
+                    'Activo': dbEmp.fecha_egreso ? 'Inactivo' : 'Activo',
+                    'Box 1 Nonemployee Compensation': row.totalBox1,
+                };
 
-            reportData.periods.forEach(p => {
-                baseRow[p] = row.periods[p] || 0;
+                reportData.periods.forEach(p => {
+                    baseRow[p] = row.periods[p] || 0;
+                });
+
+                return baseRow;
             });
 
-            return baseRow;
-        });
+            // ─── Generación del Excel (ExcelJS, mismo diseño del Balance) ───
+            const ExcelJS = (await import('exceljs')).default;
+            const wb = new ExcelJS.Workbook();
+            wb.creator = 'LogicPay · Logic Group Management';
+            wb.created = new Date();
 
-        const ws = XLSX.utils.json_to_sheet(exportData);
-        const range = XLSX.utils.decode_range(ws['!ref']);
-        let moneyColStart = -1;
-        for (let col = range.s.c; col <= range.e.c; col++) {
-            const headerCell = ws[XLSX.utils.encode_cell({ r: 0, c: col })];
-            if (headerCell && headerCell.v === 'Box 1 Nonemployee Compensation') {
-                moneyColStart = col;
-                break;
-            }
-        }
-        if (moneyColStart >= 0) {
-            for (let row = 1; row <= range.e.r; row++) {
-                for (let col = moneyColStart; col <= range.e.c; col++) {
-                    const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
-                    if (ws[cellRef] && typeof ws[cellRef].v === 'number') {
-                        ws[cellRef].z = '#,##0.00';
+            // Paleta LogicPay idéntica a la exportación de Balance
+            const NAVY = 'FF303A7F', NAVY_DARK = 'FF1E234D', TEAL = 'FF6BBDB7';
+            const WHITE = 'FFFFFFFF', ZEBRA = 'FFF4F6FB', BORDER = 'FFE2E8F0';
+            const NAVY_TEXT = 'FF303A7F', TEXT_GRAY = 'FF6B7280';
+            const GREEN = 'FF16A34A', RED = 'FFEF4444';
+            const moneyFmt = '"$"#,##0.00';
+            const borderThin = { style: 'thin', color: { argb: BORDER } };
+            const box = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+            const solid = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+            const genDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+            const numCell = (v) => (Number.isFinite(v) ? v : (parseFloat(String(v ?? '').replace(/[^0-9.-]+/g, '')) || 0));
+            // Limpia el apóstrofo inicial (marker propio de SheetJS) y conserva el valor como texto
+            const cleanText = (v) => {
+                const s = (v === null || v === undefined) ? '' : String(v);
+                return s.startsWith("'") ? s.slice(1) : s;
+            };
+
+            const periods = reportData.periods;
+            const fixedCols = [
+                { header: 'Payer Type', kind: 'text', width: 14 },
+                { header: 'Payer TIN Type', kind: 'text', width: 13 },
+                { header: 'Payer TIN', kind: 'code', width: 16 },
+                { header: 'Bank Account', kind: 'code', width: 16 },
+                { header: 'P Business Name or Last Name', kind: 'name', width: 22 },
+                { header: 'P First Name', kind: 'name', width: 16 },
+                { header: 'P Address 1', kind: 'text', width: 22 },
+                { header: 'P City', kind: 'text', width: 14 },
+                { header: 'P State', kind: 'text', width: 10 },
+                { header: 'P ZIP or Foreign Postal Code', kind: 'code', width: 14 },
+                { header: 'P Country', kind: 'text', width: 12 },
+                { header: 'P Email Address (optional)', kind: 'text', width: 24 },
+                { header: 'Tienda', kind: 'text', width: 20 },
+                { header: 'Site Code', kind: 'code', width: 12 },
+                { header: 'Activo', kind: 'textC', width: 10 },
+                { header: 'Box 1 Nonemployee Compensation', kind: 'money', width: 18 },
+            ];
+            const periodCols = periods.map(p => ({ header: p, kind: 'money', width: 16 }));
+            const allCols = [...fixedCols, ...periodCols];
+            const numCols = allCols.length;
+
+            const ws = wb.addWorksheet('Reporte 1099', { views: [{ state: 'frozen', ySplit: 6 }] });
+            ws.columns = allCols.map(c => ({ width: c.width }));
+
+            // ── Fila 1: Banner ──
+            ws.mergeCells(1, 1, 1, numCols);
+            let banner = ws.getCell(1, 1);
+            banner.value = 'LOGIC GROUP MANAGEMENT';
+            banner.font = { size: 14, bold: true, color: { argb: WHITE } };
+            banner.fill = solid(NAVY);
+            banner.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+            ws.getRow(1).height = 30;
+
+            // ── Fila 2: Subtítulo ──
+            ws.mergeCells(2, 1, 2, numCols);
+            banner = ws.getCell(2, 1);
+            banner.value = `Reporte 1099-NEC · Año Fiscal ${fiscalYear} · Generado desde LogicPay · ${genDate}`;
+            banner.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } };
+            banner.fill = solid('FFF8FAFD');
+            banner.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+            ws.getRow(2).height = 22;
+
+            // ── Fila 4: Resumen (chips) ──
+            const totalBox1Sum = exportData.reduce((s, r) => s + numCell(r['Box 1 Nonemployee Compensation']), 0);
+            ws.mergeCells(4, 1, 4, numCols);
+            const resumen = ws.getCell(4, 1);
+            resumen.value = `EMPLEADOS ${exportData.length}  ·  PERÍODOS ${periods.length}  ·  TOTAL BOX 1 ${totalBox1Sum.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`;
+            resumen.font = { size: 9, bold: true, color: { argb: TEXT_GRAY } };
+            resumen.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+
+            // ── Fila 6: Encabezados ──
+            const headRow = ws.getRow(6);
+            allCols.forEach((col, i) => {
+                const c = headRow.getCell(i + 1);
+                c.value = col.header;
+                c.font = { bold: true, size: 9, color: { argb: WHITE } };
+                c.fill = solid(NAVY);
+                c.border = box;
+                c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            });
+            headRow.height = 30;
+
+            // ── Filas de datos (bordes + cebra) ──
+            let r = 7;
+            exportData.forEach((rowData, idx) => {
+                const rowXl = ws.getRow(r);
+                allCols.forEach((col, i) => {
+                    const c = rowXl.getCell(i + 1);
+                    c.border = box;
+                    if (idx % 2 === 1) c.fill = solid(ZEBRA);
+                    const raw = rowData[col.header];
+                    if (col.kind === 'money') {
+                        c.value = numCell(raw);
+                        c.numFmt = moneyFmt;
+                        c.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } };
+                        c.alignment = { vertical: 'middle', horizontal: 'right' };
+                    } else if (col.kind === 'code') {
+                        c.value = cleanText(raw);
+                        c.numFmt = '@';
+                        c.font = { size: 9, color: { argb: 'FF4B5563' } };
+                        c.alignment = { vertical: 'middle', horizontal: 'center' };
+                    } else if (col.kind === 'name') {
+                        c.value = (raw === null || raw === undefined || String(raw).trim() === '') ? '—' : raw;
+                        c.font = { size: 9, bold: true, color: { argb: NAVY_TEXT } };
+                        c.alignment = { vertical: 'middle', horizontal: 'left' };
+                    } else if (col.kind === 'textC') {
+                        c.value = (raw === null || raw === undefined || String(raw).trim() === '') ? '—' : raw;
+                        c.font = { size: 8, bold: true, color: { argb: raw === 'Activo' ? GREEN : RED } };
+                        c.alignment = { vertical: 'middle', horizontal: 'center' };
+                    } else {
+                        c.value = (raw === null || raw === undefined || String(raw).trim() === '') ? '—' : raw;
+                        c.font = { size: 9, color: { argb: 'FF4B5563' } };
+                        c.alignment = { vertical: 'middle', horizontal: 'left' };
                     }
+                });
+                rowXl.height = 18;
+                r++;
+            });
+
+            // ── Fila TOTAL ──
+            const totalRow = ws.getRow(r);
+            allCols.forEach((col, i) => {
+                const c = totalRow.getCell(i + 1);
+                c.border = box;
+                c.fill = solid(NAVY_DARK);
+                c.font = { bold: true, size: 10, color: { argb: WHITE } };
+                if (i === 0) {
+                    c.value = 'TOTAL';
+                    c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+                } else if (col.kind === 'money') {
+                    const sum = exportData.reduce((s, rd) => s + numCell(rd[col.header]), 0);
+                    c.value = sum;
+                    c.numFmt = moneyFmt;
+                    c.alignment = { vertical: 'middle', horizontal: 'right' };
+                } else {
+                    c.value = '';
+                    c.alignment = { vertical: 'middle' };
                 }
-            }
+            });
+            totalRow.height = 22;
+
+            // Autofiltro sobre los encabezados
+            ws.autoFilter = { from: { row: 6, column: 1 }, to: { row: r - 1, column: numCols } };
+
+            // ── Descarga ──
+            const buffer = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Reporte_1099_${fiscalYear}_LogicPay.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        } catch (e) {
+            console.error('[1099] Error exportando Excel:', e);
+        } finally {
+            setIsExportingExcel(false);
         }
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Reporte 1099");
-        XLSX.writeFile(wb, `Reporte_1099_${fiscalYear}_LogicPay.xlsx`, { cellStyles: true });
     };
 
     return (
@@ -11424,12 +11570,17 @@ const TaxCenterView = ({ employees, stores, csgNominaData, adminPayrollHistory, 
 
                     <button
                         onClick={handleExportExcel}
+                        disabled={isExportingExcel}
                         style={{ backgroundColor: '#6bbdb7' }}
-                        className="h-full text-white font-black px-8 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-teal-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#59aba5] whitespace-nowrap"
+                        className={`h-full text-white font-black px-8 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-2xl shadow-teal-900/20 active:scale-95 group overflow-hidden relative hover:bg-[#59aba5] whitespace-nowrap disabled:opacity-70 disabled:cursor-wait ${isExportingExcel ? 'opacity-70 cursor-wait' : ''}`}
                     >
                         <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-                        <Download size={16} className="group-hover:scale-110 transition-transform duration-500" />
-                        <span className="tracking-widest uppercase text-[10px]">Exportar Excel</span>
+                        {isExportingExcel ? (
+                            <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                            <Download size={16} className="group-hover:scale-110 transition-transform duration-500" />
+                        )}
+                        <span className="tracking-widest uppercase text-[10px]">{isExportingExcel ? 'Exportando...' : 'Exportar Excel'}</span>
                     </button>
                 </div>
             </div>
