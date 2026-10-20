@@ -1200,20 +1200,20 @@ app.get('/api/audit-log', (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
     const offset = parseInt(req.query.offset) || 0;
     const userId = req.query.userId;
-    let query, countQuery, params;
-    if (userId) {
-      query = `SELECT * FROM AuditLog WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`;
-      countQuery = `SELECT COUNT(*) as count FROM AuditLog WHERE user_id = ?`;
-      params = [Number(userId), limit, offset];
-      const total = db.prepare(countQuery).get(Number(userId));
-      const rows = db.prepare(query).all(...params);
-      return res.json({ rows, total: total.count });
-    } else {
-      query = `SELECT * FROM AuditLog ORDER BY created_at DESC LIMIT ? OFFSET ?`;
-      const total = db.prepare(`SELECT COUNT(*) as count FROM AuditLog`).get();
-      const rows = db.prepare(query).all(limit, offset);
-      return res.json({ rows, total: total.count });
-    }
+    const accion = req.query.accion;
+    const entidad = req.query.entidad;
+    // Filtros opcionales retrocompatibles: accion, entidad
+    const where = [];
+    const filterParams = [];
+    if (userId) { where.push('user_id = ?'); filterParams.push(Number(userId)); }
+    if (accion) { where.push('accion = ?'); filterParams.push(String(accion)); }
+    if (entidad) { where.push('entidad = ?'); filterParams.push(String(entidad)); }
+    const whereSql = where.length > 0 ? ` WHERE ${where.join(' AND ')}` : '';
+    const query = `SELECT * FROM AuditLog${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+    const countQuery = `SELECT COUNT(*) as count FROM AuditLog${whereSql}`;
+    const rows = db.prepare(query).all(...filterParams, limit, offset);
+    const total = db.prepare(countQuery).get(...filterParams).count;
+    return res.json({ rows, total });
   } catch (error) {
     console.error('Error fetching audit log:', error);
     res.status(500).json({ error: 'Error interno del servidor' });

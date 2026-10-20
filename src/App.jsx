@@ -84,7 +84,8 @@ import {
     RefreshCw,
     Link,
     Undo2,
-    Scale
+    Scale,
+    ListChecks
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -101,6 +102,7 @@ import AdminExpensesView from './AdminExpensesView.jsx';
 import BalanceView from './BalanceView.jsx';
 import NotificationBell from './NotificationBell.jsx';
 import PixelCat from './PixelCat.jsx';
+import BiweekChecklistModal from './BiweekChecklistModal.jsx';
 
 const MobileShell = React.lazy(() => import('./mobile/MobileShell'));
 
@@ -16384,6 +16386,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly, inline = false, stores = [], selectedStore = '', onSelectStore = () => { }, historyData = [], processedBiweeks = [], onOpenBilling = () => { }, onOpenWOS = () => { }, onOpenBalance = () => { }, nominaDetailData = [], payrollDrafts = {}, user = null }) => {
     const [selectedYear, setSelectedYear] = useState(2026);
     const [forcedBiweeks, setForcedBiweeks] = useState({});
+    const [checklistBiweek, setChecklistBiweek] = useState(null);
     if (!isOpen) return null;
 
     const isWeekProcessed = (fechaInicio) => {
@@ -16639,13 +16642,22 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                                                 </span>
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={() => setForcedBiweeks(prev => ({ ...prev, [p.periodNum]: !prev[p.periodNum] }))}
-                                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90 ${forcedBiweeks[p.periodNum] ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-red-100 text-red-500 hover:bg-red-200'}`}
-                                            title={forcedBiweeks[p.periodNum] ? 'Desbloqueado - Forzar bloqueo' : 'Bloqueado - Forzar desbloqueo'}
-                                        >
-                                            {forcedBiweeks[p.periodNum] ? <Unlock size={13} /> : <Lock size={13} />}
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => setChecklistBiweek(p)}
+                                                className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#303a7f]/5 text-[#303a7f] hover:bg-[#303a7f]/10 transition-all active:scale-90"
+                                                title="Checklist de Tiendas de estas Semanas"
+                                            >
+                                                <ListChecks size={13} />
+                                            </button>
+                                            <button
+                                                onClick={() => setForcedBiweeks(prev => ({ ...prev, [p.periodNum]: !prev[p.periodNum] }))}
+                                                className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90 ${forcedBiweeks[p.periodNum] ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-red-100 text-red-500 hover:bg-red-200'}`}
+                                                title={forcedBiweeks[p.periodNum] ? 'Desbloqueado - Forzar bloqueo' : 'Bloqueado - Forzar desbloqueo'}
+                                            >
+                                                {forcedBiweeks[p.periodNum] ? <Unlock size={13} /> : <Lock size={13} />}
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {/* Contenedor de Semanas (Lado a Lado) */}
@@ -16708,6 +16720,18 @@ const PayrollHistoryModal = ({ isOpen, onClose, onSelectWeek, onProcessBiweekly,
                     </div>
                 </div>
             </div>
+
+            <BiweekChecklistModal
+                isOpen={!!checklistBiweek}
+                onClose={() => setChecklistBiweek(null)}
+                w1={checklistBiweek?.w1}
+                w2={checklistBiweek?.w2}
+                weeksLabel={checklistBiweek?.weeksLabel}
+                yearsLabel={checklistBiweek?.yearsLabel}
+                stores={stores}
+                historyData={historyData}
+                payrollDrafts={payrollDrafts}
+            />
 
         </div>
     );
