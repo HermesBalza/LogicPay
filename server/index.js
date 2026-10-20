@@ -9,6 +9,7 @@ import multer from 'multer';
 import { execFile } from 'child_process';
 import fs from 'fs';
 import os from 'os';
+import crypto from 'crypto';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
 import db from './db.js';
@@ -30,6 +31,70 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.text({ limit: '50mb' })); // Soporte para text/plain que enviaba el frontend a Google Sheets
 
 const upload = multer({ storage: multer.memoryStorage() });
+
+// ---------------------------------------------------------------------
+// Autenticación de sesión (token firmado, guardado en SQLite)
+// ---------------------------------------------------------------------
+const AUTH_TOKEN_TTL_MS = 12 * 60 * 60 * 1000; // 12 horas de vigencia del token
+
+// Secret persistente para firmar tokens: se genera una sola vez y se guarda en la tabla Variables
+function getAuthSecret() {
+  const row = db.prepare(`SELECT value FROM Variables WHERE key = 'auth_secret'`).get();
+  if (row && row.value && row.value.length >= 32) return row.value;
+  const secret = crypto.randomBytes(32).toString('hex');
+  db.prepare(`INSERT OR REPLACE INTO Variables ("key", "value") VALUES ('auth_secret', ?)`).run(secret);
+  return secret;
+}
+
+function base64url(buf) {
+  return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function signToken(payload) {
+  const body = base64url(JSON.stringify(payload));
+  const sig = base64url(crypto.createHmac('sha256', getAuthSecret()).update(body).digest());
+  return `${body}.${sig}`;
+}
+
+function verifyAuthToken(token) {
+  try {
+    if (!token || typeof token !== 'string') return null;
+    const [body, sig] = token.split('.');
+    if (!body || !sig) return null;
+    const expected = base64url(crypto.createHmac('sha256', getAuthSecret()).update(body).digest());
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    const payload = JSON.parse(Buffer.from(body, 'base64').toString('utf8'));
+    if (!payload || typeof payload.id !== 'number' || typeof payload.exp !== 'number' || Date.now() > payload.exp) return null;
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Endpoints públicos que no requieren sesión (login y healthcheck de Fly.io)
+const PUBLIC_API_PATHS = new Set(['/api/login', '/api/tables']);
+
+// Middleware global: toda petición a /api/* requiere un token válido de un usuario que
+// TODAVÍA EXISTA en la tabla Usuarios (mata las sesiones de usuarios eliminados al instante)
+app.use((req, res, next) => {
+  const p = req.path;
+  if (!p.startsWith('/api/') || PUBLIC_API_PATHS.has(p)) return next();
+
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  const payload = verifyAuthToken(token);
+  if (!payload) {
+    return res.status(401).json({ success: false, error: 'No autorizado: sesión inválida o expirada' });
+  }
+  const exists = db.prepare(`SELECT id, nombre FROM Usuarios WHERE id = ?`).get(payload.id);
+  if (!exists) {
+    return res.status(401).json({ success: false, error: 'Sesión invalidada: el usuario ya no existe' });
+  }
+  req.user = { id: exists.id, nombre: exists.nombre, rol: payload.rol };
+  next();
+});
 
 // Filtra las propiedades del objeto para incluir solo columnas que existen en la tabla
 // y normaliza valores (stringifica objetos, remueve prefijo ' de Google Sheets)
@@ -184,7 +249,28 @@ app.post('/api/write', (req, res) => {
        if (validMatchKeys.length === 0) return res.status(400).send('matchKeys no encontrados en los datos');
        const whereClause = validMatchKeys.map(k => `\"${k}\" = ?`).join(' AND ');
        const whereValues = validMatchKeys.map(k => data[k]);
+
+       // Al eliminar un usuario, purgar también su clave de presencia en Variables
+       // para que deje de aparecer como "online" inmediatamente
+       let deletedUserNombre = null;
+       if (sheetName === 'Usuarios') {
+         try {
+           const target = db.prepare(`SELECT nombre FROM Usuarios WHERE ${whereClause}`).get(whereValues);
+           deletedUserNombre = target ? target.nombre : null;
+         } catch (e) { /* la purga de arranque cubre las claves huérfanas de todas formas */ }
+       }
+
        db.prepare(`DELETE FROM ${sheetName} WHERE ${whereClause}`).run(whereValues);
+
+       if (deletedUserNombre) {
+         try {
+           const presenceKey = `presence_${String(deletedUserNombre).replace(/\s+/g, '_')}`;
+           db.prepare(`DELETE FROM Variables WHERE key = ?`).run(presenceKey);
+         } catch (e) {
+           console.error('[Write] Error purgando presencia del usuario eliminado:', e.message);
+         }
+       }
+
        if (!skipAuditLog) {
          auditLog(userId, userName, 'Eliminó', mapEntityName(sheetName), entidadNombre, { table: sheetName, matchKeys });
        }
@@ -312,8 +398,17 @@ app.post('/api/login', (req, res) => {
             return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
         }
 
+        const token = signToken({
+            id: user.id,
+            nombre: user.nombre,
+            rol: user.rol,
+            iat: Date.now(),
+            exp: Date.now() + AUTH_TOKEN_TTL_MS
+        });
+
         res.json({
             success: true,
+            token,
             user: {
                 id: user.id,
                 nombre: user.nombre,
@@ -1231,8 +1326,34 @@ app.post('/api/parse-tdc', upload.single('tdcFile'), (req, res) => {
     }
 });
 
+// Purga de claves de presencia huérfanas: elimina cualquier fila presence_<nombre>
+// de la tabla Variables cuyo nombre ya no exista en la tabla Usuarios
+function purgeOrphanPresence() {
+  try {
+    const rows = db.prepare(`SELECT key FROM Variables WHERE key LIKE 'presence_%'`).all();
+    const users = db.prepare(`SELECT nombre FROM Usuarios`).all();
+    const validNames = new Set(users.map(u => String(u.nombre || '').replace(/\s+/g, '_')));
+    let removed = 0;
+    for (const r of rows) {
+      const name = String(r.key || '').slice('presence_'.length);
+      if (!name || !validNames.has(name)) {
+        db.prepare(`DELETE FROM Variables WHERE key = ?`).run(r.key);
+        removed++;
+      }
+    }
+    if (removed > 0) {
+      console.log(`[Presencia] Purgadas ${removed} clave(s) de presencia huérfana(s).`);
+      auditLog(null, 'Sistema', 'Purgó presencia huérfana', 'Variable', `${removed} clave(s)`, { purged: removed });
+    }
+  } catch (e) {
+    console.error('[Presencia] Error purgando presencia huérfana:', e.message);
+  }
+}
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor Backend escuchando en el puerto ${PORT}`);
+
+  purgeOrphanPresence();
 
   if (isBackupConfigured()) {
     startBackupScheduler(db, auditLog);

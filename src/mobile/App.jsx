@@ -220,6 +220,43 @@ const CRM_CANDIDATOS_API_URL = `${LOCAL_API_BASE}/CRM_Candidatos`;
 const SALDOS_PENDIENTES_API_URL = `${LOCAL_API_BASE}/Saldos_Pendientes`;
 const CONSOLIDATED_STORE = "EMPLEADOS MULTI-TIENDAS";
 let _storesRef = [];
+
+// ─── AUTENTICACIÓN: interceptor global de fetch (token de sesión + cierre automático) ───
+// Toda petición a /api/* incluye el token guardado en sessionStorage ('authToken').
+// Si el backend responde 401 (usuario eliminado o sesión expirada), se cierra la sesión
+// y se recarga la app para volver al login: esto mata remotamente pestañas huérfanas.
+const _logicPayFetch = window.fetch.bind(window);
+window.fetch = async function (input, init) {
+    try {
+        const url = typeof input === 'string' ? input : String((input && input.url) || input);
+        const token = sessionStorage.getItem('authToken');
+        let finalInit = init;
+        if (token && url.includes('/api/') && !url.includes('/api/login')) {
+            const headers = new Headers(
+                (init && init.headers) ||
+                (typeof input !== 'string' && input.headers ? input.headers : undefined) ||
+                undefined
+            );
+            if (!headers.has('Authorization')) {
+                headers.set('Authorization', `Bearer ${token}`);
+            }
+            finalInit = { ...(init || {}), headers };
+        }
+        const response = await _logicPayFetch(input, finalInit);
+        // Solo cerrar sesión automáticamente si HABÍA una sesión activa (token):
+        // evita bucles de recarga en la pantalla de login, donde las peticiones
+        // anónimas reciben 401 legítimamente.
+        if (response && response.status === 401 && token && url.includes('/api/') && !url.includes('/api/login')) {
+            sessionStorage.removeItem('user');
+            sessionStorage.removeItem('authToken');
+            window.location.reload();
+            return response;
+        }
+        return response;
+    } catch (e) {
+        return _logicPayFetch(input, init);
+    }
+};
 const isWeekMonSun = (storeName) => {
     const store = _storesRef.find(s => s.nombre === storeName);
     if (store?.tipo_facturacion === 'lunes_a_domingo') return true;
@@ -700,7 +737,7 @@ const LoginView = ({ onLogin }) => {
             });
             const data = await res.json();
             if (data.success) {
-                onLogin(data.user);
+                onLogin(data.user, data.token);
             } else {
                 setError(true);
                 setTimeout(() => setError(false), 2000);
@@ -21264,6 +21301,19 @@ const UserManager = ({ currentUser, onUserUpdate }) => {
                 })
             });
             if (!res.ok) throw new Error('Error al eliminar');
+            // Purgar la clave de presencia del usuario eliminado para que no aparezca "online"
+            try {
+                await fetch('/api/write', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'delete',
+                        sheetName: 'Variables',
+                        data: { key: `presence_${String(confirmDelete.nombre).replace(/\s+/g, '_')}` },
+                        matchKeys: ['key']
+                    })
+                });
+            } catch (_) { /* la purga de arranque del servidor cubre este caso */ }
             showNotif(`Usuario "${confirmDelete.nombre}" eliminado`);
             setConfirmDelete(null);
             fetchUsers();
@@ -22522,9 +22572,10 @@ function App() {
         }
     }, [activeTab, payrollView]);
 
-    const handleLogin = (userData) => {
+    const handleLogin = (userData, token) => {
         setUser(userData);
         sessionStorage.setItem('user', JSON.stringify(userData));
+        if (token) sessionStorage.setItem('authToken', token);
     };
 
     const SplashLoader = () => (
@@ -25250,6 +25301,9 @@ function App() {
                 if (updated) {
                     const newUser = { id: updated.id, nombre: updated.nombre, email: updated.email, rol: updated.rol, foto: updated.foto || null };
                     setUser(newUser);
+                } else {
+                    // El usuario ya no existe en la base de datos: cerrar sesión de forma remota
+                    handleLogout();
                 }
             }
         } catch (e) { console.error('Error refrescando usuario:', e); }
@@ -25261,6 +25315,15 @@ function App() {
             refreshCurrentUser();
         }
     }, [variablesLoaded]);
+
+    // Verificación periódica de sesión: si la cuenta fue eliminada, cerrar sesión en 1 minuto
+    useEffect(() => {
+        if (!user) return;
+        const interval = setInterval(() => {
+            if (variablesLoaded) refreshCurrentUser();
+        }, 60000);
+        return () => clearInterval(interval);
+    }, [user, variablesLoaded]);
 
     // FASE 8: Helper centralizado para agregar imágenes al Digitalizador (explorador, arrastrar y soltar o portapapeles)
     const addSheetFiles = useCallback((filesList) => {
@@ -26446,7 +26509,16 @@ function App() {
             const currentActiveUsers = [];
             const now = new Date();
 
-            data.forEach(item => {
+            // Presencia: cruzar contra la tabla Usuarios para no contar cuentas eliminadas
+            let usuariosValidos = null;
+            try {
+                const usuariosRes = await fetch('/api/data/Usuarios', { cache: 'no-store' });
+                if (usuariosRes.ok) {
+                    usuariosValidos = new Set((await usuariosRes.json()).map(u => String(u.nombre || '').trim().toLowerCase()));
+                }
+            } catch (e) { /* sin filtro: el backend igualmente invalida sesiones de usuarios eliminados */ }
+
+            for (const item of data) {
                 const key = String(item.key || item.clave).toLowerCase();
                 const val = item.value || item.valor;
 
@@ -26475,11 +26547,11 @@ function App() {
                         lastSeen = new Date(val);
                         foto = '';
                     }
-                    if (now - lastSeen < 5 * 60 * 1000) {
+                    if (now - lastSeen < 5 * 60 * 1000 && (!usuariosValidos || usuariosValidos.has(name.trim().toLowerCase()))) {
                         currentActiveUsers.push({ name, lastSeen, foto });
                     }
                 }
-            });
+            }
 
             setActiveUsers(currentActiveUsers);
             if (!onlyPresence) {
@@ -26738,6 +26810,9 @@ function App() {
     };
 
     useEffect(() => {
+        // Cargar datos solo con sesión activa: se ejecuta al iniciar sesión
+        // y al restaurar la sesión guardada, nunca de forma anónima
+        if (!user) return;
         fetchStores();
         fetchEmployees();
         fetchNominaHistory();
@@ -26754,7 +26829,7 @@ function App() {
         fetchPendingContratados();
         fetchTableData(SALDOS_PENDIENTES_API_URL).then(data => setSaldosPendientesData(data || [])).catch(() => { });
         fetchTableData('/api/data/CRM_Proveedores').then(data => setProvidersList(data || [])).catch(() => { });
-    }, []);
+    }, [user?.id]);
 
     useEffect(() => {
         // Restaurar selección previa tras refresco (Post-Aprobación)
@@ -27121,8 +27196,8 @@ function App() {
     ];
     const navItems = allNavItems.filter(item => item.id !== 'settings' || userCanAccessSettings);
 
-    if (!variablesLoaded || isSyncingEmployeeCSV) return <SplashLoader />;
     if (!user) return <LoginView onLogin={handleLogin} />;
+    if (!variablesLoaded || isSyncingEmployeeCSV) return <SplashLoader />;
 
     return (
         <div
