@@ -2281,7 +2281,7 @@ Al final del informe incluye una linea de firma que diga: "GlobalPay by AdWisers
                 </div>
 
                 {/* 6. Distribución de Pagos */}
-                {user?.nombre !== 'Nirvana Marquez' && user?.nombre !== 'David Torres' && user?.nombre !== 'Samuel Narvaez' && (
+                {user?.nombre !== 'Lissandra Rios' && user?.nombre !== 'Esmeralda Hernandez' && user?.nombre !== 'Leonelis Reyes' && (
                     <div className="flex justify-center mt-8">
                         <button
                             onClick={() => setShowReportModal(true)}
