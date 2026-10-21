@@ -769,12 +769,12 @@ const LoginView = ({ onLogin }) => {
             <div className={`w-full max-w-md p-10 bg-white/80 backdrop-blur-2xl rounded-[3rem] border border-white/20 shadow-2xl shadow-blue-900/10 transition-all duration-500 animate-in fade-in zoom-in-95 ${error ? 'border-red-200 animate-shake' : ''}`}>
                 <div className="flex flex-col items-center mb-10">
                     <img
-                        src="/Logo Logic Group Management.png"
-                        alt="Logic Group Management"
+                        src="/Logo Global Services MG.png"
+                        alt="Global Services Group"
                         className="w-auto h-auto max-w-[140px] object-contain mb-8 animate-in fade-in duration-700 drop-shadow-xl"
                     />
                     <h1 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase mb-2">Iniciar Sesión</h1>
-                    <p className="text-[#6bbdb7] text-[9px] font-black tracking-[0.4em] uppercase opacity-70">Logic Group Management</p>
+                    <p className="text-[#6bbdb7] text-[9px] font-black tracking-[0.4em] uppercase opacity-70">Global Services MG</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -832,16 +832,16 @@ const SupportChat = ({ userName }) => {
     const [message, setMessage] = useState('');
     const [systemContext, setSystemContext] = useState('');
     const [chatHistory, setChatHistory] = useState([
-        { role: 'model', text: 'Hola! 👋 Soy AdWis AI. Estoy aquí para ayudarte con cualquier duda sobre los procedimientos en LogicPay. ¿En qué puedo apoyarte?' }
+        { role: 'model', text: 'Hola! 👋 Soy AdWis AI. Estoy aquí para ayudarte con cualquier duda sobre los procedimientos en GlobalPay. ¿En qué puedo apoyarte?' }
     ]);
     const [isTyping, setIsTyping] = useState(false);
     const scrollRef = useRef(null);
 
-    // Cargar el conocimiento maestro (Código fuente de LogicPay)
+    // Cargar el conocimiento maestro (Código fuente de GlobalPay)
     useEffect(() => {
         const loadContext = async () => {
             try {
-                const response = await fetch('/Codigo_LogicPay.md');
+                const response = await fetch('/Codigo_GlobalPay.md');
                 if (response.ok) {
                     const text = await response.text();
                     setSystemContext(text);
@@ -869,13 +869,13 @@ const SupportChat = ({ userName }) => {
 
         try {
             const systemPrompt = `
-Eres AdWis AI, el experto de soporte funcional de Logic Group Management (LogicPay). 
+Eres AdWis AI, el experto de soporte funcional de Global Services MG (GlobalPay). 
 El usuario actual con el que hablas se llama **${userName || "Usuario"}**. Salúdalo por su nombre de forma cordial al inicio de tu respuesta.
 
 REGLAS DE ORO (ESTRICTAS):
 1. HABLA ÚNICAMENTE EN LENGUAJE DE USUARIO FINAL. Tienes prohibido mencionar nombres de funciones técnicas (ej: handle..., crossMatch...), términos de programación (JSON, Base64, Upsert, API, Database) o lógica interna de código.
 2. ENFÓCATE EN LA INTERFAZ. Responde basándote en lo que el usuario ve: botones, pestañas, modales, campos de texto y menús.
-3. SOLO RESPONDE PREGUNTAS SOBRE LOGICPAY. Si el usuario pregunta sobre cualquier otro tema ajeno al sistema, niégate amablemente.
+3. SOLO RESPONDE PREGUNTAS SOBRE GLOBALPAY. Si el usuario pregunta sobre cualquier otro tema ajeno al sistema, niégate amablemente.
 4. GUÍA PASO A PASO. Usa el código fuente que te proporciono solo para entender el flujo y explicarlo de forma sencilla, como si estuvieras viendo la pantalla junto al usuario. Numera los pasos (1. 2. 3. …) y comienza cada uno DIRECTAMENTE con la instrucción, sin poner antes un título, subtítulo, encabezado ni etiqueta (ni en negrita ni terminado en dos puntos). Correcto: "4. Se abrirá una ventana a pantalla completa y, arriba, junto al botón de exportar, verás el botón naranja Saldos Pendientes." Incorrecto: "4. Accede a los Saldos Pendientes: Se abrirá una ventana a pantalla completa…".
 
 CÓDIGO FUENTE DEL SISTEMA (BASE DE CONOCIMIENTO):
@@ -939,7 +939,7 @@ ${systemContext || "Contexto cargando..."}
                                 href="https://www.youtube.com/playlist?list=PLXziDeNAZ08Pg1KESMmhVFshSLUzKFBMI"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                title="Videotutoriales LogicPay"
+                                title="Videotutoriales GlobalPay"
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-[#fc6410]/20 hover:bg-[#fc6410]/30 text-[#fc6410] rounded-xl font-black text-[9px] uppercase tracking-widest transition-all border border-[#fc6410]/30 hover:border-[#fc6410]/50"
                             >
                                 <Youtube size={14} />
@@ -1057,7 +1057,7 @@ const DashboardView = ({
         'rentabilidad-roi': 'Porcentaje de margen sobre ingresos totales. Indica la eficiencia del negocio: qué tan rentable es cada dólar facturado.',
         'total-cobrado': 'Suma de todos los pagos recibidos de clientes. Representa el efectivo que ya ingresó a la empresa por facturas marcadas como "Paid".',
         'cuentas-cobrar': 'Monto total pendiente de cobro a clientes. Representa el efectivo por recuperar.',
-        'gastos-admin': 'Total de gastos administrativos de Logic Group Management. Incluye pagos al personal administrativo (nómina LGM) y gastos misceláneos como publicidad, seguros, servicios, viáticos, transporte, honorarios, tecnología y otros gastos operativos no relacionados con tiendas.',
+        'gastos-admin': 'Total de gastos administrativos de Global Services MG. Incluye pagos al personal administrativo (nómina LGM) y gastos misceláneos como publicidad, seguros, servicios, viáticos, transporte, honorarios, tecnología y otros gastos operativos no relacionados con tiendas.',
         'crecimiento': 'Variación porcentual de los ingresos totales entre el último periodo con datos y el periodo inmediatamente anterior.',
         'tendencia-financiera': 'Evolución mensual o semanal de ingresos vs costos. Permite visualizar la estacionalidad y tendencias del negocio a lo largo del tiempo.',
         'mix-ingresos': 'Distribución porcentual de los ingresos por tipo: Nómina Regular (KBS), Proyectos Especiales y CSG Services.',
@@ -1578,7 +1578,7 @@ const DashboardView = ({
                 })),
             });
 
-            const systemPrompt = `Eres un analista financiero experto de Logic Group Management, una empresa de facility services. Generas informes financieros y operativos profesionales en formato HTML con estilos inline.
+            const systemPrompt = `Eres un analista financiero experto de Global Services MG, una empresa de facility services. Generas informes financieros y operativos profesionales en formato HTML con estilos inline.
 
 REGLAS OBLIGATORIAS:
 1. Genera EXCLUSIVAMENTE codigo HTML con estilos inline. NO uses bloques de codigo markdown. NO incluyas etiquetas <html>, <head> ni <body>.
@@ -1606,7 +1606,7 @@ REGLAS OBLIGATORIAS:
 14. Usa iconos Unicode (●, ◆, ▲, ▼, ✓, ✗) como bullets o indicadores visuales.
 15. Maximo 1500 palabras en total.`;
 
-            const userPrompt = `Genera un informe financiero y operativo completo de Logic Group Management para el periodo ${fromStr} al ${toStr}${storeStr !== 'Todas' ? ` (Tienda: ${storeStr})` : ''}.
+            const userPrompt = `Genera un informe financiero y operativo completo de Global Services MG para el periodo ${fromStr} al ${toStr}${storeStr !== 'Todas' ? ` (Tienda: ${storeStr})` : ''}.
 
 DATOS DEL PERIODO:
 ${dataContext}
@@ -1622,7 +1622,7 @@ ESTRUCTURA DEL INFORME (debes seguir este orden):
 
 Para cada seccion incluye tanto los datos numericos como un breve analisis interpretativo.
 
-Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers LLC ● ${new Date().getFullYear()}".`;
+Al final del informe incluye una linea de firma que diga: "GlobalPay by AdWisers LLC ● ${new Date().getFullYear()}".`;
 
             const html = await callGemini(userPrompt, { systemPrompt });
             setReportHtml(html);
@@ -2343,7 +2343,7 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
                             </button>
                         </div>
                         <p className="text-sm text-gray-600 leading-relaxed mb-2">
-                            Se generará un informe financiero y operativo de Logic Group Management con los datos de las fechas <strong>{dateFrom ? formatDisplayDate(dateFrom) : 'inicio'}</strong> al <strong>{dateTo ? formatDisplayDate(dateTo) : 'final'}</strong>.
+                            Se generará un informe financiero y operativo de Global Services MG con los datos de las fechas <strong>{dateFrom ? formatDisplayDate(dateFrom) : 'inicio'}</strong> al <strong>{dateTo ? formatDisplayDate(dateTo) : 'final'}</strong>.
                         </p>
                         <p className="text-sm text-gray-600 leading-relaxed mb-8">¿Desea continuar?</p>
                         <div className="flex justify-end gap-3">
@@ -2442,8 +2442,8 @@ Al final del informe incluye una linea de firma que diga: "LogicPay by AdWisers 
                     <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-4">
                             <img
-                                src="/Logo Logic Group Management.png"
-                                alt="LGM"
+                                src="/Logo Global Services MG.png"
+                                alt="Global Services MG"
                                 className="h-7 w-auto object-contain"
                             />
                             <div>
@@ -4282,7 +4282,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
             const responseText = await callGemini(`
                 Eres un auditor financiero corporativo experto y humano. Tu tarea excluyente es realizar el cruce entre los servicios facturados en un WOS (Work Order Summary) de KBS 
-                y el historial de facturación "Due" de LogicPay. Quiero que uses tu razonamiento analítico y tu capacidad de interpretación profunda.
+                y el historial de facturación "Due" de GlobalPay. Quiero que uses tu razonamiento analítico y tu capacidad de interpretación profunda.
 
                 DATOS DE ENTRADA:
                 1. WOS Services (Lo que KBS pagó o reportó): ${JSON.stringify(wosWithStore)}
@@ -4700,7 +4700,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                 q.costos += totalCMM;
                             }
                         }
-                    } catch (err) { console.error("[LogicPay] Error parsing history json (Match Manual AZPEN)", err); }
+                    } catch (err) { console.error("[GlobalPay] Error parsing history json (Match Manual AZPEN)", err); }
                 });
 
                 Object.values(quincenasMapMM).forEach(q => {
@@ -4782,7 +4782,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                 statsMM.costos = data.earningsTableData.reduce((acc, r) => acc + (parseFloat(rowTotalToNumberMM(r.total)) || 0), 0);
                             }
                         }
-                    } catch (err) { console.error("[LogicPay] Error parsing history json (Match Manual)", err); }
+                    } catch (err) { console.error("[GlobalPay] Error parsing history json (Match Manual)", err); }
 
                     // Filtrar semanas con cero actividad (0 horas), igual que en radicación
                     if (!(statsMM.horas > 0)) return;
@@ -5625,7 +5625,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
                         {/* Footer */}
                         <div className="p-6 border-t font-black text-[10px] text-gray-400 text-center uppercase tracking-[0.2em] bg-white">
-                            LogicPay by AdWisers
+                            GlobalPay by AdWisers
                         </div>
                     </div>
                 </div>
@@ -5679,7 +5679,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
                                     </span>
                                 </div>
                                 <p className="text-[10px] font-medium text-gray-400 leading-relaxed italic">
-                                    Facturaciones radicadas en LogicPay con status "Due" que KBS omitió anunciar en este reporte.
+                                    Facturaciones radicadas en GlobalPay con status "Due" que KBS omitió anunciar en este reporte.
                                 </p>
                             </div>
 
@@ -5780,7 +5780,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
                     {/* Footer del Reporte */}
                     <div className="px-12 py-6 border-t font-black text-[10px] text-gray-400 bg-white flex justify-between uppercase tracking-widest">
-                        <span>AdWisers - LogicPay</span>
+                        <span>AdWisers - GlobalPay</span>
                         <span className="text-orange-500 animate-pulse">● Discrepancias en WOS</span>
                         <span>{new Date().toLocaleString()}</span>
                     </div>
@@ -5843,7 +5843,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
                     {/* Footer */}
                     <div className="px-12 py-6 border-t font-black text-[10px] text-gray-400 bg-white flex justify-between uppercase tracking-widest">
-                        <span>AdWisers - LogicPay</span>
+                        <span>AdWisers - GlobalPay</span>
                         <span className="text-orange-500 animate-pulse">● Facturaciones en $0.00</span>
                         <span>{new Date().toLocaleString()}</span>
                     </div>
@@ -6192,7 +6192,7 @@ const WOSView = ({ isOpen, onClose, nominaHistoryData = [], specialProjectsHisto
 
                         {/* Footer del Modal */}
                         <div className="p-6 border-t font-black text-[10px] text-gray-400 text-center uppercase tracking-[0.2em] bg-white">
-                            LogicPay Automated WOS Ledger V1.2
+                            GlobalPay Automated WOS Ledger V1.2
                         </div>
                     </div>
                 </div>
@@ -7566,7 +7566,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                         </div>
                         <div>
                             <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Manual de Uso</h2>
-                            <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">LogicPay v1.23</p>
+                            <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">GlobalPay v1.23</p>
                         </div>
                     </div>
                     <button
@@ -7587,7 +7587,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                                 <LayoutDashboard size={20} className="text-[#6bbdb7]" /> Primeros Pasos
                             </h3>
                             <p className="text-sm font-bold text-gray-600 leading-relaxed mt-4">
-                                LogicPay es la plataforma integral de gestión de nómina de Logic Group Management, desarrollada por AdWisers LLC.
+                                GlobalPay es la plataforma integral de gestión de nómina de Global Services MG, desarrollada por AdWisers LLC.
                                 Centraliza personal, tiendas, procesamiento de nómina, facturación, servicios especiales y CRM.
                             </p>
                             <div className="space-y-3 mt-4">
@@ -7601,7 +7601,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                                 </div>
                                 <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
                                     <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Por qué al cerrar el navegador debo iniciar sesión de nuevo?</h4>
-                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Por seguridad. La sesión se guarda en tu navegador y se elimina automáticamente al cerrarlo. Esto evita que otra persona que use tu computadora acceda a LogicPay sin tu permiso.</p>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Por seguridad. La sesión se guarda en tu navegador y se elimina automáticamente al cerrarlo. Esto evita que otra persona que use tu computadora acceda a GlobalPay sin tu permiso.</p>
                                 </div>
                             </div>
                         </div>
@@ -7833,7 +7833,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                             <div className="space-y-3 mt-4">
                                 <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
                                     <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo funciona el chat de soporte AdWis AI?</h4>
-                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Haz clic en la pestaña <span className="font-black text-[#fc6410]">Soporte</span> en la esquina inferior derecha. AdWis AI conoce todo el funcionamiento de LogicPay y puede guiarte paso a paso en cualquier tarea. Haz preguntas en español sobre cómo hacer algo en la plataforma. También puedes ver tutoriales en video en el enlace de YouTube.</p>
+                                    <p className="text-[10px] font-bold text-gray-600 leading-relaxed">Haz clic en la pestaña <span className="font-black text-[#fc6410]">Soporte</span> en la esquina inferior derecha. AdWis AI conoce todo el funcionamiento de GlobalPay y puede guiarte paso a paso en cualquier tarea. Haz preguntas en español sobre cómo hacer algo en la plataforma. También puedes ver tutoriales en video en el enlace de YouTube.</p>
                                 </div>
                                 <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
                                     <h4 className="text-[11px] font-black text-[#303a7f] uppercase tracking-wider mb-2">¿Cómo uso las notificaciones?</h4>
@@ -7867,7 +7867,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                                 <p className="text-[10px] font-black text-[#303a7f] uppercase leading-relaxed">
                                     Nirvana Márquez y David Torres
                                 </p>
-                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Asistentes Virtuales de AdWisers LLC para Logic Group Management</p>
+                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Asistentes Virtuales de AdWisers LLC para Global Services MG</p>
                             </div>
 
                             <div className="space-y-2">
@@ -7880,7 +7880,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                             <div className="grid grid-cols-2 gap-8 w-full pt-6">
                                 <div className="text-left">
                                     <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Sistema</p>
-                                    <p className="text-[11px] font-black text-[#303a7f] uppercase">LogicPay v1.23</p>
+                                    <p className="text-[11px] font-black text-[#303a7f] uppercase">GlobalPay v1.23</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Última Actualización</p>
@@ -7958,7 +7958,7 @@ const VirtualAssistantScheduleModal = ({ isOpen, onClose, vaSchedule = [] }) => 
                         </div>
                         <div>
                             <h2 className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">Horario de Asistentes Virtuales</h2>
-                            <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">AdWisers LLC — Logic Group Management</p>
+                            <p className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest opacity-80">AdWisers LLC — Global Services MG</p>
                         </div>
                     </div>
                     <button
@@ -8874,7 +8874,7 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
             const dStart = formatMMDDYY(fechaDesde);
             const dEnd = formatMMDDYY(fechaHasta);
             let newSubject = `INVOICE ${String(storeName || '').toUpperCase()} ${dStart} - ${dEnd}`;
-            let newBody = `Hello,\n\nAttached is the Invoice for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nThank You,\nLogic Group Management`;
+            let newBody = `Hello,\n\nAttached is the Invoice for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nThank You,\nGlobal Services MG`;
 
             // Proyectos Especiales de la misma semana (adjuntos junto al VWH)
             // MISMA regla y candidatos que el envío y Previsualizar/Descargar (helper compartido)
@@ -9100,7 +9100,7 @@ const HoursReportEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHa
             setTo('');
             setCc('');
             setSubject(`${storeName} Hours Report ${dStart} - ${dEnd}`);
-            setBody(`${greeting}\n\nAttached is the Weekly Attendance Report for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nI look forward to your approval.\n\nBest regards,\nLogic Group Management`);
+            setBody(`${greeting}\n\nAttached is the Weekly Attendance Report for the period ${fechaDesde} - ${fechaHasta} for the ${storeName} store.\n\nI look forward to your approval.\n\nBest regards,\nGlobal Services MG`);
 
             // Filtrar Proyectos Especiales para esta tienda y semana
             const foundProjects = (specialProjectsHistoryData || []).filter(pe => {
@@ -9290,7 +9290,7 @@ const generateHoursSpecialProjectPdfDoc = (proj, fallbackStore) => {
     doc.setTextColor(107, 189, 183); // Teal LGM (#6bbdb7)
     doc.setFontSize(10);
     doc.setFont("helvetica", "black");
-    doc.text("LOGIC GROUP MANAGEMENT — HOURS SUMMARY", 15, 37);
+    doc.text("GLOBAL SERVICES MG — HOURS SUMMARY", 15, 37);
 
     // --- DETERMINAR FECHA REAL Y DATOS DESDE DATA_JSON ---
     const rawJson = proj?.data_json || proj?.Data_JSON || '[]';
@@ -9563,7 +9563,7 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
     const siteValueLines = pdf.splitTextToSize(vwhNormalizarPdf(payrollStore).toUpperCase(), 42);
     pdf.text(siteValueLines, colX[0], y);
     pdf.text(String(kbsId), colX[1], y);
-    pdf.text('LOGIC GROUP MANAGEMENT', colX[2], y);
+    pdf.text('GLOBAL SERVICES MG', colX[2], y);
     pdf.setTextColor(...VWH_TEAL);
     pdf.setFontSize(15);
     pdf.text(totalValor, colX[3], y);
@@ -9686,8 +9686,8 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
     pdf.setTextColor(130, 138, 160);
     pdf.setFont(fuente, 'bold');
     pdf.setFontSize(6);
-    pdf.text('ADWISERS LOGICPAY', margenX + 12, y + 0.6);
-    pdf.text('LOGIC GROUP MANAGEMENT LLC.', 210 - margenX - 4, y + 0.6, { align: 'right' });
+    pdf.text('ADWISERS GLOBALPAY', margenX + 12, y + 0.6);
+    pdf.text('GLOBAL SERVICES MG LLC.', 210 - margenX - 4, y + 0.6, { align: 'right' });
 
     return pdf;
 };
@@ -9776,7 +9776,7 @@ const generateAttendancePdfVectorial = ({ rows, payrollStore, kbsId, start, end,
     pdf.setFontSize(8);
     pdf.text(siteValueMed, colX[0], y);
     pdf.text(String(kbsId), colX[1], y);
-    pdf.text('LOGIC GROUP MANAGEMENT', colX[2], y);
+    pdf.text('GLOBAL SERVICES MG', colX[2], y);
     pdf.setTextColor(...VWH_TEAL);
     pdf.setFontSize(15);
     pdf.text(totalSemanal.toFixed(2), colX[3], y);
@@ -9866,8 +9866,8 @@ const generateAttendancePdfVectorial = ({ rows, payrollStore, kbsId, start, end,
     pdf.setTextColor(130, 138, 160);
     pdf.setFont(fuente, 'bold');
     pdf.setFontSize(6);
-    pdf.text('ADWISERS LOGICPAY', margenX + 12, y + 0.6);
-    pdf.text('LOGIC GROUP MANAGEMENT LLC.', 210 - margenX - 4, y + 0.6, { align: 'right' });
+    pdf.text('ADWISERS GLOBALPAY', margenX + 12, y + 0.6);
+    pdf.text('GLOBAL SERVICES MG LLC.', 210 - margenX - 4, y + 0.6, { align: 'right' });
 
     return pdf;
 };
@@ -9994,7 +9994,7 @@ const generateSpecialProjectInvoicePdf = ({ project, totalKBS, kbsId = '---', em
     pdf.setFontSize(8);
     pdf.text(siteValueMed, colX[0], y);
     pdf.text(vwhNormalizarPdf(kbsId || '').toUpperCase() || '---', colX[1], y);
-    pdf.text('LOGIC GROUP MANAGEMENT', colX[2], y);
+    pdf.text('GLOBAL SERVICES MG', colX[2], y);
     pdf.setTextColor(...VWH_TEAL);
     pdf.setFontSize(15);
     pdf.text(`$${totalKBS.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, colX[3], y);
@@ -10140,8 +10140,8 @@ const generateSpecialProjectInvoicePdf = ({ project, totalKBS, kbsId = '---', em
     pdf.setTextColor(130, 138, 160);
     pdf.setFont(fuente, 'bold');
     pdf.setFontSize(6);
-    pdf.text('ADWISERS LOGICPAY', margenX + 12, y + 0.6);
-    pdf.text('LOGIC GROUP MANAGEMENT LLC.', 210 - margenX - 4, y + 0.6, { align: 'right' });
+    pdf.text('ADWISERS GLOBALPAYPAY', margenX + 12, y + 0.6);
+    pdf.text('GLOBAL SERVICES MG', 210 - margenX - 4, y + 0.6, { align: 'right' });
 
     return pdf;
 };
@@ -10401,7 +10401,7 @@ const VWHTableModal = (props) => {
                 rows.push([
                     payrollStore,
                     kbsId,
-                    'Logic Group Management',
+                    'Global Services MG',
                     row.nombre,
                     `${start}-${end}`,
                     row.fragmentTotal.toFixed(2),
@@ -10594,7 +10594,7 @@ const VWHTableModal = (props) => {
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Vendor Name</p>
-                            <p className="text-sm font-black text-[#303a7f] uppercase">Logic Group Management</p>
+                            <p className="text-sm font-black text-[#303a7f] uppercase">Global Services MG</p>
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Total Billing</p>
@@ -10650,9 +10650,9 @@ const VWHTableModal = (props) => {
                                 <div className="w-8 h-8 rounded-lg bg-[#303a7f] flex items-center justify-center text-white">
                                     <Receipt size={14} />
                                 </div>
-                                <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">AdWisers LogicPay</p>
+                                <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">AdWisers GlobalPay</p>
                             </div>
-                            <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">Logic Group Management LLC.</p>
+                            <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">Global Services MG.</p>
                         </div>
                     </div>
                 </div>
@@ -10690,7 +10690,7 @@ const VWHTableModal = (props) => {
                     </div>
                     <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Vendor Name</p>
-                        <p className="text-sm font-black text-[#303a7f] uppercase">Logic Group Management</p>
+                        <p className="text-sm font-black text-[#303a7f] uppercase">Global Services MG</p>
                     </div>
                     <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Total Hours</p>
@@ -10759,9 +10759,9 @@ const VWHTableModal = (props) => {
                             <div className="w-8 h-8 rounded-lg bg-[#303a7f] flex items-center justify-center text-white">
                                 <Receipt size={14} />
                             </div>
-                            <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">AdWisers LogicPay</p>
+                            <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">AdWisers GlobalPay</p>
                         </div>
-                        <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">Logic Group Management LLC.</p>
+                        <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">Global Services MG.</p>
                     </div>
                 </div>
             </div>
@@ -11394,10 +11394,10 @@ const TaxCenterView = ({ employees, stores, csgNominaData, adminPayrollHistory, 
             // ─── Generación del Excel (ExcelJS, mismo diseño del Balance) ───
             const ExcelJS = (await import('exceljs')).default;
             const wb = new ExcelJS.Workbook();
-            wb.creator = 'LogicPay · Logic Group Management';
+            wb.creator = 'GlobalPay · Global Services MG';
             wb.created = new Date();
 
-            // Paleta LogicPay idéntica a la exportación de Balance
+            // Paleta GlobalPay idéntica a la exportación de Balance
             const NAVY = 'FF303A7F', NAVY_DARK = 'FF1E234D', TEAL = 'FF6BBDB7';
             const WHITE = 'FFFFFFFF', ZEBRA = 'FFF4F6FB', BORDER = 'FFE2E8F0';
             const NAVY_TEXT = 'FF303A7F', TEXT_GRAY = 'FF6B7280';
@@ -11443,7 +11443,7 @@ const TaxCenterView = ({ employees, stores, csgNominaData, adminPayrollHistory, 
             // ── Fila 1: Banner ──
             ws.mergeCells(1, 1, 1, numCols);
             let banner = ws.getCell(1, 1);
-            banner.value = 'LOGIC GROUP MANAGEMENT';
+            banner.value = 'GLOBAL SERVICES MG';
             banner.font = { size: 14, bold: true, color: { argb: WHITE } };
             banner.fill = solid(NAVY);
             banner.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -11452,7 +11452,7 @@ const TaxCenterView = ({ employees, stores, csgNominaData, adminPayrollHistory, 
             // ── Fila 2: Subtítulo ──
             ws.mergeCells(2, 1, 2, numCols);
             banner = ws.getCell(2, 1);
-            banner.value = `Reporte 1099-NEC · Año Fiscal ${fiscalYear} · Generado desde LogicPay · ${genDate}`;
+            banner.value = `Reporte 1099-NEC · Año Fiscal ${fiscalYear} · Generado desde GlobalPay · ${genDate}`;
             banner.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } };
             banner.fill = solid('FFF8FAFD');
             banner.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -11545,7 +11545,7 @@ const TaxCenterView = ({ employees, stores, csgNominaData, adminPayrollHistory, 
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `Reporte_1099_${fiscalYear}_LogicPay.xlsx`;
+            link.download = `Reporte_1099_${fiscalYear}_GlobalPay.xlsx`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -12038,7 +12038,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                 const pdfResult = await generatePayStubPDF(buildPayStubEmployee(empConAjuste(emp), true), selectedPeriod);
                 if (pdfResult?.error) throw new Error(pdfResult.error);
                 if (!pdfResult || typeof pdfResult !== 'string') throw new Error("No se pudo generar el PDF");
-                await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`, attachments: [{ name: `Recibo_${emp.nombre.replace(/\s+/g, '_')}.pdf`, type: 'application/pdf', base64: pdfResult }] });
+                await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nGlobal Services MG`, attachments: [{ name: `Recibo_${emp.nombre.replace(/\s+/g, '_')}.pdf`, type: 'application/pdf', base64: pdfResult }] });
                 fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => { });
                 setSendingProgress(prev => ({ ...prev, logs: [`✅ Enviado a ${email}`, ...prev.logs] }));
 
@@ -12060,7 +12060,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
         setNotificationModal({ isOpen: true, type: 'loading', message: `Enviando a ${emp.nombre}...` });
         try {
             const pdfBase64 = await generatePayStubPDF(buildPayStubEmployee(empConAjuste(emp), true), selectedPeriod);
-            await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nLogic Group Management`, attachments: [{ name: `Recibo_${emp.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
+            await sendEmail('payroll', { to: email, subject: `Payment Advice - ${selectedPeriod.range}`, body: `Hi, ${emp.nombre.split(' ')[0]}\n\nPlease find attached your payment advice.\n\nBest regards,\nGlobal Services MG`, attachments: [{ name: `Recibo_${emp.nombre}.pdf`, type: 'application/pdf', base64: pdfBase64 }] });
             fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Recibo de Nómina', entidadNombre: emp.nombre }) }).catch(() => { });
             setSentPayStubs(prev => ({ ...prev, [emp.id]: true }));
             if (onEmailSent) {
@@ -12835,7 +12835,7 @@ const BatchSyncProgressModal = ({ isOpen, current, total }) => {
 const NominaEmailModal = ({ isOpen, onClose, period, onSend, isSending, defaultTo = '' }) => {
     const [to, setTo] = useState('estefanyclgm@gmail.com');
     const [subject, setSubject] = useState(`PAYROLL ${String(period?.store || '').toUpperCase()} - ${period?.range}`);
-    const [body, setBody] = useState(`Hi, Estefany\n\nAttached is the payroll report for the period of ${period?.range} for the ${period?.store} store.\n\nBest regards,\nLogic Group Management`);
+    const [body, setBody] = useState(`Hi, Estefany\n\nAttached is the payroll report for the period of ${period?.range} for the ${period?.store} store.\n\nBest regards,\nGlobal Services MG`);
 
     if (!isOpen || !period) return null;
 
@@ -13161,7 +13161,7 @@ let _psLogoBase64 = null;
 const psCargarLogo = async () => {
     if (_psLogoBase64 !== null) return _psLogoBase64;
     try {
-        const resp = await fetch('/Logo Logic Group Management.png');
+        const resp = await fetch('/Logo Global Services MG.png');
         if (!resp.ok) throw new Error('Logo no disponible');
         const blob = await resp.blob();
 
@@ -13491,7 +13491,7 @@ const generatePayStubPDF = async (employee, period) => {
         pdf.setTextColor(...PS_NAVY);
         pdf.setFont(fuente, 'bold');
         pdf.setFontSize(8.5);
-        pdf.text('LOGIC GROUP MANAGEMENT', margenX, y + 20.5, { charSpace: 0.6 });
+        pdf.text('GLOBAL SERVICES MG', margenX, y + 20.5, { charSpace: 0.6 });
 
         pdf.setFontSize(17);
         pdf.text('PAYMENT ADVICE', ancho - margenX, y + 7, { align: 'right', charSpace: -0.2 });
@@ -13581,11 +13581,11 @@ const generatePayStubPDF = async (employee, period) => {
         pdf.setFont(fuente, 'bold');
         pdf.setTextColor(...PS_GRIS_ETIQUETA);
         pdf.setFontSize(7.5);
-        pdf.text('THIS IS AN OFFICIAL PAYMENT ADVICE ISSUED BY LOGIC GROUP MANAGEMENT', ancho / 2, y, { align: 'center', charSpace: 0.4 });
+        pdf.text('THIS IS AN OFFICIAL PAYMENT ADVICE ISSUED BY GLOBAL SERVICES MG', ancho / 2, y, { align: 'center', charSpace: 0.4 });
         pdf.setFont(fuente, 'normal');
         pdf.setTextColor(203, 213, 225);
         pdf.setFontSize(7);
-        pdf.text('Generated automatically by LogicPay by AdWiser \u00A9 2026', ancho / 2, y + 5, { align: 'center' });
+        pdf.text('Generated automatically by GlobalPay by AdWisers \u00A9 2026', ancho / 2, y + 5, { align: 'center' });
         y += 12;
 
         // Nota de confidencialidad
@@ -14588,8 +14588,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
                 const emailPayload = {
                     to: email,
-                    subject: `Recibo de Pago - Periodo ${period.range} - Logic Group Management`,
-                    body: `Hola ${emp.nombre},\n\nAdjunto encontrarás tu recibo de pago correspondiente al periodo del ${period.range}.\n\nEste es un correo automático, por favor no respondas a este mensaje.\n\nAtentamente,\nLogic Group Management.`,
+                    subject: `Recibo de Pago - Periodo ${period.range} - Global Services MG`,
+                    body: `Hola ${emp.nombre},\n\nAdjunto encontrarás tu recibo de pago correspondiente al periodo del ${period.range}.\n\nEste es un correo automático, por favor no respondas a este mensaje.\n\nAtentamente,\nGlobal Services MG.`,
                     attachments: [{
                         name: `Recibo_Pago_${emp.nombre.replace(/\s+/g, '_')}_${period.range.replace(/\s+/g, '_')}.pdf`,
                         type: 'application/pdf',
@@ -14638,8 +14638,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
             const emailPayload = {
                 to: email,
-                subject: `Recibo de Pago - Periodo ${period.range} - Logic Group Management`,
-                body: `Hola ${emp.nombre},\n\nAdjunto encontrarás tu recibo de pago correspondiente al periodo del ${period.range}.\n\nEste es un correo automático, por favor no respondas a este mensaje.\n\nAtentamente,\nLogic Group Management.`,
+                subject: `Recibo de Pago - Periodo ${period.range} - Global Services MG`,
+                body: `Hola ${emp.nombre},\n\nAdjunto encontrarás tu recibo de pago correspondiente al periodo del ${period.range}.\n\nEste es un correo automático, por favor no respondas a este mensaje.\n\nAtentamente,\nGlobal Services MG.`,
                 attachments: [{
                     name: `Recibo_Pago_${emp.nombre.replace(/\s+/g, '_')}_${period.range.replace(/\s+/g, '_')}.pdf`,
                     type: 'application/pdf',
@@ -16078,7 +16078,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                             <div className="flex-1 bg-black/90 rounded-2xl p-4 font-mono text-[9px] text-green-400 overflow-y-auto custom-scrollbar shadow-inner border border-white/10">
                                                 <div className="flex items-center gap-2 mb-3 border-b border-white/10 pb-2">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                                                    <span className="uppercase font-black text-white/50 tracking-widest">Terminal LogicPay</span>
+                                                    <span className="uppercase font-black text-white/50 tracking-widest">Terminal GlobalPay</span>
                                                 </div>
                                                 {sendingProgress.logs.map((log, idx) => (
                                                     <div key={idx} className="mb-1.5 leading-relaxed">
@@ -16147,8 +16147,8 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                     try {
                                         await sendEmail('payroll', {
                                             to: previewPdf.email,
-                                            subject: `Recibo de Pago - Periodo ${previewPdf.period || ''} - Logic Group Management`,
-                                            body: `Hola ${previewPdf.name},\n\nAdjunto encontrarás tu recibo de pago correspondiente al periodo del ${previewPdf.period || ''}.\n\nEste es un correo automático, por favor no respondas a este mensaje.\n\nAtentamente,\nLogic Group Management.`,
+                                            subject: `Recibo de Pago - Periodo ${previewPdf.period || ''} - Global Services MG`,
+                                            body: `Hola ${previewPdf.name},\n\nAdjunto encontrarás tu recibo de pago correspondiente al periodo del ${previewPdf.period || ''}.\n\nEste es un correo automático, por favor no respondas a este mensaje.\n\nAtentamente,\nGlobal Services MG.`,
                                             attachments: [{
                                                 name: `Recibo_Pago_${previewPdf.name.replace(/\s+/g, '_')}.pdf`,
                                                 type: 'application/pdf',
@@ -17868,7 +17868,7 @@ const SpecialProjectsView = ({ storeName, fechaDesde, fechaHasta, onClose, emplo
     // Crear un nuevo proyecto vacío con el siguiente número de invoice reservado atómicamente en el servidor
     const addProject = async () => {
         if (!onReserveInvoice) {
-            console.error('[LogicPay] onReserveInvoice no está definido.');
+            console.error('[GlobalPay] onReserveInvoice no está definido.');
             return;
         }
 
@@ -18068,7 +18068,7 @@ const SpecialProjectEmailModal = ({ isOpen, onClose, project, onSend, isSending,
     const [to, setTo] = useState('');
     const [cc, setCc] = useState('');
     const [subject, setSubject] = useState(`Invoice Special Project #${project.invoice} - ${project.proyecto || project.nombre} - ${project.tienda}`);
-    const [body, setBody] = useState(`Hello,\n\nAttached is the Invoice Special Project #${project.invoice} for the professional services of the Special Project "${project.proyecto || project.nombre}" in the ${project.tienda} store.\n\nThank You,\nLogic Group Management`);
+    const [body, setBody] = useState(`Hello,\n\nAttached is the Invoice Special Project #${project.invoice} for the professional services of the Special Project "${project.proyecto || project.nombre}" in the ${project.tienda} store.\n\nThank You,\nGlobal Services MG`);
     const { signatures, signatureId, setSignatureId, selectedSignature } = useEmailSignature(user, isOpen);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
@@ -18356,7 +18356,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                     <div ref={reportRef} className="bg-white p-8">
                         {/* Invoice Body Content */}
                         <div className="flex justify-between items-start mb-16">
-                            <img src="/Logo Logic Group Management.png" alt="LGM Logo" className="h-20 object-contain" />
+                            <img src="/Logo Global Services MG.png" alt="Global Services MG Logo" className="h-20 object-contain" />
                             <div className="text-right">
                                 <h3 className="text-sm font-black text-[#6bbdb7] uppercase tracking-[0.3em] mb-1">Invoice:</h3>
                                 <p className="text-2xl font-black text-[#303a7f] tracking-tighter uppercase leading-none">#{project.invoice}</p>
@@ -18856,7 +18856,7 @@ const BillingView = ({
                         q.costos += totalC;
                     }
                 }
-            } catch (e) { console.error("[LogicPay] Error parsing history json for AZPEN", e); }
+            } catch (e) { console.error("[GlobalPay] Error parsing history json for AZPEN", e); }
         });
 
         tableData = Object.values(quincenasMap).map(q => {
@@ -18933,7 +18933,7 @@ const BillingView = ({
                         stats.costos = data.earningsTableData.reduce((acc, r) => acc + (parseFloat(rowTotalToNumber(r.total)) || 0), 0);
                     }
                 }
-            } catch (e) { console.error("[LogicPay] Error parsing history json", e); }
+            } catch (e) { console.error("[GlobalPay] Error parsing history json", e); }
 
             const statusVal = h['Status'] || h['status'] || '';
             const isPaid = statusVal === 'Paid';
@@ -19044,7 +19044,7 @@ const BillingView = ({
                 peTableDataMap[key].costos += costosFromProviders;
             });
         } catch (e) {
-            console.error("[LogicPay] Error parsing PE history json", e);
+            console.error("[GlobalPay] Error parsing PE history json", e);
         }
     });
 
@@ -20761,7 +20761,7 @@ const BackupManager = () => {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `LogicPay_BackUp_${backup.date}.db`;
+            a.download = `GlobalPay_BackUp_${backup.date}.db`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -20906,7 +20906,7 @@ const BackupButton = () => {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `LogicPay_BackUp_${new Date().toISOString().split('T')[0]}.db`;
+            a.download = `GlobalPay_BackUp_${new Date().toISOString().split('T')[0]}.db`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -22198,7 +22198,7 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
                 groups[key] = {
                     siteName: h.nombre,
                     kbsId: getStoreKBSID(h.nombre, stores),
-                    vendorName: "LOGIC GROUP MANAGEMENT, LLC",
+                    vendorName: "Global Services MG, LLC",
                     date: weekRange,
                     weekId: h.codigo,
                     hours: 0,
@@ -22336,7 +22336,7 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
                                 </div>
                                 <div>
                                     <h3 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">CONSOLIDADO UPS</h3>
-                                    <p className="text-[#6bbdb7] font-black uppercase text-[12px] tracking-[0.2em]">Logic Group Management | Weekly Report</p>
+                                    <p className="text-[#6bbdb7] font-black uppercase text-[12px] tracking-[0.2em]">Global Services MG | Weekly Report</p>
                                 </div>
                             </div>
                             <div className="text-right">
@@ -22349,7 +22349,7 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
                         <div className="px-12 py-10 grid grid-cols-2 md:grid-cols-4 gap-12 border-b-2 border-gray-50 bg-gray-50/30">
                             <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Vendor Name</p>
-                                <p className="text-[13px] font-black text-[#303a7f] uppercase leading-tight">LOGIC GROUP MANAGEMENT, LLC</p>
+                                <p className="text-[13px] font-black text-[#303a7f] uppercase leading-tight">Global Services MG, LLC</p>
                             </div>
                             <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Total Sites</p>
@@ -22417,9 +22417,9 @@ const UPSConsolidatedModal = ({ isOpen, onClose, stores = [], nominaHistoryData 
                             <div className="mt-16 flex justify-between items-center opacity-30 px-6 border-t-2 border-gray-50 pt-8">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-lg bg-[#303a7f] flex items-center justify-center text-white"><Receipt size={14} /></div>
-                                    <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">AdWisers LogicPay</p>
+                                    <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">AdWisers GlobalPay</p>
                                 </div>
-                                <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">Logic Group Management LLC.</p>
+                                <p className="text-[9px] font-black text-[#303a7f] uppercase tracking-[0.4em]">Global Services MG</p>
                             </div>
                         </div>
                     </div>
@@ -22443,7 +22443,7 @@ const UPSConsolidatedEmailModal = ({ isOpen, onClose, onSend, isSending, fechaDe
     useEffect(() => {
         if (isOpen) {
             setSubject(`UPS CONSOLIDATED REPORT ${fechaDesde} - ${fechaHasta}`);
-            setBody(`Hello,\n\nAttached is the Invoice for the period ${fechaDesde} - ${fechaHasta} for the United Parcel Service store.\n\nThank You,\nLogic Group Management`);
+            setBody(`Hello,\n\nAttached is the Invoice for the period ${fechaDesde} - ${fechaHasta} for the United Parcel Service store.\n\nThank You,\nGlobal Services MG`);
         }
     }, [isOpen, fechaDesde, fechaHasta]);
 
@@ -22759,7 +22759,7 @@ function App() {
         <div className="fixed inset-0 z-[1000] bg-[#303a7f] flex flex-col items-center justify-center animate-in fade-in duration-500">
             <div className="relative mb-12">
                 <div className="w-32 h-32 border-4 border-white/10 border-t-[#6bbdb7] rounded-full animate-spin" />
-                <img src="/Logo Logic Group Management.png" alt="LGM" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-auto brightness-0 invert opacity-50" />
+                <img src="/Logo Global Services MG.png" alt="LGM" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-auto brightness-0 invert opacity-50" />
             </div>
         </div>
     );
@@ -23076,7 +23076,7 @@ function App() {
                             auditEntidadNombre
                         })
                     });
-                    console.log('[LogicPay] Sincronización Exitosa VWH (Cola):', payload.nombre, payload.codigo);
+                    console.log('[GlobalPay] Sincronización Exitosa VWH (Cola):', payload.nombre, payload.codigo);
 
                     const wosRaw = (payload['WOS'] || payload['wos'] || '').toString().trim();
                     const wosVal = /^[0-9.]+$/.test(wosRaw) ? '' : wosRaw;
@@ -23121,7 +23121,7 @@ function App() {
                     }
                 }
             } catch (e) {
-                console.error('[LogicPay] Error en Sincronización VWH (Batch):', e);
+                console.error('[GlobalPay] Error en Sincronización VWH (Batch):', e);
             } finally {
                 setIsSyncingBilling(false);
             }
@@ -23203,10 +23203,10 @@ function App() {
                             auditEntidadNombre: correlativo
                         })
                     });
-                    console.log('[LogicPay] Sincronización Exitosa CSG (Cola):', correlativo);
+                    console.log('[GlobalPay] Sincronización Exitosa CSG (Cola):', correlativo);
                 }
             } catch (e) {
-                console.error('[LogicPay] Error en Sincronización CSG (Batch):', e);
+                console.error('[GlobalPay] Error en Sincronización CSG (Batch):', e);
             } finally {
                 setIsSyncing(false); // Usamos el estado global de sync o uno específico si se requiere
             }
@@ -26087,10 +26087,10 @@ function App() {
         // ─── Generación del Excel (ExcelJS cargado de forma diferida, mismo diseño del Balance) ───
         const ExcelJS = (await import('exceljs')).default;
         const wb = new ExcelJS.Workbook();
-        wb.creator = 'LogicPay · Logic Group Management';
+        wb.creator = 'GlobalPay · Global Services MG';
         wb.created = new Date();
 
-        // Paleta LogicPay idéntica a la exportación de Balance
+        // Paleta GlobalPay idéntica a la exportación de Balance
         const NAVY = 'FF303A7F', NAVY_DARK = 'FF1E234D', TEAL = 'FF6BBDB7', AMBER = 'FFF59E0B';
         const WHITE = 'FFFFFFFF', ZEBRA = 'FFF4F6FB', BORDER = 'FFE2E8F0', HEADER_BG = 'FFEFF3FA';
         const GREEN = 'FF16A34A', RED = 'FFEF4444', NAVY_TEXT = 'FF303A7F', TEXT_GRAY = 'FF6B7280';
@@ -26118,7 +26118,7 @@ function App() {
         const putBanner = (ws, numCols) => {
             ws.mergeCells(1, 1, 1, numCols);
             let c = ws.getCell(1, 1);
-            c.value = 'LOGIC GROUP MANAGEMENT';
+            c.value = 'GLOBAL SERVICES MG';
             c.font = { size: 14, bold: true, color: { argb: WHITE } };
             c.fill = solid(NAVY);
             c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -26126,7 +26126,7 @@ function App() {
 
             ws.mergeCells(2, 1, 2, numCols);
             c = ws.getCell(2, 1);
-            c.value = `Facturación Radicada · ${selectedHistoryStore}${codigoStore ? ` (${codigoStore})` : ''} · Generado desde LogicPay · ${genDate}`;
+            c.value = `Facturación Radicada · ${selectedHistoryStore}${codigoStore ? ` (${codigoStore})` : ''} · Generado desde GlobalPay · ${genDate}`;
             c.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } };
             c.fill = solid('FFF8FAFD');
             c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -26463,7 +26463,7 @@ function App() {
             setStores(data.map(csvRowToStore));
             setDbStatus('conectado');
         } catch (error) {
-            console.error('[LogicPay] Error cargando tiendas:', error);
+            console.error('[GlobalPay] Error cargando tiendas:', error);
             setDbStatus('desconectado');
         } finally {
             setIsLoading(false);
@@ -26504,22 +26504,22 @@ function App() {
                     });
 
                     if (!isSyncComplete && retryCount < 8) {
-                        console.warn(`[LogicPay] La base de datos aún no propaga los cambios para ${pending.nombre}. Reintentando en 2.5s (Intento ${retryCount + 1}/8)...`);
+                        console.warn(`[GlobalPay] La base de datos aún no propaga los cambios para ${pending.nombre}. Reintentando en 2.5s (Intento ${retryCount + 1}/8)...`);
                         setTimeout(() => {
                             fetchEmployees(retryCount + 1);
                         }, 2500);
                         return;
                     } else {
                         if (isSyncComplete) {
-                            console.log(`[LogicPay] Sincronización confirmada para ${pending.nombre}!`);
+                            console.log(`[GlobalPay] Sincronización confirmada para ${pending.nombre}!`);
                         } else {
-                            console.error(`[LogicPay] Se superó el límite de reintentos de propagación.`);
+                            console.error(`[GlobalPay] Se superó el límite de reintentos de propagación.`);
                         }
                         localStorage.removeItem('pending_employee_sync');
                         setIsSyncingEmployeeCSV(false);
                     }
                 } catch (e) {
-                    console.error('[LogicPay] Error validando pending_employee_sync:', e);
+                    console.error('[GlobalPay] Error validando pending_employee_sync:', e);
                     localStorage.removeItem('pending_employee_sync');
                     setIsSyncingEmployeeCSV(false);
                 }
@@ -26529,7 +26529,7 @@ function App() {
             setDbStatus('conectado');
             setIsLoading(false);
         } catch (error) {
-            console.error('[LogicPay] Error cargando empleados:', error);
+            console.error('[GlobalPay] Error cargando empleados:', error);
             setDbStatus('desconectado');
             setIsLoading(false);
             setIsSyncingEmployeeCSV(false);
@@ -26562,7 +26562,7 @@ function App() {
             });
             setNominaHistoryDataRaw(loaded);
         } catch (error) {
-            console.error('[LogicPay] Error cargando Nomina_Historico:', error);
+            console.error('[GlobalPay] Error cargando Nomina_Historico:', error);
         }
     };
 
@@ -26588,7 +26588,7 @@ function App() {
             });
             setNominaDetailDataRaw(loaded);
         } catch (error) {
-            console.error('[LogicPay] Error cargando Nomina_Detalle:', error);
+            console.error('[GlobalPay] Error cargando Nomina_Detalle:', error);
         }
     };
 
@@ -26639,7 +26639,7 @@ function App() {
             setSpecialProjectsHistoryData(loaded);
             return loaded;
         } catch (error) {
-            console.error('[LogicPay] Error cargando Proyectos_Especiales History:', error);
+            console.error('[GlobalPay] Error cargando Proyectos_Especiales History:', error);
             return [];
         }
     };
@@ -26670,7 +26670,7 @@ function App() {
             setWosHistoryData(loaded);
             return loaded;
         } catch (error) {
-            console.error('[LogicPay] Error cargando WOS History:', error);
+            console.error('[GlobalPay] Error cargando WOS History:', error);
             return [];
         }
     };
@@ -26736,7 +26736,7 @@ function App() {
                 setVariablesLoaded(true);
             }
         } catch (error) {
-            console.error('[LogicPay] Error cargando Variables:', error);
+            console.error('[GlobalPay] Error cargando Variables:', error);
             if (!onlyPresence) setVariablesLoaded(true);
         }
     };
@@ -26774,7 +26774,7 @@ function App() {
             setNextInvoice(next);
             return next;
         } catch (error) {
-            console.error("[LogicPay] Error en handleSyncCorrelativo:", error);
+            console.error("[GlobalPay] Error en handleSyncCorrelativo:", error);
             return nextInvoice;
         } finally {
             setIsStatusModalOpen(false);
@@ -26799,7 +26799,7 @@ function App() {
             setNextInvoice(reserved + 1); // Mantener estado local coherente
             return reserved;
         } catch (error) {
-            console.error('[LogicPay] Error reservando invoice:', error);
+            console.error('[GlobalPay] Error reservando invoice:', error);
             showError('No se pudo reservar el número de Invoice. Verifica tu conexión e intenta de nuevo.');
             return null;
         } finally {
@@ -26906,9 +26906,9 @@ function App() {
             if (!data.length) { setAdminEmployees([]); return; }
             const loaded = data.map(csvRowToAdminEmployee).filter(e => e.nombre.trim() !== '');
             setAdminEmployees(loaded);
-            console.log(`[LogicPay LGM] ${loaded.length} empleados administrativos cargados.`);
+            console.log(`[GlobalPay] ${loaded.length} empleados administrativos cargados.`);
         } catch (error) {
-            console.error('[LogicPay LGM] Error cargando Personal Administrativo:', error);
+            console.error('[GlobalPay] Error cargando Personal Administrativo:', error);
         }
     };
 
@@ -26917,9 +26917,9 @@ function App() {
         try {
             const data = await fetchTableData(ADMIN_EXPENSES_API_URL);
             setAdminExpenses(Array.isArray(data) ? data : []);
-            console.log(`[LogicPay LGM] ${data.length || 0} gastos misceláneos cargados.`);
+            console.log(`[GlobalPay] ${data.length || 0} gastos misceláneos cargados.`);
         } catch (error) {
-            console.error('[LogicPay LGM] Error cargando Gastos Misceláneos:', error);
+            console.error('[GlobalPay] Error cargando Gastos Misceláneos:', error);
         }
     };
 
@@ -26957,7 +26957,7 @@ function App() {
             const pendientes = data.filter(c => c.estado === 'Contratado' && c._pendiente_en_personal === '1');
             setPendingContratados(pendientes);
         } catch (error) {
-            console.error('[LogicPay] Error cargando candidatos pendientes:', error);
+            console.error('[GlobalPay] Error cargando candidatos pendientes:', error);
         }
     };
 
@@ -27137,7 +27137,7 @@ function App() {
             })
             .catch(error => {
                 setDbStatus('desconectado');
-                console.error(`[LogicPay] Error en POST a ${sheetName}:`, error);
+                console.error(`[GlobalPay] Error en POST a ${sheetName}:`, error);
                 throw error;
             });
     };
@@ -27159,7 +27159,7 @@ function App() {
                 action: 'upsert', data: payload, sheetName: 'Variables', matchKeys: ['key'],
                 userId: u?.id, userName: u?.nombre
             })
-        }).catch(err => console.error(`[LogicPay] Error localizando Variable ${key}:`, err));
+        }).catch(err => console.error(`[GlobalPay] Error localizando Variable ${key}:`, err));
     };
 
     // Variante ESTRICTA de syncVariableToDatabase: valida la respuesta del servidor (HTTP ok + success:true)
@@ -28296,8 +28296,8 @@ function App() {
             <header id="main-header" className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-b-2 border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-6">
                     <img
-                        src="/Logo Logic Group Management.png"
-                        alt="Logo Logic Group Management"
+                        src="/Logo Global Services MG.png"
+                        alt="Logo Global Services MG"
                         className="h-8 w-auto object-contain"
                     />
                     <div className="h-6 w-px bg-gray-200 hidden md:block" />
@@ -28479,7 +28479,7 @@ function App() {
                     {/* Branding al extremo derecho */}
                     <div className="absolute right-6 hidden xl:flex items-center gap-3 px-4 py-2 bg-white/5 rounded-2xl border border-white/10 transition-all duration-500 hover:bg-white/10 cursor-default group">
                         <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 group-hover:text-[#6bbdb7] transition-colors">
-                            LogicPay v1.2<span className="text-white/10 mx-1">|</span> <span className="text-white/20 group-hover:text-orange-500">by AdWisers</span>
+                            GlobalPay v1.2<span className="text-white/10 mx-1">|</span> <span className="text-white/20 group-hover:text-orange-500">by AdWisers</span>
                         </span>
                     </div>
                 </nav>
@@ -31002,7 +31002,7 @@ function App() {
                                 Weekly Attendance Report
                             </h1>
                             <p style={{ color: '#6bbdb7', fontWeight: '900', textTransform: 'uppercase', fontSize: '12px', margin: '5px 0 0 0', letterSpacing: '2px' }}>
-                                Logic Group Management
+                                Global Services MG
                             </p>
                         </div>
                     </div>
@@ -31048,7 +31048,7 @@ function App() {
                 {/* Footer del Reporte */}
                 <div style={{ marginTop: '50px', paddingTop: '20px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
                     <p style={{ fontSize: '9px', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>
-                        Document automatically generated by LogicPay — {new Date().toLocaleString()}
+                        Document automatically generated by GlobalPay — {new Date().toLocaleString()}
                     </p>
                     <p style={{ fontSize: '9px', fontWeight: '900', color: '#303a7f', textTransform: 'uppercase' }}>
                         Page 1 of 1

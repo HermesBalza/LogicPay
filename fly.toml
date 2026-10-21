@@ -1,4 +1,4 @@
-app = "logicpay"
+app = "globalpay"
 primary_region = "dfw"
 
 [build]
@@ -8,7 +8,7 @@ primary_region = "dfw"
   PORT = "3001"
 
 [mounts]
-  source = "logicpay_data"
+  source = "globalpay_data"
   destination = "/app/data"
 
 [http_service]
