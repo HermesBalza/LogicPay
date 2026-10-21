@@ -2565,7 +2565,7 @@ const StoreCard = ({ store, employees = [], onEdit }) => {
             </div>
 
             <div className="mt-6 flex items-center justify-between p-2.5 bg-[#f9f9f9]/50 rounded-xl border border-transparent group-hover:bg-[#303a7f]/5 transition-colors">
-                <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Supervisor LGM</span>
+                <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Supervisor GS</span>
                 <span className="text-[9px] font-black text-[#303a7f] uppercase">{store.supervisor_lsg || 'Sin Asignar'}</span>
             </div>
         </div>
@@ -3035,7 +3035,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                                         />
                                     </div>
                                     <div className="group">
-                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Supervisor LGM</label>
+                                        <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Supervisor GS</label>
                                         <input
                                             type="text"
                                             value={editedStore.supervisor_lsg}
@@ -3138,7 +3138,7 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                                                     </div>
                                                 </div>
                                                 <div className="relative">
-                                                    <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">LGM (Paga)</label>
+                                                    <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-[#f9f9f9] px-1 z-10">GS (Paga)</label>
                                                     <div className={`flex items-center ${!isEditing ? 'bg-gray-100 border-transparent' : 'bg-white border-2 border-brand-primary/20'} rounded-xl px-4 py-2.5 shadow-sm`}>
                                                         <span className={`${!isEditing ? 'text-gray-300' : 'text-[#303a7f]'} font-black mr-2`}>$</span>
                                                         <input
@@ -3542,7 +3542,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                                     </div>
                                                 </div>
                                                 <div className="relative">
-                                                    <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-gray-50 px-1 z-10">LGM (Paga)</label>
+                                                    <label className="text-[8px] text-[#303a7f] font-black uppercase tracking-widest absolute -top-2 left-3 bg-gray-50 px-1 z-10">GS (Paga)</label>
                                                     <div className="flex items-center bg-white border-2 border-brand-primary/20 rounded-xl px-4 py-2.5 shadow-sm">
                                                         <span className="text-[#303a7f] font-black mr-2">$</span>
                                                         <input
@@ -3580,7 +3580,7 @@ const StoreAddView = ({ onSave, onBack }) => {
                                     />
                                 </div>
                                 <div className="group">
-                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Supervisor LGM</label>
+                                    <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Supervisor GS</label>
                                     <input
                                         type="text"
                                         placeholder="Nombre del supervisor..."
@@ -6595,7 +6595,7 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                     </div>
                                 </div>
                                 <div className="group">
-                                    <label className="text-[8px] text-[#6bbdb7] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Rate Personal LGM ($/hr)</label>
+                                    <label className="text-[8px] text-[#6bbdb7] uppercase font-black tracking-[0.2em] block mb-1 pl-1">Rate Personal GS ($/hr)</label>
                                     <div className="relative">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
                                         <input
@@ -7016,11 +7016,11 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
             return;
         }
         if (!newEmployee.rateKBS || newEmployee.rateKBS <= 0 || !newEmployee.rateLGM || newEmployee.rateLGM <= 0) {
-            if (onError) onError("Rate Personal KBS y LGM son obligatorios.");
+            if (onError) onError("Rate Personal KBS y GS son obligatorios.");
             return;
         }
         if (newEmployee.rateKBS <= newEmployee.rateLGM) {
-            if (onError) onError("Rate Personal KBS debe ser mayor que Rate Personal LGM.");
+            if (onError) onError("Rate Personal KBS debe ser mayor que Rate Personal GS.");
             return;
         }
         if (!newEmployee.cargo || !newEmployee.cargo.trim()) {
@@ -7281,7 +7281,7 @@ const EmployeeAddView = ({ stores, onSave, onBack, onError, initialData }) => {
                                     </div>
                                 </div>
                                 <div className="group">
-                                    <label className="text-[8px] text-red-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Rate Personal LGM ($/hr) *</label>
+                                    <label className="text-[8px] text-red-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">Rate Personal GS ($/hr) *</label>
                                     <div className="relative">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">$</span>
                                         <input
