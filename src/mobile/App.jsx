@@ -7909,9 +7909,9 @@ const VirtualAssistantScheduleModal = ({ isOpen, onClose, vaSchedule = [] }) => 
     const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
     const assistants = [
-        { key: 'david', name: 'David', color: '#303a7f' },
-        { key: 'nirvana', name: 'Nirvana', color: '#6bbdb7' },
-        { key: 'samuel', name: 'Samuel', color: '#f59e0b' },
+        { key: 'lissandra', name: 'Lissandra', color: '#303a7f' },
+        { key: 'esmeralda', name: 'Esmeralda', color: '#6bbdb7' },
+        { key: 'leonelis', name: 'Leonelis', color: '#f59e0b' },
     ];
 
     const scheduleData = useMemo(() => {
@@ -20506,9 +20506,9 @@ const AdminPayrollView = ({
 const VAScheduleSettings = ({ vaSchedule = [], onSave }) => {
     const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     const assistants = [
-        { key: 'david', name: 'David', color: '#303a7f' },
-        { key: 'nirvana', name: 'Nirvana', color: '#6bbdb7' },
-        { key: 'samuel', name: 'Samuel', color: '#f59e0b' },
+        { key: 'lissandra', name: 'Lissandra', color: '#303a7f' },
+        { key: 'esmeralda', name: 'Esmeralda', color: '#6bbdb7' },
+        { key: 'leonelis', name: 'Leonelis', color: '#f59e0b' },
     ];
 
     const [localData, setLocalData] = useState(() => {

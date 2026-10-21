@@ -2066,7 +2066,7 @@ Al final del informe incluye una linea de firma que diga: "GlobalPay by AdWisers
                                 </div>
                             </div>
                             <div className="flex flex-col items-end">
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Promedio LGM</span>
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Promedio</span>
                                 <span className="text-sm font-black text-[#303a7f] tracking-tighter">{formatMoney(costoPromedioTienda)}</span>
                             </div>
                         </div>
@@ -7865,7 +7865,7 @@ const ManualUsageModal = ({ isOpen, onClose }) => {
                             <div className="bg-gray-50 px-8 py-4 rounded-2xl border border-gray-100">
                                 <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-2">En colaboración con</p>
                                 <p className="text-[10px] font-black text-[#303a7f] uppercase leading-relaxed">
-                                    Nirvana Márquez y David Torres
+                                    Equipo de Asistentes Virtuales de Global Services MG
                                 </p>
                                 <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Asistentes Virtuales de AdWisers LLC para Global Services MG</p>
                             </div>
@@ -7911,9 +7911,9 @@ const VirtualAssistantScheduleModal = ({ isOpen, onClose, vaSchedule = [] }) => 
     const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
     const assistants = [
-        { key: 'david', name: 'David', color: '#303a7f' },
-        { key: 'nirvana', name: 'Nirvana', color: '#6bbdb7' },
-        { key: 'samuel', name: 'Samuel', color: '#f59e0b' },
+        { key: 'lissandra', name: 'Lissandra', color: '#303a7f' },
+        { key: 'esmeralda', name: 'Esmeralda', color: '#6bbdb7' },
+        { key: 'leonelis', name: 'Leonelis', color: '#f59e0b' },
     ];
 
     const scheduleData = useMemo(() => {
@@ -8043,15 +8043,15 @@ const VirtualAssistantScheduleModal = ({ isOpen, onClose, vaSchedule = [] }) => 
                             <div className="h-4 w-px bg-gray-200" />
                             <div className="flex items-center gap-2">
                                 <div className="w-2.5 h-2.5 rounded-full bg-[#303a7f]" />
-                                <span className="text-[9px] font-bold text-[#303a7f]">David</span>
+                                <span className="text-[9px] font-bold text-[#303a7f]">Lissandra</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-2.5 h-2.5 rounded-full bg-[#6bbdb7]" />
-                                <span className="text-[9px] font-bold text-[#6bbdb7]">Nirvana</span>
+                                <span className="text-[9px] font-bold text-[#6bbdb7]">Esmeralda</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />
-                                <span className="text-[9px] font-bold text-amber-500">Samuel</span>
+                                <span className="text-[9px] font-bold text-amber-500">Leonelis</span>
                             </div>
                             <div className="h-4 w-px bg-gray-200" />
                             <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Break = Tiempo de descanso</span>
@@ -20508,9 +20508,9 @@ const AdminPayrollView = ({
 const VAScheduleSettings = ({ vaSchedule = [], onSave }) => {
     const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     const assistants = [
-        { key: 'david', name: 'David', color: '#303a7f' },
-        { key: 'nirvana', name: 'Nirvana', color: '#6bbdb7' },
-        { key: 'samuel', name: 'Samuel', color: '#f59e0b' },
+        { key: 'lissandra', name: 'Lissandra', color: '#303a7f' },
+        { key: 'esmeralda', name: 'Esmeralda', color: '#6bbdb7' },
+        { key: 'leonelis', name: 'Leonelis', color: '#f59e0b' },
     ];
 
     const [localData, setLocalData] = useState(() => {
