@@ -936,7 +936,7 @@ ${systemContext || "Contexto cargando..."}
                         </div>
                         <div className="flex items-center gap-2">
                             <a
-                                href="https://www.youtube.com/playlist?list=PLXziDeNAZ08Pg1KESMmhVFshSLUzKFBMI"
+                                href="https://www.youtube.com/"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 title="Videotutoriales GlobalPay"
@@ -27366,8 +27366,8 @@ function App() {
         { id: 'employees', label: 'Personal', icon: Users },
         { id: 'payroll', label: 'Nómina', icon: CreditCard },
         { id: 'tax_center', label: '1099-NEC', icon: ShieldCheck },
-        { id: 'csg', label: 'CSG', icon: Sparkles },
-        { id: 'lgm', label: 'LGM', icon: Target },
+        // { id: 'csg', label: 'CSG', icon: Sparkles }, — DESACTIVADO temporalmente para GlobalPay
+        { id: 'lgm', label: 'Admin', icon: Target },
         { id: 'crm', label: 'CRM', icon: Briefcase },
         { id: 'settings', label: 'Ajustes', icon: Settings },
     ];
@@ -28461,8 +28461,8 @@ function App() {
                         </button>
                     ))}
 
-                    {/* Cat mascot toggle - solo para Hermes y Nirvana */}
-                    {(user?.nombre === 'Hermes Balza' || user?.nombre === 'Nirvana Marquez') && (
+                    {/* Cat mascot toggle - solo para Hermes y Nirvana — DESACTIVADO durante rebranding GlobalPay */}
+                    {false && (user?.nombre === 'Hermes Balza' || user?.nombre === 'Nirvana Marquez') && (
                         <button
                             onClick={() => {
                                 const next = !catEnabled;

@@ -28452,8 +28452,8 @@ function App() {
                         </button>
                     ))}
 
-                    {/* Cat mascot toggle - solo para Hermes y Nirvana */}
-                    {(user?.nombre === 'Hermes Balza' || user?.nombre === 'Nirvana Marquez') && (
+                    {/* Cat mascot toggle - solo para Hermes y Nirvana — DESACTIVADO durante rebranding GlobalPay */}
+                    {false && (user?.nombre === 'Hermes Balza' || user?.nombre === 'Nirvana Marquez') && (
                         <button
                             onClick={() => {
                                 const next = !catEnabled;
