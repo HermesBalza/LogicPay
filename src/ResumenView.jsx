@@ -313,7 +313,7 @@ const ResumenView = ({
         ];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Resumen');
-        XLSX.writeFile(wb, `Resumen_Ingresos_Gastos_${selectedYear}_LogicPay.xlsx`);
+        XLSX.writeFile(wb, `Resumen_Ingresos_Gastos_${selectedYear}_GlobalPay.xlsx`);
     }, [monthlyData, totalesAnuales, selectedYear]);
 
     const handleExportPDF = useCallback(async () => {
@@ -372,7 +372,7 @@ const ResumenView = ({
                 pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
                 heightLeft -= pageHeight;
             }
-            pdf.save(`Resumen_Ingresos_Gastos_${selectedYear}_LogicPay.pdf`);
+            pdf.save(`Resumen_Ingresos_Gastos_${selectedYear}_GlobalPay.pdf`);
         } catch (e) {
             console.error('Error exporting PDF:', e);
         }

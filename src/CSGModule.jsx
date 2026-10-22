@@ -545,7 +545,7 @@ const CSGBiweekEmailModal = ({ isOpen, onClose, biweek, onSend, isSending }) => 
         if (isOpen && biweek) {
             setTo('estefanyclgm@gmail.com');
             setSubject(`PAYROLL CSG - ${biweek.label}`);
-            setBody(`Hi, Estefany\n\nAttached is the payroll report for the period ${biweek.label}.\n\nBest regards,\nLogic Group Management`);
+            setBody(`Hi, Estefany\n\nAttached is the payroll report for the period ${biweek.label}.\n\nBest regards,\nGlobal Services MG`);
         }
     }, [isOpen, biweek]);
 
@@ -922,7 +922,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, syncToDat
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
                     <div ref={reportRef} className="p-12">
                         <div className="flex items-center gap-6 mb-12 border-b-2 border-gray-50 pb-8">
-                            <img src="/Logo Logic Group Management.png" alt="Logo LGM" className="h-14 object-contain" />
+                            <img src="/Logo GlobalServices MG.png" alt="Logo LGM" className="h-14 object-contain" />
                             <div>
                                 <h1 className="text-2xl font-black text-[#303a7f] uppercase tracking-tighter leading-none mb-1">Nómina Bisemanal</h1>
                                 <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-90">Cleaning Services Group — {biweek.label}</p>
@@ -1325,7 +1325,7 @@ const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wos
                 }
                 2. Adapta los campos del CSV a los campos del JSON de la siguiente manera:
                    - metadata.wosNumber: Usa el Document Number más frecuente.
-                   - metadata.subcontractor: Usa el Name principal (Logic Group Management LLC).
+                   - metadata.subcontractor: Usa el Name principal (Global Services MG LLC).
                    - metadata.period: Infiere el rango de fechas (ej: Mar 21 - Mar 28, 2026).
                    - services.customer: Usa Equipment Customer. Si está vacío, usa el nombre de la tienda del Memo.
                    - services.locationId: Extrae el ID de la tienda (ej: T153) si está disponible.
@@ -1946,7 +1946,7 @@ const CSGWosView = ({ isOpen, onClose, csgServicesData = [], syncToDatabase, wos
 
                         {/* Footer del Modal */}
                         <div className="p-6 border-t font-black text-[10px] text-gray-400 text-center uppercase tracking-[0.2em] bg-white">
-                            LogicPay Automated CSG WOS Ledger V1.2
+                            GlobalPay Automated CSG WOS Ledger V1.2
                         </div>
                     </div>
                 </div>
@@ -2664,7 +2664,7 @@ const CSGServiceEmailModal = ({ isOpen, onClose, service, onSend, isSending }) =
         if (isOpen && service) {
             setTo('mmeadows@csginc.com');
             setSubject(`${service.fecha} - ${service.tienda}`);
-            setBody(`Hi, Meghan\n\nAttached is the service report for the ${service.tienda} store on ${service.fecha}.\n\nBest regards,\nLogic Group Management`);
+            setBody(`Hi, Meghan\n\nAttached is the service report for the ${service.tienda} store on ${service.fecha}.\n\nBest regards,\nGlobal Services MG`);
         }
     }, [isOpen, service]);
 

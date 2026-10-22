@@ -373,10 +373,10 @@ const BalanceView = ({ onClose, historyData = [], specialHistoryData = [], saldo
             // ExcelJS se importa de forma diferida: chunk separado que solo se descarga al exportar
             const ExcelJS = (await import('exceljs')).default;
             const wb = new ExcelJS.Workbook();
-            wb.creator = 'LogicPay · Logic Group Management';
+            wb.creator = 'GlobalPay · Global services MG';
             wb.created = new Date();
 
-            // ─── Paleta LogicPay ───
+            // ─── Paleta GlobalPay ───
             const NAVY = 'FF303A7F', NAVY_DARK = 'FF1E234D', TEAL = 'FF6BBDB7', AMBER = 'FFF59E0B';
             const WHITE = 'FFFFFFFF', ZEBRA = 'FFF4F6FB', BORDER = 'FFE2E8F0', HEADER_BG = 'FFEFF3FA';
             const GREEN = 'FF16A34A', RED = 'FFEF4444', GRAY = 'FF9CA3AF', NAVY_TEXT = 'FF303A7F', TEXT_GRAY = 'FF6B7280';
@@ -402,7 +402,7 @@ const BalanceView = ({ onClose, historyData = [], specialHistoryData = [], saldo
 
             wsG.mergeCells(1, 1, 1, 10);
             let bannerCell = wsG.getCell(1, 1);
-            bannerCell.value = 'LOGIC GROUP MANAGEMENT';
+            bannerCell.value = 'GLOBAL SERVICES MG';
             bannerCell.font = { size: 14, bold: true, color: { argb: WHITE } };
             bannerCell.fill = solid(NAVY);
             bannerCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -410,7 +410,7 @@ const BalanceView = ({ onClose, historyData = [], specialHistoryData = [], saldo
 
             wsG.mergeCells(2, 1, 2, 10);
             bannerCell = wsG.getCell(2, 1);
-            bannerCell.value = `Balance General · Facturación Radicada del ${selectedYear} · Generado desde LogicPay · ${genDate}`;
+            bannerCell.value = `Balance General · Facturación Radicada del ${selectedYear} · Generado desde GlobalPay · ${genDate}`;
             bannerCell.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } };
             bannerCell.fill = solid('FFF8FAFD');
             bannerCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -535,7 +535,7 @@ const BalanceView = ({ onClose, historyData = [], specialHistoryData = [], saldo
                 ws.getRow(1).height = 30;
 
                 bannerCellT = mergeBanner(2, totalCols);
-                bannerCellT.value = `Balance · Facturación Radicada del ${selectedYear} · Generado desde LogicPay · ${genDate}`;
+                bannerCellT.value = `Balance · Facturación Radicada del ${selectedYear} · Generado desde GlobalPay · ${genDate}`;
                 bannerCellT.font = { size: 10, bold: true, color: { argb: NAVY_TEXT } };
                 bannerCellT.fill = solid('FFF8FAFD');
                 bannerCellT.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -647,7 +647,7 @@ const BalanceView = ({ onClose, historyData = [], specialHistoryData = [], saldo
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `Balance_LogicPay_${selectedYear}_${genDate.replace(/\//g, '-')}.xlsx`;
+            link.download = `Balance_GlobalPay_${selectedYear}_${genDate.replace(/\//g, '-')}.xlsx`;
             document.body.appendChild(link);
             link.click();
             link.remove();
