@@ -922,7 +922,7 @@ const CSGBiweekDetailsModal = ({ isOpen, onClose, biweek, fmtCurrency, syncToDat
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
                     <div ref={reportRef} className="p-12">
                         <div className="flex items-center gap-6 mb-12 border-b-2 border-gray-50 pb-8">
-                            <img src="/Logo GlobalServices MG.png" alt="Logo LGM" className="h-14 object-contain" />
+                            <img src="/Logo Global Services MG.png" alt="Logo LGM" className="h-14 object-contain" />
                             <div>
                                 <h1 className="text-2xl font-black text-[#303a7f] uppercase tracking-tighter leading-none mb-1">Nómina Bisemanal</h1>
                                 <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest opacity-90">Cleaning Services Group — {biweek.label}</p>
