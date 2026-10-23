@@ -22932,7 +22932,6 @@ function App() {
                         if (factPE > 0 && Math.round((factPE - pagoValPE) * 100) > 0) {
                             await fetch(API_URL, {
                                 method: 'POST',
-                                mode: 'no-cors',
                                 headers: { 'Content-Type': 'text/plain' },
                                 body: JSON.stringify({
                                     action: 'upsert',
@@ -22944,7 +22943,6 @@ function App() {
                         } else if (factPE > 0) {
                             await fetch(API_URL, {
                                 method: 'POST',
-                                mode: 'no-cors',
                                 headers: { 'Content-Type': 'text/plain' },
                                 body: JSON.stringify({
                                     action: 'delete',
@@ -23062,7 +23060,6 @@ function App() {
                     // sin ambigüedad y nunca cree una fila nueva cuando ya existe el registro.
                     await fetch(API_URL, {
                         method: 'POST',
-                        mode: 'no-cors',
                         headers: { 'Content-Type': 'text/plain' },
                         body: JSON.stringify({
                             action: 'upsert',
@@ -23096,7 +23093,6 @@ function App() {
                         if (factKBS > 0 && Math.round((factKBS - pagoVal) * 100) > 0) {
                             await fetch(API_URL, {
                                 method: 'POST',
-                                mode: 'no-cors',
                                 headers: { 'Content-Type': 'text/plain' },
                                 body: JSON.stringify({
                                     action: 'upsert',
@@ -23108,7 +23104,6 @@ function App() {
                         } else if (factKBS > 0) {
                             await fetch(API_URL, {
                                 method: 'POST',
-                                mode: 'no-cors',
                                 headers: { 'Content-Type': 'text/plain' },
                                 body: JSON.stringify({
                                     action: 'delete',
@@ -23189,7 +23184,6 @@ function App() {
 
                     await fetch(API_URL, {
                         method: 'POST',
-                        mode: 'no-cors',
                         headers: { 'Content-Type': 'text/plain' },
                         body: JSON.stringify({
                             action: 'upsert',
@@ -25956,7 +25950,6 @@ function App() {
                 // Persistir el saldo actualizado en la tabla Saldos_Pendientes
                 fetch(API_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify({
                         action: 'upsert',
@@ -30175,7 +30168,6 @@ function App() {
                     ));
                     await fetch(API_URL, {
                         method: 'POST',
-                        mode: 'no-cors',
                         headers: { 'Content-Type': 'text/plain' },
                         body: JSON.stringify({
                             action: 'upsert',
@@ -30199,7 +30191,6 @@ function App() {
                     ));
                     await fetch(API_URL, {
                         method: 'POST',
-                        mode: 'no-cors',
                         headers: { 'Content-Type': 'text/plain' },
                         body: JSON.stringify({
                             action: 'upsert',
