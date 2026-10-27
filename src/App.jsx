@@ -103,6 +103,7 @@ import BalanceView from './BalanceView.jsx';
 import NotificationBell from './NotificationBell.jsx';
 import PixelCat from './PixelCat.jsx';
 import BiweekChecklistModal from './BiweekChecklistModal.jsx';
+import RadicarFacturasButton from './RadicarFacturas.jsx';
 
 const MobileShell = React.lazy(() => import('./mobile/MobileShell'));
 
@@ -28335,6 +28336,7 @@ function App() {
                         <BookOpen size={16} className="group-hover:rotate-12 transition-transform" />
                         <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">Manual de Uso</span>
                     </button>
+                    <RadicarFacturasButton userRol={user?.rol} onRadicacionCompleta={() => { fetchNominaHistory(); fetchSpecialProjectsHistory(); }} />
 
                     {/* Usuarios Online Button & Dropdown */}
                     <div className="relative">

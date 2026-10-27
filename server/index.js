@@ -16,6 +16,7 @@ import db from './db.js';
 import './init_db.js';
 import { runBackup, backupDatabase, isBackupConfigured, startBackupScheduler, listBackups, getBackupStream } from './backup.js';
 import { EMAIL_SIGNATURES, getSignatureById } from './emailSignatures.js';
+import { registrarEndpointRadicar } from './radicar.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -886,6 +887,11 @@ app.post('/api/buscar-proveedores', async (req, res) => {
     res.status(500).json({ success: false, error: error.message || 'Error al buscar proveedores.' });
   }
 });
+
+// ---------------------------------------------------------------------
+// Radicación de Facturas
+// ---------------------------------------------------------------------
+registrarEndpointRadicar(app);
 
 // ---------------------------------------------------------------------
 // Backup endpoint
