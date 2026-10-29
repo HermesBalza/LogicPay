@@ -10022,12 +10022,12 @@ const generateSpecialProjectInvoicePdf = ({ project, totalKBS, kbsId = '---', em
     pdf.line(margenX, y, 210 - margenX, y);
     y += 7;
 
-    // Banda resumen 2: PROJECT NAME / INVOICE DATE / BILL TO: KBS
+    // Banda resumen 2: PROJECT NAME / SERVICE DATE / BILL TO: KBS
     const colX2 = [margenX + 2, margenX + 70, margenX + 140];
     pdf.setFontSize(6.2);
     pdf.setTextColor(170, 175, 185);
     pdf.text('PROJECT NAME', colX2[0], y);
-    pdf.text('INVOICE DATE', colX2[1], y);
+    pdf.text('SERVICE DATE', colX2[1], y);
     pdf.text('BILL TO:', colX2[2], y);
     y += 5;
 
@@ -18396,7 +18396,7 @@ const SpecialProjectInvoiceModal = ({ isOpen, onClose, project, emailsSent = {},
                             </div>
                             <div className="space-y-4 text-right">
                                 <div>
-                                    <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-1">Invoice Date</span>
+                                    <span className="text-[10px] font-black text-[#6bbdb7] uppercase tracking-widest block mb-1">Service Date</span>
                                     <p className="text-sm font-bold text-[#303a7f]">{formatDate(project.fecha)}</p>
                                 </div>
                                 <div>
