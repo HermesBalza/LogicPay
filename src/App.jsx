@@ -9449,7 +9449,7 @@ const computeVWHReportRows = ({ reportData, payrollStore, employees, start, end,
                     const cargoRateEntry = Object.values(emp.cargo_por_dia).find(d => d.cargo === cargoName);
                     const rateKBS = isDefaultCargo ? (employeeInfo?.rateKBS || 0) : (cargoRateEntry?.rateKBS || 0);
                     total += cargoTotal;
-                    rows.push({ nombre: emp.nombre, cargo: cargoName, horas: cargoTotal, rate: rateKBS });
+                    rows.push({ nombre: emp.nombre, codigo: String(emp.codigo || '').replace(/^'+/, '').trim(), cargo: cargoName, horas: cargoTotal, rate: rateKBS });
                 }
             });
         } else {
@@ -9461,7 +9461,7 @@ const computeVWHReportRows = ({ reportData, payrollStore, employees, start, end,
                 for (let i = 0; i <= endIdx; i++) empTotal += hhmmToDecimal(emp[days[i]]?.final || 0);
             }
             total += empTotal;
-            rows.push({ nombre: emp.nombre, cargo: emp.cargo, horas: empTotal, rate: employeeInfo?.rateKBS || 0 });
+            rows.push({ nombre: emp.nombre, codigo: String(emp.codigo || '').replace(/^'+/, '').trim(), cargo: emp.cargo, horas: empTotal, rate: employeeInfo?.rateKBS || 0 });
         }
     });
 
@@ -9487,14 +9487,22 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
     const siteValueMed = pdfMedidor.splitTextToSize(vwhNormalizarPdf(payrollStore).toUpperCase(), 42);
     const filas = isAZPEN ? [null] : rows.filter(r => r.horas > 0);
     const datosFilas = filas.map((row) => {
+        pdfMedidor.setFontSize(6.2);
         const siteLineas = pdfMedidor.splitTextToSize(vwhNormalizarPdf(payrollStore).toUpperCase(), 32);
         const nombreTxt = isAZPEN ? 'Janitorial and Maintenance Services' : vwhNormalizarPdf(row.nombre).toUpperCase();
+        pdfMedidor.setFontSize(6.8);
         const nombreLineas = pdfMedidor.splitTextToSize(nombreTxt, 38);
+        const idFilaTexto = (row && row.codigo) ? `ID: ${vwhNormalizarPdf(String(row.codigo).replace(/^'+/, '').trim()).toUpperCase()}` : '';
+        const pasoNombreBloque = 2.8; // salto entre líneas del nombre (mm)
+        const pasoIdBloque = 2.7; // salto de la última línea del nombre a la línea del ID (mm)
+        const altoBloqueNombre = ((nombreLineas.length - 1) * pasoNombreBloque) + (idFilaTexto ? (pasoIdBloque + 1.8) : 0);
         const jobTxt = isAZPEN ? '---' : vwhNormalizarPdf(row.cargo || '---').toUpperCase();
+        pdfMedidor.setFontSize(5.8);
         const jobLineas = pdfMedidor.splitTextToSize(jobTxt, 18);
+        pdfMedidor.setFontSize(6);
         const dateLineas = pdfMedidor.splitTextToSize(vwhNormalizarPdf(`${start}-${end}`), 26);
-        const rowH = Math.max(9.5, lineH * siteLineas.length, lineH * nombreLineas.length, lineH * jobLineas.length, lineH * dateLineas.length) + 3;
-        return { row, siteLineas, nombreLineas, jobLineas, dateLineas, rowH };
+        const rowH = Math.max(9.5, lineH * siteLineas.length, altoBloqueNombre + 2, lineH * jobLineas.length, lineH * dateLineas.length) + 3;
+        return { row, siteLineas, nombreLineas, jobLineas, dateLineas, idFilaTexto, altoBloqueNombre, pasoNombreBloque, pasoIdBloque, rowH };
     });
     const sumaRowH = datosFilas.reduce((s, d) => s + d.rowH, 0);
     // Encabezado (14 + 18...) + resumen + separador + cabecera de tabla + filas + barra de total + pie
@@ -9596,7 +9604,7 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
     dibujarTablaHeader();
 
     // Filas del reporte (altura ya medida; página continua sin saltos)
-    datosFilas.forEach(({ row, siteLineas, nombreLineas, jobLineas, dateLineas, rowH }, idx) => {
+    datosFilas.forEach(({ row, siteLineas, nombreLineas, jobLineas, dateLineas, idFilaTexto, altoBloqueNombre, pasoNombreBloque, pasoIdBloque, rowH }, idx) => {
         // Retícula con anchos máximos por columna: ninguna celda invade a su vecina
         // Línea base vertical centrada según la cantidad de líneas de cada celda
         const baseY = (lineas) => y + (rowH - (lineas.length - 1) * lineH) / 2 + 1.5;
@@ -9623,10 +9631,18 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
         pdf.text('LOGIC GROUP', margenX + 61, cy, { align: 'center' });
 
         // Employee Identifier (izq. x=85, máx. 38mm → hasta x=123)
+        const bloqueBaseY = y + (rowH - altoBloqueNombre) / 2 + 1.4;
         pdf.setTextColor(...VWH_NAVY);
         pdf.setFont(fuente, 'bold');
         pdf.setFontSize(6.8);
-        pdf.text(nombreLineas, margenX + 73, baseY(nombreLineas));
+        nombreLineas.forEach((ln, i) => pdf.text(ln, margenX + 73, bloqueBaseY + i * pasoNombreBloque));
+        // ID del empleado inmediatamente debajo del nombre (estilo 1099-NEC)
+        if (idFilaTexto) {
+            pdf.setTextColor(...VWH_TEAL);
+            pdf.setFont(fuente, 'bold');
+            pdf.setFontSize(5.2);
+            pdf.text(idFilaTexto, margenX + 73, bloqueBaseY + (nombreLineas.length - 1) * pasoNombreBloque + pasoIdBloque);
+        }
 
         // Date (centro x=140, máx. 26mm)
         pdf.setTextColor(150, 155, 165);
@@ -10403,7 +10419,7 @@ const VWHTableModal = (props) => {
                     payrollStore,
                     kbsId,
                     'Logic Group Management',
-                    row.nombre,
+                    `${row.nombre}\nID: ${String(row.codigo || '').replace(/^'+/, '').trim()}`,
                     `${start}-${end}`,
                     row.fragmentTotal.toFixed(2),
                     row.cargo,
@@ -10720,9 +10736,12 @@ const VWHTableModal = (props) => {
                                     <tr key={idx} className="group hover:bg-blue-50/20 transition-all duration-300">
                                         <td className="p-5 text-[11px] font-bold text-gray-500 uppercase pl-8">{payrollStore}</td>
                                         <td className="p-5 text-[11px] font-bold text-gray-500 text-center tabular-nums">{kbsId}</td>
-                                        <td className="p-5 text-[10px] font-black text-gray-400 uppercase opacity-40">Logic Group</td>
+                                        <td className="p-5 text-[10px] font-black text-gray-500 uppercase opacity-100">Logic Group</td>
                                         <td className="p-5 pl-8">
-                                            <span className="text-[13px] font-black text-[#303a7f] uppercase tracking-tight group-hover:text-blue-600 transition-colors duration-500">{row.nombre}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-[13px] font-black text-[#303a7f] uppercase tracking-tight group-hover:text-blue-600 transition-colors duration-500">{row.nombre}</span>
+                                                <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-0.5">ID: {String(row.codigo || '').replace(/^'+/, '').trim()}</span>
+                                            </div>
                                         </td>
                                         <td className="p-5 text-[11px] font-bold text-gray-400 text-center whitespace-nowrap">{start}-{end}</td>
                                         <td className="p-5 text-center">
