@@ -105,8 +105,6 @@ import PixelCat from './PixelCat.jsx';
 import BiweekChecklistModal from './BiweekChecklistModal.jsx';
 import RadicarFacturasButton from './RadicarFacturas.jsx';
 
-const MobileShell = React.lazy(() => import('./mobile/MobileShell'));
-
 // ─── CONFIGURACIÓN IA: Gemini ───────────────────────────────────────────────
 // La API Key debe ser ingresada en la sección de Ajustes para evitar filtraciones.
 // ─── BASE DE DATOS: SQLite via API local (escritura) ───────────────
@@ -27390,13 +27388,6 @@ function App() {
 
     if (!user) return <LoginView onLogin={handleLogin} />;
     if (!variablesLoaded || isSyncingEmployeeCSV) return <SplashLoader />;
-    if (user && isMobile) {
-        return (
-            <React.Suspense fallback={<div className="h-screen w-full flex items-center justify-center bg-[#f9f9f9]"><div className="animate-spin w-6 h-6 border-2 border-brand-primary border-t-transparent rounded-full" /></div>}>
-                <MobileShell user={user} onLogout={() => { setUser(null); sessionStorage.clear(); }} />
-            </React.Suspense>
-        );
-    }
 
     return (
         <div
