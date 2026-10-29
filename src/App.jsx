@@ -9946,7 +9946,9 @@ const generateSpecialProjectInvoicePdf = ({ project, totalKBS, kbsId = '---', em
     // Medir observaciones
     const hasObservaciones = !!(project.comentarios && String(project.comentarios).trim());
     const obsTxt = hasObservaciones ? `"${vwhNormalizarPdf(project.comentarios)}"` : '';
-    const obsLineas = hasObservaciones ? pdfMedidor.splitTextToSize(obsTxt, anchoUtil - 16) : [];
+    pdfMedidor.setFont(fuente, 'italic');
+    pdfMedidor.setFontSize(7.2);
+    const obsLineas = hasObservaciones ? pdfMedidor.splitTextToSize(obsTxt, anchoUtil - 12) : [];
     const obsBlockH = hasObservaciones ? (8 + obsLineas.length * lineH + 5) : 0;
 
     // Calcular altura total del documento
@@ -10117,8 +10119,8 @@ const generateSpecialProjectInvoicePdf = ({ project, totalKBS, kbsId = '---', em
         pdf.text('OBSERVATIONS / NOTES', margenX + 5, y + 5);
         pdf.setTextColor(...VWH_NAVY);
         pdf.setFont(fuente, 'italic');
-        pdf.setFontSize(6);
-        pdf.text(obsLineas, margenX + 5, y + 10);
+        pdf.setFontSize(9);
+        obsLineas.forEach((ln, i) => pdf.text(ln, margenX + 5, y + 10 + i * 4));
         y += obsBlockH;
     }
 
