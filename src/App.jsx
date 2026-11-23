@@ -6554,14 +6554,14 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                     </div>
                                     <div className="group">
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-[0.2em] block mb-1 pl-1">ID Number</label>
-                                        {/* ID Number editable: permite capturar el ID del titular de la cuenta (depósitos a terceros); si se deja vacío, se usa el código del empleado */}
+                                        {/* ID Number bloqueado: se define al crear el empleado y no se puede modificar después */}
                                         <input
                                             type="text"
                                             value={isEditing ? (editedEmployee.id_number || '') : (editedEmployee.id_number || editedEmployee.codigo_empleado || '')}
                                             onChange={(e) => updateField('id_number', e.target.value)}
-                                            readOnly={!isEditing}
+                                            readOnly
                                             placeholder="ID del titular de la cuenta (Ej: 5688)"
-                                            className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3 outline-none font-bold text-xs`}
+                                            className="w-full bg-gray-100 text-gray-500 rounded-xl p-3 outline-none font-bold text-xs cursor-not-allowed"
                                         />
                                     </div>
                                 </div>
@@ -6695,10 +6695,10 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P First Name</label>
                                         <input
                                             type="text"
-                                            readOnly={!isEditing}
+                                            readOnly
                                             value={editedEmployee.first_name || ''}
                                             onChange={(e) => updateField('first_name', e.target.value)}
-                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                            className="w-full rounded-xl p-3 text-xs font-bold transition-all bg-gray-100 text-gray-500 border-transparent cursor-not-allowed"
                                             placeholder="First Name"
                                         />
                                     </div>
@@ -6706,10 +6706,10 @@ const EmployeeEditView = ({ employee, stores, onSave, onBack, onDelete }) => {
                                         <label className="text-[8px] text-gray-400 uppercase font-black tracking-widest block mb-1.5 ml-1">P Last Name / Business Name</label>
                                         <input
                                             type="text"
-                                            readOnly={!isEditing}
+                                            readOnly
                                             value={editedEmployee.last_name || ''}
                                             onChange={(e) => updateField('last_name', e.target.value)}
-                                            className={`w-full rounded-xl p-3 text-xs font-bold transition-all ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-[#6bbdb7]/20 text-[#303a7f] focus:border-[#6bbdb7]/40 outline-none'}`}
+                                            className="w-full rounded-xl p-3 text-xs font-bold transition-all bg-gray-100 text-gray-500 border-transparent cursor-not-allowed"
                                             placeholder="Last Name"
                                         />
                                     </div>
