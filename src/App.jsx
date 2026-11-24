@@ -12163,6 +12163,7 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                             pe: 0,
                             peEarnings: 0,
                             totalPay: 0,
+                            pagoServicios: 0,
                             rate: rate,
                             cargo: emp.cargo || (dbEmp ? dbEmp.cargo : 'Personal'),
                             address: fullAddress,
@@ -12176,6 +12177,11 @@ const PayrollAdvicesGlobalView = ({ isOpen, onClose, nominaHistoryData, nominaDe
                     entry.pe += Number(emp.pe || 0);
                     entry.totalPay += Number(emp.total_lgm || 0);
                     entry.stores.add(storeName);
+
+                    if (Number(emp.servicio_pago) > 0 && emp.service_mode !== true) {
+                        if (!entry.rate) entry.rate = Number(emp.rate) || 0;
+                        entry.pagoServicios = (Number(entry.pagoServicios) || 0) + (Number(emp.servicio_pago) || 0);
+                    }
 
                     // Si el rate es 0, intentamos estimarlo del registro si total_hrs > 0
                     if (entry.rate === 0 && Number(emp.total_hrs) > 0) {
@@ -13487,21 +13493,42 @@ const psCargarLogo = async () => {
 
 // Construye el objeto empleado con la misma forma que consumía la plantilla original.
 // usarFallbackPe=true replica el cálculo residual de Proyectos Especiales del Consolidado Global.
-const buildPayStubEmployee = (emp, usarFallbackPe = false) => ({
-    ...emp,
-    codigo: emp.id ? String(emp.id).split('_')[1] : emp.codigo,
-    stubId: emp.id || emp.stubId,
-    hoursW1: emp.semana1,
-    earningsW1: (parseFloat(emp.semana1) || 0) * (parseFloat(emp.rate) || 0),
-    hoursW2: emp.semana2,
-    earningsW2: (parseFloat(emp.semana2) || 0) * (parseFloat(emp.rate) || 0),
-    peEarnings: emp.peEarnings || (usarFallbackPe
-        ? (emp.totalPay - ((Number(emp.semana1) + Number(emp.semana2)) * emp.rate) - (Number(emp.csgEarnings) || 0) - (Number(emp.adminEarnings) || 0))
-        : 0),
-    csgEarnings: emp.csgEarnings || 0,
-    adminEarnings: emp.adminEarnings || 0,
-    sueldoFijo: emp.sueldoFijo || 0
-});
+const buildPayStubEmployee = (emp, usarFallbackPe = false) => {
+    // El pago de servicios realizado se integra a la línea de horas de su semana
+    // (una sola línea "Professional Services - Week N" con el monto combinado).
+    const pagoServicios = Number(emp.pagoServicios) || 0;
+    const servicios1 = Number(emp.servicios1) || 0;
+    const servicios2 = Number(emp.servicios2) || 0;
+    const totalServicios = servicios1 + servicios2;
+    let servicioW1 = 0;
+    let servicioW2 = 0;
+    if (pagoServicios > 0) {
+        if (totalServicios > 0) {
+            servicioW1 = (pagoServicios * servicios1) / totalServicios;
+            servicioW2 = pagoServicios - servicioW1;
+        } else if ((parseFloat(emp.semana2) || 0) <= 0 && (parseFloat(emp.semana1) || 0) > 0) {
+            servicioW1 = pagoServicios;
+        } else {
+            servicioW2 = pagoServicios;
+        }
+    }
+    return {
+        ...emp,
+        codigo: emp.id ? String(emp.id).split('_')[1] : emp.codigo,
+        stubId: emp.id || emp.stubId,
+        hoursW1: emp.semana1,
+        earningsW1: (parseFloat(emp.semana1) || 0) * (parseFloat(emp.rate) || 0) + servicioW1,
+        hoursW2: emp.semana2,
+        earningsW2: (parseFloat(emp.semana2) || 0) * (parseFloat(emp.rate) || 0) + servicioW2,
+        peEarnings: emp.peEarnings || (usarFallbackPe
+            ? (emp.totalPay - ((Number(emp.semana1) + Number(emp.semana2)) * emp.rate) - (Number(emp.csgEarnings) || 0) - (Number(emp.adminEarnings) || 0) - pagoServicios)
+            : 0),
+        csgEarnings: emp.csgEarnings || 0,
+        adminEarnings: emp.adminEarnings || 0,
+        sueldoFijo: emp.sueldoFijo || 0,
+        pagoServicios
+    };
+};
 
 // helper: adjunta el ajuste manual de nómina (si existe) al empleado para el recibo de pago
 const empConAjuste = (emp) => {
@@ -13740,8 +13767,8 @@ const generatePayStubPDF = async (employee, period) => {
 
         // Filas de ingresos (mismas condiciones visibles de la plantilla original)
         const filas = [];
-        if (parseFloat(employee.hoursW1) > 0) filas.push({ desc: `Professional Services - Week 1 ${w1Range}`, total: parseFloat(employee.earningsW1) || 0 });
-        if (parseFloat(employee.hoursW2) > 0) filas.push({ desc: `Professional Services - Week 2 ${w2Range}`, total: parseFloat(employee.earningsW2) || 0 });
+        if (parseFloat(employee.hoursW1) > 0 || Math.abs(parseFloat(employee.earningsW1) || 0) > 0.004) filas.push({ desc: `Professional Services - Week 1 ${w1Range}`, total: parseFloat(employee.earningsW1) || 0 });
+        if (parseFloat(employee.hoursW2) > 0 || Math.abs(parseFloat(employee.earningsW2) || 0) > 0.004) filas.push({ desc: `Professional Services - Week 2 ${w2Range}`, total: parseFloat(employee.earningsW2) || 0 });
         if (parseFloat(employee.peEarnings) > 0) filas.push({ desc: 'Special / Additional Projects', total: parseFloat(employee.peEarnings) || 0 });
         if (parseFloat(employee.csgEarnings) > 0) filas.push({ desc: 'CSG Cleaning Services', total: parseFloat(employee.csgEarnings) || 0 });
         if (parseFloat(employee.adminEarnings) > 0) filas.push({ desc: 'Administrative Services LGM', total: parseFloat(employee.adminEarnings) || 0 });
@@ -13882,7 +13909,9 @@ const generatePayStubPDF = async (employee, period) => {
         pdf.text('Generated automatically by LogicPay by AdWiser \u00A9 2026', ancho / 2, y + 5, { align: 'center' });
         y += 12;
 
-        // Nota de confidencialidad
+        // Nota de confidencialidad (medir con la misma fuente con la que se dibuja)
+        pdf.setFont(fuente, 'italic');
+        pdf.setFontSize(8);
         const confLineas = pdf.splitTextToSize(
             'CONFIDENTIALITY NOTE: This e-mail message, including any attachments, is for the sole use of the intended recipient(s) and may contain confidential and privileged information or may otherwise be protected by law. Any unauthorized review, use, disclosure or distribution is prohibited. If you are not the intended recipient, please contact the sender by reply e-mail and destroy all copies of the original message and any attachments.',
             anchoUtil - 12
@@ -13891,8 +13920,6 @@ const generatePayStubPDF = async (employee, period) => {
         pdf.setFillColor(...PS_FONDO_TARJETA);
         vwhRectRedondeado(pdf, margenX, y, anchoUtil, confH, 2.5);
         pdf.setTextColor(...PS_GRIS_ETIQUETA);
-        pdf.setFont(fuente, 'italic');
-        pdf.setFontSize(8);
         pdf.text(confLineas, margenX + 6, y + 7);
 
         return pdf.output('datauristring').split(',')[1];
