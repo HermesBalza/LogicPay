@@ -9467,7 +9467,7 @@ const vwhRectRedondeado = (pdf, x, y, w, h, r) => {
 };
 
 // Réplica exacta de la lógica de procesamiento del reporte en pantalla
-const computeVWHReportRows = ({ reportData, payrollStore, employees, start, end, isMonSun, hhmmToDecimal }) => {
+const computeVWHReportRows = ({ reportData, payrollStore, employees, start, end, isMonSun, hhmmToDecimal, serviceMode = false, montoFacturacion = 0 }) => {
     const days = isMonSun
         ? ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
         : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
@@ -9482,6 +9482,31 @@ const computeVWHReportRows = ({ reportData, payrollStore, employees, start, end,
     const isQuincenaRange = (dateEnd - dateStart) / (1000 * 60 * 60 * 24) > 7;
     const startIdx = isQuincenaRange ? 0 : dayToIndex[dateStart.getDay()];
     const endIdx = isQuincenaRange ? 6 : dayToIndex[dateEnd.getDay()];
+
+    if (serviceMode) {
+        const serviceRows = [];
+        const daysInRange = startIdx <= endIdx ? (endIdx - startIdx + 1) : (7 - startIdx + endIdx + 1);
+        reportData.forEach(emp => {
+            for (let k = 0; k < daysInRange; k++) {
+                const dayIdx = (startIdx + k) % 7;
+                const count = Math.round(hhmmToDecimal(emp[days[dayIdx]]?.final || 0));
+                if (count > 0) {
+                    const dt = new Date(dateStart);
+                    dt.setDate(dateStart.getDate() + k);
+                    serviceRows.push({
+                        nombre: emp.nombre,
+                        codigo: String(emp.codigo || '').replace(/^'+/, '').trim(),
+                        cargo: 'Service',
+                        horas: count,
+                        servicios: count,
+                        rate: montoFacturacion,
+                        fecha: `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}/${dt.getFullYear()}`
+                    });
+                }
+            }
+        });
+        return { rows: serviceRows, total: serviceRows.reduce((acc, r) => acc + r.servicios, 0) };
+    }
 
     const isDallas = String(payrollStore).trim().toLowerCase() === 'walgreens dallas';
     const rows = [];
@@ -9534,15 +9559,18 @@ const computeVWHReportRows = ({ reportData, payrollStore, employees, start, end,
 };
 
 // Construye el PDF vectorial del reporte (estilo idéntico al visor)
-const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employees, isMonSun, hhmmToDecimal }) => {
+const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employees, isMonSun, hhmmToDecimal, stores }) => {
     const isAZPEN = String(payrollStore).trim().toUpperCase() === 'UNITED PARCEL SERVICE AZPEN';
+    const serviceStore = (stores || []).find(s => String(s.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase());
+    const isServiceStore = serviceStore?.tipo_facturacion === 'servicio_realizado';
+    const montoFacturacionServicio = parseFloat(serviceStore?.monto_facturacion) || 0;
     const fuente = 'helvetica';
     const margenX = 12;
     const anchoUtil = 210 - (margenX * 2);
 
     const { rows, total } = isAZPEN
         ? { rows: [], total: 0 }
-        : computeVWHReportRows({ reportData: data, payrollStore, employees, start, end, isMonSun, hhmmToDecimal });
+        : computeVWHReportRows({ reportData: data, payrollStore, employees, start, end, isMonSun, hhmmToDecimal, serviceMode: isServiceStore, montoFacturacion: montoFacturacionServicio });
 
     // ── Página continua: se mide el contenido antes de dibujar para que la altura
     // del documento se adapte exactamente al reporte (sin división en hojas) ──
@@ -9565,7 +9593,7 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
         pdfMedidor.setFontSize(5.8);
         const jobLineas = pdfMedidor.splitTextToSize(jobTxt, 18);
         pdfMedidor.setFontSize(6);
-        const dateLineas = pdfMedidor.splitTextToSize(vwhNormalizarPdf(`${start}-${end}`), 26);
+        const dateLineas = pdfMedidor.splitTextToSize(vwhNormalizarPdf(isServiceStore ? (row.fecha || '') : `${start}-${end}`), 26);
         const rowH = Math.max(9.5, lineH * siteLineas.length, altoBloqueNombre + 2, lineH * jobLineas.length, lineH * dateLineas.length) + 3;
         return { row, siteLineas, nombreLineas, jobLineas, dateLineas, idFilaTexto, altoBloqueNombre, pasoNombreBloque, pasoIdBloque, rowH };
     });
@@ -9611,7 +9639,7 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
 
     pdf.setTextColor(...VWH_NAVY);
     pdf.setFontSize(15);
-    pdf.text(vwhNormalizarPdf('REPORTE VWH'), margenX + 15.5, y + 5);
+    pdf.text(vwhNormalizarPdf(isServiceStore ? 'SERVICE INVOICE' : 'REPORTE VWH'), margenX + 15.5, y + 5);
 
     const subtitulo = vwhNormalizarPdf(`${payrollStore} | Period: ${start} - ${end}`).toUpperCase();
     const subLineas = pdf.splitTextToSize(subtitulo, anchoUtil - 16);
@@ -9621,8 +9649,8 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
     y += 18 + Math.max(0, subLineas.length - 1) * 3.2;
 
     // Resumen informativo (Site / KBS ID / Vendor / Total)
-    const totalLabel = isAZPEN ? 'TOTAL BILLING' : 'TOTAL HOURS';
-    const totalValor = isAZPEN ? '$484.33' : total.toFixed(2);
+    const totalLabel = isServiceStore ? 'TOTAL SERVICES' : (isAZPEN ? 'TOTAL BILLING' : 'TOTAL HOURS');
+    const totalValor = isServiceStore ? String(total) : (isAZPEN ? '$484.33' : total.toFixed(2));
     const colX = [margenX + 2, margenX + 48, margenX + 88, margenX + 140];
     pdf.setFontSize(6.2);
     pdf.setTextColor(170, 175, 185);
@@ -9661,7 +9689,7 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
         pdf.text('VENDOR NAME', margenX + 61, y + 5.5, { align: 'center' });
         pdf.text('EMPLOYEE IDENTIFIER', margenX + 73, y + 5.5);
         pdf.text('DATE', margenX + 128, y + 5.5, { align: 'center' });
-        pdf.text('HOURS', margenX + 149, y + 5.5, { align: 'center' });
+        pdf.text(isServiceStore ? 'SERVICES' : 'HOURS', margenX + 149, y + 5.5, { align: 'center' });
         pdf.text('JOB CODE', margenX + 165, y + 5.5, { align: 'center' });
         pdf.text('RATE', 210 - margenX - 3, y + 5.5, { align: 'right' });
         y += 8.5;
@@ -9724,7 +9752,7 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
         pdf.setTextColor(...VWH_NAVY);
         pdf.setFont(fuente, 'bold');
         pdf.setFontSize(6.6);
-        pdf.text(isAZPEN ? 'N/A' : row.horas.toFixed(2), margenX + 149, pillY + 3.3, { align: 'center' });
+        pdf.text(isAZPEN ? 'N/A' : (isServiceStore ? String(row.servicios ?? row.horas) : row.horas.toFixed(2)), margenX + 149, pillY + 3.3, { align: 'center' });
 
         // Job Code (centro x=177, máx. 18mm por línea → hasta x=186, RATE empieza en x=187)
         pdf.setTextColor(170, 175, 185);
@@ -9752,9 +9780,9 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
     pdf.setTextColor(255, 255, 255);
     pdf.setFont(fuente, 'bold');
     pdf.setFontSize(11.5);
-    pdf.text(isAZPEN ? '$484.33' : total.toFixed(2), margenX + anchoUtil - 62, y + 8.2, { align: 'right' });
+    pdf.text(isServiceStore ? String(total) : (isAZPEN ? '$484.33' : total.toFixed(2)), margenX + anchoUtil - 62, y + 8.2, { align: 'right' });
     pdf.setFontSize(6.8);
-    pdf.text('TOTAL VENDOR WEEKLY HOURS', margenX + anchoUtil - 5, y + 7.6, { align: 'right' });
+    pdf.text(isServiceStore ? 'TOTAL VENDOR WEEKLY SERVICES' : 'TOTAL VENDOR WEEKLY HOURS', margenX + anchoUtil - 5, y + 7.6, { align: 'right' });
     y += 12;
 
     // Pie del reporte
@@ -10264,6 +10292,7 @@ const VWHTableModal = (props) => {
                     start: currentStartDate,
                     end: currentEndDate,
                     employees,
+                    stores,
                     isMonSun: isWeekMonSun(payrollStore),
                     hhmmToDecimal
                 });
@@ -10347,6 +10376,7 @@ const VWHTableModal = (props) => {
                     start: currentStartDate,
                     end: currentEndDate,
                     employees,
+                    stores,
                     isMonSun: isWeekMonSun(payrollStore),
                     hhmmToDecimal
                 });
@@ -10391,6 +10421,7 @@ const VWHTableModal = (props) => {
                 start: currentStartDate,
                 end: currentEndDate,
                 employees,
+                stores,
                 isMonSun: isWeekMonSun(payrollStore),
                 hhmmToDecimal
             });
