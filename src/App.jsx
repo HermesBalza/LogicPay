@@ -10565,6 +10565,10 @@ const VWHTableModal = (props) => {
             : ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
         let currentTotal = 0;
 
+        const serviceStore = (stores || []).find(s => String(s.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase());
+        const isServiceStore = serviceStore?.tipo_facturacion === 'servicio_realizado';
+        const montoFacturacionServicio = parseFloat(serviceStore?.monto_facturacion) || 0;
+
         const dayToIndex = {
             0: isMonSun ? 6 : 0,
             1: isMonSun ? 0 : 1,
@@ -10647,6 +10651,30 @@ const VWHTableModal = (props) => {
                 processedData.push({ ...emp, fragmentTotal: empTotalFragment, rateKBS: employeeInfo?.rateKBS || 0 });
             }
         });
+
+        const serviceRows = [];
+        if (isServiceStore) {
+            const daysInRange = startIdx <= endIdx ? (endIdx - startIdx + 1) : (7 - startIdx + endIdx + 1);
+            reportData.forEach(emp => {
+                for (let k = 0; k < daysInRange; k++) {
+                    const dayIdx = (startIdx + k) % 7;
+                    const count = Math.round(hhmmToDecimal(emp[days[dayIdx]]?.final || 0));
+                    if (count > 0) {
+                        const dt = new Date(dateStart);
+                        dt.setDate(dateStart.getDate() + k);
+                        serviceRows.push({
+                            nombre: emp.nombre,
+                            codigo: String(emp.codigo || '').replace(/^'+/, '').trim(),
+                            fecha: `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}/${dt.getFullYear()}`,
+                            servicios: count,
+                            cargo: 'Service',
+                            rate: montoFacturacionServicio
+                        });
+                    }
+                }
+            });
+        }
+        const serviceTotal = serviceRows.reduce((acc, r) => acc + r.servicios, 0);
 
         if (isAZPEN) {
             // Versión AZPEN: Estructura de 8 columnas idéntica a las otras tiendas para consistencia en PDF
@@ -10752,7 +10780,7 @@ const VWHTableModal = (props) => {
                             <ClipboardCheck size={32} />
                         </div>
                         <div>
-                            <h3 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">REPORTE VWH</h3>
+                            <h3 className="text-3xl font-black text-[#303a7f] tracking-tighter uppercase leading-none mb-1">{isServiceStore ? 'SERVICE INVOICE' : 'REPORTE VWH'}</h3>
                             <div className="flex items-center gap-3">
                                 <p className="text-[#6bbdb7] font-black uppercase text-[12px] tracking-[0.2em]">
                                     {payrollStore} | Period: {start} - {end}
@@ -10777,8 +10805,8 @@ const VWHTableModal = (props) => {
                         <p className="text-sm font-black text-[#303a7f] uppercase">Logic Group Management</p>
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">Total Hours</p>
-                        <p className="text-3xl font-black text-[#6bbdb7] tabular-nums leading-none tracking-tighter">{currentTotal.toFixed(2)}</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 opacity-60">{isServiceStore ? 'Total Services' : 'Total Hours'}</p>
+                        <p className="text-3xl font-black text-[#6bbdb7] tabular-nums leading-none tracking-tighter">{isServiceStore ? serviceTotal : currentTotal.toFixed(2)}</p>
                     </div>
                 </div>
 
@@ -10793,45 +10821,71 @@ const VWHTableModal = (props) => {
                                     <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100">Vendor Name</th>
                                     <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 pl-8">Employee Identifier</th>
                                     <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Date</th>
-                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Hours</th>
+                                    <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">{isServiceStore ? 'Services' : 'Hours'}</th>
                                     <th className="p-5 text-[9px] font-black text-[#303a7f] uppercase tracking-[0.2em] border-b-2 border-gray-100 text-center">Job Code</th>
                                     <th className="p-5 text-[9px] font-black text-white uppercase tracking-[0.2em] text-right bg-[#303a7f] px-8">Rate</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y-2 divide-gray-50">
-                                {processedData.filter(emp => emp.fragmentTotal > 0).map((row, idx) => (
-                                    <tr key={idx} className="group hover:bg-blue-50/20 transition-all duration-300">
-                                        <td className="p-5 text-[11px] font-bold text-gray-500 uppercase pl-8">{payrollStore}</td>
-                                        <td className="p-5 text-[11px] font-bold text-gray-500 text-center tabular-nums">{kbsId}</td>
-                                        <td className="p-5 text-[10px] font-black text-gray-500 uppercase opacity-100">Logic Group</td>
-                                        <td className="p-5 pl-8">
-                                            <div className="flex flex-col">
-                                                <span className="text-[13px] font-black text-[#303a7f] uppercase tracking-tight group-hover:text-blue-600 transition-colors duration-500">{row.nombre}</span>
-                                                <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-0.5">ID: {String(row.codigo || '').replace(/^'+/, '').trim()}</span>
-                                            </div>
-                                        </td>
-                                        <td className="p-5 text-[11px] font-bold text-gray-400 text-center whitespace-nowrap">{start}-{end}</td>
-                                        <td className="p-5 text-center">
-                                            <span className="px-4 py-1.5 bg-[#303a7f]/5 rounded-xl text-xs font-black text-[#303a7f] tabular-nums">
-                                                {row.fragmentTotal.toFixed(2)}
-                                            </span>
-                                        </td>
-                                        <td className="p-5 text-center">
-                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-3 py-1 rounded-md">{row.cargo}</span>
-                                        </td>
-                                        <td className="p-5 text-right px-8 bg-[#303a7f]/[0.02]">
-                                            <span className="text-xs font-black text-[#303a7f] tabular-nums">${(row.rateKBS || 0).toFixed(2)}</span>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {isServiceStore
+                                    ? serviceRows.map((row, idx) => (
+                                        <tr key={`svc-${idx}`} className="group hover:bg-blue-50/20 transition-all duration-300">
+                                            <td className="p-5 text-[11px] font-bold text-gray-500 uppercase pl-8">{payrollStore}</td>
+                                            <td className="p-5 text-[11px] font-bold text-gray-500 text-center tabular-nums">{kbsId}</td>
+                                            <td className="p-5 text-[10px] font-black text-gray-500 uppercase opacity-100">Logic Group</td>
+                                            <td className="p-5 pl-8">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[13px] font-black text-[#303a7f] uppercase tracking-tight group-hover:text-blue-600 transition-colors duration-500">{row.nombre}</span>
+                                                    <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-0.5">ID: {row.codigo}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-5 text-[11px] font-bold text-gray-400 text-center whitespace-nowrap">{row.fecha}</td>
+                                            <td className="p-5 text-center">
+                                                <span className="px-4 py-1.5 bg-[#303a7f]/5 rounded-xl text-xs font-black text-[#303a7f] tabular-nums">
+                                                    {row.servicios}
+                                                </span>
+                                            </td>
+                                            <td className="p-5 text-center">
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-3 py-1 rounded-md">{row.cargo}</span>
+                                            </td>
+                                            <td className="p-5 text-right px-8 bg-[#303a7f]/[0.02]">
+                                                <span className="text-xs font-black text-[#303a7f] tabular-nums">${(row.rate || 0).toFixed(2)}</span>
+                                            </td>
+                                        </tr>
+                                    ))
+                                    : processedData.filter(emp => emp.fragmentTotal > 0).map((row, idx) => (
+                                        <tr key={idx} className="group hover:bg-blue-50/20 transition-all duration-300">
+                                            <td className="p-5 text-[11px] font-bold text-gray-500 uppercase pl-8">{payrollStore}</td>
+                                            <td className="p-5 text-[11px] font-bold text-gray-500 text-center tabular-nums">{kbsId}</td>
+                                            <td className="p-5 text-[10px] font-black text-gray-500 uppercase opacity-100">Logic Group</td>
+                                            <td className="p-5 pl-8">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[13px] font-black text-[#303a7f] uppercase tracking-tight group-hover:text-blue-600 transition-colors duration-500">{row.nombre}</span>
+                                                    <span className="text-[9px] font-black text-[#6bbdb7] uppercase tracking-widest mt-0.5">ID: {String(row.codigo || '').replace(/^'+/, '').trim()}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-5 text-[11px] font-bold text-gray-400 text-center whitespace-nowrap">{start}-{end}</td>
+                                            <td className="p-5 text-center">
+                                                <span className="px-4 py-1.5 bg-[#303a7f]/5 rounded-xl text-xs font-black text-[#303a7f] tabular-nums">
+                                                    {row.fragmentTotal.toFixed(2)}
+                                                </span>
+                                            </td>
+                                            <td className="p-5 text-center">
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-3 py-1 rounded-md">{row.cargo}</span>
+                                            </td>
+                                            <td className="p-5 text-right px-8 bg-[#303a7f]/[0.02]">
+                                                <span className="text-xs font-black text-[#303a7f] tabular-nums">${(row.rateKBS || 0).toFixed(2)}</span>
+                                            </td>
+                                        </tr>
+                                    ))}
                                 {/* Fila de Resumen Final Premium */}
                                 <tr className="bg-[#303a7f] border-t-4 border-white">
                                     <td colSpan={5} className="p-8 text-[11px] font-black text-white uppercase tracking-[0.3em] text-right italic pr-12 opacity-80">
-                                        Total Vendor Weekly Hours
+                                        {isServiceStore ? 'Total Vendor Weekly Services' : 'Total Vendor Weekly Hours'}
                                     </td>
                                     <td className="p-8 text-center bg-[#303a7f]/90">
                                         <span className="text-2xl font-black text-white tabular-nums drop-shadow-xl tracking-tighter">
-                                            {currentTotal.toFixed(2)}
+                                            {isServiceStore ? serviceTotal : currentTotal.toFixed(2)}
                                         </span>
                                     </td>
                                     <td colSpan={2} className="bg-white/5 opacity-0"></td>
