@@ -14105,7 +14105,11 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         pe: row.pe || 0,
                         peEarnings: row.pe_earnings !== undefined ? row.pe_earnings : 0,
                         rate: row.rate !== undefined ? row.rate : (dbEmp ? (dbEmp.rateLGM || 0) : 0),
-                        sueldoFijo: row.cargo === 'Supervisor' ? row.total_lgm : 0,
+                        pagoHoras: row.pago_horas !== undefined ? (Number(row.pago_horas) || 0) : undefined,
+                        pagoServicios: Number(row.servicio_pago) || 0,
+                        servicios1: Number(row.servicios_w1) || 0,
+                        servicios2: Number(row.servicios_w2) || 0,
+                        sueldoFijo: (row.cargo === 'Supervisor' && row.es_mixto !== true) ? row.total_lgm : 0,
                         cargo: row.cargo,
                         address: fullAddress,
                         comments: row.comments || '',
@@ -14217,11 +14221,16 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         // employeeId -> { w1: [], w2: [] }
         const empDataMap = {};
 
+        const tiendasServicio = new Set((stores || [])
+            .filter(s => s?.tipo_facturacion === 'servicio_realizado')
+            .map(s => String(s.nombre).trim().toLowerCase()));
+
         const processRecords = (records, weekKey) => {
             records.forEach(record => {
                 try {
                     const data = JSON.parse(record.data_json);
                     const storeName = record.nombre;
+                    const esServicio = data.serviceMode === true || tiendasServicio.has(String(storeName).trim().toLowerCase());
                     (data.semanaTableData || []).forEach(emp => {
                         const empId = `${String(emp.nombre).trim().toLowerCase()}_${String(emp.codigo).trim()}`;
                         if (!empStoreMap[empId]) empStoreMap[empId] = new Set();
@@ -14231,7 +14240,9 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         empDataMap[empId][weekKey].push({
                             store: storeName,
                             empData: emp,
-                            earnings: (data.earningsTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId)
+                            isService: esServicio,
+                            earnings: (data.earningsTableData || []).find(e => `${String(e.nombre).trim().toLowerCase()}_${String(e.codigo).trim()}` === empId),
+                            kbs: (data.kbsBillingTableData || []).find(k => `${String(k.nombre).trim().toLowerCase()}_${String(k.codigo).trim()}` === empId)
                         });
                     });
                 } catch (e) { }
@@ -14382,6 +14393,19 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
             const w2Entries = filterStore ? data.w2.filter(e => e.store === filterStore) : data.w2;
             entriesMap[id] = { w1Entries, w2Entries, chewyWkBefore: period._isChewyPayroll ? (chewyWkBeforeData[id] || null) : null };
 
+            const regW1 = w1Entries.filter(e => !e.isService);
+            const regW2 = w2Entries.filter(e => !e.isService);
+            const svcW1 = w1Entries.filter(e => e.isService);
+            const svcW2 = w2Entries.filter(e => e.isService);
+            const contarServicios = (arr) => arr.reduce((s, e) => s + (parseFloat(e.empData?.total?.final) || 0), 0);
+            const serviciosW1 = contarServicios(svcW1);
+            const serviciosW2 = contarServicios(svcW2);
+            const moneyOf = (e) => Number(e.earnings?.total) || ((Number(e.earnings?.rate) || 0) * (parseFloat(e.empData?.total?.final) || 0));
+            const kbsOf = (e) => Number(e.kbs?.total) || ((Number(e.kbs?.rate) || 0) * (parseFloat(e.empData?.total?.final) || 0));
+            const pagoServicios = [...svcW1, ...svcW2].reduce((s, e) => s + moneyOf(e), 0);
+            const kbsServicios = [...svcW1, ...svcW2].reduce((s, e) => s + kbsOf(e), 0);
+            const horasRegularesTotales = [...regW1, ...regW2].reduce((s, e) => s + parseHours(e.empData?.total?.final), 0);
+
             let totalHoursW1, totalHoursW2;
             if (period._isChewyPayroll) {
                 const chewyParseHrs = (dayObj) => {
@@ -14391,7 +14415,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     if (s.includes(':')) { const [h, m2] = s.split(':').map(Number); return h + (m2 || 0) / 60; }
                     return parseFloat(s) || 0;
                 };
-                totalHoursW1 = w1Entries.reduce((sum, e) => {
+                totalHoursW1 = regW1.reduce((sum, e) => {
                     let hrs = 0;
                     const wkB = chewyWkBeforeData[id];
                     if (wkB) hrs += chewyParseHrs(wkB.domingo);
@@ -14399,29 +14423,33 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                     hrs += chewyParseHrs(ed.lunes) + chewyParseHrs(ed.martes) + chewyParseHrs(ed.miercoles) + chewyParseHrs(ed.jueves) + chewyParseHrs(ed.viernes) + chewyParseHrs(ed.sabado);
                     return sum + hrs;
                 }, 0);
-                if (w1Entries.length === 0 && totalHoursW1 === 0) {
+                if (regW1.length === 0 && totalHoursW1 === 0) {
                     const wkB = chewyWkBeforeData[id];
                     if (wkB) totalHoursW1 = chewyParseHrs(wkB.domingo);
                 }
-                totalHoursW2 = w2Entries.reduce((sum, e) => {
+                totalHoursW2 = regW2.reduce((sum, e) => {
                     let hrs = 0;
                     const ed = e.empData;
                     hrs += chewyParseHrs(ed.lunes) + chewyParseHrs(ed.martes) + chewyParseHrs(ed.miercoles) + chewyParseHrs(ed.jueves) + chewyParseHrs(ed.viernes) + chewyParseHrs(ed.sabado);
                     return sum + hrs;
                 }, 0);
-                totalHoursW2 += w1Entries.reduce((sum, e) => {
+                totalHoursW2 += regW1.reduce((sum, e) => {
                     const ed = e.empData;
                     return sum + chewyParseHrs(ed.domingo);
                 }, 0);
             } else {
-                totalHoursW1 = w1Entries.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0);
-                totalHoursW2 = w2Entries.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0);
+                const esPeriodoServicio = tiendasServicio.has(String(period.store || '').trim().toLowerCase());
+                totalHoursW1 = regW1.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0) + (esPeriodoServicio ? serviciosW1 : 0);
+                totalHoursW2 = regW2.reduce((sum, e) => sum + parseHours(e.empData?.total?.final), 0) + (esPeriodoServicio ? serviciosW2 : 0);
             }
 
             // Rate: Usamos el primero que encontremos (asumimos rate consistente o el de la tienda principal)
             let rate = 0;
             const firstEntry = [...w1Entries, ...w2Entries][0];
-            if (firstEntry && firstEntry.earnings) rate = Number(firstEntry.earnings.rate || 0);
+            const firstRegularEntry = [...regW1, ...regW2][0];
+            const esPeriodoServicioRate = tiendasServicio.has(String(period.store || '').trim().toLowerCase());
+            if (firstRegularEntry && firstRegularEntry.earnings) rate = Number(firstRegularEntry.earnings.rate || 0);
+            else if (esPeriodoServicioRate && firstEntry && firstEntry.earnings) rate = Number(firstEntry.earnings.rate || 0);
             else if (period._isChewyPayroll && chewyWkBeforeEarnings[id]) rate = Number(chewyWkBeforeEarnings[id].rate || 0);
 
             // Proyectos Especiales
@@ -14484,6 +14512,28 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
 
             const dbEmp = employees.find(e => String(e.nombre).trim().toLowerCase() === finalNombre.trim().toLowerCase());
             const fullAddress = dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '';
+            if (!rate && dbEmp) rate = Number(dbEmp.rateLGM) || 0;
+
+            let notaAuto = '';
+            if (serviciosW1 + serviciosW2 > 0) {
+                const porTienda = {};
+                [...regW1, ...regW2].forEach(e => {
+                    if (!porTienda[e.store]) porTienda[e.store] = { hrs: 0, dinero: 0, srv: 0 };
+                    porTienda[e.store].hrs += parseHours(e.empData?.total?.final);
+                    porTienda[e.store].dinero += moneyOf(e);
+                });
+                [...svcW1, ...svcW2].forEach(e => {
+                    if (!porTienda[e.store]) porTienda[e.store] = { hrs: 0, dinero: 0, srv: 0 };
+                    porTienda[e.store].srv += parseFloat(e.empData?.total?.final) || 0;
+                    porTienda[e.store].dinero += moneyOf(e);
+                });
+                notaAuto = Object.entries(porTienda).map(([storeNombre, v]) => {
+                    const fmt = '$' + Number(v.dinero).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    return v.srv > 0
+                        ? v.srv + (v.srv === 1 ? ' SERVICIO ' : ' SERVICIOS ') + storeNombre.toUpperCase() + ': ' + fmt
+                        : v.hrs + ' HRS ' + storeNombre.toUpperCase() + ': ' + fmt;
+                }).join('\n');
+            }
 
             return {
                 id: id,
@@ -14493,11 +14543,16 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                 pe: peTotalHours,
                 peEarnings: peTotalEarnings,
                 rate: rate,
-                cargo: cargo,
+                cargo: (serviciosW1 + serviciosW2) > 0 ? 'Servicio' : cargo,
                 address: fullAddress,
-                comments: savedCommentsMap[finalNombre.trim().toLowerCase()] || (isConsolidatedView || isNominaCompleta ? Array.from(empStoreMap[id] || []).join('\n').toUpperCase() : ''),
+                comments: savedCommentsMap[finalNombre.trim().toLowerCase()] || notaAuto || (isConsolidatedView || isNominaCompleta ? Array.from(empStoreMap[id] || []).join('\n').toUpperCase() : ''),
                 rowColor: isConsolidatedView || (isNominaCompleta && empStoreMap[id]?.size > 1) ? 'bg-amber-50/30' : 'bg-white',
-                isMultiSite: empStoreMap[id].size > 1
+                isMultiSite: empStoreMap[id].size > 1,
+                pagoServicios: esPeriodoServicioRate ? 0 : pagoServicios,
+                servicios1: serviciosW1,
+                servicios2: serviciosW2,
+                kbsServicios,
+                pagoHoras: horasRegularesTotales > 0 ? horasRegularesTotales * rate : undefined
             };
         });
 
@@ -14510,7 +14565,7 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         });
         setBiweeklyEmployees(consolidated);
         setRawEntriesData(entriesMap);
-    }, [period, nominaHistoryData, specialProjectsData, specialProjectsHistoryData, nominaDetailData, csgNominaData]);
+    }, [period, nominaHistoryData, specialProjectsData, specialProjectsHistoryData, nominaDetailData, csgNominaData, stores]);
 
     useEffect(() => {
         if (!period) return;
@@ -14585,8 +14640,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
         if (emp?.esManual) {
             return Number(emp.sueldoFijo || 0) + csgExtra;
         }
-        const baseEarnings = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
-        return baseEarnings + (emp.peEarnings || 0) + csgExtra;
+        const baseEarnings = (emp.pagoHoras !== undefined && emp.pagoHoras !== null)
+            ? (Number(emp.pagoHoras) || 0)
+            : (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
+        return baseEarnings + (emp.peEarnings || 0) + csgExtra + (Number(emp.pagoServicios) || 0);
     };
 
     // Empleados manuales como filas de nómina (solo vista Nómina Completa): monto fijo editado por el asistente
@@ -23871,7 +23928,8 @@ function App() {
                 const isSup = isSalariedSupervisor(emp);
                 const totalHrs = isSup ? 0 : Number(emp.semana1 || 0) + Number(emp.semana2 || 0) + Number(emp.pe || 0);
                 const baseEarnings = isSup ? (Number(emp.sueldoFijo) || 0) : (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * Number(emp.rate || 0);
-                const totalLGM = baseEarnings + (emp.peEarnings || 0);
+                const pagoServiciosRow = isServiceStore ? 0 : (Number(emp.pagoServicios) || 0);
+                const totalLGM = baseEarnings + (emp.peEarnings || 0) + pagoServiciosRow;
 
                 let totalKBS = 0;
                 const rateKBS = isServiceStore ? montoFacturacionServicio : (dbEmp ? (dbEmp.rateKBS || 0) : 0);
@@ -23894,6 +23952,8 @@ function App() {
 
                 if (isServiceStore) {
                     totalKBS = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * montoFacturacionServicio;
+                } else {
+                    totalKBS += Number(emp.kbsServicios) || 0;
                 }
 
                 return {
@@ -23913,6 +23973,11 @@ function App() {
                     Rate_LGM: emp.rate || 0,
                     Rate_KBS: rateKBS,
                     Servicios: isServiceStore ? (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) : 0,
+                    ...(isServiceStore
+                        ? { Service_Mode: true, Es_Mixto: false, Pago_Horas: 0, Servicios_W1: Number(emp.semana1 || 0), Servicios_W2: Number(emp.semana2 || 0), Servicio_Pago: baseEarnings }
+                        : (pagoServiciosRow > 0
+                            ? { Service_Mode: false, Es_Mixto: true, Pago_Horas: baseEarnings, Servicios_W1: Number(emp.servicios1) || 0, Servicios_W2: Number(emp.servicios2) || 0, Servicio_Pago: pagoServiciosRow }
+                            : {})),
                     PE_Earnings: emp.peEarnings || 0,
                     Fecha_Confirmacion: new Date().toLocaleString()
                 };
@@ -23968,7 +24033,15 @@ function App() {
                     comments: row.Comentarios,
                     rate: row.Rate_LGM,
                     rate_kbs: row.Rate_KBS,
-                    pe_earnings: row.PE_Earnings
+                    pe_earnings: row.PE_Earnings,
+                    ...(row.Service_Mode !== undefined ? {
+                        service_mode: row.Service_Mode,
+                        es_mixto: row.Es_Mixto,
+                        pago_horas: row.Pago_Horas,
+                        servicios_w1: row.Servicios_W1,
+                        servicios_w2: row.Servicios_W2,
+                        servicio_pago: row.Servicio_Pago
+                    } : {})
                 };
 
                 if (isWalgreensDallas(selectedBiweeklyPeriod.store)) {
