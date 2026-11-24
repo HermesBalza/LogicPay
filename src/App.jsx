@@ -14161,7 +14161,11 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                                 address: dbEmp ? `${dbEmp.address_1}, ${dbEmp.city}, ${dbEmp.state} ${dbEmp.zip}` : '',
                                 stores: new Set(),
                                 isMultiSite: false,
-                                sueldoFijo: (row.cargo === 'Supervisor' || row.cargo === 'supervisor') ? (row.total_lgm || 0) : 0
+                                sueldoFijo: ((row.cargo === 'Supervisor' || row.cargo === 'supervisor') && row.es_mixto !== true && row.service_mode !== true) ? (row.total_lgm || 0) : 0,
+                                pagoHoras: undefined,
+                                pagoServicios: 0,
+                                _pagoNuevo: false,
+                                _pagoHorasAcum: 0
                             };
                         }
                         const e = empMap[key];
@@ -14169,6 +14173,14 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         e.semana2 += (row.w2 || 0);
                         e.pe += (row.pe || 0);
                         e.peEarnings += (row.pe_earnings || 0);
+                        if (row.service_mode !== true) {
+                            const pagoHorasFila = (row.pago_horas !== undefined && row.pago_horas !== null)
+                                ? (Number(row.pago_horas) || 0)
+                                : ((Number(row.w1) || 0) + (Number(row.w2) || 0)) * (Number(row.rate) || 0);
+                            e._pagoHorasAcum += pagoHorasFila;
+                            e.pagoServicios += Number(row.servicio_pago) || 0;
+                            if (row.pago_horas !== undefined || row.es_mixto === true || row.servicio_pago !== undefined) e._pagoNuevo = true;
+                        }
                         const storeName = record.Tienda || record.tienda || '';
                         if (storeName) {
                             if (e.stores.size > 0) e.isMultiSite = true;
@@ -14176,6 +14188,13 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                         }
                     });
                 } catch (e) { }
+            });
+
+            Object.values(empMap).forEach(e => {
+                e.pagoHoras = e._pagoNuevo ? e._pagoHorasAcum : undefined;
+                if (!e._pagoNuevo) e.pagoServicios = 0;
+                delete e._pagoNuevo;
+                delete e._pagoHorasAcum;
             });
 
             const unified = mezclarEmpleadosCSG(Object.values(empMap)).map(e => ({
