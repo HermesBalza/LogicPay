@@ -24708,6 +24708,65 @@ function App() {
 
     const handleApproveWeek = async () => {
         if (!payrollStore) return;
+
+        const serviceStore = (stores || []).find(s => String(s.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase());
+        if (serviceStore?.tipo_facturacion === 'servicio_realizado') {
+            setIsLoading(true);
+            try {
+                const payload = {
+                    semanaTableData,
+                    biometricTableData,
+                    earningsTableData,
+                    kbsBillingTableData,
+                    rawBiometricData,
+                    serviceMode: true,
+                    isSplitFragment: false,
+                    fragmentRange: { start: fechaDesde, end: fechaHasta }
+                };
+                const historyObj = {
+                    nombre: payrollStore,
+                    codigo: `'WK-${fechaDesde}`,
+                    fecha_inicio: fechaDesde,
+                    fecha_fin: fechaHasta,
+                    data_json: JSON.stringify(payload)
+                };
+                await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'upsert', sheetName: 'Nomina_Historico', data: historyObj })
+                });
+                setNominaHistoryDataRaw(prev => {
+                    const updated = [...prev].filter(h => !(String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() && h.fecha_inicio === fechaDesde));
+                    updated.push(historyObj);
+                    return updated;
+                });
+                setIsWeeklyApproved(true);
+                const draftKey = `${payrollStore}_${fechaDesde}_${fechaHasta}`.replace(/\s+/g, '_');
+                const remainingDrafts = { ...payrollDrafts };
+                delete remainingDrafts[draftKey];
+                setPayrollDrafts(remainingDrafts);
+                syncVariableToDatabase('payroll_drafts', JSON.stringify(remainingDrafts));
+                fetch('/api/audit-log', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: user?.id,
+                        userName: user?.nombre,
+                        accion: 'aprobó Semana de',
+                        entidad: payrollStore,
+                        entidadNombre: `${fechaDesde} - ${fechaHasta}`
+                    })
+                }).catch(() => { });
+                showSuccess('Semana aprobada. Los servicios quedaron guardados en el historial.');
+            } catch (error) {
+                console.error('[Payroll] Error al aprobar semana de servicio:', error);
+                showError('No se pudo aprobar la semana. Verifique la conexión.');
+            } finally {
+                setIsLoading(false);
+                setIsSyncingBatch(false);
+            }
+            return;
+        }
+
         setIsLoading(true);
         try {
             const store = stores.find(s => s.nombre === payrollStore);
@@ -29076,12 +29135,6 @@ function App() {
                                     );
                                     const selectedServiceStore = (stores || []).find(s => String(s.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase());
                                     if (selectedServiceStore?.tipo_facturacion === 'servicio_realizado') {
-                                        const isServiceWeekConfirmed = (nominaDetailDataRaw || []).some(d => {
-                                            const t = String(d.Tienda || d.tienda || '').trim().toLowerCase();
-                                            if (t !== String(payrollStore).trim().toLowerCase()) return false;
-                                            const per = String(d.Periodo || d.periodo || '');
-                                            return per.includes(fechaDesde) || per.includes(fechaHasta);
-                                        });
                                         return (
                                             <ServicioRealizadoView
                                                 storeName={payrollStore}
@@ -29092,7 +29145,12 @@ function App() {
                                                 syncToDatabase={syncToDatabase}
                                                 user={user}
                                                 onRefresh={fetchNominaHistory}
-                                                isAlreadyProcessed={isServiceWeekConfirmed}
+                                                onWeeklyDataChange={(data) => {
+                                                    setSemanaTableData(data.semanaTableData);
+                                                    setEarningsTableData(data.earningsTableData);
+                                                    setKbsBillingTableData(data.kbsBillingTableData);
+                                                }}
+                                                isAlreadyProcessed={isCurrentWeekApproved}
                                             />
                                         );
                                     }
@@ -29598,6 +29656,11 @@ function App() {
                                                         </button>
                                                         <button
                                                             onClick={() => {
+                                                                const serviceStore = (stores || []).find(s => String(s.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase());
+                                                                if (serviceStore?.tipo_facturacion === 'servicio_realizado') {
+                                                                    setIsConfirmApproveModalOpen(true);
+                                                                    return;
+                                                                }
                                                                 const employeesWithZeroRates = semanaTableData
                                                                     .map(emp => {
                                                                         const employee = employees.find(e =>

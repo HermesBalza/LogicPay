@@ -74,6 +74,7 @@ const ServicioRealizadoView = ({
     syncToDatabase,
     user,
     onRefresh,
+    onWeeklyDataChange,
     isAlreadyProcessed = false,
 }) => {
     const [services, setServices] = useState([]);
@@ -123,6 +124,7 @@ const ServicioRealizadoView = ({
             });
             filtered.sort((a, b) => toTimestamp(b.fecha) - toTimestamp(a.fecha));
             setServices(filtered);
+            emitWeeklyRows(filtered);
         } catch (e) {
             setStatus({ type: 'error', message: `No se pudieron cargar los servicios: ${e.message}` });
         } finally {
@@ -165,7 +167,7 @@ const ServicioRealizadoView = ({
         return null;
     };
 
-    const reconstruirHistorialSemanal = async (lista) => {
+    const buildWeeklyRows = (lista) => {
         const byEmp = {};
         lista.forEach(s => {
             const code = String(s.codigo_empleado || '').trim();
@@ -184,8 +186,7 @@ const ServicioRealizadoView = ({
 
         const rows = Object.values(byEmp);
         if (rows.length === 0) {
-            await syncToDatabase('delete', { nombre: storeName, fecha_inicio: fechaDesde }, 'Nomina_Historico', true, ['nombre', 'fecha_inicio'], false, 'Eliminó', 'Nómina', `${storeName} (${fechaDesde} - ${fechaHasta})`);
-            return;
+            return { semanaTableData: [], earningsTableData: [], kbsBillingTableData: [] };
         }
 
         const semanaTableData = rows.map(r => {
@@ -196,30 +197,11 @@ const ServicioRealizadoView = ({
         const earningsTableData = rows.map(r => ({ nombre: r.nombre, codigo: r.codigo, rate: r.num > 0 ? (r.pago / r.num) : pagoServicio, total: r.pago, serviceMode: true }));
         const kbsBillingTableData = rows.map(r => ({ nombre: r.nombre, codigo: r.codigo, rate: r.num > 0 ? (r.fact / r.num) : montoFacturacion, total: r.fact, serviceMode: true }));
 
-        // Detalle para auditoría SIN las fotos (evita inflar Nomina_Historico).
-        const cleanServices = lista.map(s => {
-            const c = { ...s };
-            Object.keys(c).forEach(k => { if (k.startsWith('foto_')) delete c[k]; });
-            return c;
-        });
+        return { semanaTableData, earningsTableData, kbsBillingTableData };
+    };
 
-        const payload = {
-            semanaTableData,
-            earningsTableData,
-            kbsBillingTableData,
-            serviceMode: true,
-            servicios: cleanServices,
-            isSplitFragment: false,
-            fragmentRange: { start: fechaDesde, end: fechaHasta },
-        };
-        const historyObj = {
-            nombre: storeName,
-            codigo: `WK-${fechaDesde}`,
-            fecha_inicio: fechaDesde,
-            fecha_fin: fechaHasta,
-            data_json: JSON.stringify(payload),
-        };
-        await syncToDatabase('upsert', historyObj, 'Nomina_Historico', true, ['nombre', 'fecha_inicio'], false, 'Actualizó', 'Nómina', `${storeName} (${fechaDesde} - ${fechaHasta})`);
+    const emitWeeklyRows = (lista) => {
+        if (onWeeklyDataChange) onWeeklyDataChange(buildWeeklyRows(lista));
     };
 
     const handleSubmit = async () => {
@@ -268,11 +250,11 @@ const ServicioRealizadoView = ({
 
             const updated = [...services, payload];
             setServices(updated);
-            await reconstruirHistorialSemanal(updated);
+            emitWeeklyRows(updated);
             if (onRefresh) await onRefresh();
 
             setFechaDetectada(detected);
-            setStatus({ type: 'success', message: `Servicio registrado (${correlativo}) y nómina semanal actualizada.` });
+            setStatus({ type: 'success', message: `Servicio registrado (${correlativo}).` });
             setSelectedEmployee(null);
             setEmployeeSearch('');
             setNumServicios(1);
@@ -291,7 +273,7 @@ const ServicioRealizadoView = ({
             await syncToDatabase('delete', { correlativo: s.correlativo }, 'Servicios_Realizados', true, ['correlativo'], false, 'Eliminó', 'Servicio Realizado', s.correlativo);
             const updated = services.filter(x => x.correlativo !== s.correlativo);
             setServices(updated);
-            await reconstruirHistorialSemanal(updated);
+            emitWeeklyRows(updated);
             if (onRefresh) await onRefresh();
             setStatus({ type: 'success', message: 'Servicio eliminado.' });
         } catch (e) {
