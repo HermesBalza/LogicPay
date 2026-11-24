@@ -61,6 +61,9 @@ const dayNameFromDate = (value) => {
 
 const fmtUSD = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+// Normaliza texto para búsquedas por nombre (sin acentos y sin distinguir mayúsculas).
+const normalizeText = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
 // ─── Vista de registro de servicios (genérica para tiendas "Servicio Realizado") ──
 const ServicioRealizadoView = ({
     storeName,
@@ -87,24 +90,19 @@ const ServicioRealizadoView = ({
     const [viewer, setViewer] = useState({ open: false, fotos: [], idx: 0 });
     const [status, setStatus] = useState(null);
     const fileRef = useRef(null);
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
     const pagoServicio = parseFloat(store?.pago_servicio) || 0;
     const montoFacturacion = parseFloat(store?.monto_facturacion) || 0;
     const rangeOk = Boolean(fechaDesde && fechaHasta);
 
-    const employeesOfStore = useMemo(() => {
-        return (employees || []).filter(e =>
-            String(e.tienda || '').trim().toLowerCase() === String(storeName || '').trim().toLowerCase()
-        );
-    }, [employees, storeName]);
-
     const filteredEmployees = useMemo(() => {
-        const q = employeeSearch.trim().toLowerCase();
-        const base = q
-            ? employeesOfStore.filter(e => String(e.nombre || '').toLowerCase().includes(q))
-            : employeesOfStore;
-        return base.slice(0, 12);
-    }, [employeesOfStore, employeeSearch]);
+        const q = normalizeText(employeeSearch.trim());
+        if (!q) return [];
+        return (employees || [])
+            .filter(e => normalizeText(e.nombre).includes(q))
+            .slice(0, 12);
+    }, [employees, employeeSearch]);
 
     const totalPago = pagoServicio * (Number(numServicios) || 0);
     const totalFacturacion = montoFacturacion * (Number(numServicios) || 0);
@@ -289,7 +287,6 @@ const ServicioRealizadoView = ({
 
     const handleDelete = async (s) => {
         if (isAlreadyProcessed) return;
-        if (!window.confirm(`¿Eliminar el servicio ${s.correlativo}?`)) return;
         try {
             await syncToDatabase('delete', { correlativo: s.correlativo }, 'Servicios_Realizados', true, ['correlativo'], false, 'Eliminó', 'Servicio Realizado', s.correlativo);
             const updated = services.filter(x => x.correlativo !== s.correlativo);
@@ -300,6 +297,12 @@ const ServicioRealizadoView = ({
         } catch (e) {
             setStatus({ type: 'error', message: `No se pudo eliminar: ${e.message}` });
         }
+    };
+
+    const confirmDelete = async () => {
+        const target = deleteTarget;
+        setDeleteTarget(null);
+        if (target) await handleDelete(target);
     };
 
     const totales = useMemo(() => services.reduce((acc, s) => {
@@ -420,7 +423,7 @@ const ServicioRealizadoView = ({
                             <>
                                 <input
                                     className={inputCls}
-                                    placeholder={employeesOfStore.length ? 'Buscar empleado de esta tienda...' : 'No hay empleados asignados a esta tienda'}
+                                    placeholder="Escriba el nombre del empleado..."
                                     value={employeeSearch}
                                     onChange={(e) => { setEmployeeSearch(e.target.value); setShowEmpList(true); }}
                                     onFocus={() => setShowEmpList(true)}
@@ -435,7 +438,10 @@ const ServicioRealizadoView = ({
                                                 className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#303a7f]/5 text-left"
                                             >
                                                 <span className="text-xs font-bold text-[#303a7f]">{e.nombre}</span>
-                                                <span className="text-[10px] text-gray-400 ml-auto">{e.codigo_empleado}</span>
+                                                <span className="text-[10px] text-gray-400 ml-auto text-right">
+                                                    {e.codigo_empleado}
+                                                    {e.tienda ? ` · ${e.tienda}` : ''}
+                                                </span>
                                             </button>
                                         ))}
                                     </div>
@@ -536,7 +542,7 @@ const ServicioRealizadoView = ({
                                                     <Eye size={14} />
                                                 </button>
                                             )}
-                                            <button onClick={() => handleDelete(s)} disabled={isAlreadyProcessed} className="text-red-400 hover:text-red-600 disabled:opacity-30" title="Eliminar">
+                                            <button onClick={() => setDeleteTarget(s)} disabled={isAlreadyProcessed} className="text-red-400 hover:text-red-600 disabled:opacity-30" title="Eliminar">
                                                 <Trash2 size={14} />
                                             </button>
                                         </div>
@@ -557,6 +563,41 @@ const ServicioRealizadoView = ({
                             <button onClick={() => setViewer(v => ({ ...v, idx: (v.idx - 1 + v.fotos.length) % v.fotos.length }))} className="w-9 h-9 bg-white/90 rounded-full flex items-center justify-center font-black text-[#303a7f]">‹</button>
                             <button onClick={() => setViewer(v => ({ ...v, idx: (v.idx + 1) % v.fotos.length }))} className="w-9 h-9 bg-white/90 rounded-full flex items-center justify-center font-black text-[#303a7f]">›</button>
                             <button onClick={() => setViewer({ open: false, fotos: [], idx: 0 })} className="w-9 h-9 bg-red-500 text-white rounded-full flex items-center justify-center"><X size={16} /></button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {deleteTarget && (
+                <div
+                    className="fixed inset-0 z-[1300] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300"
+                    onClick={() => setDeleteTarget(null)}
+                >
+                    <div
+                        className="bg-white w-full max-w-md rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-10 text-center border-2 border-white animate-in zoom-in-95 duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="w-16 h-16 mx-auto mb-6 bg-red-50 rounded-full flex items-center justify-center">
+                            <AlertCircle size={32} className="text-red-500" />
+                        </div>
+                        <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter mb-3">¿Eliminar servicio?</h3>
+                        <p className="text-gray-400 text-[11px] font-bold leading-relaxed mb-8 uppercase tracking-[0.1em]">
+                            Se eliminará el servicio <span className="text-[#303a7f]">{deleteTarget.correlativo}</span> de{' '}
+                            <span className="text-[#303a7f]">{deleteTarget.empleado}</span> y se recalculará la nómina de la semana.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setDeleteTarget(null)}
+                                className="flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 btn-close-danger"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                className="flex-1 py-3.5 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-900/20 flex items-center justify-center gap-2"
+                            >
+                                <Trash2 size={14} /> Eliminar
+                            </button>
                         </div>
                     </div>
                 </div>
