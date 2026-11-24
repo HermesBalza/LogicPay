@@ -54,6 +54,13 @@ const toTimestamp = (value) => {
     return dt ? dt.getTime() : 0;
 };
 
+// Devuelve la fecha en formato MM/DD/YYYY con ceros a la izquierda.
+const normalizeMMDDYYYY = (value) => {
+    const dt = parseMMDDYYYY(value);
+    if (!dt) return null;
+    return `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}/${dt.getFullYear()}`;
+};
+
 const dayNameFromDate = (value) => {
     const dt = parseMMDDYYYY(value);
     return dt ? DAYS[dt.getDay()] : null;
@@ -84,7 +91,6 @@ const ServicioRealizadoView = ({
     const [employeeSearch, setEmployeeSearch] = useState('');
     const [selectedEmployee, setSelectedEmployee] = useState(null);
     const [showEmpList, setShowEmpList] = useState(false);
-    const [numServicios, setNumServicios] = useState(1);
     const [notas, setNotas] = useState('');
     const [fechaDetectada, setFechaDetectada] = useState('');
     const [fotos, setFotos] = useState([]);
@@ -92,6 +98,8 @@ const ServicioRealizadoView = ({
     const [status, setStatus] = useState(null);
     const fileRef = useRef(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [detectProgress, setDetectProgress] = useState({ done: 0, total: 0 });
+    const [review, setReview] = useState(null);
 
     const pagoServicio = parseFloat(store?.pago_servicio) || 0;
     const montoFacturacion = parseFloat(store?.monto_facturacion) || 0;
@@ -104,9 +112,6 @@ const ServicioRealizadoView = ({
             .filter(e => normalizeText(e.nombre).includes(q))
             .slice(0, 12);
     }, [employees, employeeSearch]);
-
-    const totalPago = pagoServicio * (Number(numServicios) || 0);
-    const totalFacturacion = montoFacturacion * (Number(numServicios) || 0);
 
     const fetchServices = async () => {
         setLoading(true);
@@ -153,18 +158,35 @@ const ServicioRealizadoView = ({
         }
     };
 
-    const detectarFecha = async () => {
-        if (fotos.length === 0) return null;
+    const detectarUnaFoto = async (foto) => {
         const currentYear = new Date().getFullYear();
-        const prompt = `Analiza estas fotos de evidencia de un servicio realizado y extrae la fecha en que se realizó el servicio basándote EXCLUSIVAMENTE en los timestamps o marcas de tiempo (fecha/hora) visibles en las imágenes. El año actual es ${currentYear} y TODOS los servicios registrados pertenecen a este año. Si el timestamp muestra un año diferente a ${currentYear} (como 2024 o anterior), IGNÓRALO y usa ${currentYear} como año correcto. Responde ÚNICAMENTE con la fecha en formato MM/DD/YYYY. Si no detectas ninguna fecha clara o marca de tiempo legible, responde 'ERROR'.`;
-        const imageParts = fotos.slice(0, 3).map(f => ({ inlineData: { data: f.base64, mimeType: 'image/jpeg' } }));
+        const prompt = `Analiza esta foto de evidencia de un servicio realizado y extrae la fecha en que se realizó el servicio basándote EXCLUSIVAMENTE en el timestamp o marca de tiempo (fecha/hora) visible en la imagen. El año actual es ${currentYear} y TODOS los servicios registrados pertenecen a este año. Si el timestamp muestra un año diferente a ${currentYear} (como 2024 o anterior), IGNÓRALO y usa ${currentYear} como año correcto. Responde ÚNICAMENTE con la fecha en formato MM/DD/YYYY. Si no detectas una fecha clara o marca de tiempo legible, responde 'ERROR'.`;
         try {
-            const text = (await callGemini(prompt, { contents: [prompt, ...imageParts] })).trim();
-            if (text && text !== 'ERROR' && text.includes('/')) return text;
+            const text = (await callGemini(prompt, { contents: [prompt, { inlineData: { data: foto.base64, mimeType: 'image/jpeg' } }] })).trim();
+            if (!text || text === 'ERROR' || !text.includes('/')) return null;
+            return normalizeMMDDYYYY(text);
         } catch (e) {
-            // silencioso: se informa abajo
+            return null;
         }
-        return null;
+    };
+
+    const detectarFechasPorFoto = async (lista) => {
+        const results = new Array(lista.length).fill(null);
+        let next = 0;
+        let done = 0;
+        setDetectProgress({ done: 0, total: lista.length });
+        const worker = async () => {
+            while (next < lista.length) {
+                const i = next++;
+                const fecha = await detectarUnaFoto(lista[i]);
+                results[i] = { foto: lista[i], fecha };
+                done++;
+                setDetectProgress({ done, total: lista.length });
+            }
+        };
+        const workers = Array.from({ length: Math.min(3, lista.length) }, () => worker());
+        await Promise.all(workers);
+        return results;
     };
 
     const buildWeeklyRows = (lista) => {
@@ -204,64 +226,149 @@ const ServicioRealizadoView = ({
         if (onWeeklyDataChange) onWeeklyDataChange(buildWeeklyRows(lista));
     };
 
-    const handleSubmit = async () => {
+    const analizarYRevisar = async () => {
         if (isAlreadyProcessed) return;
         if (!rangeOk) { setStatus({ type: 'error', message: 'Debe seleccionar una semana (desde/hasta) para registrar servicios.' }); return; }
         if (!selectedEmployee) { setStatus({ type: 'error', message: 'Seleccione el empleado que realizó el servicio.' }); return; }
-        if (!(Number(numServicios) >= 1)) { setStatus({ type: 'error', message: 'La cantidad de servicios debe ser al menos 1.' }); return; }
         if (fotos.length === 0) { setStatus({ type: 'error', message: 'Debe subir al menos una foto de evidencia.' }); return; }
         if (pagoServicio <= 0 || montoFacturacion <= 0) { setStatus({ type: 'error', message: 'La tienda no tiene configurados "Pago del Servicio" y/o "Monto de Facturación". Edite la tienda primero.' }); return; }
 
+        setStatus(null);
         setAnalyzing(true);
-        const detected = await detectarFecha();
+        const detections = await detectarFechasPorFoto(fotos);
         setAnalyzing(false);
-        if (!detected) { setStatus({ type: 'error', message: 'La IA no pudo detectar una fecha válida en las fotos. Use imágenes con marca de tiempo legible.' }); return; }
 
-        const t = toTimestamp(detected);
         const from = toTimestamp(fechaDesde);
         const to = toTimestamp(fechaHasta);
-        if (!t || (from && to && (t < from || t > to))) {
-            setStatus({ type: 'error', message: `La fecha detectada (${detected}) está fuera de la semana seleccionada (${fechaDesde} - ${fechaHasta}).` });
-            return;
-        }
+        const omitidas = [];
+        const byDate = {};
 
+        detections.forEach(({ foto, fecha }) => {
+            if (!fecha) {
+                omitidas.push({ foto: foto.name, motivo: 'Sin fecha legible en la foto' });
+                return;
+            }
+            const t = toTimestamp(fecha);
+            if (!t || (from && to && (t < from || t > to))) {
+                omitidas.push({ fecha, foto: foto.name, motivo: 'Fecha fuera de la semana seleccionada' });
+                return;
+            }
+            if (!byDate[fecha]) byDate[fecha] = [];
+            byDate[fecha].push(foto);
+        });
+
+        const fechas = Object.keys(byDate).sort((a, b) => toTimestamp(a) - toTimestamp(b));
+        const nuevos = [];
+        const fusiones = [];
+
+        fechas.forEach(fecha => {
+            const existente = services.find(s =>
+                normalizeMMDDYYYY(s.fecha) === fecha &&
+                String(s.tienda || '').trim().toLowerCase() === String(storeName || '').trim().toLowerCase()
+            );
+            if (existente) {
+                const mismoEmpleado = String(existente.codigo_empleado || '').trim() === String(selectedEmployee.codigo_empleado || '').trim();
+                if (!mismoEmpleado) {
+                    omitidas.push({ fecha, motivo: `Ya existe un servicio de ${existente.empleado || 'otro empleado'} en esa fecha` });
+                    return;
+                }
+                const usadas = Object.keys(existente).filter(k => k.startsWith('foto_') && existente[k]).length;
+                const disponibles = 10 - usadas;
+                if (disponibles <= 0) {
+                    omitidas.push({ fecha, motivo: 'El servicio existente ya tiene 10 fotos' });
+                    return;
+                }
+                const fotosGrupo = byDate[fecha];
+                const aAgregar = fotosGrupo.slice(0, disponibles);
+                fotosGrupo.slice(disponibles).forEach(f => omitidas.push({ fecha, foto: f.name, motivo: 'Sin espacio de fotos en el servicio existente' }));
+                fusiones.push({ service: existente, fotos: aAgregar });
+            } else {
+                nuevos.push({ fecha, fotos: byDate[fecha] });
+            }
+        });
+
+        setReview({
+            empleado: selectedEmployee,
+            nuevos,
+            fusiones,
+            omitidas,
+            totalPago: pagoServicio * nuevos.length,
+            totalFacturacion: montoFacturacion * nuevos.length,
+        });
+    };
+
+    const confirmarRegistro = async () => {
+        if (!review) return;
         setSaving(true);
         try {
-            const n = Number(numServicios);
-            const correlativo = `SR-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
-            const payload = {
-                correlativo,
-                fecha: detected,
-                tienda: storeName,
-                codigo_tienda: store?.codigo || '',
-                empleado: selectedEmployee.nombre,
-                codigo_empleado: selectedEmployee.codigo_empleado,
-                num_servicios: n,
-                pago_servicio: pagoServicio,
-                monto_facturacion: montoFacturacion,
-                total_pago: pagoServicio * n,
-                total_facturacion: montoFacturacion * n,
-                notas: notas || '',
-                estado: 'registrado',
-            };
-            fotos.forEach((f, i) => { payload[`foto_${i + 1}`] = f.base64; });
+            const year = new Date().getFullYear();
+            const base = Date.now().toString().slice(-6);
+            let seq = 0;
 
-            await syncToDatabase('upsert', payload, 'Servicios_Realizados', true, ['correlativo'], false, 'Agregó', 'Servicio Realizado', correlativo);
+            for (const grupo of review.nuevos) {
+                const correlativo = `SR-${year}-${base}-${++seq}`;
+                const payload = {
+                    correlativo,
+                    fecha: grupo.fecha,
+                    tienda: storeName,
+                    codigo_tienda: store?.codigo || '',
+                    empleado: review.empleado.nombre,
+                    codigo_empleado: review.empleado.codigo_empleado,
+                    num_servicios: 1,
+                    pago_servicio: pagoServicio,
+                    monto_facturacion: montoFacturacion,
+                    total_pago: pagoServicio,
+                    total_facturacion: montoFacturacion,
+                    notas: notas || '',
+                    estado: 'registrado',
+                };
+                grupo.fotos.forEach((f, i) => { payload[`foto_${i + 1}`] = f.base64; });
+                await syncToDatabase('upsert', payload, 'Servicios_Realizados', true, ['correlativo'], false, 'Agregó', 'Servicio Realizado', correlativo);
+            }
 
-            const updated = [...services, payload];
-            setServices(updated);
-            emitWeeklyRows(updated);
+            for (const fus of review.fusiones) {
+                const s = fus.service;
+                const actualizado = {
+                    correlativo: s.correlativo,
+                    fecha: s.fecha,
+                    tienda: s.tienda || storeName,
+                    codigo_tienda: s.codigo_tienda || store?.codigo || '',
+                    empleado: s.empleado,
+                    codigo_empleado: s.codigo_empleado,
+                    num_servicios: s.num_servicios || 1,
+                    pago_servicio: s.pago_servicio ?? pagoServicio,
+                    monto_facturacion: s.monto_facturacion ?? montoFacturacion,
+                    total_pago: s.total_pago ?? pagoServicio,
+                    total_facturacion: s.total_facturacion ?? montoFacturacion,
+                    notas: s.notas || notas || '',
+                    estado: s.estado || 'registrado',
+                };
+                for (let i = 1; i <= 10; i++) {
+                    if (s[`foto_${i}`]) actualizado[`foto_${i}`] = s[`foto_${i}`];
+                }
+                let slot = 1;
+                for (const foto of fus.fotos) {
+                    while (slot <= 10 && actualizado[`foto_${slot}`]) slot++;
+                    if (slot > 10) break;
+                    actualizado[`foto_${slot}`] = foto.base64;
+                    slot++;
+                }
+                await syncToDatabase('upsert', actualizado, 'Servicios_Realizados', true, ['correlativo'], false, 'Actualizó', 'Servicio Realizado', actualizado.correlativo);
+            }
+
+            await fetchServices();
             if (onRefresh) await onRefresh();
 
-            setFechaDetectada(detected);
-            setStatus({ type: 'success', message: `Servicio registrado (${correlativo}).` });
+            const resumen = `Servicios nuevos: ${review.nuevos.length}. Fechas con fotos agregadas: ${review.fusiones.length}. Omitidas: ${review.omitidas.length}.`;
+            setStatus({ type: 'success', message: resumen });
+            setFechaDetectada(`${review.nuevos.length + review.fusiones.length} fecha(s) procesada(s)`);
+            setReview(null);
             setSelectedEmployee(null);
             setEmployeeSearch('');
-            setNumServicios(1);
             setNotas('');
             setFotos([]);
         } catch (e) {
-            setStatus({ type: 'error', message: `No se pudo guardar el servicio: ${e.message}` });
+            setStatus({ type: 'error', message: `No se pudieron guardar los servicios: ${e.message}` });
         } finally {
             setSaving(false);
         }
@@ -432,24 +539,13 @@ const ServicioRealizadoView = ({
                         )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Cantidad de Servicios</label>
-                            <input
-                                type="number"
-                                min="1"
-                                value={numServicios}
-                                onChange={(e) => setNumServicios(e.target.value)}
-                                className={inputCls}
-                                disabled={isAlreadyProcessed}
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Fecha detectada (IA)</label>
-                            <div className="flex items-center gap-2 bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3 text-xs font-bold text-[#303a7f]">
-                                <Calendar size={14} className="text-[#6bbdb7]" />
-                                {fechaDetectada || 'Se detecta al guardar'}
-                            </div>
+                    <div>
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Detección de fechas (IA)</label>
+                        <div className="flex items-center gap-2 bg-gray-50 border-2 border-brand-primary/20 rounded-xl p-3 text-xs font-bold text-[#303a7f]">
+                            <Calendar size={14} className="text-[#6bbdb7]" />
+                            {analyzing
+                                ? `Analizando foto ${detectProgress.done}/${detectProgress.total}...`
+                                : (fechaDetectada || 'Se detectan las fechas al registrar')}
                         </div>
                     </div>
 
@@ -467,22 +563,22 @@ const ServicioRealizadoView = ({
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="bg-[#6bbdb7]/10 rounded-xl p-3 text-center">
-                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Pago Empleado</p>
-                            <p className="text-base font-black text-[#6bbdb7]">{fmtUSD(totalPago)}</p>
+                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Pago por Servicio</p>
+                            <p className="text-base font-black text-[#6bbdb7]">{fmtUSD(pagoServicio)}</p>
                         </div>
                         <div className="bg-[#303a7f]/5 rounded-xl p-3 text-center">
-                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Facturación KBS</p>
-                            <p className="text-base font-black text-[#303a7f]">{fmtUSD(totalFacturacion)}</p>
+                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Facturación por Servicio</p>
+                            <p className="text-base font-black text-[#303a7f]">{fmtUSD(montoFacturacion)}</p>
                         </div>
                     </div>
 
                     <button
-                        onClick={handleSubmit}
+                        onClick={analizarYRevisar}
                         disabled={saving || analyzing || isAlreadyProcessed}
                         className="w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-white bg-[#303a7f] hover:bg-[#252a5e] transition-all active:scale-95 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {(saving || analyzing) ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                        {analyzing ? 'Analizando fecha con IA...' : saving ? 'Guardando...' : 'Registrar Servicio'}
+                        {analyzing ? `Analizando fechas (${detectProgress.done}/${detectProgress.total})...` : saving ? 'Guardando...' : 'Registrar Servicio'}
                     </button>
                 </div>
 
@@ -545,6 +641,91 @@ const ServicioRealizadoView = ({
                             <button onClick={() => setViewer(v => ({ ...v, idx: (v.idx - 1 + v.fotos.length) % v.fotos.length }))} className="w-9 h-9 bg-white/90 rounded-full flex items-center justify-center font-black text-[#303a7f]">‹</button>
                             <button onClick={() => setViewer(v => ({ ...v, idx: (v.idx + 1) % v.fotos.length }))} className="w-9 h-9 bg-white/90 rounded-full flex items-center justify-center font-black text-[#303a7f]">›</button>
                             <button onClick={() => setViewer({ open: false, fotos: [], idx: 0 })} className="w-9 h-9 bg-red-500 text-white rounded-full flex items-center justify-center"><X size={16} /></button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {review && (
+                <div
+                    className="fixed inset-0 z-[1300] flex items-center justify-center p-4 bg-[#303a7f]/20 backdrop-blur-md animate-in fade-in duration-300"
+                    onClick={() => { if (!saving) setReview(null); }}
+                >
+                    <div
+                        className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-[0_40px_100px_rgba(48,58,127,0.3)] p-8 border-2 border-white animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-start justify-between mb-6">
+                            <div>
+                                <h3 className="text-[#303a7f] font-black text-2xl uppercase tracking-tighter leading-none">Revisión de Servicios</h3>
+                                <p className="text-[#6bbdb7] text-[10px] font-black uppercase tracking-widest mt-1">
+                                    {review.empleado.nombre} · {review.nuevos.length + review.fusiones.length} fecha(s)
+                                </p>
+                            </div>
+                            <button onClick={() => { if (!saving) setReview(null); }} className="p-2 rounded-xl btn-close-danger"><X size={18} /></button>
+                        </div>
+
+                        <div className="space-y-2 mb-4">
+                            {review.nuevos.map((g, i) => (
+                                <div key={`nuevo-${i}`} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5">
+                                    <div>
+                                        <p className="text-xs font-black text-[#303a7f]">{g.fecha}</p>
+                                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{g.fotos.length} foto(s) · nuevo servicio</p>
+                                    </div>
+                                    <span className="text-xs font-black text-[#6bbdb7]">{fmtUSD(pagoServicio)}</span>
+                                </div>
+                            ))}
+                            {review.fusiones.map((f, i) => (
+                                <div key={`fusion-${i}`} className="flex items-center justify-between bg-blue-50 rounded-xl px-4 py-2.5">
+                                    <div>
+                                        <p className="text-xs font-black text-[#303a7f]">{f.service.fecha}</p>
+                                        <p className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">{f.fotos.length} foto(s) · se agregan al servicio existente</p>
+                                    </div>
+                                    <span className="text-[9px] font-black text-[#303a7f] uppercase tracking-widest">Agregar fotos</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {review.omitidas.length > 0 && (
+                            <div className="bg-amber-50 border-2 border-amber-100 rounded-xl px-4 py-3 mb-4">
+                                <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-2">Omitidas ({review.omitidas.length})</p>
+                                <ul className="space-y-1">
+                                    {review.omitidas.map((o, i) => (
+                                        <li key={`omitida-${i}`} className="text-[10px] text-amber-700 font-bold">
+                                            {o.fecha ? `${o.fecha}: ` : ''}{o.foto ? `${o.foto} — ` : ''}{o.motivo}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                            <div className="bg-[#6bbdb7]/10 rounded-xl p-3 text-center">
+                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Pago Empleado</p>
+                                <p className="text-base font-black text-[#6bbdb7]">{fmtUSD(review.totalPago)}</p>
+                            </div>
+                            <div className="bg-[#303a7f]/5 rounded-xl p-3 text-center">
+                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Facturación KBS</p>
+                                <p className="text-base font-black text-[#303a7f]">{fmtUSD(review.totalFacturacion)}</p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => { if (!saving) setReview(null); }}
+                                disabled={saving}
+                                className="flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 btn-close-danger"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmarRegistro}
+                                disabled={saving || (review.nuevos.length === 0 && review.fusiones.length === 0)}
+                                className="flex-1 py-3.5 bg-[#303a7f] text-white rounded-2xl hover:bg-[#252a5e] transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+                            >
+                                {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                                {saving ? 'Guardando...' : 'Confirmar y Registrar'}
+                            </button>
                         </div>
                     </div>
                 </div>
