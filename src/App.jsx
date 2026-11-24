@@ -9722,7 +9722,7 @@ const generateVWHPdfDocument = ({ data, payrollStore, kbsId, start, end, employe
 
     pdf.setTextColor(...VWH_NAVY);
     pdf.setFontSize(15);
-    pdf.text(vwhNormalizarPdf(isServiceStore ? 'SERVICE INVOICE' : 'REPORTE VWH'), margenX + 15.5, y + 5);
+    pdf.text(vwhNormalizarPdf(isServiceStore ? 'SERVICE INVOICE' : 'VWH INVOICE'), margenX + 15.5, y + 5);
 
     const subtitulo = vwhNormalizarPdf(`${payrollStore} | Period: ${start} - ${end}`).toUpperCase();
     const subLineas = pdf.splitTextToSize(subtitulo, anchoUtil - 16);
