@@ -8745,8 +8745,23 @@ const GmailAttachmentChip = ({ item, removed, onPreview, onDownload, onRemove, o
                         <button
                             type="button"
                             onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => onPreview(item)}
-                            title="Previsualizar PDF"
+                            onClick={() => {
+                                if (String(item.id).startsWith('svc-')) {
+                                    const b64 = item.fotoBase64;
+                                    if (b64) {
+                                        const byteChars = atob(b64);
+                                        const bytes = new Uint8Array(byteChars.length);
+                                        for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+                                        const blob = new Blob([bytes], { type: 'image/jpeg' });
+                                        const url = URL.createObjectURL(blob);
+                                        window.open(url, '_blank');
+                                        setTimeout(() => URL.revokeObjectURL(url), 60000);
+                                    }
+                                    return;
+                                }
+                                onPreview(item);
+                            }}
+                            title={String(item.id).startsWith('svc-') ? 'Previsualizar foto' : 'Previsualizar PDF'}
                             className="w-6 h-6 rounded-full bg-white border border-gray-200 text-[#303a7f] hover:bg-[#303a7f] hover:text-white flex items-center justify-center transition-all shadow-sm active:scale-95"
                         >
                             <Eye size={12} />
@@ -8756,8 +8771,19 @@ const GmailAttachmentChip = ({ item, removed, onPreview, onDownload, onRemove, o
                         <button
                             type="button"
                             onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => onDownload(item)}
-                            title="Descargar PDF"
+                            onClick={() => {
+                                if (String(item.id).startsWith('svc-')) {
+                                    if (item.fotoBase64) {
+                                        const a = document.createElement('a');
+                                        a.href = `data:image/jpeg;base64,${item.fotoBase64}`;
+                                        a.download = item.name || 'Servicio.jpg';
+                                        a.click();
+                                    }
+                                    return;
+                                }
+                                onDownload(item);
+                            }}
+                            title={String(item.id).startsWith('svc-') ? 'Descargar foto' : 'Descargar PDF'}
                             className="w-6 h-6 rounded-full bg-white border border-gray-200 text-[#6bbdb7] hover:bg-[#6bbdb7] hover:text-white flex items-center justify-center transition-all shadow-sm active:scale-95"
                         >
                             <Download size={12} />
@@ -8883,7 +8909,7 @@ const useEmailSignature = (user, isOpen) => {
     return { signatures, signatureId, setSignatureId, selectedSignature };
 };
 
-const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, defaultTo = '', specialProjectsHistoryData = [], onPreviewAttachment, onDownloadAttachment, user = null }) => {
+const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onSend, isSending, defaultTo = '', specialProjectsHistoryData = [], onPreviewAttachment, onDownloadAttachment, user = null, stores = [] }) => {
     const formatMMDDYY = (dateStr) => {
         if (!dateStr) return "";
         const parts = dateStr.split('/');
@@ -8901,6 +8927,10 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     const [relevantSpecialProjects, setRelevantSpecialProjects] = useState([]);
     const { signatures, signatureId, setSignatureId, selectedSignature } = useEmailSignature(user, isOpen);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+    const serviceStore = (stores || []).find(s => String(s.nombre).trim().toLowerCase() === String(storeName || '').trim().toLowerCase());
+    const isServiceStore = serviceStore?.tipo_facturacion === 'servicio_realizado';
+    const [servicePhotoGroups, setServicePhotoGroups] = useState([]);
 
     // Agenda de correos: directorio de contactos + modal
     const [correos, setCorreos] = useState([]);
@@ -8926,8 +8956,18 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
     });
     const attachmentItems = useMemo(() => [
         { id: 'main', name: `${subject || 'Reporte'}.pdf`, subtitle: 'Incluido automáticamente' },
-        ...(relevantSpecialProjects || []).map(p => ({ id: p.id, name: p.fileName, subtitle: 'Special Project' }))
-    ], [subject, relevantSpecialProjects]);
+        ...(relevantSpecialProjects || []).map(p => ({ id: p.id, name: p.fileName, subtitle: 'Special Project' })),
+        ...(isServiceStore ? servicePhotoGroups.flatMap(g => {
+            const fechaSafe = String(g.fecha || '').replace(/\//g, '-');
+            const empSafe = String(g.empleado || '').trim().replace(/\s+/g, '_').replace(/[^\w\-]/g, '');
+            return g.fotos.map(f => ({
+                id: `svc-${g.correlativo}-${f.n}`,
+                name: `Servicio_${fechaSafe}_${empSafe}_${f.n}.jpg`,
+                subtitle: `Foto ${f.n} · ${g.fecha} · ${g.empleado}`,
+                fotoBase64: f.base64
+            }));
+        }) : [])
+    ], [subject, relevantSpecialProjects, isServiceStore, servicePhotoGroups]);
 
     useEffect(() => {
         if (isOpen) {
@@ -8963,10 +9003,53 @@ const VWHEmailModal = ({ isOpen, onClose, storeName, fechaDesde, fechaHasta, onS
                 newBody = `${newBody}\n\nAlso attached are the Special Projects Invoices for this period: ${found.map(p => p.label).join(', ')}.`;
             }
 
+            if (isServiceStore) {
+                newBody = `${newBody}\n\nAlso attached are the photos corresponding to the services included in this Invoice.`;
+            }
+
             setSubject(newSubject);
             setBody(newBody);
         }
-    }, [isOpen, storeName, fechaDesde, fechaHasta, specialProjectsHistoryData]);
+    }, [isOpen, storeName, fechaDesde, fechaHasta, specialProjectsHistoryData, isServiceStore]);
+
+    useEffect(() => {
+        if (!isOpen || !isServiceStore) {
+            setServicePhotoGroups([]);
+            return;
+        }
+        let cancelled = false;
+        const toTs = (v) => {
+            const p = String(v || '').split('/');
+            if (p.length !== 3) return 0;
+            const [m, d, y] = p.map(Number);
+            const dt = new Date(y, m - 1, d);
+            return isNaN(dt.getTime()) ? 0 : dt.getTime();
+        };
+        (async () => {
+            try {
+                const res = await fetch('/api/data/Servicios_Realizados', { cache: 'no-store' });
+                const all = await res.json();
+                const from = toTs(fechaDesde);
+                const to = toTs(fechaHasta);
+                const rows = (Array.isArray(all) ? all : []).filter(s => {
+                    const sameStore = String(s.tienda || '').trim().toLowerCase() === String(storeName || '').trim().toLowerCase();
+                    const t = toTs(s.fecha);
+                    return sameStore && from && to && t >= from && t <= to;
+                });
+                const groups = rows.map(s => {
+                    const fotos = Object.keys(s)
+                        .filter(k => k.startsWith('foto_') && s[k])
+                        .sort((a, b) => Number(a.replace('foto_', '')) - Number(b.replace('foto_', '')))
+                        .map(k => ({ n: Number(k.replace('foto_', '')), base64: s[k] }));
+                    return { correlativo: s.correlativo, fecha: s.fecha, empleado: s.empleado, fotos };
+                }).filter(g => g.correlativo && g.fotos.length > 0);
+                if (!cancelled) setServicePhotoGroups(groups);
+            } catch (e) {
+                if (!cancelled) setServicePhotoGroups([]);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [isOpen, isServiceStore, storeName, fechaDesde, fechaHasta]);
 
     if (!isOpen) return null;
 
@@ -10339,6 +10422,44 @@ const VWHTableModal = (props) => {
             }
             vwhAttachments.push(...specialProjectAttachments);
 
+            const emailServiceStore = (stores || []).find(s => String(s.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase());
+            if (emailServiceStore?.tipo_facturacion === 'servicio_realizado') {
+                try {
+                    const svcRes = await fetch('/api/data/Servicios_Realizados', { cache: 'no-store' });
+                    const svcAll = await svcRes.json();
+                    const toTs = (v) => {
+                        const p = String(v || '').split('/');
+                        if (p.length !== 3) return 0;
+                        const [m, d, y] = p.map(Number);
+                        const dt = new Date(y, m - 1, d);
+                        return isNaN(dt.getTime()) ? 0 : dt.getTime();
+                    };
+                    const from = toTs(currentStartDate);
+                    const to = toTs(currentEndDate);
+                    (Array.isArray(svcAll) ? svcAll : []).forEach(s => {
+                        const sameStore = String(s.tienda || '').trim().toLowerCase() === String(payrollStore || '').trim().toLowerCase();
+                        const t = toTs(s.fecha);
+                        if (!sameStore || !from || !to || t < from || t > to) return;
+                        const fechaSafe = String(s.fecha || '').replace(/\//g, '-');
+                        const empSafe = String(s.empleado || '').trim().replace(/\s+/g, '_').replace(/[^\w\-]/g, '');
+                        Object.keys(s)
+                            .filter(k => k.startsWith('foto_') && s[k])
+                            .sort((a, b) => Number(a.replace('foto_', '')) - Number(b.replace('foto_', '')))
+                            .forEach(k => {
+                                const n = Number(k.replace('foto_', ''));
+                                if (removedSet.has(`svc-${s.correlativo}-${n}`)) return;
+                                vwhAttachments.push({
+                                    name: `Servicio_${fechaSafe}_${empSafe}_${n}.jpg`,
+                                    type: 'image/jpeg',
+                                    base64: s[k]
+                                });
+                            });
+                    });
+                } catch (svcErr) {
+                    console.error('Error adjuntando fotos de servicios:', svcErr);
+                }
+            }
+
             await sendEmail('general', { to: emailData.to, cc: emailData.cc, subject: emailData.subject, body: emailData.body, attachments: vwhAttachments, signatureId: emailData.signatureId });
             fetch('/api/audit-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id, userName: user?.nombre, accion: 'envió el correo de', entidad: 'Reporte VWH', entidadNombre: `${payrollStore} - ${currentStartDate} a ${currentEndDate}` }) }).catch(() => { });
 
@@ -11053,6 +11174,7 @@ const VWHTableModal = (props) => {
                 specialProjectsHistoryData={specialProjectsHistoryData}
                 onPreviewAttachment={previewVWHAttachment}
                 onDownloadAttachment={downloadVWHAttachment}
+                stores={stores}
                 user={user}
             />
 
