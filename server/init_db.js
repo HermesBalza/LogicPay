@@ -97,7 +97,9 @@ CREATE TABLE IF NOT EXISTS Tiendas (
     "cliente" TEXT,
     "rate_csg" TEXT,
     "rate_lgm" TEXT,
-    "tipo_facturacion" TEXT DEFAULT 'domingo_a_sabado'
+    "tipo_facturacion" TEXT DEFAULT 'domingo_a_sabado',
+    "pago_servicio" TEXT,
+    "monto_facturacion" TEXT
 );
 
 -- Tabla Nomina_Historico
@@ -162,6 +164,39 @@ CREATE TABLE IF NOT EXISTS CSG_Servicios (
     "notas" TEXT,
     "estado" TEXT,
     "correo_enviado" TEXT,
+    "Fecha Rad." TEXT,
+    "Pago" TEXT,
+    "Fecha de Pago" TEXT,
+    "WOS" TEXT,
+    "Status" TEXT,
+    "foto_1" TEXT,
+    "foto_2" TEXT,
+    "foto_3" TEXT,
+    "foto_4" TEXT,
+    "foto_5" TEXT,
+    "foto_6" TEXT,
+    "foto_7" TEXT,
+    "foto_8" TEXT,
+    "foto_9" TEXT,
+    "foto_10" TEXT
+);
+
+-- Tabla Servicios_Realizados (genérica para tiendas con facturación "Servicio Realizado")
+CREATE TABLE IF NOT EXISTS Servicios_Realizados (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "correlativo" TEXT,
+    "fecha" TEXT,
+    "tienda" TEXT,
+    "codigo_tienda" TEXT,
+    "empleado" TEXT,
+    "codigo_empleado" TEXT,
+    "num_servicios" TEXT,
+    "pago_servicio" TEXT,
+    "monto_facturacion" TEXT,
+    "total_pago" TEXT,
+    "total_facturacion" TEXT,
+    "notas" TEXT,
+    "estado" TEXT,
     "Fecha Rad." TEXT,
     "Pago" TEXT,
     "Fecha de Pago" TEXT,
@@ -283,6 +318,20 @@ try {
 try {
     db.exec(`ALTER TABLE Tiendas ADD COLUMN "tipo_facturacion" TEXT DEFAULT 'domingo_a_sabado'`);
     console.log('Columna tipo_facturacion agregada a Tiendas.');
+} catch (e) {
+    // Columna ya existe, ignorar
+}
+
+try {
+    db.exec(`ALTER TABLE Tiendas ADD COLUMN "pago_servicio" TEXT`);
+    console.log('Columna pago_servicio agregada a Tiendas.');
+} catch (e) {
+    // Columna ya existe, ignorar
+}
+
+try {
+    db.exec(`ALTER TABLE Tiendas ADD COLUMN "monto_facturacion" TEXT`);
+    console.log('Columna monto_facturacion agregada a Tiendas.');
 } catch (e) {
     // Columna ya existe, ignorar
 }

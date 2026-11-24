@@ -144,6 +144,7 @@ const ENTITY_MAP = {
     Usuarios: 'Usuario', Nomina_Historico: 'Nómina', Nomina_Detalle: 'Detalle Nómina',
     Admin_Nomina_Historico: 'Nómina Admin', Proyectos_Especiales: 'Proyecto Especial',
     WOS: 'WOS', WOS_CSG: 'WOS CSG', CSG_Servicios: 'Servicio CSG',
+    Servicios_Realizados: 'Servicio Realizado',
     CSG_Nomina: 'Nómina CSG', VASchedule: 'Horario', Variables: 'Variable',
     CRM_Candidatos: 'Contacto', CRM_Proveedores: 'Proveedor',
     CRM_Proyectos: 'Proyecto', CRM_Cotizaciones: 'Cotización',
@@ -290,7 +291,7 @@ app.get('/api/table-info/:table', (req, res) => {
   const table = req.params.table;
   const allowedTables = [
     'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle',
-    'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
+    'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios', 'Servicios_Realizados',
     'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
     'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
     'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios', 'AuditLog', 'Correos'
@@ -318,7 +319,7 @@ app.post('/api/alter-table', (req, res) => {
 
   const allowedTables = [
     'Tiendas', 'Personal', 'Nomina_Historico', 'Nomina_Detalle',
-    'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios',
+    'Proyectos_Especiales', 'WOS', 'Variables', 'CSG_Servicios', 'Servicios_Realizados',
     'CSG_Nomina', 'Personal_Admin', 'Admin_Nomina_Historico', 'WOS_CSG',
     'CRM_Candidatos', 'CRM_Proveedores', 'CRM_Proyectos', 'CRM_Cotizaciones',
     'VASchedule', 'Notas', 'NotasLeidas', 'Usuarios', 'AuditLog', 'Gastos_Miscelaneos'

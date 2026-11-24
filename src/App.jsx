@@ -104,6 +104,7 @@ import NotificationBell from './NotificationBell.jsx';
 import PixelCat from './PixelCat.jsx';
 import BiweekChecklistModal from './BiweekChecklistModal.jsx';
 import RadicarFacturasButton from './RadicarFacturas.jsx';
+import ServicioRealizadoView from './ServicioRealizadoView.jsx';
 
 const MobileShell = React.lazy(() => import('./mobile/MobileShell'));
 
@@ -266,6 +267,7 @@ const isWeekMonSun = (storeName) => {
     const store = _storesRef.find(s => s.nombre === storeName);
     if (store?.tipo_facturacion === 'lunes_a_domingo') return true;
     if (store?.tipo_facturacion === 'domingo_a_sabado') return false;
+    if (store?.tipo_facturacion === 'servicio_realizado') return false;
     return String(storeName).includes('Chewy');
 };
 const isWalgreensDallas = (name) => String(name).trim().toLowerCase() === 'walgreens dallas';
@@ -557,6 +559,8 @@ const csvRowToStore = (flat) => ({
     // ─── Campos CSG (fallback seguro: tiendas KBS sin estos campos siguen funcionando igual) ───
     cliente: flat.cliente || flat.Cliente || 'KBS',
     tipo_facturacion: flat.tipo_facturacion || 'domingo_a_sabado',
+    pago_servicio: parseFloat(flat.pago_servicio) || 0,
+    monto_facturacion: parseFloat(flat.monto_facturacion) || 0,
     rate_csg: parseFloat(flat.rate_csg || flat['Rate CSG'] || flat['rate csg'] || 0) || 0,
     rate_lgm: parseFloat(flat.rate_lgm || flat.rate_lgm_csg || flat['Rate LGM CSG'] || flat['rate lgm'] || flat['Rate LGM'] || 0) || 0,
     tarifas: {
@@ -2740,6 +2744,8 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
 
     const [editedStore, setEditedStore] = useState({
         ...store,
+        pago_servicio: store.pago_servicio || '',
+        monto_facturacion: store.monto_facturacion || '',
         tarifas: {
             ...defaultTarifas,
             ...(store.tarifas || {}),
@@ -2976,13 +2982,43 @@ const StoreEditView = ({ store, allEmployees = [], onSave, onBack, onDelete, onP
                                         >
                                             <option value="domingo_a_sabado">Domingo a Sábado</option>
                                             <option value="lunes_a_domingo">Lunes a Domingo</option>
+                                            <option value="servicio_realizado">Servicio Realizado</option>
                                         </select>
                                     ) : (
                                         <div className="w-full bg-gray-100 text-gray-500 border-transparent rounded-xl p-3.5 font-bold text-sm">
-                                            {editedStore.tipo_facturacion === 'lunes_a_domingo' ? 'Lunes a Domingo' : 'Domingo a Sábado'}
+                                            {editedStore.tipo_facturacion === 'lunes_a_domingo' ? 'Lunes a Domingo' : editedStore.tipo_facturacion === 'servicio_realizado' ? 'Servicio Realizado' : 'Domingo a Sábado'}
                                         </div>
                                     )}
                                 </div>
+
+                                {editedStore.tipo_facturacion === 'servicio_realizado' && (
+                                    <>
+                                        <div className="group">
+                                            <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Pago del Servicio</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={editedStore.pago_servicio || ''}
+                                                onChange={(e) => updateField('pago_servicio', e.target.value)}
+                                                readOnly={!isEditing}
+                                                placeholder="Monto a pagar al empleado por servicio (USD)"
+                                                className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
+                                            />
+                                        </div>
+                                        <div className="group">
+                                            <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Monto de Facturación</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={editedStore.monto_facturacion || ''}
+                                                onChange={(e) => updateField('monto_facturacion', e.target.value)}
+                                                readOnly={!isEditing}
+                                                placeholder="Monto a cobrar a KBS por servicio (USD)"
+                                                className={`w-full ${!isEditing ? 'bg-gray-100 text-gray-500 border-transparent' : 'bg-gray-50 border-2 border-brand-primary/20 text-[#333333]'} rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm`}
+                                            />
+                                        </div>
+                                    </>
+                                )}
 
                                 <div className="group">
                                     <label className="text-[9px] text-[#6bbdb7] uppercase font-black tracking-widest block mb-1 pl-1">Estado (US)</label>
@@ -3318,7 +3354,9 @@ const StoreAddView = ({ onSave, onBack }) => {
         },
         employees: [],
         cliente: 'KBS',
-        tipo_facturacion: 'domingo_a_sabado'
+        tipo_facturacion: 'domingo_a_sabado',
+        pago_servicio: '',
+        monto_facturacion: ''
     });
 
     const updateField = (field, value) => {
@@ -3477,8 +3515,35 @@ const StoreAddView = ({ onSave, onBack }) => {
                                     >
                                         <option value="domingo_a_sabado">Domingo a Sábado</option>
                                         <option value="lunes_a_domingo">Lunes a Domingo</option>
+                                        <option value="servicio_realizado">Servicio Realizado</option>
                                     </select>
                                 </div>
+                                {newStore.tipo_facturacion === 'servicio_realizado' && (
+                                    <>
+                                        <div className="group">
+                                            <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Pago del Servicio</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={newStore.pago_servicio || ''}
+                                                onChange={(e) => updateField('pago_servicio', e.target.value)}
+                                                placeholder="Monto a pagar al empleado por servicio (USD)"
+                                                className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                            />
+                                        </div>
+                                        <div className="group">
+                                            <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Monto de Facturación</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={newStore.monto_facturacion || ''}
+                                                onChange={(e) => updateField('monto_facturacion', e.target.value)}
+                                                placeholder="Monto a cobrar a KBS por servicio (USD)"
+                                                className="w-full bg-gray-50 border-2 border-brand-primary/20 text-[#333333] rounded-xl p-3.5 outline-none focus:border-[#303a7f]/30 focus:bg-white transition-all font-bold text-sm"
+                                            />
+                                        </div>
+                                    </>
+                                )}
                                 <div className="group">
                                     <label className="text-[9px] text-gray-400 uppercase font-black tracking-widest block mb-1 pl-1">Dirección Oficial</label>
                                     <div className="relative">
@@ -13684,7 +13749,7 @@ const isSalariedSupervisor = (emp) => {
     return cargo === 'supervisor' && Number(emp?.sueldoFijo || 0) > 0;
 };
 
-const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, csgNominaData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, onConfirmPayroll, onDesconfirmarPayroll, onBack, user }) => {
+const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetailData, csgNominaData, processedBiweeks, setIsPEModalOpen, setPayrollStore, setFechaDesde, setFechaHasta, specialProjectsData, specialProjectsHistoryData, setSpecialProjectsData, employees, stores, onConfirmPayroll, onDesconfirmarPayroll, onBack, user }) => {
     // 1. Estados para ajustes y datos procesados
     const [biweeklyEmployees, setBiweeklyEmployees] = useState([]);
     const [addedSupervisors, setAddedSupervisors] = useState([]);
@@ -13708,6 +13773,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [dailyDetailsData, setDailyDetailsData] = useState({});
     const [rawEntriesData, setRawEntriesData] = useState({});
+    const isServiceStore = useMemo(() => {
+        const s = (stores || []).find(x => String(x.nombre).trim().toLowerCase() === String(period?.store || '').trim().toLowerCase());
+        return s?.tipo_facturacion === 'servicio_realizado';
+    }, [stores, period]);
 
     // ─── Ajustes de Nómina (vista Nómina Completa) ───
     const [ajustesNomina, setAjustesNomina] = useState({}); // { [empId]: { ajuste, comentario } }
@@ -15228,10 +15297,10 @@ const BiweeklyPayrollManagementView = ({ period, nominaHistoryData, nominaDetail
                             <thead>
                                 <tr className="bg-[#303a7f] text-white">
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10 w-[160px]">Name</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[80px]">SEMANA 1</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[80px]">SEMANA 2</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[80px]">{isServiceStore ? 'SERVICIOS 1' : 'SEMANA 1'}</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[80px]">{isServiceStore ? 'SERVICIOS 2' : 'SEMANA 2'}</th>
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[60px]">P.E</th>
-                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[70px]">TOTAL</th>
+                                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[70px]">{isServiceStore ? 'TOTAL SERV.' : 'TOTAL'}</th>
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-center border-r border-white/10 w-[75px]">RATE</th>
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-right border-r border-white/10 w-[120px]">PAGO TOTAL</th>
                                     {esVistaNominaCompleta && (
@@ -23584,6 +23653,10 @@ function App() {
         try {
             // 1. Preparar datos para Nomina_Detalle
             // Los empleados puro CSG no entran a Nomina_Detalle: su pago vive en CSG_Nomina y se suma por lectura directa
+            const serviceStoreObj = (stores || []).find(s => String(s.nombre).trim().toLowerCase() === String(selectedBiweeklyPeriod.store).trim().toLowerCase());
+            const isServiceStore = serviceStoreObj?.tipo_facturacion === 'servicio_realizado';
+            const montoFacturacionServicio = parseFloat(serviceStoreObj?.monto_facturacion) || 0;
+
             const nominaDetalleRows = biweeklyEmployees
                 .filter(emp => !(Number(emp.csgEarnings) > 0 && !Number(emp.sueldoFijo) && !Number(emp.semana1) && !Number(emp.semana2) && !Number(emp.pe) && !Number(emp.peEarnings)))
                 .map(emp => {
@@ -23594,7 +23667,7 @@ function App() {
                 const totalLGM = baseEarnings + (emp.peEarnings || 0);
 
                 let totalKBS = 0;
-                const rateKBS = dbEmp ? (dbEmp.rateKBS || 0) : 0;
+                const rateKBS = isServiceStore ? montoFacturacionServicio : (dbEmp ? (dbEmp.rateKBS || 0) : 0);
                 if (!isSup) {
                     if (dbEmp) {
                         // Fuente única de verdad: Rate Personal KBS del Empleado
@@ -23610,6 +23683,10 @@ function App() {
                             }
                         });
                     }
+                }
+
+                if (isServiceStore) {
+                    totalKBS = (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) * montoFacturacionServicio;
                 }
 
                 return {
@@ -23628,6 +23705,7 @@ function App() {
                     Comentarios: emp.comments || '',
                     Rate_LGM: emp.rate || 0,
                     Rate_KBS: rateKBS,
+                    Servicios: isServiceStore ? (Number(emp.semana1 || 0) + Number(emp.semana2 || 0)) : 0,
                     PE_Earnings: emp.peEarnings || 0,
                     Fecha_Confirmacion: new Date().toLocaleString()
                 };
@@ -28996,6 +29074,28 @@ function App() {
                                         String(h.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase() &&
                                         h.fecha_inicio === fechaDesde
                                     );
+                                    const selectedServiceStore = (stores || []).find(s => String(s.nombre).trim().toLowerCase() === String(payrollStore).trim().toLowerCase());
+                                    if (selectedServiceStore?.tipo_facturacion === 'servicio_realizado') {
+                                        const isServiceWeekConfirmed = (nominaDetailDataRaw || []).some(d => {
+                                            const t = String(d.Tienda || d.tienda || '').trim().toLowerCase();
+                                            if (t !== String(payrollStore).trim().toLowerCase()) return false;
+                                            const per = String(d.Periodo || d.periodo || '');
+                                            return per.includes(fechaDesde) || per.includes(fechaHasta);
+                                        });
+                                        return (
+                                            <ServicioRealizadoView
+                                                storeName={payrollStore}
+                                                store={selectedServiceStore}
+                                                employees={employees}
+                                                fechaDesde={fechaDesde}
+                                                fechaHasta={fechaHasta}
+                                                syncToDatabase={syncToDatabase}
+                                                user={user}
+                                                onRefresh={fetchNominaHistory}
+                                                isAlreadyProcessed={isServiceWeekConfirmed}
+                                            />
+                                        );
+                                    }
                                     return !isCurrentWeekApproved && (
                                         <>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
@@ -30536,6 +30636,7 @@ function App() {
                     specialProjectsHistoryData={specialProjectsHistoryData}
                     setSpecialProjectsData={setSpecialProjectsData}
                     employees={employees}
+                    stores={stores}
                     onConfirmPayroll={handleConfirmPayroll}
                     onDesconfirmarPayroll={handleDesconfirmarPayroll}
                     user={user}
